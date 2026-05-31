@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum BookingChannel {
+  VIATOR
+  GETYOURGUIDE
+  WHATSAPP
+  HOTEL_DIRECT
+  WEBSITE
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+model PromoCode {
+  id              String       @id @default(uuid())
+  code            String       @unique
+  discountType    DiscountType
+  discountValue   Decimal
+  currency        String       @default("EGP")
+  minBookingValue Decimal       @default(0)
+  maxUses         Int
+  usedCount       Int          @default(0)
+  expiresAt       DateTime
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  bookings Booking[]
+
+  @@index([code, isActive])
+}
+
+enum TourType {
+  SHARED
+  PRIVATE
+}
+
+model Zone {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  transferFee Float    @default(0)
+  createdAt   DateTime @default(now())
+
+  tours     Tour[]
+  bookings  Booking[]
+}
+
+model Tour {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  type         TourType
+  basePriceUSD Float
+  durationHours  Int
+  maxCapacity    Int
+  zoneId         String
+  translations   Json
+
+  // Media
+  coverImage    String?
+  galleryImages String[]
+
+  // Marketing & Value Points
+  highlights String[]
+  inclusions String[]
+  exclusions String[]
+
+  // Logistics & Operations
+  itinerary           Json?
+  whatToBring         String?
+  pickupDescription   String?
+  hotelPickupIncluded Boolean  @default(false)
+
+  // Detailed Pricing Tiers
+  adultPrice Float
+
+  childPrice  Float?
+  childMinAge Int?   @default(3)
+  childMaxAge Int?   @default(11)
+
+  infantPrice  Float?
+  infantMinAge Int?  @default(0)
+  infantMaxAge Int?  @default(2)
+
+  ageRestrictionsNotes String?
+
+  // Analytics & Reporting
+  costPerPerson Decimal?
+
+  // Legacy
+  images    String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  zone Zone @relation(fields: [zoneId], references: [id])
+
+  bookings    Booking[]
+  mediaAssets MediaAsset[]
+}
+
+model Booking {
+  id               String        @id @default(uuid())
+  bookingReference String        @unique
+  tourId           String
+  zoneId           String
+  hotelName        String
+  travelDate       DateTime
+  guestCount       Int
+  totalPriceUSD    Float
+  customerName     String
+  customerEmail    String
+  customerPhone    String
+  language         String        @default("en")
+  status           BookingStatus @default(PENDING)
+  paymentStatus      String?
+  paymentGatewayLogs Json     @default("[]")
+
+  isCheckedIn  Boolean    @default(false)
+  checkedInAt  DateTime?
+  checkInLog   Json       @default("[]")
+
+  channel          BookingChannel @default(WEBSITE)
+
+  roomNumber       String?
+
+  promoCodeId      String?
+  promoCode        PromoCode?    @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tour Tour @relation(fields: [tourId], references: [id])
+  zone Zone @relation(fields: [zoneId], references: [id])
+
+  @@index([tourId])
+  @@index([bookingReference])
+}
+
+model MediaAsset {
+  id           String   @id @default(cuid())
+  filename     String
+  filePath     String
+  displayOrder Int      @default(0)
+  mimeType     String
+  tourId       String
+  tour         Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tourId])
+}
