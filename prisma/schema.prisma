@@ -151,9 +151,10 @@ model Tour {
   zone       Zone       @relation(fields: [zoneId], references: [id])
   destination Destination? @relation(fields: [destinationId], references: [id])
 
-  bookings    Booking[]
-  mediaAssets MediaAsset[]
-  reviews     Review[]
+  bookings      Booking[]
+  mediaAssets   MediaAsset[]
+  reviews       Review[]
+  tourTimeSlots TourTimeSlot[]
 }
 
 model Booking {
@@ -194,6 +195,9 @@ model Booking {
 
   // Customer profile link
   customerProfileId String?
+
+  // WhatsApp opt-in
+  whatsappOptIn Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -252,6 +256,32 @@ model CustomerProfile {
   updatedAt        DateTime  @updatedAt
 
   @@index([email])
+}
+
+model TourTimeSlot {
+  id                String  @id @default(cuid())
+  tourId            String
+  label             String
+  maxCapacityPerSlot Int
+  createdAt         DateTime @default(now())
+
+  tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@index([tourId])
+}
+
+model NotificationLog {
+  id           String   @id @default(cuid())
+  bookingId    String
+  channel      String
+  recipient    String
+  status       String
+  errorMessage String?
+  messageId    String?
+  sentAt       DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@index([bookingId])
 }
 
 model SystemSetting {
