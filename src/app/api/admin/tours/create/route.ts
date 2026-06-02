@@ -36,9 +36,10 @@ export async function POST(request: NextRequest) {
       infantMinAge,
       infantMaxAge,
       ageRestrictionsNotes,
+      destinationId,
     } = body;
 
-    if (!slug || !type || basePriceUSD === undefined || durationHours === undefined || maxCapacity === undefined || !zoneId || !translations) {
+    if (!slug || !type || basePriceUSD === undefined || durationHours === undefined || maxCapacity === undefined || !zoneId || !destinationId || !translations) {
       return NextResponse.json(
         { error: 'Missing required fields', field: '' },
         { status: 400 }
@@ -164,7 +165,8 @@ export async function POST(request: NextRequest) {
         basePriceUSD,
         durationHours,
         maxCapacity,
-        zoneId,
+        destination: { connect: { id: destinationId } },
+        zone: { connect: { id: zoneId } },
         translations,
         images: [],
         coverImage: coverImage || null,
