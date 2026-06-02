@@ -19,7 +19,7 @@ export default async function DestinationsPage() {
       id: d.id,
       slug: d.slug,
       name: d.name,
-      description: d.description,
+      description: d.description ?? '',
       imageUrl: d.imageUrl,
       translations,
       tourCount: d._count.tours,

@@ -15,6 +15,12 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum BookingChannel {
   VIATOR
   GETYOURGUIDE
@@ -52,12 +58,31 @@ enum TourType {
   PRIVATE
 }
 
+model Destination {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  imageUrl    String?
+  translations Json    @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tours Tour[]
+  zones Zone[]
+
+  @@index([slug])
+}
+
 model Zone {
   id          String   @id @default(cuid())
   name        String   @unique
   transferFee Float    @default(0)
+  pickupOffset Float?
+  destinationId String?
   createdAt   DateTime @default(now())
 
+  destination Destination? @relation(fields: [destinationId], references: [id])
   tours     Tour[]
   bookings  Booking[]
 }
@@ -67,19 +92,34 @@ model Tour {
   slug         String   @unique
   type         TourType
   basePriceUSD Float
+  basePrice    Float?
   durationHours  Int
+  duration     String?
   maxCapacity    Int
   zoneId         String
+  destinationId  String?
   translations   Json
 
   // Media
   coverImage    String?
   galleryImages String[]
+  thumbnailUrl  String?
 
   // Marketing & Value Points
   highlights String[]
   inclusions String[]
   exclusions String[]
+  category   String?
+  status     String?
+
+  // Ratings
+  ratingAverage Float @default(0)
+  ratingCount   Int   @default(0)
+
+  // Payment Policy
+  allowDeposit       Boolean @default(false)
+  depositPercentage  Int     @default(0)
+  allowPayAtLocation Boolean @default(false)
 
   // Logistics & Operations
   itinerary           Json?
@@ -108,10 +148,12 @@ model Tour {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  zone Zone @relation(fields: [zoneId], references: [id])
+  zone       Zone       @relation(fields: [zoneId], references: [id])
+  destination Destination? @relation(fields: [destinationId], references: [id])
 
   bookings    Booking[]
   mediaAssets MediaAsset[]
+  reviews     Review[]
 }
 
 model Booking {
@@ -142,14 +184,81 @@ model Booking {
   promoCodeId      String?
   promoCode        PromoCode?    @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
 
+  // Payment fields
+  paymentScheme    String?
+  amountPaidOnline Float?
+  amountDueOnArrival Float?
+
+  // Scheduling
+  timeSlotId       String?
+
+  // Customer profile link
+  customerProfileId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   tour Tour @relation(fields: [tourId], references: [id])
   zone Zone @relation(fields: [zoneId], references: [id])
 
+  transaction Transaction?
+
   @@index([tourId])
   @@index([bookingReference])
+}
+
+model Transaction {
+  id               String  @id @default(cuid())
+  bookingId        String  @unique
+  provider         String
+  gatewayReference String?
+  amountPaidOnline  Float
+  amountDueOnArrival Float  @default(0)
+  scheme           String?
+  status           String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+model Review {
+  id           String       @id @default(cuid())
+  tourId       String
+  customerName String
+  rating       Int
+  comment      String?
+  status       ReviewStatus @default(PENDING)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@index([tourId])
+  @@index([status])
+}
+
+model CustomerProfile {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String
+  phone            String?
+  isShadow         Boolean   @default(false)
+  invitedAt        DateTime?
+  lastMagicLinkAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([email])
+}
+
+model SystemSetting {
+  key   String @id
+  value Json
+
+  @@map("system_settings")
 }
 
 model MediaAsset {

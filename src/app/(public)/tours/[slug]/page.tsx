@@ -102,7 +102,10 @@ export default async function TourDetailPage({ params }: Props) {
   }));
 
   const reviews: ApprovedReview[] = approvedReviews.map((r) => ({
-    ...r,
+    id: r.id,
+    customerName: r.customerName,
+    rating: r.rating,
+    comment: r.comment ?? '',
     createdAt: r.createdAt.toISOString(),
   }));
 
@@ -132,7 +135,7 @@ export default async function TourDetailPage({ params }: Props) {
           ratingAverage: tour.ratingAverage,
           ratingCount: tour.ratingCount,
           category: tour.category,
-          destination: tour.destination,
+          destination: tour.destination ?? { name: '', slug: '' },
           highlights: tour.highlights as string[],
           inclusions: tour.inclusions as string[],
           exclusions: tour.exclusions as string[],
