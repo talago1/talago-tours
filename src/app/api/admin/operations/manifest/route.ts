@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { buildManifest } from '@/utils/manifestQueryBuilder';
 import type { ManifestResponse } from '@/types/manifest';
