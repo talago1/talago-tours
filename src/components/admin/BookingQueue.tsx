@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 import BookingRowActions from './BookingRowActions';
+import { ChevronDown, ChevronRight, Hotel, MapPin, Users, Hash, Plane, Bed, AlertCircle } from 'lucide-react';
 
 interface BookingQueueProps {
   initialBookings: ActiveQueueTicket[];
@@ -11,7 +12,7 @@ interface BookingQueueProps {
 function SkeletonRow() {
   return (
     <tr className="animate-pulse">
-      {[...Array(7)].map((_, i) => (
+      {[...Array(8)].map((_, i) => (
         <td key={i} className="px-4 py-3">
           <div className="h-4 rounded bg-white/5" />
         </td>
@@ -34,13 +35,90 @@ function SkeletonCard() {
   );
 }
 
+function ExpandedDetails({ booking }: { booking: ActiveQueueTicket }) {
+  return (
+    <div className="bg-[#121E36] p-6 rounded-2xl border border-white/5 my-2 mx-4 animate-fade-in">
+      <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <Hotel className="h-3.5 w-3.5 text-[#00E5FF]" />
+            Hotel Name
+          </div>
+          <p className="mt-1 text-sm font-semibold text-white">{booking.hotelName || '—'}</p>
+        </div>
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <Hash className="h-3.5 w-3.5 text-[#FFD700]" />
+            Room Number
+          </div>
+          <p className="mt-1 text-sm font-semibold text-white">{booking.roomNumber || '—'}</p>
+        </div>
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <MapPin className="h-3.5 w-3.5 text-emerald-400" />
+            Pickup Time
+          </div>
+          <p className="mt-1 text-sm font-semibold text-white">{booking.pickupTime || '—'}</p>
+        </div>
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <Users className="h-3.5 w-3.5 text-purple-400" />
+            Guests
+          </div>
+          <p className="mt-1 text-sm font-semibold text-white">{booking.guestCount}</p>
+        </div>
+      </div>
+
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Logistics & Requirements</span>
+        <div className="h-px flex-1 bg-white/5" />
+      </div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <MapPin className="h-3.5 w-3.5 text-[#00E5FF]" />
+            Pickup Directives
+          </div>
+          <p className="mt-1 text-sm font-semibold text-white">{booking.pickupDirectives || '—'}</p>
+        </div>
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <Plane className="h-3.5 w-3.5 text-[#FFD700]" />
+            Flight Numbers
+          </div>
+          <p className="mt-1 text-sm font-semibold text-white">{booking.flightNumbers || '—'}</p>
+        </div>
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <Bed className="h-3.5 w-3.5 text-purple-400" />
+            Bed Configuration
+          </div>
+          <p className="mt-1 text-sm font-semibold text-white">{booking.bedConfiguration || '—'}</p>
+        </div>
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <AlertCircle className="h-3.5 w-3.5 text-amber-400" />
+            Special Requirements
+          </div>
+          <p className="mt-1 text-sm font-semibold text-white">{booking.specialRequirements || '—'}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BookingQueue({ initialBookings }: BookingQueueProps) {
   const [bookings, setBookings] = useState<ActiveQueueTicket[]>(initialBookings);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const handleStatusChange = (id: string, newStatus: BookingStatus) => {
     setBookings((prev) =>
       prev.map((b) => (b.id === id ? { ...b, status: newStatus } : b))
     );
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
   };
 
   if (bookings.length === 0) {
@@ -59,11 +137,12 @@ export default function BookingQueue({ initialBookings }: BookingQueueProps) {
 
   return (
     <div>
-      {/* Desktop: Table view (≥lg) */}
-      <div className="hidden overflow-hidden rounded-xl border border-white/10 bg-[#0B1528] lg:block">
+      {/* Desktop: Table view (≥lg) — NO overflow-hidden on container so dropdowns float free */}
+      <div className="hidden rounded-xl border border-white/10 bg-[#0B1528] lg:block">
         <table className="w-full">
           <thead>
             <tr className="border-b border-white/10 bg-white/[0.04]">
+              <th className="w-8 px-2 py-3" />
               <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Reference</th>
               <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Tour</th>
               <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Customer</th>
@@ -79,18 +158,37 @@ export default function BookingQueue({ initialBookings }: BookingQueueProps) {
               [...Array(5)].map((_, i) => <SkeletonRow key={i} />)
             ) : (
               bookings.map((b) => (
-                <tr key={b.id} className="transition-colors hover:bg-white/[0.02]">
-                  <td className="px-4 py-3 text-sm font-mono font-bold text-white">{b.bookingReference}</td>
-                  <td className="max-w-[200px] truncate px-4 py-3 text-sm text-slate-300">{b.tourTitle}</td>
-                  <td className="px-4 py-3 text-sm text-slate-300">{b.customerName}</td>
-                  <td className="px-4 py-3 text-sm text-slate-400">{b.travelDate}</td>
-                  <td className="px-4 py-3 text-sm text-slate-400">{b.guestCount}</td>
-                  <td className="px-4 py-3 text-sm font-bold text-white">${b.totalPriceUSD.toFixed(2)}</td>
-                  <td className="max-w-[150px] truncate px-4 py-3 text-sm text-slate-400">{b.hotelName}</td>
-                  <td className="px-4 py-3">
-                    <BookingRowActions ticket={b} onStatusChange={handleStatusChange} />
-                  </td>
-                </tr>
+                <React.Fragment key={b.id}>
+                  <tr
+                    className="cursor-pointer transition-colors hover:bg-white/[0.02]"
+                    onClick={() => toggleExpand(b.id)}
+                  >
+                    <td className="px-2 py-3">
+                      {expandedId === b.id ? (
+                        <ChevronDown className="h-4 w-4 text-[#00E5FF]" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-slate-500" />
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-mono font-bold text-white">{b.bookingReference}</td>
+                    <td className="max-w-[200px] truncate px-4 py-3 text-sm text-slate-300">{b.tourTitle}</td>
+                    <td className="px-4 py-3 text-sm text-slate-300">{b.customerName}</td>
+                    <td className="px-4 py-3 text-sm text-slate-400">{b.travelDate}</td>
+                    <td className="px-4 py-3 text-sm text-slate-400">{b.guestCount}</td>
+                    <td className="px-4 py-3 text-sm font-bold text-white">${b.totalPriceUSD.toFixed(2)}</td>
+                    <td className="max-w-[150px] truncate px-4 py-3 text-sm text-slate-400">{b.hotelName}</td>
+                    <td className="px-4 py-3">
+                      <BookingRowActions ticket={b} onStatusChange={handleStatusChange} />
+                    </td>
+                  </tr>
+                  {expandedId === b.id && (
+                    <tr key={`${b.id}-expanded`}>
+                      <td colSpan={9} className="bg-white/[0.01] p-0">
+                        <ExpandedDetails booking={b} />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))
             )}
           </tbody>
@@ -133,6 +231,40 @@ export default function BookingQueue({ initialBookings }: BookingQueueProps) {
                   <span className="text-xs text-slate-500">Hotel</span>
                   <p className="truncate text-slate-400">{b.hotelName}</p>
                 </div>
+              </div>
+              <div className="border-t border-white/5 pt-3">
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(b.id)}
+                  className="flex w-full items-center justify-between text-xs font-bold text-slate-400 hover:text-[#00E5FF] transition-colors"
+                >
+                  <span>View Logistics Details</span>
+                  {expandedId === b.id ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  )}
+                </button>
+                {expandedId === b.id && (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between rounded-lg bg-white/[0.02] px-3 py-2">
+                      <span className="text-xs text-slate-500">Pickup Directives</span>
+                      <span className="text-xs font-semibold text-white">{b.pickupDirectives || '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-white/[0.02] px-3 py-2">
+                      <span className="text-xs text-slate-500">Flight Numbers</span>
+                      <span className="text-xs font-semibold text-white">{b.flightNumbers || '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-white/[0.02] px-3 py-2">
+                      <span className="text-xs text-slate-500">Bed Config</span>
+                      <span className="text-xs font-semibold text-white">{b.bedConfiguration || '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-white/[0.02] px-3 py-2">
+                      <span className="text-xs text-slate-500">Special Requirements</span>
+                      <span className="text-xs font-semibold text-white">{b.specialRequirements || '—'}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))

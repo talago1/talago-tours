@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import Link from 'next/link';
 import { MapPin, Compass, ChevronRight, Star, Search } from 'lucide-react';
@@ -66,6 +66,18 @@ function getLocalized(d: DestData, lang: string, field: 'name' | 'description'):
 export default function DestinationsClient({ destinations }: Props) {
   const { dict, language } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
+  const [banners, setBanners] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.settings?.banners) {
+          setBanners(data.settings.banners);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const filtered = destinations.filter(
     (d) =>
@@ -76,7 +88,10 @@ export default function DestinationsClient({ destinations }: Props) {
   return (
     <main className="min-h-screen bg-[#070F1E]">
       {/* Hero Banner */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#0B1528] to-[#070F1E] pb-16 pt-24 lg:pb-24 lg:pt-32">
+      <section 
+        className="relative overflow-hidden bg-gradient-to-b from-[#0B1528] to-[#070F1E] pb-16 pt-24 lg:pb-24 lg:pt-32 bg-cover bg-center"
+        style={banners?.destinationsBackground ? { backgroundImage: `linear-gradient(rgba(7, 15, 30, 0.85), rgba(7, 15, 30, 0.95)), url(${banners.destinationsBackground})` } : undefined}
+      >
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-[#00E5FF]/5 blur-[120px]" />
           <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-[#FFD700]/5 blur-[120px]" />

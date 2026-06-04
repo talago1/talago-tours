@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import TourDetailsClient from './TourDetailsClient';
@@ -51,12 +54,28 @@ export default async function TourDetailPage({ params }: Props) {
       ratingAverage: true,
       ratingCount: true,
       adultPrice: true,
+      priceAdult: true,
       childPrice: true,
+      priceChild: true,
       infantPrice: true,
+      pickupTime: true,
+      cancellationPolicy: true,
       allowDeposit: true,
       depositPercentage: true,
       allowPayAtLocation: true,
       images: true,
+      reviews: true,
+      reviewEntries: {
+        select: {
+          id: true,
+          customerName: true,
+          rating: true,
+          comment: true,
+          status: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      },
       destination: {
         select: { name: true, slug: true },
       },
@@ -71,49 +90,55 @@ export default async function TourDetailPage({ params }: Props) {
   const title = translations?.en?.title ?? 'Tour';
   const description = translations?.en?.description ?? '';
 
-  const approvedReviews = await prisma.review.findMany({
-    where: { tourId: tour.id, status: 'APPROVED' },
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      customerName: true,
-      rating: true,
-      comment: true,
-      createdAt: true,
-    },
-  });
+  // Merge reviews from both sources: reviewEntries (relation) and reviews (JSON)
+  const jsonReviews = Array.isArray(tour.reviews) ? (tour.reviews as any[]) : [];
 
-  const groups = await prisma.review.groupBy({
-    by: ['rating'],
-    where: { tourId: tour.id, status: 'APPROVED' },
-    _count: { id: true },
-  });
+  const relationReviews = (tour.reviewEntries ?? []).filter((r) => r.status === 'APPROVED');
+
+  const combinedRawReviews = [
+    ...relationReviews.map((r) => ({
+      id: r.id,
+      customerName: r.customerName,
+      rating: r.rating,
+      comment: r.comment ?? '',
+      status: r.status,
+      createdAt: r.createdAt,
+    })),
+    ...jsonReviews.filter((j: any) => j.status === 'APPROVED' || !j.status),
+  ];
 
   const distributionMap: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-  groups.forEach((g) => {
-    distributionMap[g.rating] = g._count.id;
+  combinedRawReviews.forEach((r: any) => {
+    const stars = r.rating ?? r.stars ?? 5;
+    if (distributionMap[stars] !== undefined) {
+      distributionMap[stars]++;
+    }
   });
 
-  const total = tour.ratingCount;
+  const total = combinedRawReviews.length;
   const distribution: ReviewDistribution[] = Object.entries(distributionMap).map(([star, count]) => ({
     star: Number(star),
     count,
     percentage: total > 0 ? Math.round((count / total) * 100) : 0,
   }));
 
-  const reviews: ApprovedReview[] = approvedReviews.map((r) => ({
-    id: r.id,
-    customerName: r.customerName,
-    rating: r.rating,
-    comment: r.comment ?? '',
-    createdAt: r.createdAt.toISOString(),
+  const reviews: ApprovedReview[] = combinedRawReviews.map((r: any) => ({
+    id: r.id || r._id || crypto.randomUUID(),
+    customerName: r.customerName || r.authorName || 'Verified Guest',
+    rating: r.rating ?? r.stars ?? 5,
+    comment: r.comment ?? r.text ?? '',
+    createdAt: r.createdAt
+      ? new Date(r.createdAt).toISOString()
+      : r.date
+        ? new Date(r.date).toISOString()
+        : new Date().toISOString(),
   }));
 
   const basePrice = tour.basePrice ? Number(tour.basePrice) : (tour.basePriceUSD ?? 0);
 
-  // Gather all available images for the hero slider
-  const galleryArray = (Array.isArray(tour.galleryImages) ? tour.galleryImages : []) as string[];
-  const legacyImages = (Array.isArray(tour.images) ? tour.images : []) as string[];
+  // Gather all available images for the hero slider — safe cast
+  const galleryArray = Array.isArray(tour.galleryImages) ? (tour.galleryImages as string[]) : [];
+  const legacyImages = Array.isArray(tour.images) ? (tour.images as string[]) : [];
   const allImages = [
     tour.coverImage,
     ...galleryArray,
@@ -144,9 +169,11 @@ export default async function TourDetailPage({ params }: Props) {
           pickupDescription: tour.pickupDescription,
           hotelPickupIncluded: tour.hotelPickupIncluded,
           images: allImages,
-          adultPrice: tour.adultPrice ?? basePrice,
-          childPrice: tour.childPrice ?? null,
+          adultPrice: tour.priceAdult ?? tour.adultPrice ?? basePrice,
+          childPrice: tour.priceChild ?? tour.childPrice ?? null,
           infantPrice: tour.infantPrice ?? null,
+          pickupTime: tour.pickupTime,
+          cancellationPolicy: tour.cancellationPolicy,
           allowDeposit: tour.allowDeposit,
           depositPercentage: tour.depositPercentage,
           allowPayAtLocation: tour.allowPayAtLocation,

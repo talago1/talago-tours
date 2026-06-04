@@ -9,7 +9,7 @@ export default async function NewTourPage() {
   });
 
   return (
-    <main className="min-h-screen bg-neutral-light py-8 px-4">
+    <main className="min-h-screen bg-[#070F1E] py-8 px-4">
       <TourBuilderForm zones={zones} />
     </main>
   );

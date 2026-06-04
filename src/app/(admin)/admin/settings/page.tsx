@@ -16,17 +16,22 @@ import {
   Trash2,
   Upload,
   Plus,
+  MessageSquare,
+  RefreshCw,
 } from 'lucide-react';
 import type { SystemSettings, SiteBanner } from '@/types/settings';
 import { DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
+import NotificationSettingsDashboard from '@/components/admin/NotificationSettingsDashboard';
+import GlobalAssetStudio from '@/components/admin/GlobalAssetStudio';
 
-type ActiveSection = 'contact' | 'financial' | 'system' | 'banners';
+type ActiveSection = 'contact' | 'financial' | 'system' | 'banners' | 'notifications';
 
 const SECTIONS: { key: ActiveSection; label: string; icon: typeof Settings }[] = [
   { key: 'contact', label: 'Contact Info', icon: Phone },
   { key: 'financial', label: 'Currency & Pricing', icon: DollarSign },
   { key: 'system', label: 'System Toggles', icon: ToggleLeft },
   { key: 'banners', label: 'Banners & Assets', icon: ImageIcon },
+  { key: 'notifications', label: 'Notifications', icon: MessageSquare },
 ];
 
 export default function AdminSettingsPage() {
@@ -45,10 +50,10 @@ export default function AdminSettingsPage() {
           const data = await res.json();
           if (data.settings) {
             const merged: SystemSettings = {
-              contact: data.settings.contact || DEFAULT_SYSTEM_SETTINGS.contact,
-              financial: data.settings.financial || DEFAULT_SYSTEM_SETTINGS.financial,
-              system: data.settings.system || DEFAULT_SYSTEM_SETTINGS.system,
-              banners: data.settings.banners || DEFAULT_SYSTEM_SETTINGS.banners,
+              contact: { ...DEFAULT_SYSTEM_SETTINGS.contact, ...(data.settings.contact || {}) },
+              financial: { ...DEFAULT_SYSTEM_SETTINGS.financial, ...(data.settings.financial || {}) },
+              system: { ...DEFAULT_SYSTEM_SETTINGS.system, ...(data.settings.system || {}) },
+              banners: { ...DEFAULT_SYSTEM_SETTINGS.banners, ...(data.settings.banners || {}) },
             };
             setSettings(merged);
           }
@@ -387,51 +392,73 @@ export default function AdminSettingsPage() {
                         className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                       />
                     </label>
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Tours Catalog Background</span>
+                      <input
+                        type="url"
+                        value={settings.banners.toursCatalogBackground}
+                        onChange={(e) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            banners: { ...prev.banners, toursCatalogBackground: e.target.value },
+                          }))
+                        }
+                        placeholder="https://images.unsplash.com/..."
+                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Destinations Showcase Background</span>
+                      <input
+                        type="url"
+                        value={settings.banners.destinationsBackground}
+                        onChange={(e) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            banners: { ...prev.banners, destinationsBackground: e.target.value },
+                          }))
+                        }
+                        placeholder="https://images.unsplash.com/..."
+                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Booking Checkout Background</span>
+                      <input
+                        type="url"
+                        value={settings.banners.bookingCheckoutBackground}
+                        onChange={(e) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            banners: { ...prev.banners, bookingCheckoutBackground: e.target.value },
+                          }))
+                        }
+                        placeholder="https://images.unsplash.com/..."
+                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                      />
+                    </label>
                   </div>
 
-                  {/* Asset Uploader */}
-                  <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5">
-                    <div className="mb-4 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-bold text-white">Scenery Assets Library</p>
-                        <p className="text-xs text-slate-500">Upload and manage reusable background and banner images</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const url = prompt('Paste image URL to add as asset:');
-                          if (url && url.trim()) {
-                            setSettings((prev) => ({
-                              ...prev,
-                              banners: {
-                                ...prev.banners,
-                                assets: [
-                                  ...prev.banners.assets,
-                                  {
-                                    id: crypto.randomUUID?.() ?? String(Date.now()),
-                                    label: `Asset ${prev.banners.assets.length + 1}`,
-                                    url: url.trim(),
-                                    section: 'general',
-                                  },
-                                ],
-                              },
-                            }));
-                          }
-                        }}
-                        className="inline-flex items-center gap-2 rounded-full border border-[#FFD700]/20 bg-[#FFD700]/5 px-4 py-2 text-xs font-bold text-[#FFD700] transition-all hover:bg-[#FFD700]/10"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Add Asset
-                      </button>
-                    </div>
+                  {/* Native File Upload Input */}
+                  <GlobalAssetStudio onUploadSuccess={(newAssets) => {
+                    const mappedAssets = newAssets.map((asset) => ({
+                      id: asset.id,
+                      url: asset.url,
+                      label: asset.label,
+                      section: 'general' as const,
+                    }));
+                    setSettings((prev) => ({
+                      ...prev,
+                      banners: {
+                        ...prev.banners,
+                        assets: [...(prev.banners.assets || []), ...mappedAssets],
+                      },
+                    }));
+                  }} />
 
-                    {settings.banners.assets.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 py-10">
-                        <Upload className="mb-3 h-10 w-10 text-slate-600" />
-                        <p className="text-sm text-slate-500">No assets uploaded yet</p>
-                        <p className="text-xs text-slate-600">Click "Add Asset" above to add image URLs</p>
-                      </div>
-                    ) : (
+                  {/* Asset URL Library */}
+                  <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5">
+                    <p className="mb-4 text-sm font-bold text-white">Asset URL Library</p>
                       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                         {settings.banners.assets.map((asset) => (
                           <div
@@ -469,7 +496,6 @@ export default function AdminSettingsPage() {
                           </div>
                         ))}
                       </div>
-                    )}
                   </div>
 
                   {/* Preview Area */}
@@ -585,6 +611,13 @@ export default function AdminSettingsPage() {
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Notifications Panel */}
+            {activeSection === 'notifications' && (
+              <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
+                <NotificationSettingsDashboard />
               </div>
             )}
           </div>

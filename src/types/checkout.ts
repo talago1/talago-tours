@@ -13,6 +13,10 @@ export interface CheckoutFormData {
   hotelName: string;
   roomNumber?: string;
   pickupTime: string;
+  pickupDirectives?: string;
+  flightNumbers?: string;
+  bedConfiguration?: string;
+  specialRequirements?: string;
   paymentScheme: PaymentScheme;
 }
 

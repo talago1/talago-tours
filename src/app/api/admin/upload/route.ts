@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase/server';
+import fs from 'fs/promises';
+import path from 'path';
+import { prisma } from '@/lib/prisma';
+import { parseSettingValue, serializeSettingValue } from '@/lib/systemSettings';
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -9,7 +12,6 @@ const ALLOWED_MIME_TYPES = new Set([
 ]);
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
-const BUCKET_NAME = 'talago-media';
 const MAX_FILES_PER_REQUEST = 20;
 
 interface UploadedFileResult {
@@ -29,6 +31,7 @@ interface MultiUploadResponse {
   errors: UploadErrorItem[];
   totalSuccess: number;
   totalErrors: number;
+  settingsKey?: string | null;
 }
 
 function generateUniqueFilename(originalName: string): string {
@@ -44,29 +47,19 @@ function generateUniqueFilename(originalName: string): string {
 
 async function uploadSingleFile(file: File): Promise<UploadedFileResult> {
   const uniqueFilename = generateUniqueFilename(file.name);
-  const storagePath = `uploads/${uniqueFilename}`;
-
+  const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+  
+  // Ensure the directory exists
+  await fs.mkdir(uploadDir, { recursive: true });
+  
+  const filePath = path.join(uploadDir, uniqueFilename);
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
-
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from(BUCKET_NAME)
-    .upload(storagePath, buffer, {
-      contentType: file.type,
-      cacheControl: '31536000',
-      upsert: false,
-    });
-
-  if (uploadError) {
-    throw new Error(uploadError.message);
-  }
-
-  const { data: publicUrlData } = supabaseAdmin.storage
-    .from(BUCKET_NAME)
-    .getPublicUrl(storagePath);
-
+  
+  await fs.writeFile(filePath, buffer);
+  
   return {
-    url: publicUrlData.publicUrl,
+    url: `/uploads/${uniqueFilename}`,
     filename: uniqueFilename,
     mimeType: file.type,
     sizeBytes: file.size,
@@ -110,6 +103,7 @@ export async function POST(
 
     const uploaded: UploadedFileResult[] = [];
     const errors: UploadErrorItem[] = [];
+    const settingsKey = formData.get('settingsKey');
 
     for (const file of files) {
       if (!ALLOWED_MIME_TYPES.has(file.type)) {
@@ -139,11 +133,27 @@ export async function POST(
       }
     }
 
+    if (uploaded.length > 0) {
+      const key = typeof settingsKey === 'string' && settingsKey.trim()
+        ? settingsKey.trim()
+        : 'uploaded_assets';
+      const existing = await prisma.systemSetting.findUnique({ where: { key } });
+      const currentAssets = existing
+        ? parseSettingValue<UploadedFileResult[]>(existing.value, [])
+        : [];
+      await prisma.systemSetting.upsert({
+        where: { key },
+        create: { key, value: serializeSettingValue([...currentAssets, ...uploaded]) },
+        update: { value: serializeSettingValue([...currentAssets, ...uploaded]) },
+      });
+    }
+
     return NextResponse.json({
       uploaded,
       errors,
       totalSuccess: uploaded.length,
       totalErrors: errors.length,
+      settingsKey: typeof settingsKey === 'string' ? settingsKey : null,
     });
   } catch (error) {
     console.error('Upload route error:', error);

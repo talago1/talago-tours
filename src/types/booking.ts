@@ -9,18 +9,24 @@ export interface ActiveQueueTicket {
   travelDate: string;
   guestCount: number;
   totalPriceUSD: number;
-  hotelName: string;
+  hotelName: string | null;
   pickupTime: string | null;
   status: BookingStatus;
   language: string;
   voucherUrl?: string;
   roomNumber?: string | null;
+  pickupDirectives?: string | null;
+  flightNumbers?: string | null;
+  bedConfiguration?: string | null;
+  bedConfig?: string | null;
+  specialRequirements?: string | null;
+  tourId?: string;
 }
 
 export interface CheckoutFormData {
   tourId: string;
   zoneId: string;
-  hotelName: string;
+  hotelName: string | null;
   travelDate: string;
   guestCount: number;
   customerName: string;

@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const bookings = await prisma.booking.findMany({
@@ -28,7 +30,13 @@ export async function GET() {
         guestCount: b.guestCount,
         totalPriceUSD: b.totalPriceUSD,
         hotelName: b.hotelName,
+        roomNumber: b.roomNumber,
         pickupTime: itinerary?.[0]?.time ?? null,
+        pickupDirectives: b.pickupDirectives,
+        flightNumbers: b.flightNumbers,
+        bedConfiguration: b.bedConfiguration ?? b.bedConfig,
+        bedConfig: b.bedConfig ?? b.bedConfiguration,
+        specialRequirements: b.specialRequirements,
         status: b.status as BookingStatus,
         language: b.language,
       };

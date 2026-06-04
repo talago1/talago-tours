@@ -16,6 +16,11 @@ export async function POST(request: NextRequest) {
       customerName,
       customerEmail,
       customerPhone,
+      roomNumber,
+      pickupDirectives,
+      flightNumbers,
+      bedConfiguration,
+      specialRequirements,
     } = body;
 
     const tour = await prisma.tour.findUnique({
@@ -80,6 +85,11 @@ export async function POST(request: NextRequest) {
         customerName: customerName.trim(),
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim(),
+        roomNumber: roomNumber?.trim() || null,
+        pickupDirectives: pickupDirectives?.trim() || null,
+        flightNumbers: flightNumbers?.trim() || null,
+        bedConfiguration: bedConfiguration?.trim() || null,
+        specialRequirements: specialRequirements?.trim() || null,
         language: 'en',
         status: 'PENDING',
       },

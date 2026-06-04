@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import {
+  isSettingsKey,
+  mergeSystemSettings,
+  parseSettingValue,
+  serializeSettingValue,
+  SETTINGS_KEYS,
+} from '@/lib/systemSettings';
 
 const DEFAULT_SETTINGS = {
   contact: {
@@ -30,6 +36,15 @@ const DEFAULT_SETTINGS = {
       fawry: false,
     },
   },
+  banners: {
+    heroBackground: '',
+    splitSectionLeft: '',
+    splitSectionRight: '',
+    toursCatalogBackground: '',
+    destinationsBackground: '',
+    bookingCheckoutBackground: '',
+    assets: [],
+  },
 };
 
 export type SystemSettingsPayload = typeof DEFAULT_SETTINGS;
@@ -39,11 +54,11 @@ export async function GET() {
     const settings = await prisma.systemSetting.findMany();
     const settingsMap: Record<string, unknown> = {};
     for (const s of settings) {
-      settingsMap[s.key] = s.value;
+      settingsMap[s.key] = parseSettingValue(s.value, s.value);
     }
 
     return NextResponse.json({
-      settings: settingsMap,
+      settings: mergeSystemSettings(settingsMap),
       defaults: DEFAULT_SETTINGS,
     });
   } catch {
@@ -66,21 +81,23 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const validKeys = ['contact', 'financial', 'system', 'banners'];
-    if (!validKeys.includes(key)) {
+    if (!isSettingsKey(key)) {
       return NextResponse.json(
-        { error: `Invalid setting key. Must be one of: ${validKeys.join(', ')}` },
+        { error: `Invalid setting key. Must be one of: ${SETTINGS_KEYS.join(', ')}` },
         { status: 400 },
       );
     }
 
     const setting = await prisma.systemSetting.upsert({
       where: { key },
-      create: { key, value },
-      update: { value },
+      create: { key, value: serializeSettingValue(value) },
+      update: { value: serializeSettingValue(value) },
     });
 
-    return NextResponse.json(setting);
+    return NextResponse.json({
+      ...setting,
+      value: parseSettingValue(setting.value, setting.value),
+    });
   } catch {
     return NextResponse.json(
       { error: 'Failed to update setting' },
@@ -94,22 +111,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     for (const [key, value] of Object.entries(body)) {
-      const validKeys = ['contact', 'financial', 'system', 'banners'];
-      if (!validKeys.includes(key)) continue;
+      if (!isSettingsKey(key)) continue;
       await prisma.systemSetting.upsert({
         where: { key },
-        create: { key, value: value as Prisma.InputJsonValue },
-        update: { value: value as Prisma.InputJsonValue },
+        create: { key, value: serializeSettingValue(value) },
+        update: { value: serializeSettingValue(value) },
       });
     }
 
     const settings = await prisma.systemSetting.findMany();
     const settingsMap: Record<string, unknown> = {};
     for (const s of settings) {
-      settingsMap[s.key] = s.value;
+      settingsMap[s.key] = parseSettingValue(s.value, s.value);
     }
 
-    return NextResponse.json({ settings: settingsMap });
+    return NextResponse.json({ settings: mergeSystemSettings(settingsMap) });
   } catch {
     return NextResponse.json(
       { error: 'Failed to save settings' },

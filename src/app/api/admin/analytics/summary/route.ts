@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { convertUsdToEgp } from '@/config/exchangeRates';
 import type { ExecutiveDashboardStats, ChannelSummary } from '@/types/analytics';
 
+export const dynamic = 'force-dynamic';
+
 function getTourTitle(translations: unknown, lang = 'en'): string {
   if (typeof translations === 'object' && translations !== null) {
     const t = translations as Record<string, { title?: string }>;

@@ -39,6 +39,8 @@ interface TourData {
   itinerary: any[];
   whatToBring: string;
   pickupDescription: string | null;
+  pickupTime?: string | null;
+  cancellationPolicy?: string | null;
   hotelPickupIncluded: boolean | null;
   images: string[];
   adultPrice: number;

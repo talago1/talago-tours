@@ -17,7 +17,7 @@ function interpolate(template: string, ticket: ActiveQueueTicket): string {
     .replace('{tourTitle}', ticket.tourTitle)
     .replace('{travelDate}', ticket.travelDate)
     .replace('{pickupText}', pickupText)
-    .replace('{hotelName}', ticket.hotelName)
+    .replace('{hotelName}', ticket.hotelName ?? 'your hotel')
     .replace('{guestCount}', String(ticket.guestCount))
     .replace('{totalPriceUSD}', `$${ticket.totalPriceUSD.toFixed(2)}`)
     .replace('{voucherUrl}', ticket.voucherUrl || '');

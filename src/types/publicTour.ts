@@ -19,6 +19,9 @@ export interface PublicTour {
   rating: number;
   thumbnailUrl: string | null;
   category: TourCategory | null;
+  cardExcerpt?: string | null;
+  showExcerptOnCard?: boolean;
+  displayExcerpt?: boolean;
   destination: {
     name: string;
     slug: string;

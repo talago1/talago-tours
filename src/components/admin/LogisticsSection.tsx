@@ -14,18 +14,18 @@ export default function LogisticsSection({ values, errors, onChange }: Logistics
   };
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+    <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
       <div className="flex items-center gap-2 mb-4">
-        <svg className="w-5 h-5 text-secondary-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 text-[#00E5FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
-        <h2 className="text-lg font-semibold text-gray-800">Logistics & Operations</h2>
+        <h2 className="text-lg font-black text-white">Logistics & Tiered Pricing Support</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-bold text-slate-300 mb-1">
             What to Bring / Important Information
           </label>
           <textarea
@@ -33,8 +33,8 @@ export default function LogisticsSection({ values, errors, onChange }: Logistics
             value={values.whatToBring}
             onChange={(e) => update({ whatToBring: e.target.value })}
             placeholder="Swimsuit, towel, sunscreen, comfortable shoes, camera..."
-            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-coral/50 resize-y ${
-              errors.whatToBring ? 'border-red-500' : 'border-gray-300'
+            className={`w-full resize-y rounded-2xl border bg-[#070F1E] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#00E5FF] ${
+              errors.whatToBring ? 'border-red-500' : 'border-white/10'
             }`}
           />
           {errors.whatToBring && (
@@ -43,7 +43,7 @@ export default function LogisticsSection({ values, errors, onChange }: Logistics
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-bold text-slate-300 mb-1">
             Pickup / Meeting Point Description
           </label>
           <input
@@ -51,8 +51,8 @@ export default function LogisticsSection({ values, errors, onChange }: Logistics
             value={values.pickupDescription}
             onChange={(e) => update({ pickupDescription: e.target.value })}
             placeholder="e.g. Main entrance of Hurghada Marina"
-            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-coral/50 ${
-              errors.pickupDescription ? 'border-red-500' : 'border-gray-300'
+            className={`w-full rounded-2xl border bg-[#070F1E] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#00E5FF] ${
+              errors.pickupDescription ? 'border-red-500' : 'border-white/10'
             }`}
           />
           {errors.pickupDescription && (
@@ -61,7 +61,33 @@ export default function LogisticsSection({ values, errors, onChange }: Logistics
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+          <label className="block text-sm font-bold text-slate-300 mb-1">
+            Pickup Time
+          </label>
+          <input
+            type="text"
+            value={values.pickupTime}
+            onChange={(e) => update({ pickupTime: e.target.value })}
+            placeholder="e.g. 07:30 AM"
+            className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#00E5FF]"
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="block text-sm font-bold text-slate-300 mb-1">
+            Cancellation Policy
+          </label>
+          <textarea
+            rows={3}
+            value={values.cancellationPolicy}
+            onChange={(e) => update({ cancellationPolicy: e.target.value })}
+            placeholder="Free cancellation up to 24 hours before pickup..."
+            className="w-full resize-y rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#00E5FF]"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-slate-300 mb-3">
             Hotel Pickup
           </label>
           <label className="relative inline-flex items-center cursor-pointer">
@@ -71,8 +97,8 @@ export default function LogisticsSection({ values, errors, onChange }: Logistics
               onChange={(e) => update({ hotelPickupIncluded: e.target.checked })}
               className="sr-only peer"
             />
-            <div className="w-10 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-coral/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary-forest" />
-            <span className="ml-3 text-sm text-gray-600">
+            <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#00E5FF]/30 rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#00E5FF]" />
+            <span className="ml-3 text-sm text-slate-300">
               {values.hotelPickupIncluded ? 'Hotel pickup included' : 'No hotel pickup'}
             </span>
           </label>

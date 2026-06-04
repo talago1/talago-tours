@@ -21,7 +21,7 @@ function getPickupTime(itinerary: unknown): string | undefined {
 function mapToManifestItem(booking: {
   id: string;
   customerName: string;
-  hotelName: string;
+  hotelName: string | null;
   roomNumber: string | null;
   guestCount: number;
   paymentStatus: string | null;
@@ -32,7 +32,7 @@ function mapToManifestItem(booking: {
   return {
     bookingId: booking.id,
     passengerName: booking.customerName,
-    hotelName: booking.hotelName,
+    hotelName: booking.hotelName ?? '—',
     roomNumber: booking.roomNumber,
     paxCount: booking.guestCount,
     paymentStatus: booking.paymentStatus,

@@ -74,7 +74,7 @@ export async function POST(
         passengerName: updated.customerName,
         tourTitle: getTourTitle(updated.tour.translations),
         paxCount: updated.guestCount,
-        hotelName: updated.hotelName,
+        hotelName: updated.hotelName ?? undefined,
         roomNumber: updated.roomNumber,
       };
     });

@@ -39,6 +39,11 @@ export default function BookingFormSteps({
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [roomNumber, setRoomNumber] = useState('');
+  const [pickupDirectives, setPickupDirectives] = useState('');
+  const [flightNumbers, setFlightNumbers] = useState('');
+  const [bedConfiguration, setBedConfiguration] = useState('');
+  const [specialRequirements, setSpecialRequirements] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -115,6 +120,11 @@ export default function BookingFormSteps({
           customerName: customerName.trim(),
           customerEmail: customerEmail.trim(),
           customerPhone: customerPhone.trim(),
+          roomNumber: roomNumber.trim() || undefined,
+          pickupDirectives: pickupDirectives.trim() || undefined,
+          flightNumbers: flightNumbers.trim() || undefined,
+          bedConfiguration: bedConfiguration.trim() || undefined,
+          specialRequirements: specialRequirements.trim() || undefined,
         }),
       });
 
@@ -237,7 +247,7 @@ export default function BookingFormSteps({
           )}
 
           {step === 2 && (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <div className="flex items-center justify-between text-sm text-gray-500">
                 <span>Total: <strong className="text-gray-800">${totalPrice.toFixed(2)}</strong></span>
                 <span>{travelDate} · {guestCount} guest{guestCount > 1 ? 's' : ''}</span>
@@ -248,7 +258,7 @@ export default function BookingFormSteps({
                 <select
                   value={zoneId}
                   onChange={(e) => setZoneId(e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5B00]/50 ${
+                  className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5B00]/50 bg-white ${
                     errors.zoneId ? 'border-red-500' : 'border-gray-300'
                   }`}
                 >
@@ -282,6 +292,63 @@ export default function BookingFormSteps({
                   )}
                   <span className="text-xs text-gray-400 ml-auto">{hotelName.length}/200</span>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Room Number</label>
+                  <input
+                    type="text"
+                    value={roomNumber}
+                    onChange={(e) => setRoomNumber(e.target.value)}
+                    placeholder="Optional"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5B00]/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Pickup Directives</label>
+                  <input
+                    type="text"
+                    value={pickupDirectives}
+                    onChange={(e) => setPickupDirectives(e.target.value)}
+                    placeholder="Optional"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5B00]/50"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Flight Numbers</label>
+                  <input
+                    type="text"
+                    value={flightNumbers}
+                    onChange={(e) => setFlightNumbers(e.target.value)}
+                    placeholder="Optional"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5B00]/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Bed Config</label>
+                  <input
+                    type="text"
+                    value={bedConfiguration}
+                    onChange={(e) => setBedConfiguration(e.target.value)}
+                    placeholder="Optional"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5B00]/50"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Special Requirements</label>
+                <textarea
+                  value={specialRequirements}
+                  onChange={(e) => setSpecialRequirements(e.target.value)}
+                  placeholder="Optional notes or requests..."
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5B00]/50 resize-none"
+                />
               </div>
 
               <div>
@@ -340,7 +407,7 @@ export default function BookingFormSteps({
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={handleBack}

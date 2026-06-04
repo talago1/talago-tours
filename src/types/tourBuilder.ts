@@ -77,10 +77,18 @@ export interface LogisticsFields {
   whatToBring: string;
   pickupDescription: string;
   hotelPickupIncluded: boolean;
+  pickupTime: string;
+  cancellationPolicy: string;
 }
 
 export function createDefaultLogisticsFields(): LogisticsFields {
-  return { whatToBring: '', pickupDescription: '', hotelPickupIncluded: false };
+  return {
+    whatToBring: '',
+    pickupDescription: '',
+    hotelPickupIncluded: false,
+    pickupTime: '',
+    cancellationPolicy: '',
+  };
 }
 
 export interface PricingFields {
@@ -120,8 +128,18 @@ export interface TourFormState {
   pricing: PricingFields;
   translations: Translations;
   activeLanguage: LanguageCode;
+  activeStep: number;
+  cardExcerpt: string;
+  showExcerptOnCard: boolean;
+  seededReviews: SeededReview[];
   isSubmitting: boolean;
   isDirty: boolean;
+}
+
+export interface SeededReview {
+  customerName: string;
+  rating: number;
+  comment: string;
 }
 
 export function createInitialFormState(): TourFormState {
@@ -134,6 +152,10 @@ export function createInitialFormState(): TourFormState {
     pricing: createDefaultPricingFields(),
     translations: createEmptyTranslations(),
     activeLanguage: 'en',
+    activeStep: 0,
+    cardExcerpt: '',
+    showExcerptOnCard: true,
+    seededReviews: [],
     isSubmitting: false,
     isDirty: false,
   };
@@ -161,7 +183,10 @@ export interface TourCreatePayload {
   whatToBring?: string;
   pickupDescription?: string;
   hotelPickupIncluded?: boolean;
+  pickupTime?: string;
+  cancellationPolicy?: string;
   adultPrice: number;
+  priceAdult?: number;
   childEnabled?: boolean;
   childPrice?: number;
   childMinAge?: number;
@@ -171,6 +196,10 @@ export interface TourCreatePayload {
   infantMinAge?: number;
   infantMaxAge?: number;
   ageRestrictionsNotes?: string;
+  cardExcerpt?: string;
+  showExcerptOnCard?: boolean;
+  displayExcerpt?: boolean;
+  reviews?: SeededReview[];
 }
 
 export interface TourCreateResponse {

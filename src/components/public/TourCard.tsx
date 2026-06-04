@@ -65,6 +65,12 @@ export default function TourCard({ tour, priority }: TourCardProps) {
             {localizedTitle}
           </h3>
 
+          {(tour.displayExcerpt || tour.showExcerptOnCard) && tour.cardExcerpt && (
+            <p className="mb-3 line-clamp-2 text-sm leading-relaxed text-slate-400">
+              {tour.cardExcerpt}
+            </p>
+          )}
+
           <div className="mb-4 flex items-center gap-2">
             <StarRating rating={tour.rating} />
             <span className="text-xs font-semibold text-slate-400">

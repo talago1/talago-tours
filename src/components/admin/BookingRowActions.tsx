@@ -94,7 +94,7 @@ export default function BookingRowActions({ ticket, onStatusChange }: BookingRow
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-2xl border border-white/10 bg-[#121E36] shadow-2xl shadow-black/60 backdrop-blur-xl">
+            <div className="absolute z-50 shadow-2xl bg-[#121E36] border border-gray-700 rounded-lg right-0 top-full mt-1 w-52 overflow-hidden">
               <div className="border-b border-white/5 px-4 py-2.5">
                 <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
                   Change Status

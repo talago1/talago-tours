@@ -30,6 +30,9 @@ export interface SystemSettings {
     heroBackground: string;
     splitSectionLeft: string;
     splitSectionRight: string;
+    toursCatalogBackground: string;
+    destinationsBackground: string;
+    bookingCheckoutBackground: string;
     assets: SiteBanner[];
   };
 }
@@ -66,6 +69,9 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
     heroBackground: '',
     splitSectionLeft: '',
     splitSectionRight: '',
+    toursCatalogBackground: '',
+    destinationsBackground: '',
+    bookingCheckoutBackground: '',
     assets: [],
   },
 };

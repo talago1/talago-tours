@@ -26,9 +26,13 @@ export async function POST(request: NextRequest) {
       whatToBring,
       pickupDescription,
       hotelPickupIncluded,
+      pickupTime,
+      cancellationPolicy,
       adultPrice,
+      priceAdult,
       childEnabled,
       childPrice,
+      priceChild,
       childMinAge,
       childMaxAge,
       infantEnabled,
@@ -37,9 +41,13 @@ export async function POST(request: NextRequest) {
       infantMaxAge,
       ageRestrictionsNotes,
       destinationId,
+      cardExcerpt,
+      showExcerptOnCard,
+      displayExcerpt,
+      reviews,
     } = body;
 
-    if (!slug || !type || basePriceUSD === undefined || durationHours === undefined || maxCapacity === undefined || !zoneId || !destinationId || !translations) {
+    if (!slug || !type || basePriceUSD === undefined || durationHours === undefined || maxCapacity === undefined || !zoneId || !translations) {
       return NextResponse.json(
         { error: 'Missing required fields', field: '' },
         { status: 400 }
@@ -150,6 +158,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const resolvedDestinationId = destinationId
+      ?? zoneExists.destinationId
+      ?? (await prisma.destination.findFirst({ select: { id: true }, orderBy: { name: 'asc' } }))?.id;
+
+    if (!resolvedDestinationId) {
+      return NextResponse.json(
+        { error: 'A destination is required before creating tours', field: 'destinationId' },
+        { status: 400 }
+      );
+    }
+
     const existing = await prisma.tour.findUnique({ where: { slug } });
     if (existing) {
       return NextResponse.json(
@@ -165,7 +184,7 @@ export async function POST(request: NextRequest) {
         basePriceUSD,
         durationHours,
         maxCapacity,
-        destination: { connect: { id: destinationId } },
+        destination: { connect: { id: resolvedDestinationId } },
         zone: { connect: { id: zoneId } },
         translations,
         images: [],
@@ -178,14 +197,35 @@ export async function POST(request: NextRequest) {
         whatToBring: whatToBring || null,
         pickupDescription: pickupDescription || null,
         hotelPickupIncluded: hotelPickupIncluded ?? false,
+        pickupTime: pickupTime || null,
+        cancellationPolicy: cancellationPolicy || null,
         adultPrice,
+        priceAdult: priceAdult ?? adultPrice,
         childPrice: childEnabled ? childPrice : null,
+        priceChild: childEnabled ? (priceChild ?? childPrice) : null,
         childMinAge: childEnabled ? (childMinAge ?? 3) : null,
         childMaxAge: childEnabled ? (childMaxAge ?? 11) : null,
         infantPrice: infantEnabled ? infantPrice : null,
         infantMinAge: infantEnabled ? (infantMinAge ?? 0) : null,
         infantMaxAge: infantEnabled ? (infantMaxAge ?? 2) : null,
         ageRestrictionsNotes: ageRestrictionsNotes || null,
+        cardExcerpt: cardExcerpt || null,
+        showExcerptOnCard: showExcerptOnCard ?? true,
+        displayExcerpt: displayExcerpt ?? showExcerptOnCard ?? false,
+        reviews: Array.isArray(reviews)
+          ? reviews.map((review, index) => ({
+              id: `seed-${Date.now()}-${index}`,
+              customerName: review.customerName || 'Verified Guest',
+              rating: Number(review.rating) || 5,
+              comment: review.comment || '',
+              status: 'APPROVED',
+              createdAt: new Date().toISOString(),
+            }))
+          : undefined,
+        ratingAverage: Array.isArray(reviews) && reviews.length > 0
+          ? reviews.reduce((sum, review) => sum + (Number(review.rating) || 5), 0) / reviews.length
+          : undefined,
+        ratingCount: Array.isArray(reviews) ? reviews.length : undefined,
       },
       select: {
         id: true,

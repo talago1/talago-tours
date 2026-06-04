@@ -102,7 +102,13 @@ function PaymentFlow() {
 
 export default function PaymentPage() {
   return (
-    <Suspense fallback={<main className="min-h-screen bg-neutral-light" />}>
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-neutral-light flex items-center justify-center">
+          <p className="text-secondary-forest text-lg font-medium">Preparing secure payment...</p>
+        </main>
+      }
+    >
       <PaymentFlow />
     </Suspense>
   );

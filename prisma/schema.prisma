@@ -120,23 +120,32 @@ model Tour {
   allowDeposit       Boolean @default(false)
   depositPercentage  Int     @default(0)
   allowPayAtLocation Boolean @default(false)
+  // Catalog Display
+  showExcerptOnCard Boolean @default(true)
+  cardExcerpt       String?
+  displayExcerpt    Boolean @default(false)
 
   // Logistics & Operations
   itinerary           Json?
   whatToBring         String?
   pickupDescription   String?
   hotelPickupIncluded Boolean  @default(false)
+  pickupTime          String?
+  cancellationPolicy  String?
 
   // Detailed Pricing Tiers
   adultPrice Float
+  priceAdult Float?
 
   childPrice  Float?
+  priceChild  Float?
   childMinAge Int?   @default(3)
   childMaxAge Int?   @default(11)
 
   infantPrice  Float?
   infantMinAge Int?  @default(0)
   infantMaxAge Int?  @default(2)
+  pricePrivate Float?
 
   ageRestrictionsNotes String?
 
@@ -153,8 +162,9 @@ model Tour {
 
   bookings      Booking[]
   mediaAssets   MediaAsset[]
-  reviews       Review[]
+  reviews       Json?
   tourTimeSlots TourTimeSlot[]
+  reviewEntries Review[]
 }
 
 model Booking {
@@ -162,7 +172,7 @@ model Booking {
   bookingReference String        @unique
   tourId           String
   zoneId           String
-  hotelName        String
+  hotelName        String?
   travelDate       DateTime
   guestCount       Int
   totalPriceUSD    Float
@@ -181,6 +191,11 @@ model Booking {
   channel          BookingChannel @default(WEBSITE)
 
   roomNumber       String?
+  pickupDirectives String?
+  flightNumbers    String?
+  bedConfiguration String?
+  bedConfig        String?
+  specialRequirements String?
 
   promoCodeId      String?
   promoCode        PromoCode?    @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
@@ -206,9 +221,29 @@ model Booking {
   zone Zone @relation(fields: [zoneId], references: [id])
 
   transaction Transaction?
+  reviews Review[]
 
   @@index([tourId])
   @@index([bookingReference])
+}
+
+model Review {
+  id           String       @id @default(cuid())
+  tourId       String
+  bookingId    String?      @unique
+  customerName String
+  rating       Int
+  comment      String?
+  status       ReviewStatus @default(PENDING)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tour    Tour     @relation(fields: [tourId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([tourId])
+  @@index([status])
+  @@map("reviews")
 }
 
 model Transaction {
@@ -228,21 +263,6 @@ model Transaction {
   @@index([bookingId])
 }
 
-model Review {
-  id           String       @id @default(cuid())
-  tourId       String
-  customerName String
-  rating       Int
-  comment      String?
-  status       ReviewStatus @default(PENDING)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-
-  tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
-
-  @@index([tourId])
-  @@index([status])
-}
 
 model CustomerProfile {
   id               String    @id @default(cuid())
@@ -286,7 +306,7 @@ model NotificationLog {
 
 model SystemSetting {
   key   String @id
-  value Json
+  value String
 
   @@map("system_settings")
 }
