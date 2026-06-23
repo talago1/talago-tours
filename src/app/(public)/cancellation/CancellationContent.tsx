@@ -71,7 +71,7 @@ export default function CancellationContent() {
               <ul className="mt-3 list-disc space-y-1.5 pl-5">
                 <li>Contact our concierge team via the <a href="/support" className="text-[#00E5FF] underline">Support page</a></li>
                 <li>WhatsApp your dedicated concierge directly</li>
-                <li>Call us at +20 102 224 34606</li>
+                <li>Call us at +20 102 224 34602</li>
               </ul>
               <p className="mt-3">Please have your booking reference number ready.</p>
             </section>

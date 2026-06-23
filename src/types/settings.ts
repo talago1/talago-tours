@@ -43,7 +43,7 @@ export interface SystemSettings {
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   contact: {
-    whatsappNumber: '+2010222434606',
+    whatsappNumber: '+2010222434602',
     corporateEmail: 'tala.tour@outlook.com',
     socialLinks: {
       instagram: 'https://instagram.com/talago',

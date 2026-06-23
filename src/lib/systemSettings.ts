@@ -20,7 +20,7 @@ export function serializeSettingValue(value: unknown): string {
 
 const DEFAULT_SETTINGS = {
   contact: {
-    whatsappNumber: '+2010222434606',
+    whatsappNumber: '+2010222434602',
     corporateEmail: 'tala.tour@outlook.com',
     socialLinks: { instagram: '', facebook: '', twitter: '' },
   },

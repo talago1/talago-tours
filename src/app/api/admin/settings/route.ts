@@ -10,7 +10,7 @@ import {
 
 const DEFAULT_SETTINGS = {
   contact: {
-    whatsappNumber: '+2010222434606',
+    whatsappNumber: '+2010222434602',
     corporateEmail: 'tala.tour@outlook.com',
     socialLinks: {
       instagram: 'https://instagram.com/talago',
