@@ -167,7 +167,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         PaymentProvider: booking.transaction?.provider ?? 'N/A',
         PaymentStatus: booking.transaction?.status ?? 'N/A',
         Channel: booking.channel,
-        Hotel: booking.hotelName,
+        Hotel: booking.hotelName ?? '',
         Language: booking.language,
         CreatedAt: booking.createdAt.toISOString(),
       };

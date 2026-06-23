@@ -33,14 +33,18 @@ export interface SystemSettings {
     toursCatalogBackground: string;
     destinationsBackground: string;
     bookingCheckoutBackground: string;
+    conciergePickImage: string;
+    conciergePickTitle: string;
+    conciergePickDescription: string;
+    aboutPhilosophyImage: string;
     assets: SiteBanner[];
   };
 }
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   contact: {
-    whatsappNumber: '+201234567890',
-    corporateEmail: 'info@talago.com',
+    whatsappNumber: '+2010222434606',
+    corporateEmail: 'tala.tour@outlook.com',
     socialLinks: {
       instagram: 'https://instagram.com/talago',
       facebook: 'https://facebook.com/talago',
@@ -72,6 +76,10 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
     toursCatalogBackground: '',
     destinationsBackground: '',
     bookingCheckoutBackground: '',
+    conciergePickImage: '',
+    conciergePickTitle: 'Private yacht sunrise to Giftun Island',
+    conciergePickDescription: 'Champagne breakfast, reef snorkel guide, and flexible return timing.',
+    aboutPhilosophyImage: '',
     assets: [],
   },
 };

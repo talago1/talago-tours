@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   ShieldCheck,
   Users,
@@ -17,37 +17,150 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Baby,
+  UserRound,
 } from 'lucide-react';
 import PriceSummarySidebar from '@/components/checkout/PriceSummarySidebar';
 import Button from '@/components/ui/Button';
 import { PaymentScheme, type CheckoutFormData, type InitializeResponse } from '@/types/checkout';
 import type { PromoDiscount } from '@/utils/promo';
+import { useLanguage } from '@/context/LanguageContext';
+
+// Stepper with +/- and direct text input
+function GuestStepper({
+  label,
+  sublabel,
+  value,
+  icon: Icon,
+  iconColor,
+  onChange,
+  priceLabel,
+}: {
+  label: string;
+  sublabel?: string;
+  value: number;
+  icon: React.ElementType;
+  iconColor: string;
+  onChange: (v: number) => void;
+  priceLabel?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [raw, setRaw] = useState('');
+
+  const startEdit = () => {
+    setRaw(value === 0 ? '' : String(value));
+    setEditing(true);
+  };
+
+  const commitEdit = () => {
+    const parsed = parseInt(raw, 10);
+    if (!isNaN(parsed) && parsed >= 0) onChange(parsed);
+    else onChange(value);
+    setEditing(false);
+  };
+
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-white/10 last:border-0">
+      <div className="flex items-center gap-3">
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center ${iconColor}`}>
+          <Icon className="w-4 h-4" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-white">{label}</p>
+          {sublabel && <p className="text-xs text-slate-400">{sublabel}</p>}
+          {priceLabel && <p className="text-xs font-medium text-[#FF5B00]">{priceLabel}</p>}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(0, value - 1))}
+          disabled={value <= 0}
+          className="w-8 h-8 rounded-full border border-white/20 bg-white/5 flex items-center justify-center text-slate-300 hover:border-[#FF5B00] hover:text-[#FF5B00] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          aria-label={`Decrease ${label}`}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 12H4" />
+          </svg>
+        </button>
+
+        {editing ? (
+          <input
+            autoFocus
+            type="number"
+            min={0}
+            value={raw}
+            onChange={(e) => setRaw(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); }}
+            className="w-12 text-center text-base font-bold text-white bg-white/10 border border-[#FF5B00] rounded-lg px-1 py-0.5 outline-none focus:ring-2 focus:ring-[#FF5B00]/30"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={startEdit}
+            className="w-12 text-center text-base font-bold text-white hover:text-[#FF5B00] cursor-pointer transition-colors select-none"
+            title="Click to type a number"
+          >
+            {value}
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => onChange(value + 1)}
+          className="w-8 h-8 rounded-full border border-white/20 bg-white/5 flex items-center justify-center text-slate-300 hover:border-[#FF5B00] hover:text-[#FF5B00] transition-colors"
+          aria-label={`Increase ${label}`}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface TourDetails {
   id: string;
   title: string;
-  basePrice: number;
+  adultPrice: number;
+  childPrice: number | null;
+  infantPrice: number | null;
+  depositPercentage: number;
+  allowPayAtLocation: boolean;
+  allowDeposit: boolean;
+  zoneTransferFee: number;
   maxCapacity: number | null;
+  pickupTimes: string[];
 }
 
 type FormErrors = Partial<Record<keyof CheckoutFormData, string>>;
 type PageState = 'loading' | 'form' | 'submitting' | 'confirm' | 'error';
 
-function validateForm(data: CheckoutFormData): FormErrors {
+function validateForm(data: CheckoutFormData, pickupTimes: string[], m: {
+  nameRequired: string;
+  emailRequired: string;
+  emailInvalid: string;
+  phoneRequired: string;
+  phoneInvalid: string;
+  hotelRequired: string;
+  pickupRequired: string;
+}): FormErrors {
   const errors: FormErrors = {};
-  if (!data.leadName.trim()) errors.leadName = 'Name is required';
+  if (!data.leadName.trim()) errors.leadName = m.nameRequired;
   if (!data.email.trim()) {
-    errors.email = 'Email is required';
+    errors.email = m.emailRequired;
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    errors.email = 'Invalid email address';
+    errors.email = m.emailInvalid;
   }
   if (!data.phone.trim()) {
-    errors.phone = 'Phone number is required';
-  } else if (!/^\+?\d{7,15}$/.test(data.phone.replace(/[\s-]/g, ''))) {
-    errors.phone = 'Invalid phone number';
+    errors.phone = m.phoneRequired;
+  } else if (!/^\+?[\d\s\-().]{7,20}$/.test(data.phone.replace(/[\s-]/g, ''))) {
+    errors.phone = m.phoneInvalid;
   }
-  if (!data.hotelName.trim()) errors.hotelName = 'Hotel name is required';
-  if (!data.pickupTime.trim()) errors.pickupTime = 'Pickup time is required';
+  if (!data.hotelName.trim()) errors.hotelName = m.hotelRequired;
+  if (pickupTimes.length > 0 && !data.pickupTime) errors.pickupTime = m.pickupRequired;
   return errors;
 }
 
@@ -104,12 +217,17 @@ function Input({
 export default function CheckoutPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { dict } = useLanguage();
   const tourId = params.tourId as string;
+  const currencySymbol = (c: string | undefined) => c === 'EGP' ? 'EGP ' : c === 'EUR' ? '€' : c === 'GBP' ? '£' : '$';
 
   const [tour, setTour] = useState<TourDetails | null>(null);
   const [pageState, setPageState] = useState<PageState>('loading');
   const [scheme, setScheme] = useState<PaymentScheme>(PaymentScheme.PAY_ON_ARRIVAL);
-  const [guestCount, setGuestCount] = useState(1);
+  const [adultsCount, setAdultsCount] = useState(1);
+  const [childrenCount, setChildrenCount] = useState(0);
+  const [infantsCount, setInfantsCount] = useState(0);
   const [departureDate, setDepartureDate] = useState('');
   const [confirmData, setConfirmData] = useState<InitializeResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -123,9 +241,20 @@ export default function CheckoutPage() {
     hotelName: '',
     roomNumber: '',
     pickupTime: '',
+    currency: 'USD',
     paymentScheme: PaymentScheme.PAY_ON_ARRIVAL,
   });
   const [errors, setErrors] = useState<FormErrors>({});
+
+  // Synchronize counts from search parameters on mount
+  useEffect(() => {
+    const queryAdults = searchParams.get('adults');
+    if (queryAdults) setAdultsCount(Math.max(1, parseInt(queryAdults, 10)));
+    const queryChildren = searchParams.get('children');
+    if (queryChildren) setChildrenCount(Math.max(0, parseInt(queryChildren, 10)));
+    const queryInfants = searchParams.get('infants');
+    if (queryInfants) setInfantsCount(Math.max(0, parseInt(queryInfants, 10)));
+  }, [searchParams]);
 
   useEffect(() => {
     async function loadTour() {
@@ -144,8 +273,17 @@ export default function CheckoutPage() {
         setTour({
           id: data.id,
           title,
-          basePrice: Number(data.basePrice ?? data.basePriceUSD ?? 0),
+          adultPrice: Number(data.priceAdult ?? data.adultPrice ?? data.basePrice ?? data.basePriceUSD ?? 0),
+          childPrice: data.priceChild ?? data.childPrice ?? null,
+          infantPrice: data.infantPrice ?? null,
+          depositPercentage: Number(data.depositPercentage ?? 0),
+          allowPayAtLocation: Boolean(data.allowPayAtLocation),
+          allowDeposit: Boolean(data.allowDeposit),
+          zoneTransferFee: Number(data.zone?.transferFee ?? 0),
           maxCapacity: data.maxCapacity ?? null,
+          pickupTimes: data.pickupTime
+            ? String(data.pickupTime).split('|').map((t: string) => t.trim()).filter(Boolean)
+            : [],
         });
       } catch {
         setTour(null);
@@ -176,12 +314,20 @@ export default function CheckoutPage() {
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    const formErrors = validateForm(form);
+    const formErrors = validateForm(form, tour?.pickupTimes ?? [], {
+      nameRequired: dict.checkout.nameRequired,
+      emailRequired: dict.checkout.emailRequired,
+      emailInvalid: dict.checkout.emailInvalid,
+      phoneRequired: dict.checkout.phoneRequired,
+      phoneInvalid: dict.checkout.phoneInvalid,
+      hotelRequired: dict.checkout.hotelRequired,
+      pickupRequired: dict.checkout.pickupRequired,
+    });
     setErrors(formErrors);
     if (Object.keys(formErrors).length > 0) return;
 
     if (!tour || !departureDate) {
-      setErrorMessage('Please select a departure date');
+      setErrorMessage(dict.checkout.departureRequired);
       setPageState('error');
       return;
     }
@@ -196,7 +342,10 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           tourId: tour.id,
           departureDate,
-          guestCount,
+          guestCount: adultsCount + childrenCount + infantsCount,
+          adultsCount,
+          childrenCount,
+          infantsCount,
           formData: form,
           promoCode: promoDiscount?.code ?? null,
         }),
@@ -206,19 +355,19 @@ export default function CheckoutPage() {
         await res.json();
 
       if (res.status === 409) {
-        setErrorMessage(responseData.error ?? 'This tour is sold out for this date.');
+        setErrorMessage(responseData.error ?? dict.checkout.soldOut);
         setPageState('error');
         return;
       }
 
       if (res.status === 400) {
-        setErrorMessage(responseData.error ?? 'Please check your information.');
+        setErrorMessage(responseData.error ?? dict.checkout.checkInfo);
         setPageState('error');
         return;
       }
 
       if (!res.ok) {
-        setErrorMessage(responseData.error ?? 'Something went wrong. Please try again.');
+        setErrorMessage(responseData.error ?? dict.checkout.wrong);
         setPageState('error');
         return;
       }
@@ -232,10 +381,10 @@ export default function CheckoutPage() {
         window.location.href = responseData.gatewayIframeUrl;
       }
     } catch {
-      setErrorMessage('Unable to reach the server. Please check your connection.');
+      setErrorMessage(dict.checkout.errorMessage);
       setPageState('error');
     }
-  }, [form, tour, departureDate, guestCount, promoDiscount]);
+  }, [form, tour, departureDate, adultsCount, childrenCount, infantsCount, promoDiscount]);
 
   const handleResume = useCallback(() => {
     if (resumeBookingId) {
@@ -248,7 +397,7 @@ export default function CheckoutPage() {
       <div className="flex min-h-[80vh] items-center justify-center bg-[#070F1E]">
         <div className="text-center">
           <Loader2 className="mx-auto h-10 w-10 animate-spin text-[#06B6D4]" />
-          <p className="mt-4 text-sm font-bold text-slate-400">Loading checkout...</p>
+          <p className="mt-4 text-sm font-bold text-slate-400">{dict.checkout.loadingCheckout}</p>
         </div>
       </div>
     );
@@ -259,14 +408,14 @@ export default function CheckoutPage() {
       <div className="flex min-h-[80vh] items-center justify-center bg-[#070F1E]">
         <div className="text-center max-w-md">
           <AlertCircle className="mx-auto h-12 w-12 text-[#EAB308]" />
-          <h1 className="mt-4 text-2xl font-black text-white">Tour not found</h1>
-          <p className="mt-2 text-slate-400">This tour may no longer be available.</p>
+          <h1 className="mt-4 text-2xl font-black text-white">{dict.checkout.tourNotFound}</h1>
+          <p className="mt-2 text-slate-400">{dict.checkout.tourNotAvailable}</p>
           <Button
             variant="outline"
             className="mt-6"
             onClick={() => router.push('/tours')}
           >
-            Browse tours
+            {dict.checkout.browseTours}
           </Button>
         </div>
       </div>
@@ -274,23 +423,25 @@ export default function CheckoutPage() {
   }
 
   if (pageState === 'confirm' && confirmData) {
+    const confirmCurrency = form.currency || 'USD';
+    const confirmCurrencySymbol = confirmCurrency === 'EGP' ? 'EGP ' : confirmCurrency === 'EUR' ? '€' : confirmCurrency === 'GBP' ? '£' : '$';
     return (
       <div className="flex min-h-[80vh] items-center justify-center bg-[#070F1E] px-5">
         <div className="max-w-lg text-center">
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#00473F]/30 border border-[#00473F]/30">
             <CheckCircle2 className="h-10 w-10 text-[#A7F3D0]" />
           </div>
-          <h1 className="text-3xl font-black text-white">Booking Confirmed!</h1>
+          <h1 className="text-3xl font-black text-white">{dict.checkout.successTitle}</h1>
           <p className="mt-3 text-slate-400">
-            Your booking reference is{' '}
+            {dict.checkout.successRef}{' '}
             <span className="font-bold text-white">{confirmData.bookingId}</span>
           </p>
 
           {confirmData.amountDueOnArrival > 0 && (
             <div className="mx-auto mt-8 max-w-sm rounded-2xl border border-[#FF5B00]/20 bg-[#FF5B00]/5 p-6">
-              <p className="text-sm text-slate-400">Amount due on arrival</p>
+              <p className="text-sm text-slate-400">{dict.checkout.successDue}</p>
               <p className="mt-1 text-3xl font-black text-[#FF5B00]">
-                EGP {confirmData.amountDueOnArrival.toFixed(2)}
+                {confirmCurrencySymbol}{confirmData.amountDueOnArrival.toFixed(2)}
               </p>
             </div>
           )}
@@ -301,7 +452,7 @@ export default function CheckoutPage() {
             className="mt-8"
             onClick={() => router.push(`/booking/${confirmData.bookingId}`)}
           >
-            View Booking Details
+            {dict.checkout.viewDetails}
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
@@ -319,16 +470,16 @@ export default function CheckoutPage() {
           className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-slate-400 transition-colors hover:text-white"
         >
           <ChevronLeft className="h-4 w-4" />
-          Back
+          {dict.checkout.back}
         </button>
 
         <div className="mb-10">
-          <p className="text-sm font-black uppercase tracking-[0.28em] text-[#EAB308]">Secure Checkout</p>
+          <p className="text-sm font-black uppercase tracking-[0.28em] text-[#EAB308]">{dict.checkout.secureCheckout}</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-white lg:text-4xl">
-            Complete your booking
+            {dict.checkout.completeBooking}
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-slate-400">
-            Fill in your details to reserve your spot. Your information is securely processed.
+            {dict.checkout.fillDetails}
           </p>
         </div>
 
@@ -337,13 +488,13 @@ export default function CheckoutPage() {
             <div className="flex items-center gap-3">
               <AlertCircle className="h-5 w-5 shrink-0 text-[#06B6D4]" />
               <p className="text-sm text-slate-300">
-                You have a pending payment.{' '}
+                {dict.checkout.pendingPayment}{' '}
                 <button
                   type="button"
                   onClick={handleResume}
                   className="font-bold text-[#06B6D4] underline transition-colors hover:text-[#EAB308]"
                 >
-                  Resume payment
+                  {dict.checkout.resumePayment}
                 </button>
               </p>
             </div>
@@ -356,10 +507,10 @@ export default function CheckoutPage() {
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 lg:p-8">
               <h2 className="mb-6 flex items-center gap-3 text-lg font-black text-white">
                 <CalendarDays className="h-5 w-5 text-[#06B6D4]" />
-                Travel Details
+                {dict.checkout.travelDetails}
               </h2>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <FormField label="Departure Date" required>
+                <FormField label={dict.checkout.departureDate} required>
                   <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 transition-all duration-300 hover:border-white/20 focus-within:border-[#06B6D4]/40 focus-within:bg-white/[0.06]">
                     <CalendarDays className="h-5 w-5 shrink-0 text-slate-500" />
                     <input
@@ -372,23 +523,41 @@ export default function CheckoutPage() {
                   </div>
                 </FormField>
 
-                <FormField label="Number of Guests" required>
-                  <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 transition-all duration-300 hover:border-white/20 focus-within:border-[#06B6D4]/40 focus-within:bg-white/[0.06]">
-                    <Users className="h-5 w-5 shrink-0 text-slate-500" />
-                    <select
-                      id="guestCount"
-                      value={guestCount}
-                      onChange={(e) => setGuestCount(Number(e.target.value))}
-                      className="flex-1 bg-transparent text-base font-medium text-white outline-none"
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                        <option key={n} value={n} className="bg-[#0B1528] text-white">
-                          {n} {n === 1 ? 'Guest' : 'Guests'}
-                        </option>
-                      ))}
-                    </select>
+                <div className="sm:col-span-2 mt-2 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                  <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                    <Users className="h-4 w-4 text-[#06B6D4]" />
+                    {dict.checkout.selectTravelers}
+                  </h3>
+                  <div className="divide-y divide-white/5">
+                    <GuestStepper
+                      label={dict.checkout.adults}
+                      sublabel={dict.checkout.ageAdult}
+                      value={adultsCount}
+                      icon={User}
+                      iconColor="bg-blue-500/10 text-blue-400"
+                      onChange={(val) => setAdultsCount(Math.max(1, val))}
+                      priceLabel={`${currencySymbol(form.currency)}${tour.adultPrice.toFixed(2)} ${dict.checkout.perPerson}`}
+                    />
+                    <GuestStepper
+                      label={dict.checkout.children}
+                      sublabel={dict.checkout.ageChild}
+                      value={childrenCount}
+                      icon={Users}
+                      iconColor="bg-yellow-500/10 text-yellow-400"
+                      onChange={(val) => setChildrenCount(val)}
+                      priceLabel={tour.childPrice != null ? `${currencySymbol(form.currency)}${tour.childPrice.toFixed(2)} ${dict.checkout.perChild}` : undefined}
+                    />
+                    <GuestStepper
+                      label={dict.checkout.infants}
+                      sublabel={dict.checkout.ageInfant}
+                      value={infantsCount}
+                      icon={Baby}
+                      iconColor="bg-emerald-500/10 text-emerald-400"
+                      onChange={(val) => setInfantsCount(val)}
+                      priceLabel={tour.infantPrice != null ? `${currencySymbol(form.currency)}${tour.infantPrice.toFixed(2)} ${dict.checkout.perInfant}` : undefined}
+                    />
                   </div>
-                </FormField>
+                </div>
               </div>
             </div>
 
@@ -396,7 +565,7 @@ export default function CheckoutPage() {
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 lg:p-8">
               <h2 className="mb-6 flex items-center gap-3 text-lg font-black text-white">
                 <User className="h-5 w-5 text-[#06B6D4]" />
-                Guest Information
+                {dict.checkout.guestInfo}
               </h2>
 
               <form
@@ -408,7 +577,7 @@ export default function CheckoutPage() {
                 className="space-y-5"
               >
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <FormField label="Lead Traveler Name" required error={errors.leadName}>
+                  <FormField label={dict.checkout.leadName} required error={errors.leadName}>
                     <Input
                       id="leadName"
                       type="text"
@@ -420,7 +589,7 @@ export default function CheckoutPage() {
                     />
                   </FormField>
 
-                  <FormField label="Email Address" required error={errors.email}>
+                  <FormField label={dict.checkout.email} required error={errors.email}>
                     <Input
                       id="email"
                       type="email"
@@ -432,7 +601,7 @@ export default function CheckoutPage() {
                     />
                   </FormField>
 
-                  <FormField label="WhatsApp Number" required error={errors.phone}>
+                  <FormField label={dict.checkout.phone} required error={errors.phone}>
                     <Input
                       id="phone"
                       type="tel"
@@ -444,7 +613,7 @@ export default function CheckoutPage() {
                     />
                   </FormField>
 
-                  <FormField label="Hotel Name" required error={errors.hotelName}>
+                  <FormField label={dict.checkout.hotelName} required error={errors.hotelName}>
                     <Input
                       id="hotelName"
                       type="text"
@@ -456,7 +625,7 @@ export default function CheckoutPage() {
                     />
                   </FormField>
 
-                  <FormField label="Room Number">
+                  <FormField label={dict.checkout.roomNumber}>
                     <Input
                       id="roomNumber"
                       type="text"
@@ -466,15 +635,60 @@ export default function CheckoutPage() {
                     />
                   </FormField>
 
-                  <FormField label="Preferred Pickup Time" required error={errors.pickupTime}>
-                    <Input
-                      id="pickupTime"
-                      type="time"
-                      value={form.pickupTime}
-                      onChange={(e) => handleFieldChange('pickupTime', e.target.value)}
-                      icon={<Clock className="h-5 w-5" />}
-                      error={errors.pickupTime}
-                    />
+                  {/* Pickup time: show slot picker if the tour has defined options */}
+                  {tour && tour.pickupTimes.length > 0 && (
+                    <FormField label={dict.checkout.pickupTime} required error={errors.pickupTime}>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {tour.pickupTimes.map((slot) => {
+                          const selected = form.pickupTime === slot;
+                          return (
+                            <button
+                              key={slot}
+                              type="button"
+                              id={`pickupSlot-${slot}`}
+                              onClick={() => handleFieldChange('pickupTime', slot)}
+                              className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm font-semibold transition-all ${
+                                selected
+                                  ? 'border-[#FF5B00] bg-[#FF5B00]/10 text-[#FF5B00]'
+                                  : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/30 hover:text-white'
+                              }`}
+                            >
+                              <Clock className="h-4 w-4 shrink-0" />
+                              {slot}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {errors.pickupTime && (
+                        <p className="mt-1.5 text-xs text-red-400">{errors.pickupTime}</p>
+                      )}
+                    </FormField>
+                  )}
+                  {tour && tour.pickupTimes.length === 0 && (
+                    <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400">
+                      <Clock className="h-4 w-4 shrink-0 text-[#00E5FF]" />
+                      {dict.checkout.pickupInfo}
+                    </div>
+                  )}
+
+                  {/* Currency Selector */}
+                  <FormField label={dict.checkout.currency}>
+                    <div className="flex gap-2">
+                      {['USD', 'EGP', 'EUR', 'GBP'].map((cur) => (
+                        <button
+                          key={cur}
+                          type="button"
+                          onClick={() => handleFieldChange('currency', cur)}
+                          className={`flex-1 rounded-xl border px-3 py-3 text-sm font-semibold transition-all ${
+                            form.currency === cur
+                              ? 'border-[#06B6D4] bg-[#06B6D4]/10 text-[#06B6D4]'
+                              : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/30 hover:text-white'
+                          }`}
+                        >
+                          {cur}
+                        </button>
+                      ))}
+                    </div>
                   </FormField>
                 </div>
 
@@ -490,7 +704,7 @@ export default function CheckoutPage() {
                 <div className="flex items-center justify-between border-t border-white/10 pt-6">
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <ShieldCheck className="h-4 w-4 text-[#A7F3D0]" />
-                    Secured with SSL encryption
+                    {dict.checkout.securedSSL}
                   </div>
                   <Button
                     type="submit"
@@ -500,7 +714,7 @@ export default function CheckoutPage() {
                     disabled={pageState === 'submitting'}
                     icon={<CreditCard className="h-4 w-4" />}
                   >
-                    {pageState === 'submitting' ? 'Processing...' : 'Confirm Booking'}
+                    {pageState === 'submitting' ? dict.checkout.processingButton : dict.checkout.confirmButton}
                   </Button>
                 </div>
               </form>
@@ -511,12 +725,20 @@ export default function CheckoutPage() {
           <div>
             <PriceSummarySidebar
               tourTitle={tour.title}
-              guestCount={guestCount}
-              basePrice={tour.basePrice}
+              adultsCount={adultsCount}
+              childrenCount={childrenCount}
+              infantsCount={infantsCount}
+              adultPrice={tour.adultPrice}
+              childPrice={tour.childPrice ?? tour.adultPrice}
+              infantPrice={tour.infantPrice ?? 0}
+              depositPercentage={tour.depositPercentage}
+              zoneTransferFee={tour.zoneTransferFee}
               scheme={scheme}
               onSchemeChange={handleSchemeChange}
               promoDiscount={promoDiscount}
               onPromoApplied={setPromoDiscount}
+              allowDeposit={tour.allowDeposit}
+              allowPayAtLocation={tour.allowPayAtLocation}
             />
           </div>
         </div>

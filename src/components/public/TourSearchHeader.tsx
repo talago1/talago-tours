@@ -4,6 +4,7 @@ import { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Search, X, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 import { TOUR_CATEGORIES } from '@/types/publicTour';
+import { useLanguage } from '@/context/LanguageContext';
 
 // Map internal categories to display labels
 const categoryLabels: Record<string, string> = {
@@ -27,6 +28,7 @@ export default function TourSearchHeader({
   totalCount,
   filteredCount,
 }: TourSearchHeaderProps) {
+  const { dict } = useLanguage();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -114,7 +116,7 @@ export default function TourSearchHeader({
             type="text"
             value={searchInput}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search experiences, destinations..."
+            placeholder={dict.catalog.searchPlaceholder}
             className="flex-1 bg-transparent text-base font-medium text-white placeholder-slate-500 outline-none"
           />
           {searchInput && (
@@ -145,7 +147,7 @@ export default function TourSearchHeader({
                 : 'border border-white/10 bg-white/5 text-slate-400 hover:border-[#FF5B00]/40 hover:text-[#FF5B00]'
             }`}
           >
-            All
+            {dict.catalog.all}
           </button>
 
           {/* Category pills */}
@@ -172,11 +174,11 @@ export default function TourSearchHeader({
             onChange={(e) => setSort(e.target.value)}
             className="appearance-none rounded-full border border-white/10 bg-white/5 px-4 py-2 pl-8 pr-10 text-xs font-black uppercase tracking-[0.18em] text-slate-400 outline-none transition-all hover:border-white/20 hover:text-white"
           >
-            <option value="" className="bg-[#0B1528] text-slate-400">Sort by</option>
-            <option value="price_asc" className="bg-[#0B1528] text-white">Price: Low to High</option>
-            <option value="price_desc" className="bg-[#0B1528] text-white">Price: High to Low</option>
-            <option value="duration_asc" className="bg-[#0B1528] text-white">Duration: Shortest</option>
-            <option value="duration_desc" className="bg-[#0B1528] text-white">Duration: Longest</option>
+            <option value="" className="bg-[#0B1528] text-slate-400">{dict.catalog.sortDefault}</option>
+            <option value="price_asc" className="bg-[#0B1528] text-white">{dict.catalog.sortPriceAsc}</option>
+            <option value="price_desc" className="bg-[#0B1528] text-white">{dict.catalog.sortPriceDesc}</option>
+            <option value="duration_asc" className="bg-[#0B1528] text-white">{dict.catalog.sortDurationAsc}</option>
+            <option value="duration_desc" className="bg-[#0B1528] text-white">{dict.catalog.sortDurationDesc}</option>
           </select>
           <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
         </div>
@@ -206,15 +208,15 @@ export default function TourSearchHeader({
       {/* Results count */}
       <p className="text-sm text-slate-500">
         {activeFilterCount > 0
-          ? `Showing ${filteredCount} of ${totalCount} experiences`
-          : `${totalCount} experiences available`}
+          ? dict.catalog.showingXofY.replace('{count}', String(filteredCount)).replace('{total}', String(totalCount))
+          : dict.catalog.xAvailable.replace('{total}', String(totalCount))}
         {activeFilterCount > 0 && (
           <button
             type="button"
             onClick={clearAll}
             className="ml-3 font-semibold text-[#06B6D4] hover:text-[#EAB308] transition-colors"
           >
-            Clear all filters
+            {dict.catalog.clearAll}
           </button>
         )}
       </p>

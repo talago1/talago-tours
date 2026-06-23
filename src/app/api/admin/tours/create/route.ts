@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { z } from 'zod';
+import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema } from '@/utils/tourJsonSchemas';
 
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 const ALLOWED_TYPES = ['SHARED', 'PRIVATE'];
-const REQUIRED_LANGUAGES = ['en', 'de', 'ru', 'fr', 'it', 'tr'];
+const REQUIRED_LANGUAGES = ['en', 'de', 'ru', 'fr', 'it', 'pl', 'es'];
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +21,11 @@ export async function POST(request: NextRequest) {
       translations,
       coverImage,
       galleryImages,
+      category,
+      status,
+      allowDeposit,
+      depositPercentage,
+      allowPayAtLocation,
       highlights,
       inclusions,
       exclusions,
@@ -136,6 +143,36 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (translations) {
+      const parsedTranslations = TourTranslationsRecordSchema.safeParse(translations);
+      if (!parsedTranslations.success) {
+        return NextResponse.json(
+          { error: 'Invalid translations structure', field: 'translations' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (itinerary !== undefined) {
+      const parsedItinerary = z.array(ItineraryStepSchema).safeParse(itinerary);
+      if (!parsedItinerary.success) {
+        return NextResponse.json(
+          { error: 'Invalid itinerary data structure', field: 'itinerary' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (reviews !== undefined) {
+      const parsedReviews = z.array(SeededReviewSchema).safeParse(reviews);
+      if (!parsedReviews.success) {
+        return NextResponse.json(
+          { error: 'Invalid reviews data structure', field: 'reviews' },
+          { status: 400 }
+        );
+      }
+    }
+
     if (!translations.en.title || translations.en.title.trim().length === 0) {
       return NextResponse.json(
         { error: 'English title is required', field: 'translations.en.title' },
@@ -190,6 +227,11 @@ export async function POST(request: NextRequest) {
         images: [],
         coverImage: coverImage || null,
         galleryImages: galleryImages || [],
+        category: category || null,
+        status: status || 'INACTIVE',
+        allowDeposit: allowDeposit ?? false,
+        depositPercentage: depositPercentage ?? 100,
+        allowPayAtLocation: allowPayAtLocation ?? true,
         highlights: highlights || [],
         inclusions: inclusions || [],
         exclusions: exclusions || [],
@@ -200,9 +242,7 @@ export async function POST(request: NextRequest) {
         pickupTime: pickupTime || null,
         cancellationPolicy: cancellationPolicy || null,
         adultPrice,
-        priceAdult: priceAdult ?? adultPrice,
         childPrice: childEnabled ? childPrice : null,
-        priceChild: childEnabled ? (priceChild ?? childPrice) : null,
         childMinAge: childEnabled ? (childMinAge ?? 3) : null,
         childMaxAge: childEnabled ? (childMaxAge ?? 11) : null,
         infantPrice: infantEnabled ? infantPrice : null,

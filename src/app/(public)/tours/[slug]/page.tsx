@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import TourDetailsClient from './TourDetailsClient';
 import type { ReviewDistribution, ApprovedReview } from '@/types/review';
 import type { Metadata } from 'next';
+import { safeParseItinerary, safeParseReviews } from '@/utils/tourJsonSchemas';
 
 interface Props {
   params: { slug: string };
@@ -91,7 +92,7 @@ export default async function TourDetailPage({ params }: Props) {
   const description = translations?.en?.description ?? '';
 
   // Merge reviews from both sources: reviewEntries (relation) and reviews (JSON)
-  const jsonReviews = Array.isArray(tour.reviews) ? (tour.reviews as any[]) : [];
+  const jsonReviews = safeParseReviews(tour.reviews);
 
   const relationReviews = (tour.reviewEntries ?? []).filter((r) => r.status === 'APPROVED');
 
@@ -164,7 +165,7 @@ export default async function TourDetailPage({ params }: Props) {
           highlights: tour.highlights as string[],
           inclusions: tour.inclusions as string[],
           exclusions: tour.exclusions as string[],
-          itinerary: tour.itinerary as any[],
+          itinerary: safeParseItinerary(tour.itinerary),
           whatToBring: String(tour.whatToBring ?? ''),
           pickupDescription: tour.pickupDescription,
           hotelPickupIncluded: tour.hotelPickupIncluded,

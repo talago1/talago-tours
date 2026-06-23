@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDropzone } from 'react-dropzone';
 import {
   Edit3,
@@ -16,6 +17,9 @@ import {
   ChevronUp,
   ChevronDown,
   ImageIcon,
+  Eye,
+  Star,
+  MapPin,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -25,6 +29,14 @@ import {
 interface TourTranslation {
   title: string;
   description: string;
+  cancellationPolicies: string[];
+  highlights: string[];
+  inclusions: string[];
+  exclusions: string[];
+  cardExcerpt: string;
+  whatToBring: string;
+  pickupDescription: string;
+  cancellationPolicy: string;
 }
 
 interface ItineraryStep {
@@ -52,6 +64,24 @@ interface Tour {
   allowDeposit?: boolean;
   depositPercentage?: number;
   allowPayAtLocation?: boolean;
+  pickupTime?: string;
+  pickupDescription?: string;
+  whatToBring?: string;
+  cancellationPolicy?: string;
+  hotelPickupIncluded?: boolean;
+  childPrice?: number | null;
+  childMinAge?: number | null;
+  childMaxAge?: number | null;
+  infantPrice?: number | null;
+  infantMinAge?: number | null;
+  infantMaxAge?: number | null;
+  ageRestrictionsNotes?: string | null;
+  itinerary?: ItineraryStep[];
+  cardExcerpt?: string;
+  showExcerptOnCard?: boolean;
+  reviews?: { customerName: string; rating: number; comment: string }[];
+  ratingAverage?: number;
+  ratingCount?: number;
 }
 
 interface AdminToursClientProps {
@@ -63,6 +93,11 @@ interface AdminToursClientProps {
 type LanguageTab = 'en' | 'de' | 'ru' | 'it' | 'fr' | 'pl' | 'es';
 
 const LANGUAGE_TABS: LanguageTab[] = ['en', 'de', 'ru', 'it', 'fr', 'pl', 'es'];
+
+function createEmptyTranslations(): Record<string, TourTranslation> {
+  const empty: TourTranslation = { title: '', description: '', cancellationPolicies: [], highlights: [], inclusions: [], exclusions: [], cardExcerpt: '', whatToBring: '', pickupDescription: '', cancellationPolicy: '' };
+  return Object.fromEntries(LANGUAGE_TABS.map((l) => [l, { ...empty }]));
+}
 
 function createEmptyStep(): ItineraryStep {
   return {
@@ -76,6 +111,70 @@ function createEmptyStep(): ItineraryStep {
 // ---------------------------------------------------------------------------
 // Cover Image Dropzone Component
 // ---------------------------------------------------------------------------
+
+function StringListInput({
+  label,
+  values,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  values: string[];
+  onChange: (v: string[]) => void;
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState('');
+  return (
+    <div>
+      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">{label}</span>
+      <div className="space-y-2">
+        {values.map((item, idx) => (
+          <div key={idx} className="flex gap-2">
+            <input
+              type="text"
+              value={item}
+              onChange={(e) => {
+                const updated = [...values];
+                updated[idx] = e.target.value;
+                onChange(updated);
+              }}
+              className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-[#06B6D4]"
+            />
+            <button
+              type="button"
+              onClick={() => onChange(values.filter((_, i) => i !== idx))}
+              className="rounded-2xl px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (draft.trim()) { onChange([...values, draft.trim()]); setDraft(''); }
+              }
+            }}
+            placeholder={placeholder || `Add ${label.toLowerCase()}`}
+            className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#06B6D4]"
+          />
+          <button
+            type="button"
+            onClick={() => { if (draft.trim()) { onChange([...values, draft.trim()]); setDraft(''); } }}
+            className="rounded-2xl bg-[#06B6D4]/10 border border-[#06B6D4]/30 px-4 py-3 text-sm font-bold text-[#06B6D4]"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function CoverImageDropzone({
   currentUrl,
@@ -115,7 +214,8 @@ function CoverImageDropzone({
         }
 
         const data = await res.json();
-        onUploaded(data.url);
+        const uploaded = data.uploaded?.[0];
+        onUploaded(uploaded?.url || '');
       } catch (err) {
         setUploadError(err instanceof Error ? err.message : 'Upload failed');
         setPreviewUrl(null);
@@ -271,6 +371,180 @@ function GalleryAddButton({
 }
 
 // ---------------------------------------------------------------------------
+// Carousel Images Component
+// ---------------------------------------------------------------------------
+
+function CarouselImages({
+  images,
+  isHovered,
+  tourId,
+}: {
+  images: string[];
+  isHovered: boolean;
+  tourId: string;
+}) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (!isHovered || images.length <= 1) return;
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % images.length);
+    }, 1200);
+    return () => clearInterval(interval);
+  }, [isHovered, images.length]);
+
+  useEffect(() => {
+    setIndex(0);
+  }, [tourId]);
+
+  if (images.length === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0EA5E9]/10 via-[#070F1E] to-[#EAB308]/10">
+        <ImageIcon className="h-10 w-10 text-white/20" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-full w-full">
+      {images.map((url, i) => (
+        <img
+          key={i}
+          src={url}
+          alt=""
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+            i === index ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+      ))}
+      {images.length > 1 && (
+        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+          {images.map((_, i) => (
+            <span
+              key={i}
+              className={`h-1.5 rounded-full transition-all ${
+                i === index ? 'w-4 bg-[#06B6D4]' : 'w-1.5 bg-white/40'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Live Preview Modal Component
+// ---------------------------------------------------------------------------
+
+function TourPreviewModal({
+  tour,
+  onClose,
+  getTourTitle,
+}: {
+  tour: Tour;
+  onClose: () => void;
+  getTourTitle: (t: unknown) => string;
+}) {
+  const translations = tour.translations as Record<string, { title?: string; description?: string }> | null;
+  const description = translations?.en?.description ?? '';
+
+  const gallery = ((tour as unknown as { galleryImages?: (string | null)[] }).galleryImages || []).filter(Boolean) as string[];
+  const allImages = [tour.coverImage, ...gallery].filter((x): x is string => typeof x === 'string' && x.length > 0);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-5 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] border border-white/10 bg-[#070F1E] shadow-2xl shadow-black/80"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Preview header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/5 bg-[#070F1E]/90 px-6 py-4 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <Eye className="h-4 w-4 text-[#00E5FF]" />
+            <span className="text-sm font-black uppercase tracking-[0.18em] text-slate-400">Live Preview</span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-white/10 p-2 text-slate-400 transition-all hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Preview content */}
+        <div className="p-6">
+          {/* Hero image */}
+          <div className="relative mb-6 aspect-[16/7] overflow-hidden rounded-2xl bg-white/[0.02]">
+            {tour.coverImage ? (
+              <img src={tour.coverImage} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <ImageIcon className="h-12 w-12 text-white/20" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#070F1E]/80 via-transparent to-transparent" />
+            <div className="absolute bottom-4 left-4">
+              <h2 className="text-2xl font-black text-white">{getTourTitle(tour.translations)}</h2>
+              <p className="flex items-center gap-2 text-sm text-slate-400">
+                <MapPin className="h-3.5 w-3.5 text-[#06B6D4]" />
+                {tour.destination?.name || 'Hub'} &middot; {tour.durationHours}h &middot; ${tour.adultPrice.toFixed(0)}
+              </p>
+            </div>
+          </div>
+
+          {/* Gallery strip */}
+          {allImages.length > 1 && (
+            <div className="mb-6">
+              <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Gallery</p>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {allImages.map((url, i) => (
+                  <img
+                    key={i}
+                    src={url}
+                    alt=""
+                    className="h-20 w-28 shrink-0 rounded-xl object-cover"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Description */}
+          <div className="mb-6">
+            <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Description</p>
+            <p className="text-sm leading-relaxed text-slate-300">
+              {description || 'No description available.'}
+            </p>
+          </div>
+
+          {/* Details grid */}
+          <div className="grid grid-cols-2 gap-4 rounded-2xl border border-white/10 bg-[#0B1528] p-5">
+            <div>
+              <span className="text-xs text-slate-500">Status</span>
+              <p className="font-bold text-white">{tour.status}</p>
+            </div>
+            <div>
+              <span className="text-xs text-slate-500">Category</span>
+              <p className="font-bold text-white">{tour.category || tour.type}</p>
+            </div>
+            <div>
+              <span className="text-xs text-slate-500">Price</span>
+              <p className="font-bold text-white">${tour.adultPrice.toFixed(0)}</p>
+            </div>
+            <div>
+              <span className="text-xs text-slate-500">Capacity</span>
+              <p className="font-bold text-white">{tour.maxCapacity} pax</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Itinerary Builder Component
 // ---------------------------------------------------------------------------
 
@@ -402,6 +676,7 @@ function ItineraryBuilderSection({
 // ---------------------------------------------------------------------------
 
 export default function AdminToursClient({ initialTours, destinations, zones }: AdminToursClientProps) {
+  const router = useRouter();
   const [tours, setTours] = useState<Tour[]>(initialTours);
   const [search, setSearch] = useState('');
   const [selectedDestination, setSelectedDestination] = useState('All');
@@ -412,11 +687,27 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
   const [activeTab, setActiveTab] = useState<LanguageTab>('en');
   const [uploading, setUploading] = useState(false);
 
+  // Sync server-fetched tours back into state when router.refresh() re-renders the server component
+  useEffect(() => { setTours(initialTours); }, [initialTours]);
+
   // Form Fields
   const [slug, setSlug] = useState('');
   const [type, setType] = useState('SHARED');
-  const [category, setCategory] = useState('Sea');
+  const [category, setCategory] = useState('sea');
   const [adultPrice, setAdultPrice] = useState(100);
+
+  // Child pricing
+  const [childEnabled, setChildEnabled] = useState(false);
+  const [childPrice, setChildPrice] = useState(0);
+  const [childMinAge, setChildMinAge] = useState(3);
+  const [childMaxAge, setChildMaxAge] = useState(11);
+
+  // Infant pricing
+  const [infantEnabled, setInfantEnabled] = useState(false);
+  const [infantPrice, setInfantPrice] = useState(0);
+  const [infantMinAge, setInfantMinAge] = useState(0);
+  const [infantMaxAge, setInfantMaxAge] = useState(2);
+  const [ageRestrictionsNotes, setAgeRestrictionsNotes] = useState('');
   const [durationHours, setDurationHours] = useState(6);
   const [maxCapacity, setMaxCapacity] = useState(25);
   const [destinationId, setDestinationId] = useState(destinations[0]?.id || '');
@@ -426,18 +717,21 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryUploading, setGalleryUploading] = useState(false);
   const [itinerarySteps, setItinerarySteps] = useState<ItineraryStep[]>([]);
+  const [previewTour, setPreviewTour] = useState<Tour | null>(null);
+  const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const [allowDeposit, setAllowDeposit] = useState(false);
   const [depositPercentage, setDepositPercentage] = useState(100);
   const [allowPayAtLocation, setAllowPayAtLocation] = useState(true);
-  const [translations, setTranslations] = useState<Record<string, TourTranslation>>({
-    en: { title: '', description: '' },
-    de: { title: '', description: '' },
-    ru: { title: '', description: '' },
-    it: { title: '', description: '' },
-    fr: { title: '', description: '' },
-    pl: { title: '', description: '' },
-    es: { title: '', description: '' },
-  });
+
+  const [pickupTime, setPickupTime] = useState('');
+  const [hotelPickupIncluded, setHotelPickupIncluded] = useState(false);
+  const [draftTime, setDraftTime] = useState('');
+  const [showExcerptOnCard, setShowExcerptOnCard] = useState(true);
+
+  // Seeded reviews
+  const [seededReviews, setSeededReviews] = useState<{ customerName: string; rating: number; comment: string }[]>([]);
+
+  const [translations, setTranslations] = useState<Record<string, TourTranslation>>(createEmptyTranslations());
 
   function getTourTitle(tourTranslations: unknown): string {
     const value = tourTranslations as Record<string, { title?: string }> | null;
@@ -447,8 +741,17 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
   function resetFormState() {
     setSlug('');
     setType('SHARED');
-    setCategory('Sea');
+    setCategory('sea');
     setAdultPrice(100);
+    setChildEnabled(false);
+    setChildPrice(0);
+    setChildMinAge(3);
+    setChildMaxAge(11);
+    setInfantEnabled(false);
+    setInfantPrice(0);
+    setInfantMinAge(0);
+    setInfantMaxAge(2);
+    setAgeRestrictionsNotes('');
     setDurationHours(6);
     setMaxCapacity(25);
     setDestinationId(destinations[0]?.id || '');
@@ -460,15 +763,12 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
     setAllowDeposit(false);
     setDepositPercentage(100);
     setAllowPayAtLocation(true);
-    setTranslations({
-      en: { title: '', description: '' },
-      de: { title: '', description: '' },
-      ru: { title: '', description: '' },
-      it: { title: '', description: '' },
-      fr: { title: '', description: '' },
-      pl: { title: '', description: '' },
-      es: { title: '', description: '' },
-    });
+    setPickupTime('');
+    setHotelPickupIncluded(false);
+    setDraftTime('');
+    setShowExcerptOnCard(true);
+    setSeededReviews([]);
+    setTranslations(createEmptyTranslations());
     setError(null);
     setActiveTab('en');
   }
@@ -483,7 +783,7 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
     setEditingTour(tour);
     setSlug(tour.slug);
     setType(tour.type);
-    setCategory(tour.category || 'Sea');
+    setCategory(tour.category || 'sea');
     setAdultPrice(tour.adultPrice);
     setDurationHours(tour.durationHours);
     setMaxCapacity(tour.maxCapacity);
@@ -496,20 +796,60 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
     setDepositPercentage(tour.depositPercentage ?? 100);
     setAllowPayAtLocation(tour.allowPayAtLocation ?? true);
 
+    const logisticData = tour as unknown as { pickupTime?: string; pickupDescription?: string; whatToBring?: string; cancellationPolicy?: string; hotelPickupIncluded?: boolean };
+    setPickupTime(logisticData.pickupTime || '');
+    setHotelPickupIncluded(logisticData.hotelPickupIncluded ?? false);
+    setDraftTime('');
+
+    // Pricing
+    const hasChild = tour.childPrice !== null && tour.childPrice !== undefined && tour.childPrice > 0;
+    setChildEnabled(hasChild);
+    setChildPrice(tour.childPrice ?? 0);
+    setChildMinAge(tour.childMinAge ?? 3);
+    setChildMaxAge(tour.childMaxAge ?? 11);
+    const hasInfant = tour.infantPrice !== null && tour.infantPrice !== undefined && tour.infantPrice > 0;
+    setInfantEnabled(hasInfant);
+    setInfantPrice(tour.infantPrice ?? 0);
+    setInfantMinAge(tour.infantMinAge ?? 0);
+    setInfantMaxAge(tour.infantMaxAge ?? 2);
+    setAgeRestrictionsNotes(tour.ageRestrictionsNotes ?? '');
+
+    // Marketing fields
+    const tourData = tour as unknown as { highlights?: string[]; inclusions?: string[]; exclusions?: string[]; cardExcerpt?: string; showExcerptOnCard?: boolean; reviews?: { customerName: string; rating: number; comment: string }[] };
+    setShowExcerptOnCard(tourData.showExcerptOnCard ?? true);
+    setSeededReviews(tourData.reviews ?? []);
+
     const originalTranslations = tour.translations as Record<string, TourTranslation>;
     const newTranslations: Record<string, TourTranslation> = {};
     for (const lang of LANGUAGE_TABS) {
+      const orig = originalTranslations?.[lang];
       newTranslations[lang] = {
-        title: originalTranslations?.[lang]?.title || '',
-        description: originalTranslations?.[lang]?.description || '',
+        title: orig?.title || '',
+        description: orig?.description || '',
+        cancellationPolicies: orig?.cancellationPolicies || [],
+        highlights: orig?.highlights || [],
+        inclusions: orig?.inclusions || [],
+        exclusions: orig?.exclusions || [],
+        cardExcerpt: orig?.cardExcerpt || '',
+        whatToBring: orig?.whatToBring || '',
+        pickupDescription: orig?.pickupDescription || '',
+        cancellationPolicy: orig?.cancellationPolicy || '',
       };
     }
+    // Seed English from legacy columns for backward compatibility with old tours
+    if (!newTranslations.en.highlights.length && Array.isArray(tourData.highlights)) newTranslations.en.highlights = [...tourData.highlights];
+    if (!newTranslations.en.inclusions.length && Array.isArray(tourData.inclusions)) newTranslations.en.inclusions = [...tourData.inclusions];
+    if (!newTranslations.en.exclusions.length && Array.isArray(tourData.exclusions)) newTranslations.en.exclusions = [...tourData.exclusions];
+    if (!newTranslations.en.cardExcerpt && tourData.cardExcerpt) newTranslations.en.cardExcerpt = tourData.cardExcerpt;
+    if (!newTranslations.en.whatToBring && logisticData.whatToBring) newTranslations.en.whatToBring = logisticData.whatToBring;
+    if (!newTranslations.en.pickupDescription && logisticData.pickupDescription) newTranslations.en.pickupDescription = logisticData.pickupDescription;
+    if (!newTranslations.en.cancellationPolicy && logisticData.cancellationPolicy) newTranslations.en.cancellationPolicy = logisticData.cancellationPolicy;
     setTranslations(newTranslations);
 
     // Parse existing itinerary if available
-    const tourData = tour as unknown as { itinerary?: ItineraryStep[] };
-    if (Array.isArray(tourData.itinerary)) {
-      setItinerarySteps(tourData.itinerary.map((s) => ({
+    const itineraryData = tour as unknown as { itinerary?: ItineraryStep[] };
+    if (Array.isArray(itineraryData.itinerary)) {
+      setItinerarySteps(itineraryData.itinerary.map((s) => ({
         id: s.id || crypto.randomUUID(),
         timeTag: s.timeTag || '',
         activity: s.activity || '',
@@ -522,26 +862,6 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
     setError(null);
     setActiveTab('en');
     setModalOpen(true);
-  }
-
-  function handleTranslationChange(lang: string, field: 'title' | 'description', value: string) {
-    setTranslations((prev) => ({
-      ...prev,
-      [lang]: {
-        ...prev[lang],
-        [field]: value,
-      },
-    }));
-
-    if (!editingTour && lang === 'en' && field === 'title') {
-      const generated = value
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .trim()
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-');
-      setSlug(generated);
-    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -564,6 +884,15 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
       category,
       adultPrice,
       basePriceUSD: adultPrice,
+      childEnabled,
+      childPrice: childEnabled ? childPrice : null,
+      childMinAge: childEnabled ? childMinAge : null,
+      childMaxAge: childEnabled ? childMaxAge : null,
+      infantEnabled,
+      infantPrice: infantEnabled ? infantPrice : null,
+      infantMinAge: infantEnabled ? infantMinAge : null,
+      infantMaxAge: infantEnabled ? infantMaxAge : null,
+      ageRestrictionsNotes: ageRestrictionsNotes || null,
       durationHours,
       maxCapacity,
       destinationId,
@@ -575,15 +904,26 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
       allowDeposit,
       depositPercentage,
       allowPayAtLocation,
+      pickupTime: pickupTime || null,
+      hotelPickupIncluded,
+      highlights: translations.en.highlights?.length > 0 ? translations.en.highlights : undefined,
+      inclusions: translations.en.inclusions?.length > 0 ? translations.en.inclusions : undefined,
+      exclusions: translations.en.exclusions?.length > 0 ? translations.en.exclusions : undefined,
+      cardExcerpt: translations.en.cardExcerpt || undefined,
+      whatToBring: translations.en.whatToBring || null,
+      pickupDescription: translations.en.pickupDescription || null,
+      cancellationPolicy: translations.en.cancellationPolicy || null,
+      showExcerptOnCard,
+      displayExcerpt: showExcerptOnCard,
+      reviews: seededReviews.length > 0 ? seededReviews : undefined,
       translations: {
-        en: { ...translations.en, cancellationPolicies: [] },
-        de: { ...translations.de, cancellationPolicies: [] },
-        ru: { ...translations.ru, cancellationPolicies: [] },
-        it: { ...translations.it, cancellationPolicies: [] },
-        fr: { ...translations.fr, cancellationPolicies: [] },
-        pl: { ...translations.pl, cancellationPolicies: [] },
-        es: { ...translations.es, cancellationPolicies: [] },
-        tr: { title: '', description: '', cancellationPolicies: [] },
+        en: { ...translations.en },
+        de: { ...translations.de },
+        ru: { ...translations.ru },
+        it: { ...translations.it },
+        fr: { ...translations.fr },
+        pl: { ...translations.pl },
+        es: { ...translations.es },
       },
     };
 
@@ -602,29 +942,10 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
         throw new Error(data.error || 'Failed to save experience');
       }
 
-      const listRes = await fetch('/api/public/tours');
-      if (listRes.ok) {
-        const listData = await listRes.json();
-        const mapped = listData.tours.map((t: Record<string, unknown>) => ({
-          ...t,
-          adultPrice: Number((t as { basePrice?: number }).basePrice || 0),
-          basePriceUSD: Number((t as { basePrice?: number }).basePrice || 0),
-          coverImage: (t as { thumbnailUrl?: string }).thumbnailUrl,
-          destinationId: (t as { destinationId?: string }).destinationId || destinationId,
-          zoneId: (t as { zoneId?: string }).zoneId || zoneId,
-          maxCapacity: (t as { maxCapacity?: number }).maxCapacity || 20,
-          durationHours: Number(String((t as { duration?: string }).duration || '6').split(' ')[0] || 6),
-          status: (t as { status?: string }).status || 'ACTIVE',
-          allowDeposit: (t as { allowDeposit?: boolean }).allowDeposit ?? false,
-          depositPercentage: (t as { depositPercentage?: number }).depositPercentage ?? 100,
-          allowPayAtLocation: (t as { allowPayAtLocation?: boolean }).allowPayAtLocation ?? true,
-        }));
-        setTours(mapped as Tour[]);
-      } else {
-        window.location.reload();
-      }
-
+      // Refresh server component data (includes ALL tours, active & inactive) so the
+      // admin list always shows the saved tour with its updated coverImage/status.
       setModalOpen(false);
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -709,87 +1030,122 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
           </div>
         </section>
 
-        {/* Tours Table */}
-        <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.18em] text-slate-500">
-              <tr>
-                <th className="px-5 py-4">Title</th>
-                <th className="px-5 py-4">Category</th>
-                <th className="px-5 py-4">Destination</th>
-                <th className="px-5 py-4">Price</th>
-                <th className="px-5 py-4">Capacity</th>
-                <th className="px-5 py-4">Status</th>
-                <th className="px-5 py-4">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {filtered.map((tour) => (
-                <tr key={tour.id} className="text-slate-300 transition-all duration-300 ease-in-out hover:bg-white/[0.03]">
-                  <td className="px-5 py-5">
-                    <div className="flex items-center gap-3">
-                      {tour.coverImage ? (
-                        <img
-                          src={tour.coverImage}
-                          alt=""
-                          className="h-11 w-11 rounded-2xl object-cover"
-                        />
-                      ) : (
-                        <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#06B6D4]/10 text-[#06B6D4]">
-                          <Ship className="h-5 w-5" />
-                        </span>
-                      )}
-                      <div>
-                        <p className="font-black text-white">{getTourTitle(tour.translations)}</p>
-                        <p className="mt-1 text-xs text-slate-500">/{tour.slug}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-5">{tour.category || tour.type}</td>
-                  <td className="px-5 py-5">{tour.destination?.name || 'Hub'}</td>
-                  <td className="px-5 py-5">${tour.adultPrice.toFixed(0)}</td>
-                  <td className="px-5 py-5">{tour.maxCapacity} pax</td>
-                  <td className="px-5 py-5">
+        {/* Tours Card Grid */}
+        <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+          {filtered.map((tour) => {
+            const gallery = ((tour as unknown as { galleryImages?: (string | null)[] }).galleryImages || []).filter(Boolean) as string[];
+            const allImages = [tour.coverImage, ...gallery].filter((x): x is string => typeof x === 'string' && x.length > 0);
+
+            return (
+              <div
+                key={tour.id}
+                className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20 transition-all duration-300 hover:-translate-y-1 hover:border-[#06B6D4]/35"
+                onMouseEnter={() => setHoveredCardId(tour.id)}
+                onMouseLeave={() => setHoveredCardId(null)}
+              >
+                {/* Image carousel */}
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/[0.02]">
+                  <CarouselImages
+                    images={allImages}
+                    isHovered={hoveredCardId === tour.id}
+                    tourId={tour.id}
+                  />
+
+                  {/* Category badge */}
+                  <div className="absolute left-4 top-4 rounded-full border border-white/10 bg-[#070F1E]/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#EAB308] backdrop-blur-md">
+                    {tour.category || tour.type}
+                  </div>
+
+                  {/* Status badge */}
+                  <div className="absolute right-4 top-4">
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-black ${
-                        tour.status === 'ACTIVE' ? 'bg-emerald-400/10 text-emerald-300' : 'bg-[#EAB308]/10 text-[#EAB308]'
+                      className={`rounded-full px-3 py-1 text-[10px] font-black ${
+                        tour.status === 'ACTIVE'
+                          ? 'bg-emerald-400/10 text-emerald-300'
+                          : 'bg-[#EAB308]/10 text-[#EAB308]'
                       }`}
                     >
                       {tour.status}
                     </span>
-                  </td>
-                  <td className="px-5 py-5">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(tour)}
-                        className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs font-black text-slate-200 transition-all duration-300 ease-in-out hover:scale-[1.02] hover:border-[#06B6D4]/40 hover:text-[#06B6D4]"
-                      >
-                        <Edit3 className="h-3.5 w-3.5" />
-                        Manage
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(tour.id)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-slate-400 transition-all hover:border-red-400/30 hover:text-red-400"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                  </div>
+                </div>
+
+                {/* Card body */}
+                <div className="p-5">
+                  <h3 className="mb-1 line-clamp-2 min-h-[2.5rem] text-base font-black leading-tight text-white transition-colors group-hover:text-[#06B6D4]">
+                    {getTourTitle(tour.translations)}
+                  </h3>
+                  <p className="mb-1 text-xs text-slate-500">/{tour.slug}</p>
+
+                  <div className="mb-4 flex items-center gap-3 text-xs text-slate-400">
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="h-3 w-3 text-[#06B6D4]" />
+                      {tour.destination?.name || 'Hub'}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="h-3 w-3 text-[#EAB308]" />
+                      {tour.durationHours}h
+                    </span>
+                  </div>
+
+                  <div className="mb-5 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
+                        Starting at
+                      </span>
+                      <p className="text-xl font-black text-white">
+                        ${tour.adultPrice.toFixed(0)}
+                      </p>
                     </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-slate-500">
-                    No experiences match your search criteria
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    <span className="text-xs text-slate-500">{tour.maxCapacity} pax</span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 border-t border-white/5 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(tour)}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-2.5 text-xs font-black text-slate-200 transition-all hover:border-[#06B6D4]/40 hover:text-[#06B6D4]"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                      Manage
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewTour(tour)}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-2.5 text-xs font-black text-slate-200 transition-all hover:border-[#00E5FF]/40 hover:text-[#00E5FF]"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      Preview
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(tour.id)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-slate-400 transition-all hover:border-red-400/30 hover:text-red-400"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div className="col-span-full py-16 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/5">
+                <Ship className="h-8 w-8 text-slate-500" />
+              </div>
+              <p className="text-lg font-bold text-white">No experiences match your search criteria</p>
+              <p className="mt-1 text-sm text-slate-500">Try adjusting your search or filter.</p>
+            </div>
+          )}
         </section>
       </div>
+
+      {/* Live Preview Modal */}
+      {previewTour && (
+        <TourPreviewModal tour={previewTour} onClose={() => setPreviewTour(null)} getTourTitle={getTourTitle} />
+      )}
 
       {/* Dynamic Modal Form */}
       {modalOpen && (
@@ -829,33 +1185,178 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
                   ))}
                 </div>
 
-                <div className="space-y-4">
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                      Experience Title ({activeTab.toUpperCase()})
-                    </span>
-                    <input
-                      type="text"
-                      required={activeTab === 'en'}
-                      value={translations[activeTab].title}
-                      onChange={(e) => handleTranslationChange(activeTab, 'title', e.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none focus:border-[#06B6D4]"
-                    />
-                  </label>
+                {LANGUAGE_TABS.map((lang) => (
+                  <div key={lang} className={lang === activeTab ? '' : 'hidden'}>
+                    <div className="space-y-5">
+                      {/* Title */}
+                      <div>
+                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                          Title {lang === 'en' && <span className="text-red-400">*</span>}
+                        </label>
+                        <input
+                          type="text"
+                          value={translations[lang].title}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setTranslations((prev) => ({ ...prev, [lang]: { ...prev[lang], title: val } }));
+                            if (!editingTour && lang === 'en') {
+                              setSlug(val.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-'));
+                            }
+                          }}
+                          placeholder={`Tour title (${lang.toUpperCase()})`}
+                          className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#06B6D4]"
+                        />
+                      </div>
 
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                      Description ({activeTab.toUpperCase()})
-                    </span>
-                    <textarea
-                      required={activeTab === 'en'}
-                      rows={4}
-                      value={translations[activeTab].description}
-                      onChange={(e) => handleTranslationChange(activeTab, 'description', e.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none focus:border-[#06B6D4]"
-                    />
-                  </label>
-                </div>
+                      {/* Description */}
+                      <div>
+                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                          Description {lang === 'en' && <span className="text-red-400">*</span>}
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={translations[lang].description}
+                          onChange={(e) => setTranslations((prev) => ({ ...prev, [lang]: { ...prev[lang], description: e.target.value } }))}
+                          placeholder={`Tour description (${lang.toUpperCase()})`}
+                          className="w-full resize-y rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#06B6D4]"
+                        />
+                      </div>
+
+                      {/* Card Excerpt */}
+                      <div>
+                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                          Card Excerpt ({lang.toUpperCase()})
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={translations[lang].cardExcerpt}
+                          onChange={(e) => setTranslations((prev) => ({ ...prev, [lang]: { ...prev[lang], cardExcerpt: e.target.value } }))}
+                          placeholder="A brief, enticing summary shown on tour cards"
+                          className="w-full resize-y rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#06B6D4]"
+                        />
+                      </div>
+
+                      {/* Highlights & Details */}
+                      <div className="border-t border-white/5 pt-4">
+                        <label className="mb-3 block text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                          Highlights &amp; Details ({lang.toUpperCase()})
+                        </label>
+                        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                          <StringListInput label="Highlights" values={translations[lang].highlights}
+                            onChange={(v) => setTranslations((prev) => ({ ...prev, [lang]: { ...prev[lang], highlights: v } }))}
+                            placeholder="e.g. Snorkeling at Giftun Island" />
+                          <StringListInput label="Inclusions" values={translations[lang].inclusions}
+                            onChange={(v) => setTranslations((prev) => ({ ...prev, [lang]: { ...prev[lang], inclusions: v } }))}
+                            placeholder="e.g. Lunch, transfers, guide" />
+                          <StringListInput label="Exclusions" values={translations[lang].exclusions}
+                            onChange={(v) => setTranslations((prev) => ({ ...prev, [lang]: { ...prev[lang], exclusions: v } }))}
+                            placeholder="e.g. Personal expenses" />
+                        </div>
+                      </div>
+
+                      {/* Logistics Text */}
+                      <div className="border-t border-white/5 pt-4">
+                        <label className="mb-3 block text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                          Logistics &amp; Information ({lang.toUpperCase()})
+                        </label>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                              What to Bring / Info
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={translations[lang].whatToBring}
+                              onChange={(e) => setTranslations((prev) => ({ ...prev, [lang]: { ...prev[lang], whatToBring: e.target.value } }))}
+                              placeholder="Swimsuit, towel, sunscreen, comfortable shoes, camera..."
+                              className="w-full resize-y rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#06B6D4]"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                              Pickup / Meeting Point Description
+                            </label>
+                            <input
+                              type="text"
+                              value={translations[lang].pickupDescription}
+                              onChange={(e) => setTranslations((prev) => ({ ...prev, [lang]: { ...prev[lang], pickupDescription: e.target.value } }))}
+                              placeholder="e.g. Main entrance of Hurghada Marina"
+                              className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#06B6D4]"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                              Cancellation Policy
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={translations[lang].cancellationPolicy}
+                              onChange={(e) => setTranslations((prev) => ({ ...prev, [lang]: { ...prev[lang], cancellationPolicy: e.target.value } }))}
+                              placeholder="Free cancellation up to 24 hours before pickup..."
+                              className="w-full resize-y rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#06B6D4]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cancellation Policies */}
+                      <div className="border-t border-white/5 pt-4">
+                        <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                          Cancellation Policies
+                        </label>
+                        {translations[lang].cancellationPolicies.map((policy, idx) => (
+                          <div key={idx} className="mb-2 flex gap-2">
+                            <input
+                              type="text"
+                              value={policy}
+                              onChange={(e) => {
+                                const updated = [...translations[lang].cancellationPolicies];
+                                updated[idx] = e.target.value;
+                                setTranslations((prev) => ({ ...prev, [lang]: { ...prev[lang], cancellationPolicies: updated } }));
+                              }}
+                              placeholder={`Policy ${idx + 1}`}
+                              className="flex-1 rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#06B6D4]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = translations[lang].cancellationPolicies.filter((_, i) => i !== idx);
+                                setTranslations((prev) => ({ ...prev, [lang]: { ...prev[lang], cancellationPolicies: updated } }));
+                              }}
+                              className="rounded-2xl px-4 py-2 text-sm text-red-400 transition-all hover:bg-red-500/10"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = [...translations[lang].cancellationPolicies, ''];
+                            setTranslations((prev) => ({ ...prev, [lang]: { ...prev[lang], cancellationPolicies: updated } }));
+                          }}
+                          className="mt-1 rounded-2xl border border-[#06B6D4]/30 px-5 py-2.5 text-sm font-bold text-[#06B6D4] transition-all hover:bg-[#06B6D4]/10"
+                        >
+                          + Add Policy
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Show Excerpt Toggle */}
+              <div className="flex items-center justify-between rounded-3xl border border-white/10 bg-white/[0.02] px-4 py-3.5">
+                <span className="text-xs font-black uppercase tracking-[0.09em] text-slate-400">Display Excerpt on Public Tour Card</span>
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    checked={showExcerptOnCard}
+                    onChange={(e) => setShowExcerptOnCard(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:bg-[#06B6D4] peer-checked:after:translate-x-5" />
+                </label>
               </div>
 
               {/* Cover Image Dropzone */}
@@ -956,8 +1457,14 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none"
                   >
-                    <option value="Sea">Sea Trips</option>
-                    <option value="Safari">Desert Safaris</option>
+                    <option value="sea">🌊 Sea Trips (All)</option>
+                    <option value="snorkeling">🤿 Snorkeling</option>
+                    <option value="diving">🐠 Diving</option>
+                    <option value="boat_trip">⛵ Boat Trip</option>
+                    <option value="safari">🦁 Safari / Desert (All)</option>
+                    <option value="desert">🏜️ Desert</option>
+                    <option value="adventure">🧗 Adventure</option>
+                    <option value="city">🏙️ City Tour</option>
                   </select>
                 </label>
 
@@ -1037,6 +1544,250 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
                       className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5 text-white outline-none focus:border-[#06B6D4] disabled:opacity-50"
                     />
                   </label>
+                </div>
+              </div>
+
+              {/* Pricing & Age Tiers */}
+              <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-5 space-y-4">
+                <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">
+                  Pricing & Age Tiers
+                </h3>
+
+                {/* Child Tier */}
+                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5">
+                  <span className="text-xs font-black uppercase tracking-[0.09em] text-slate-400">Enable Child Pricing</span>
+                  <input
+                    type="checkbox"
+                    checked={childEnabled}
+                    onChange={(e) => setChildEnabled(e.target.checked)}
+                    className="h-5 w-5 rounded border-white/10 bg-[#070F1E] text-[#06B6D4] focus:ring-[#06B6D4]"
+                  />
+                </div>
+                {childEnabled && (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 pl-2">
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Child Price ($)</span>
+                      <input type="number" min="0" step="0.01" value={childPrice}
+                        onChange={(e) => setChildPrice(parseFloat(e.target.value) || 0)}
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#06B6D4]" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Min Age</span>
+                      <input type="number" min="0" value={childMinAge}
+                        onChange={(e) => setChildMinAge(parseInt(e.target.value) || 0)}
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#06B6D4]" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Max Age</span>
+                      <input type="number" min="0" value={childMaxAge}
+                        onChange={(e) => setChildMaxAge(parseInt(e.target.value) || 0)}
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#06B6D4]" />
+                    </label>
+                  </div>
+                )}
+
+                {/* Infant Tier */}
+                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5">
+                  <span className="text-xs font-black uppercase tracking-[0.09em] text-slate-400">Enable Infant Pricing</span>
+                  <input
+                    type="checkbox"
+                    checked={infantEnabled}
+                    onChange={(e) => setInfantEnabled(e.target.checked)}
+                    className="h-5 w-5 rounded border-white/10 bg-[#070F1E] text-[#06B6D4] focus:ring-[#06B6D4]"
+                  />
+                </div>
+                {infantEnabled && (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 pl-2">
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Infant Price ($)</span>
+                      <input type="number" min="0" step="0.01" value={infantPrice}
+                        onChange={(e) => setInfantPrice(parseFloat(e.target.value) || 0)}
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#06B6D4]" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Min Age</span>
+                      <input type="number" min="0" value={infantMinAge}
+                        onChange={(e) => setInfantMinAge(parseInt(e.target.value) || 0)}
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#06B6D4]" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Max Age</span>
+                      <input type="number" min="0" value={infantMaxAge}
+                        onChange={(e) => setInfantMaxAge(parseInt(e.target.value) || 0)}
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#06B6D4]" />
+                    </label>
+                  </div>
+                )}
+
+                {/* Age Restrictions */}
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Age & Safety Restrictions</span>
+                  <textarea
+                    rows={2}
+                    value={ageRestrictionsNotes}
+                    onChange={(e) => setAgeRestrictionsNotes(e.target.value)}
+                    placeholder="Minimum age for driving Quad Safari is 16 years. Children under 6 are not allowed."
+                    className="w-full resize-y rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#06B6D4]"
+                  />
+                </label>
+              </div>
+
+              {/* Logistics Section */}
+              <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-5 space-y-4">
+                <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">
+                  Logistics & Pickup
+                </h3>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                      Available Pickup Times
+                      <span className="ml-1 text-xs font-normal text-slate-500">(customers will choose)</span>
+                    </label>
+
+                    {/* Tag list */}
+                    {pickupTime.split('|').map((t) => t.trim()).filter(Boolean).length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        {pickupTime.split('|').map((t) => t.trim()).filter(Boolean).map((slot) => (
+                          <span
+                            key={slot}
+                            className="flex items-center gap-1.5 rounded-full bg-[#06B6D4]/10 border border-[#06B6D4]/30 px-3 py-1 text-sm font-semibold text-[#06B6D4]"
+                          >
+                            {slot}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = pickupTime.split('|').map((t) => t.trim()).filter(Boolean).filter((s) => s !== slot).join('|');
+                                setPickupTime(updated);
+                              }}
+                              className="ml-0.5 text-slate-400 hover:text-red-400 transition-colors"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={draftTime}
+                        onChange={(e) => setDraftTime(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = draftTime.trim();
+                            if (val) {
+                              const slots = pickupTime.split('|').map((t) => t.trim()).filter(Boolean);
+                              if (!slots.includes(val)) {
+                                setPickupTime([...slots, val].join('|'));
+                              }
+                              setDraftTime('');
+                            }
+                          }
+                        }}
+                        placeholder="e.g. 07:00 AM"
+                        className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#06B6D4]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = draftTime.trim();
+                          if (val) {
+                            const slots = pickupTime.split('|').map((t) => t.trim()).filter(Boolean);
+                            if (!slots.includes(val)) {
+                              setPickupTime([...slots, val].join('|'));
+                            }
+                            setDraftTime('');
+                          }
+                        }}
+                        className="rounded-2xl bg-[#06B6D4]/10 border border-[#06B6D4]/30 px-4 py-3 text-sm font-bold text-[#06B6D4] hover:bg-[#06B6D4]/20 transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">Add one slot at a time. Press Enter or click Add.</p>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5">
+                    <span className="text-xs font-black uppercase tracking-[0.09em] text-slate-400">Hotel Pickup</span>
+                    <label className="relative inline-flex cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        checked={hotelPickupIncluded}
+                        onChange={(e) => setHotelPickupIncluded(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:bg-[#06B6D4] peer-checked:after:translate-x-5" />
+                      <span className="ml-3 text-sm text-slate-300">
+                        {hotelPickupIncluded ? 'Included' : 'Not included'}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Seeded Reviews */}
+              <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">
+                    Social Proof & Trust Seeding
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setSeededReviews([...seededReviews, { customerName: 'Verified Guest', rating: 5, comment: '' }])}
+                    className="rounded-full border border-[#EAB308]/30 bg-[#EAB308]/10 px-4 py-2 text-xs font-black text-[#EAB308] hover:bg-[#EAB308]/20 transition-all"
+                  >
+                    + Generate Review
+                  </button>
+                </div>
+                {seededReviews.length === 0 && (
+                  <p className="text-sm text-slate-500">Generate one or more trust-seeding reviews before publishing.</p>
+                )}
+                <div className="grid gap-4 md:grid-cols-3">
+                  {seededReviews.map((review, idx) => (
+                    <div key={idx} className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-3">
+                      <input
+                        value={review.customerName}
+                        onChange={(e) => {
+                          const updated = [...seededReviews];
+                          updated[idx] = { ...updated[idx], customerName: e.target.value };
+                          setSeededReviews(updated);
+                        }}
+                        className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-sm text-white outline-none focus:border-[#06B6D4]"
+                      />
+                      <select
+                        value={review.rating}
+                        onChange={(e) => {
+                          const updated = [...seededReviews];
+                          updated[idx] = { ...updated[idx], rating: Number(e.target.value) };
+                          setSeededReviews(updated);
+                        }}
+                        className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-sm text-white outline-none"
+                      >
+                        {[5, 4, 3, 2, 1].map((r) => (
+                          <option key={r} value={r}>{r} Stars</option>
+                        ))}
+                      </select>
+                      <textarea
+                        rows={4}
+                        value={review.comment}
+                        onChange={(e) => {
+                          const updated = [...seededReviews];
+                          updated[idx] = { ...updated[idx], comment: e.target.value };
+                          setSeededReviews(updated);
+                        }}
+                        className="w-full resize-y rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-sm text-white outline-none focus:border-[#06B6D4]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSeededReviews(seededReviews.filter((_, i) => i !== idx))}
+                        className="text-xs font-bold text-red-400 hover:text-red-300"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
 

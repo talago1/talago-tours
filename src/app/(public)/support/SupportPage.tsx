@@ -154,7 +154,7 @@ export default function SupportPage() {
               </div>
               <p className="mb-5 text-sm leading-6 text-slate-400">{s.whatsappDescription}</p>
               <a
-                href="https://wa.me/201234567890"
+                href="https://wa.me/2010222434606"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-black text-white transition-all hover:scale-[1.02]"
@@ -174,11 +174,11 @@ export default function SupportPage() {
               </div>
               <p className="mb-5 text-sm leading-6 text-slate-400">{s.emailDescription}</p>
               <a
-                href="mailto:info@talago.com"
+                href="mailto:tala.tour@outlook.com"
                 className="inline-flex items-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-black text-slate-200 transition-all hover:border-[#FFD700]/40 hover:text-[#FFD700]"
               >
                 <Mail className="h-4 w-4" />
-                info@talago.com
+                tala.tour@outlook.com
               </a>
             </div>
 
@@ -209,10 +209,10 @@ export default function SupportPage() {
                 <h2 className="text-xl font-black text-white">Phone</h2>
               </div>
               <a
-                href="tel:+201234567890"
+                href="tel:+2010222434606"
                 className="text-2xl font-black text-white transition-all hover:text-[#00E5FF]"
               >
-                +20 123 456 7890
+                +20 102 224 34606
               </a>
             </div>
           </div>

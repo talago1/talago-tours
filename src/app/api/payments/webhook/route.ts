@@ -72,52 +72,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (booking.paymentStatus === 'PAID') {
-      const response: WebhookResponse = {
-        status: 'ignored',
-        reason: 'Booking already paid',
-      };
-      return NextResponse.json(response);
-    }
-
     const logEntry = buildLog(body, true);
-    const existingLogs = Array.isArray(booking.paymentGatewayLogs) ? booking.paymentGatewayLogs : [];
-    const updatedLogs = [...existingLogs, logEntry];
 
     if (body.obj.success) {
-      await prisma.$transaction([
-        prisma.booking.update({
-          where: { id: booking.id },
-          data: {
-            paymentStatus: 'PAID',
-            status: 'CONFIRMED',
-            paymentGatewayLogs: updatedLogs as any,
-          },
-        }),
-      ]);
+      // Atomic update: only succeeds if booking hasn't been paid yet.
+      // This prevents double-processing from concurrent webhook calls.
+      const { count } = await prisma.booking.updateMany({
+        where: {
+          id: booking.id,
+          paymentStatus: { not: 'PAID' },
+        },
+        data: {
+          paymentStatus: 'PAID',
+          status: 'CONFIRMED',
+          paymentGatewayLogs: [
+            ...(Array.isArray(booking.paymentGatewayLogs) ? booking.paymentGatewayLogs : []),
+            logEntry,
+          ] as any,
+        },
+      });
 
-      const response: WebhookResponse = {
+      if (count === 0) {
+        return NextResponse.json({
+          status: 'ignored',
+          reason: 'Booking already paid',
+        } satisfies WebhookResponse);
+      }
+
+      return NextResponse.json({
         status: 'accepted',
         bookingReference: merchantOrderId,
         paymentStatus: 'PAID',
-      };
-      return NextResponse.json(response);
+      } satisfies WebhookResponse);
     }
 
-    await prisma.booking.update({
-      where: { id: booking.id },
+    // Failed payment — log but don't change status if already paid
+    await prisma.booking.updateMany({
+      where: {
+        id: booking.id,
+        paymentStatus: { not: 'PAID' },
+      },
       data: {
         paymentStatus: 'FAILED',
-        paymentGatewayLogs: updatedLogs as any,
+        paymentGatewayLogs: [
+          ...(Array.isArray(booking.paymentGatewayLogs) ? booking.paymentGatewayLogs : []),
+          logEntry,
+        ] as any,
       },
     });
 
-    const response: WebhookResponse = {
+    return NextResponse.json({
       status: 'failed',
       bookingReference: merchantOrderId,
       paymentStatus: 'FAILED',
-    };
-    return NextResponse.json(response);
+    } satisfies WebhookResponse);
   } catch (error) {
     console.error('Webhook processing error:', error);
     return NextResponse.json(

@@ -1,5 +1,6 @@
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const E164_REGEX = /^\+[1-9]\d{6,14}$/;
+// Accept any number: local, E164, with spaces/dashes
+const PHONE_REGEX = /^\+?[\d\s\-().]{7,20}$/;
 
 export function validateTravelDate(value: string): string | null {
   if (!value) return 'Travel date is required';
@@ -14,6 +15,17 @@ export function validateTravelDate(value: string): string | null {
 export function validateGuestCount(value: number, max?: number): string | null {
   if (!Number.isInteger(value) || value < 1) return 'Guest count must be at least 1';
   if (max && value > max) return `Maximum ${max} guests allowed for this tour`;
+  return null;
+}
+
+/** Validate that at least 1 adult is selected */
+export function validateGuestTiers(
+  adultsCount: number,
+  childrenCount: number,
+  infantsCount: number,
+): string | null {
+  if (adultsCount < 1) return 'At least 1 adult is required';
+  if (adultsCount < 0 || childrenCount < 0 || infantsCount < 0) return 'Guest counts cannot be negative';
   return null;
 }
 
@@ -36,7 +48,8 @@ export function validateCustomerEmail(value: string): string | null {
 
 export function validateCustomerPhone(value: string): string | null {
   if (!value || value.trim().length === 0) return 'Phone number is required';
-  if (!E164_REGEX.test(value.trim())) return 'Please enter a valid phone number including country code (e.g. +201234567890)';
+  const cleaned = value.trim();
+  if (!PHONE_REGEX.test(cleaned)) return 'Please enter a valid phone number';
   return null;
 }
 

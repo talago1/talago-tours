@@ -16,49 +16,29 @@ interface MediaUploaderProps {
   onGalleryRemove: (index: number) => void;
 }
 
-const ALLOWED_TYPES = ['image/webp', 'image/jpeg', 'image/png', 'image/gif'];
-const ALLOWED_EXTENSIONS = ['webp', 'jpg', 'jpeg', 'png', 'gif'];
+const ALLOWED_TYPES = ['image/webp', 'image/jpeg', 'image/png', 'image/gif', 'image/avif'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-function getExtension(filename: string): string {
-  return filename.split('.').pop()?.toLowerCase() || 'jpg';
-}
+async function uploadSingleFile(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
 
-async function uploadSingleFile(
-  file: File
-): Promise<string> {
-  const ext = getExtension(file.name);
-  if (!ALLOWED_EXTENSIONS.includes(ext)) {
-    throw new Error(`File type .${ext} is not supported`);
-  }
-
-  const signRes = await fetch('/api/media/sign-upload', {
+  const res = await fetch('/api/admin/upload', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      filename: file.name,
-      contentType: file.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
-    }),
+    body: formData,
   });
 
-  if (!signRes.ok) {
-    const err = await signRes.json().catch(() => ({ error: 'Failed to get upload URL' }));
-    throw new Error(err.error || 'Failed to get upload URL');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+    throw new Error(err.error || 'Upload failed');
   }
 
-  const { signedUrl, publicUrl } = await signRes.json();
-
-  const uploadRes = await fetch(signedUrl, {
-    method: 'PUT',
-    body: file,
-    headers: { 'Content-Type': file.type || `image/${ext}` },
-  });
-
-  if (!uploadRes.ok) {
-    throw new Error('Upload to storage failed');
+  const data = await res.json();
+  const uploaded = data.uploaded?.[0];
+  if (!uploaded?.url) {
+    throw new Error('No URL returned from upload');
   }
-
-  return publicUrl;
+  return uploaded.url;
 }
 
 export default function MediaUploader({
@@ -88,8 +68,8 @@ export default function MediaUploader({
             prev.map((u) =>
               u.id === id && u.progress < 90
                 ? { ...u, progress: u.progress + 10 }
-                : u
-            )
+                : u,
+            ),
           );
         }, 200);
 
@@ -97,7 +77,7 @@ export default function MediaUploader({
 
         clearInterval(simulateProgress);
         setUploading((prev) =>
-          prev.map((u) => (u.id === id ? { ...u, progress: 100 } : u))
+          prev.map((u) => (u.id === id ? { ...u, progress: 100 } : u)),
         );
 
         setTimeout(() => removeUpload(id), 600);
@@ -110,13 +90,13 @@ export default function MediaUploader({
       } catch (err) {
         setUploading((prev) =>
           prev.map((u) =>
-            u.id === id ? { ...u, progress: -1 } : u
-          )
+            u.id === id ? { ...u, progress: -1 } : u,
+          ),
         );
         setTimeout(() => removeUpload(id), 3000);
       }
     },
-    [onCoverChange, onGalleryAdd, removeUpload]
+    [onCoverChange, onGalleryAdd, removeUpload],
   );
 
   const handleDrop = useCallback(
@@ -124,7 +104,7 @@ export default function MediaUploader({
       e.preventDefault();
       setDragOver(false);
       const files = Array.from(e.dataTransfer.files).filter((f) =>
-        ALLOWED_TYPES.includes(f.type)
+        ALLOWED_TYPES.includes(f.type),
       );
       if (files.length === 0) return;
 
@@ -135,7 +115,7 @@ export default function MediaUploader({
         files.forEach((f) => processFile(f, 'gallery'));
       }
     },
-    [coverImage, processFile]
+    [coverImage, processFile],
   );
 
   const handleCoverSelect = useCallback(
@@ -144,7 +124,7 @@ export default function MediaUploader({
       if (file) processFile(file, 'cover');
       if (e.target) e.target.value = '';
     },
-    [processFile]
+    [processFile],
   );
 
   const handleGallerySelect = useCallback(
@@ -153,7 +133,7 @@ export default function MediaUploader({
       files.forEach((f) => processFile(f, 'gallery'));
       if (e.target) e.target.value = '';
     },
-    [processFile]
+    [processFile],
   );
 
   const isUploading = uploading.length > 0;
@@ -164,10 +144,10 @@ export default function MediaUploader({
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer ${
+        className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200 ${
           dragOver
-            ? 'border-primary-coral bg-primary-coral/5'
-            : 'border-gray-300 hover:border-secondary-forest/50 bg-neutral-light/50'
+            ? 'border-[#00E5FF] bg-[#00E5FF]/5'
+            : 'border-white/10 bg-[#0B1528] hover:border-[#00E5FF]/30'
         }`}
         onClick={() => {
           if (!coverImage) {
@@ -180,38 +160,38 @@ export default function MediaUploader({
         <input
           ref={coverInputRef}
           type="file"
-          accept="image/webp,image/jpeg,image/png,image/gif"
+          accept="image/webp,image/jpeg,image/png,image/gif,image/avif"
           className="hidden"
           onChange={handleCoverSelect}
         />
         <input
           ref={galleryInputRef}
           type="file"
-          accept="image/webp,image/jpeg,image/png,image/gif"
+          accept="image/webp,image/jpeg,image/png,image/gif,image/avif"
           multiple
           className="hidden"
           onChange={handleGallerySelect}
         />
 
         <svg
-          className={`w-10 h-10 mx-auto mb-3 transition-colors duration-200 ${
-            dragOver ? 'text-primary-coral' : 'text-gray-400'
+          className={`mx-auto mb-3 h-10 w-10 transition-colors duration-200 ${
+            dragOver ? 'text-[#00E5FF]' : 'text-slate-500'
           }`}
           fill="none" stroke="currentColor" viewBox="0 0 24 24"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
         </svg>
 
-        <p className="text-sm text-gray-600 mb-1">
-          <span className="font-semibold text-secondary-forest">Click to browse</span> or drag &amp; drop
+        <p className="mb-1 text-sm text-slate-400">
+          <span className="font-bold text-[#00E5FF]">Click to browse</span> or drag &amp; drop
         </p>
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-slate-500">
           {coverImage
             ? 'Additional files go to gallery'
             : 'First file becomes the cover image'}
         </p>
-        <p className="text-xs text-gray-400 mt-1">
-          WebP, JPEG, PNG or GIF &middot; Max 10MB per file
+        <p className="mt-1 text-xs text-slate-600">
+          WebP, JPEG, PNG, GIF, AVIF &middot; Max 10MB per file
         </p>
       </div>
 
@@ -220,34 +200,34 @@ export default function MediaUploader({
           {uploading.map((u) => (
             <div
               key={u.id}
-              className="flex items-center gap-3 px-4 py-3 bg-neutral-light rounded-lg border border-gray-200"
+              className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#0B1528] px-4 py-3"
             >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-700 truncate">{u.name}</p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-slate-300">{u.name}</p>
                 {u.progress === -1 ? (
-                  <p className="text-xs text-red-500">Upload failed</p>
+                  <p className="text-xs text-red-400">Upload failed</p>
                 ) : u.progress === 100 ? (
-                  <p className="text-xs text-secondary-forest">Complete</p>
+                  <p className="text-xs text-emerald-400">Complete</p>
                 ) : (
-                  <div className="mt-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
                     <div
-                      className="h-full bg-primary-coral rounded-full transition-all duration-300"
+                      className="h-full rounded-full bg-[#00E5FF] transition-all duration-300"
                       style={{ width: `${u.progress}%` }}
                     />
                   </div>
                 )}
               </div>
               {u.progress < 100 ? (
-                <svg className="w-5 h-5 text-primary-coral animate-spin" viewBox="0 0 24 24">
+                <svg className="h-5 w-5 animate-spin text-[#00E5FF]" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
               ) : u.progress === -1 ? (
-                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               ) : (
-                <svg className="w-5 h-5 text-secondary-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                 </svg>
               )}
@@ -258,19 +238,19 @@ export default function MediaUploader({
 
       {coverImage && (
         <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Cover Image</label>
-          <div className="relative group w-48">
+          <span className="mb-2 block text-sm font-bold text-slate-300">Cover Image</span>
+          <div className="group relative w-48">
             <img
               src={coverImage}
               alt="Cover"
-              className="w-48 h-32 object-cover rounded-lg border border-gray-200"
+              className="h-32 w-48 rounded-xl border border-white/10 object-cover"
             />
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onCoverChange(''); }}
-              className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-500"
+              className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white opacity-0 transition-opacity duration-200 hover:bg-red-500 group-hover:opacity-100"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -280,23 +260,23 @@ export default function MediaUploader({
 
       {galleryImages.length > 0 && (
         <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <span className="mb-2 block text-sm font-bold text-slate-300">
             Gallery ({galleryImages.length})
-          </label>
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
+          </span>
+          <div className="grid grid-cols-4 gap-3 sm:grid-cols-5 md:grid-cols-6">
             {galleryImages.map((url, i) => (
-              <div key={i} className="relative group aspect-square">
+              <div key={i} className="group relative aspect-square">
                 <img
                   src={url}
                   alt={`Gallery ${i + 1}`}
-                  className="w-full h-full object-cover rounded-lg border border-gray-200"
+                  className="h-full w-full rounded-lg border border-white/10 object-cover"
                 />
                 <button
                   type="button"
                   onClick={() => onGalleryRemove(i)}
-                  className="absolute top-1.5 right-1.5 p-1 bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-red-500"
+                  className="absolute right-1.5 top-1.5 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity duration-200 hover:bg-red-500 group-hover:opacity-100"
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>

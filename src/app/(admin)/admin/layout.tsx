@@ -54,9 +54,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#00E5FF] text-sm font-black text-[#070F1E]">
               T
             </div>
-            <span className="text-lg font-black tracking-tight text-white">
-              TALAGO <span className="text-[#00E5FF]">CMS</span>
-            </span>
+            <span className="text-2xl font-black uppercase tracking-[0.34em] text-white">TALAGO</span>
+            <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40" />
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -119,7 +118,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#00E5FF] text-xs font-black text-[#070F1E]">
               T
             </div>
-            <span className="text-sm font-black text-white">TALAGO CMS</span>
+            <span className="text-2xl font-black uppercase tracking-[0.34em] text-white">TALAGO</span>
+            <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40" />
           </div>
           <div className="w-9" />
         </header>

@@ -3,8 +3,15 @@ import { ADMIN_SESSION_COOKIE, getAdminToken } from '@/utils/adminAuth';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isAdminPage = pathname.startsWith('/admin');
+  const isAdminApi  = pathname.startsWith('/api/admin');
 
-  if (!pathname.startsWith('/admin') || pathname === '/admin/login') {
+  if (!isAdminPage && !isAdminApi) {
+    return NextResponse.next();
+  }
+
+  // Allow public admin login page and login API
+  if (pathname === '/admin/login' || pathname === '/api/admin/login') {
     return NextResponse.next();
   }
 
@@ -15,6 +22,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Admin API routes return 401 JSON instead of redirect
+  if (isAdminApi) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 },
+    );
+  }
+
   const loginUrl = request.nextUrl.clone();
   loginUrl.pathname = '/admin/login';
   loginUrl.searchParams.set('next', pathname);
@@ -23,5 +38,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path((?!login).*)', '/admin', '/api/admin/:path*'],
 };

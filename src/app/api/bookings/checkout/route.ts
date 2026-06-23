@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validateCheckoutForm } from '@/utils/bookingValidation';
 import { generateBookingReference } from '@/utils/bookingReference';
-import { calculateTotalPrice } from '@/utils/priceCalculator';
+import { calculateTotalPrice, calculateTieredPrice } from '@/utils/priceCalculator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +13,9 @@ export async function POST(request: NextRequest) {
       hotelName,
       travelDate,
       guestCount,
+      adultsCount,
+      childrenCount,
+      infantsCount,
       customerName,
       customerEmail,
       customerPhone,
@@ -45,16 +48,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Resolve effective guest count for legacy validation
+    const effectiveGuestCount =
+      adultsCount != null
+        ? (adultsCount ?? 0) + (childrenCount ?? 0) + (infantsCount ?? 0)
+        : guestCount;
+
     const validationErrors = validateCheckoutForm({
       tourId,
       zoneId,
       hotelName,
       travelDate,
-      guestCount,
+      guestCount: effectiveGuestCount,
       customerName,
       customerEmail,
       customerPhone,
-      maxGuestCount: tour.maxCapacity,
+      // Remove maxCapacity cap — allow any number of guests
     });
 
     if (Object.keys(validationErrors).length > 0) {
@@ -65,11 +74,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const totalPriceUSD = calculateTotalPrice({
-      perPersonPrice: tour.adultPrice,
-      guestCount,
-      zoneTransferFee: zone.transferFee,
-    });
+    // Calculate price: use tiered if tier counts provided, else legacy
+    let totalPriceUSD: number;
+    if (adultsCount != null) {
+      totalPriceUSD = calculateTieredPrice({
+        adultPrice: tour.priceAdult ?? tour.adultPrice,
+        childPrice: tour.priceChild ?? tour.childPrice,
+        infantPrice: tour.infantPrice,
+        adultsCount: adultsCount ?? 0,
+        childrenCount: childrenCount ?? 0,
+        infantsCount: infantsCount ?? 0,
+        zoneTransferFee: zone.transferFee,
+      });
+    } else {
+      totalPriceUSD = calculateTotalPrice({
+        perPersonPrice: tour.adultPrice,
+        guestCount,
+        zoneTransferFee: zone.transferFee,
+      });
+    }
 
     const bookingReference = generateBookingReference();
 
@@ -78,9 +101,12 @@ export async function POST(request: NextRequest) {
         bookingReference,
         tourId,
         zoneId,
-        hotelName: hotelName.trim(),
+        hotelName: hotelName?.trim() ?? '',
         travelDate: new Date(travelDate + 'T00:00:00'),
-        guestCount,
+        guestCount: effectiveGuestCount,
+        adultsCount: adultsCount ?? 0,
+        childrenCount: childrenCount ?? 0,
+        infantsCount: infantsCount ?? 0,
         totalPriceUSD,
         customerName: customerName.trim(),
         customerEmail: customerEmail.trim(),

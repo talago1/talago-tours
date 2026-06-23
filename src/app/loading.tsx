@@ -11,7 +11,8 @@ export default function RootLoading() {
             }}
           />
         </div>
-        <p className="text-xs font-black uppercase tracking-[0.28em] text-slate-500">TALAGO</p>
+        <span className="text-2xl font-black uppercase tracking-[0.34em] text-white">TALAGO</span>
+        <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40" />
       </div>
       <style>{`@keyframes loader-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }`}</style>
     </div>

@@ -4,47 +4,35 @@ import Link from 'next/link';
 import { ArrowRight, MapPin } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
-interface DestinationCard {
+interface DestinationData {
+  id: string;
   name: string;
-  description: string;
-  tourCount: number;
-  gradient: string;
-  accentColor: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string | null;
+  _count: { tours: number };
 }
 
-const destinations: DestinationCard[] = [
-  {
-    name: 'Giftun Island',
-    description: 'Crystal-clear waters, vibrant coral reefs, and pristine white sand beaches.',
-    tourCount: 8,
-    gradient: 'from-[#0EA5E9] via-[#0284C7] to-[#0C4A6E]',
-    accentColor: 'text-[#0EA5E9]',
-  },
-  {
-    name: 'Eastern Desert',
-    description: 'Golden dunes, Bedouin camps, and dramatic sunset safari trails.',
-    tourCount: 6,
-    gradient: 'from-[#EAB308] via-[#D97706] to-[#78350F]',
-    accentColor: 'text-[#EAB308]',
-  },
-  {
-    name: 'Dolphin House',
-    description: 'Open-water dolphin encounters and world-class snorkeling reefs.',
-    tourCount: 4,
-    gradient: 'from-[#06B6D4] via-[#0891B2] to-[#164E63]',
-    accentColor: 'text-[#06B6D4]',
-  },
-  {
-    name: 'Hurghada Marina',
-    description: 'Vibrant waterfront dining, luxury yachts, and bustling bazaars.',
-    tourCount: 5,
-    gradient: 'from-[#8B5CF6] via-[#7C3AED] to-[#4C1D95]',
-    accentColor: 'text-[#8B5CF6]',
-  },
-];
+interface PopularDestinationsProps {
+  destinations: DestinationData[];
+}
 
-export default function PopularDestinations() {
+function getGradient(index: number): string {
+  const gradients = [
+    'from-[#0EA5E9] via-[#0284C7] to-[#0C4A6E]',
+    'from-[#EAB308] via-[#D97706] to-[#78350F]',
+    'from-[#06B6D4] via-[#0891B2] to-[#164E63]',
+    'from-[#8B5CF6] via-[#7C3AED] to-[#4C1D95]',
+    'from-[#F43F5E] via-[#E11D48] to-[#881337]',
+    'from-[#10B981] via-[#059669] to-[#065F46]',
+  ];
+  return gradients[index % gradients.length];
+}
+
+export default function PopularDestinations({ destinations }: PopularDestinationsProps) {
   const { dict } = useLanguage();
+
+  if (destinations.length === 0) return null;
 
   return (
     <section className="bg-[#070F1E] px-5 py-20 sm:px-8 lg:px-10 lg:py-28">
@@ -71,28 +59,36 @@ export default function PopularDestinations() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {destinations.map((dest) => (
+          {destinations.map((dest, index) => (
             <Link
-              key={dest.name}
-              href={`/tours?destination=${dest.name.toLowerCase().replace(/\s+/g, '-')}`}
+              key={dest.id}
+              href={`/tours?destination=${dest.slug}`}
               className="group relative overflow-hidden rounded-[2rem] shadow-2xl shadow-black/20 transition-all duration-300 hover:-translate-y-2 hover:shadow-[#06B6D4]/10"
             >
-              <div className={`aspect-[4/5] bg-gradient-to-br ${dest.gradient} p-6 flex flex-col justify-end`}>
-                {/* Decorative ring */}
+              <div className={`aspect-[4/5] bg-gradient-to-br ${getGradient(index)} p-6 flex flex-col justify-end`}>
+                {dest.imageUrl && (
+                  <img
+                    src={dest.imageUrl}
+                    alt={dest.name}
+                    className="absolute inset-0 h-full w-full object-cover opacity-60"
+                  />
+                )}
                 <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full border-[20px] border-white/5" />
                 <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full border-[20px] border-white/5" />
 
-                <div className="relative">
+                <div className="relative z-10">
                   <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-sm">
                     <MapPin className="h-3 w-3" />
                     {dest.name}
                   </div>
-                  <p className="mb-4 text-sm leading-6 text-white/80">
-                    {dest.description}
-                  </p>
+                  {dest.description && (
+                    <p className="mb-4 text-sm leading-6 text-white/80">
+                      {dest.description}
+                    </p>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-white/60">
-                      {dest.tourCount} tour{dest.tourCount > 1 ? 's' : ''}
+                      {dest._count.tours} tour{dest._count.tours !== 1 ? 's' : ''}
                     </span>
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-300 group-hover:bg-white/20 group-hover:scale-110">
                       <ArrowRight className="h-4 w-4" />

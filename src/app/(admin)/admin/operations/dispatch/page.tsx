@@ -2,6 +2,8 @@ import TripDispatcher from '@/components/admin/TripDispatcher';
 import DispatchSelector from './DispatchSelector';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'Trip Dispatcher | Talago Tours',
   description: 'Assign crew and fleet, log trip expenses.',

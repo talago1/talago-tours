@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Compass, Loader2, Mail, ShieldAlert } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabase/client';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function AuthPage() {
   const [email, setEmail] = useState('');
@@ -11,12 +13,13 @@ export default function AuthPage() {
   const [isPasswordMode, setIsPasswordMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { dict } = useLanguage();
   const router = useRouter();
 
   async function handleAuth(event: React.FormEvent) {
     event.preventDefault();
     if (!email || !email.includes('@')) {
-      setMessage({ type: 'error', text: 'Please enter a valid email address.' });
+      setMessage({ type: 'error', text: dict.authPage.invalidEmail });
       return;
     }
 
@@ -25,14 +28,12 @@ export default function AuthPage() {
 
     try {
       if (isPasswordMode) {
-        // Password Sign In / Sign Up
         const { data, error } = await supabaseClient.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) {
-          // If login fails, try signing up the user!
           const { error: signUpError } = await supabaseClient.auth.signUp({
             email,
             password,
@@ -44,19 +45,18 @@ export default function AuthPage() {
 
           setMessage({
             type: 'success',
-            text: 'Registration successful! Please check your email to confirm your account.',
+            text: dict.authPage.registrationSuccess,
           });
         } else if (data.session) {
           document.cookie = `talago_session=${data.session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
-          setMessage({ type: 'success', text: 'Signed in successfully! Redirecting...' });
-          setTimeout(() => router.push('/dashboard'), 1500);
+          setMessage({ type: 'success', text: dict.authPage.signedInSuccess });
+          setTimeout(() => router.push('/my-bookings'), 1500);
         }
       } else {
-        // Passwordless Magic Link
         const { error } = await supabaseClient.auth.signInWithOtp({
           email,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            emailRedirectTo: `${window.location.origin}/my-bookings`,
           },
         });
 
@@ -64,7 +64,7 @@ export default function AuthPage() {
 
         setMessage({
           type: 'success',
-          text: 'Magic link sent! Please check your email inbox to sign in instantly.',
+          text: dict.authPage.magicLinkSent,
         });
       }
     } catch (err) {
@@ -87,21 +87,21 @@ export default function AuthPage() {
             <span className="text-2xl font-black uppercase tracking-[0.34em] text-white">TALAGO</span>
             <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40" />
           </Link>
-          <h1 className="text-2xl font-black text-white">Welcome back</h1>
+          <h1 className="text-2xl font-black text-white">{dict.authPage.title}</h1>
           <p className="mt-2 text-sm text-slate-400">
-            Sign in with a passwordless magic link or credentials.
+            {dict.authPage.subtitle}
           </p>
         </div>
 
         <form onSubmit={handleAuth} className="space-y-5">
           <label className="block">
-            <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Email Address</span>
+            <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">{dict.authPage.emailLabel}</span>
             <div className="relative flex items-center">
               <Mail className="absolute left-4 h-5 w-5 text-slate-500" />
               <input
                 type="email"
                 required
-                placeholder="you@example.com"
+                placeholder={dict.authPage.emailPlaceholder}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white outline-none transition-all duration-300 focus:border-[#06B6D4] focus:ring-1 focus:ring-[#06B6D4]"
@@ -111,11 +111,11 @@ export default function AuthPage() {
 
           {isPasswordMode && (
             <label className="block">
-              <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Password</span>
+              <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">{dict.authPage.passwordLabel}</span>
               <input
                 type="password"
                 required
-                placeholder="••••••••"
+                placeholder={dict.authPage.passwordPlaceholder}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white outline-none transition-all duration-300 focus:border-[#06B6D4] focus:ring-1 focus:ring-[#06B6D4]"
@@ -144,9 +144,9 @@ export default function AuthPage() {
             {loading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : isPasswordMode ? (
-              'Sign In / Register'
+              dict.authPage.signInRegister
             ) : (
-              'Send Magic Link'
+              dict.authPage.sendMagicLink
             )}
           </button>
         </form>
@@ -160,12 +160,10 @@ export default function AuthPage() {
             }}
             className="text-xs font-bold text-[#06B6D4] hover:text-[#EAB308] transition-colors"
           >
-            {isPasswordMode ? 'Use passwordless magic link instead' : 'Use email password instead'}
+            {isPasswordMode ? dict.authPage.useMagicLink : dict.authPage.usePassword}
           </button>
         </div>
       </div>
     </main>
   );
 }
-
-import Link from 'next/link';

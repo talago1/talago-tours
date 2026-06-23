@@ -1,0 +1,49 @@
+# Repository Guidelines
+
+## Project Structure & Module Organization
+
+Next.js 14 App Router project with two route groups under `src/app/`:
+- **`(public)`** — customer-facing pages: tour catalog, booking, checkout, boarding pass, voucher, destinations, and info pages (about, faq, support, privacy, etc.)
+- **`(admin)`** — admin dashboard: login, bookings, tours, destinations, reviews, notifications, campaigns, operations calendar, analytics, settings
+- **`api/`** — API routes under `api/admin/`, `api/bookings/`, `api/checkout/`, `api/payments/`, `api/media/`, `api/auth/`, `api/notifications/`, `api/public/`
+
+The `src/` directory separates components by domain:
+- `components/admin/` — admin panel widgets (TourBuilderForm, MediaManager, AnalyticsDashboard, etc.)
+- `components/landing/` — homepage sections (Hero, TourCatalog, PopularDestinations, FAQSection)
+- `components/tours/` — booking flow widgets (BookingWidget, BookingFormSteps, TourTimeline)
+- `components/checkout/` — checkout sidebar
+- `components/public/` — shared public components (TourCard, TourGrid, ReviewSection)
+- `components/ui/` — generic UI primitives (Button, RouteLoader, CarouselImages)
+- `components/layout/` — layout wrappers
+- `components/modals/` — modal overlays
+- `components/vouchers/` — QR generator
+
+Supabase handles authentication (magic link) and media storage (signed upload URLs). The client is initialized in `src/lib/supabase/client.ts`.
+
+Internationalization uses hand-written locale files in `src/locales/` (en, de, es, fr, it, pl, ru). The Prisma schema stores multilingual content in JSON `translations` fields on Tour and Destination.
+
+## Build, Test, and Development Commands
+
+- `npm run dev` — start Next.js dev server
+- `npm run build` — production build (`next build`)
+- `npm run start` — start production server
+- `npm run lint` — lint with `next lint` (no ESLint config file — relies on Next.js defaults)
+- `npm run db:generate` — regenerate Prisma client
+- `npm run db:push` — push schema to database
+- `npm run db:studio` — open Prisma Studio
+
+No test framework is configured.
+
+## Coding Style & Naming Conventions
+
+- TypeScript with `strict: true` and `@/*` path alias mapped to `./src/*`
+- Tailwind CSS for styling (no CSS modules or styled-components)
+- Lucide React icons used throughout
+- Folder structure uses kebab-case for multi-word directories
+- React components use PascalCase filenames; utilities use camelCase
+- Server components by default; `'use client'` added only when interactivity is needed
+- Prisma schema follows `@@map` convention for model-to-table name mapping
+
+## Commit & Pull Request Guidelines
+
+Conventional commits: `feat:`, `fix:`, `merge:`, `@ <message>` prefixes seen in history. Keep commits focused on single concerns. No PR template detected.

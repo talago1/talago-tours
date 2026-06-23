@@ -59,7 +59,7 @@ Your booking *{bookingReference}* is now *{status}*.
 🔗 *Access Your Dashboard:*
 {magicLink}
 
-For questions, reply to this message or call us at +20 122 243 4602.
+For questions, reply to this message or call us at +20 102 224 34606.
 
 See you soon! 🌅
 — Talago Tours Team`,
@@ -79,7 +79,7 @@ Ihre Buchung *{bookingReference}* ist jetzt *{status}*.
 🔗 *Zugang zu Ihrem Dashboard:*
 {magicLink}
 
-Bei Fragen antworten Sie auf diese Nachricht oder rufen Sie +20 122 243 4602 an.
+Bei Fragen antworten Sie auf diese Nachricht oder rufen Sie +20 102 224 34606 an.
 
 Bis bald! 🌅
 — Talago Tours Team`,
@@ -99,7 +99,7 @@ Bis bald! 🌅
 🔗 *Доступ к панели управления:*
 {magicLink}
 
-По вопросам ответьте на это сообщение или позвоните +20 122 243 4602.
+По вопросам ответьте на это сообщение или позвоните +20 102 224 34606.
 
 До встречи! 🌅
 — Команда Talago Tours`,
@@ -119,7 +119,7 @@ Votre réservation *{bookingReference}* est maintenant *{status}*.
 🔗 *Accédez à votre tableau de bord:*
 {magicLink}
 
-Pour toute question, répondez à ce message ou appelez le +20 122 243 4602.
+Pour toute question, répondez à ce message ou appelez le +20 102 224 34606.
 
 À bientôt! 🌅
 — L'équipe Talago Tours`,
@@ -139,7 +139,7 @@ La tua prenotazione *{bookingReference}* è ora *{status}*.
 🔗 *Accedi alla tua dashboard:*
 {magicLink}
 
-Per domande, rispondi a questo messaggio o chiama il +20 122 243 4602.
+Per domande, rispondi a questo messaggio o chiama il +20 102 224 34606.
 
 A presto! 🌅
 — Team Talago Tours`,
@@ -159,7 +159,7 @@ Twoja rezerwacja *{bookingReference}* ma teraz status *{status}*.
 🔗 *Dostęp do panelu:*
 {magicLink}
 
-W razie pytań odpowiedz na tę wiadomość lub zadzwoń +20 122 243 4602.
+W razie pytań odpowiedz na tę wiadomość lub zadzwoń +20 102 224 34606.
 
 Do zobaczenia! 🌅
 — Zespół Talago Tours`,
@@ -179,7 +179,7 @@ Tu reserva *{bookingReference}* ahora está *{status}*.
 🔗 *Accede a tu panel:*
 {magicLink}
 
-Si tienes preguntas, responde a este mensaje o llama al +20 122 243 4602.
+Si tienes preguntas, responde a este mensaje o llama al +20 102 224 34606.
 
 ¡Hasta pronto! 🌅
 — Equipo Talago Tours`,
@@ -335,9 +335,10 @@ export async function dispatchBookingWhatsApp(bookingId: string): Promise<void> 
       customerEmail: booking.customerEmail,
       tourTitle,
       travelDate: travelDateFormatted,
-      hotelName: booking.hotelName,
+      hotelName: booking.hotelName ?? '',
       guestCount: booking.guestCount,
       totalPriceUSD: booking.totalPriceUSD,
+      pickupTime: booking.selectedPickupTime,
       language: booking.language,
       status: booking.status,
     });

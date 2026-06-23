@@ -1,11 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { ChefHat, ShieldCheck, Ship, Users, Compass } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
-export default function AboutPage() {
+interface AboutPageProps {
+  aboutPhilosophyImage?: string;
+}
+
+export default function AboutPage({ aboutPhilosophyImage }: AboutPageProps) {
   const { dict } = useLanguage();
+  const [imageError, setImageError] = useState(false);
 
   return (
     <main className="min-h-screen bg-[#070F1E] text-[#F8FAFC]">
@@ -44,9 +50,18 @@ export default function AboutPage() {
               </p>
             </div>
             <div className="relative aspect-[4/3] overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-[#0EA5E9]/20 via-[#070F1E] to-[#EAB308]/20 p-2 shadow-2xl shadow-[#020617]/50">
-              <div className="h-full w-full rounded-[2rem] bg-[radial-gradient(circle_at_30%_20%,rgba(248,250,252,0.1),transparent_40%),linear-gradient(135deg,rgba(14,165,233,0.3),rgba(7,15,30,0.5)_60%,rgba(234,179,8,0.2)_100%)] flex items-center justify-center">
+              {aboutPhilosophyImage && !imageError ? (
+                <img
+                  src={aboutPhilosophyImage}
+                  alt=""
+                  className="h-full w-full rounded-[2rem] object-cover"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <div className="h-full w-full rounded-[2rem] bg-[radial-gradient(circle_at_30%_20%,rgba(248,250,252,0.1),transparent_40%),linear-gradient(135deg,rgba(14,165,233,0.3),rgba(7,15,30,0.5)_60%,rgba(234,179,8,0.2)_100%)] flex items-center justify-center">
                 <Ship className="h-20 w-20 text-[#06B6D4]/30" />
               </div>
+              )}
             </div>
           </div>
         </div>

@@ -4,8 +4,6 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 
-export const dynamic = 'force-dynamic';
-
 export async function GET() {
   try {
     const bookings = await prisma.booking.findMany({

@@ -60,9 +60,11 @@ function createSlugPreview(name: string): string {
 function DestinationImageDropzone({
   currentUrl,
   onUploaded,
+  onUploadingChange,
 }: {
   currentUrl: string;
   onUploaded: (url: string) => void;
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -76,6 +78,7 @@ function DestinationImageDropzone({
       setUploadError(null);
       setPreviewUrl(URL.createObjectURL(file));
       setUploading(true);
+      onUploadingChange?.(true);
 
       try {
         const formData = new FormData();
@@ -92,15 +95,17 @@ function DestinationImageDropzone({
         }
 
         const data = await res.json();
-        onUploaded(data.url);
+        const uploaded = data.uploaded?.[0];
+        onUploaded(uploaded?.url || '');
       } catch (err) {
         setUploadError(err instanceof Error ? err.message : 'Upload failed');
         setPreviewUrl(null);
       } finally {
         setUploading(false);
+        onUploadingChange?.(false);
       }
     },
-    [onUploaded],
+    [onUploaded, onUploadingChange],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -126,11 +131,22 @@ function DestinationImageDropzone({
       >
         <input {...getInputProps()} />
         {displayUrl ? (
-          <div className="relative h-36 w-full">
+          <div className="group relative h-36 w-full">
             <img src={displayUrl} alt="Destination" className="h-full w-full rounded-xl object-cover" />
-            <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 opacity-0 transition-opacity duration-200 hover:opacity-100">
+            <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
               <p className="text-sm font-bold text-white">Drop to replace</p>
             </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPreviewUrl(null);
+                onUploaded('');
+              }}
+              className="absolute right-2 top-2 z-10 rounded-full bg-black/60 p-1.5 text-white opacity-0 transition-opacity duration-200 hover:bg-red-500 group-hover:opacity-100"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 py-5">
@@ -327,6 +343,7 @@ export default function DestinationManager() {
   const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<LanguageTab>('en');
 
@@ -414,7 +431,7 @@ export default function DestinationManager() {
             name: form.name,
             slug: form.slug || undefined,
             description: primaryDescription,
-            imageUrl: form.imageUrl || undefined,
+            imageUrl: form.imageUrl || null,
             translations: form.translations,
           }),
         },
@@ -608,6 +625,7 @@ export default function DestinationManager() {
               <DestinationImageDropzone
                 currentUrl={form.imageUrl}
                 onUploaded={(url) => setForm((current) => ({ ...current, imageUrl: url }))}
+                onUploadingChange={setUploadingImage}
               />
 
               <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
@@ -663,11 +681,11 @@ export default function DestinationManager() {
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || uploadingImage}
                   className="inline-flex items-center gap-2 rounded-full bg-[#EAB308] px-5 py-3 text-sm font-black text-[#070F1E] transition-all duration-300 ease-in-out hover:scale-[1.02] disabled:opacity-60"
                 >
-                  {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Save Destination
+                  {(saving || uploadingImage) && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {uploadingImage ? 'Uploading Image...' : 'Save Destination'}
                 </button>
               </div>
             </form>

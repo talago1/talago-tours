@@ -1,12 +1,21 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, CalendarDays, Search, Ship, Users } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
-export default function Hero() {
+interface HeroProps {
+  heroBackground?: string;
+  conciergePickImage?: string;
+  conciergePickTitle?: string;
+  conciergePickDescription?: string;
+}
+
+export default function Hero({ heroBackground, conciergePickImage, conciergePickTitle, conciergePickDescription }: HeroProps) {
   const { dict } = useLanguage();
+  const [heroError, setHeroError] = useState(false);
 
   const heroMetrics = [
     { value: dict.hero.metrics.ratingValue, label: dict.hero.metrics.ratingLabel },
@@ -16,13 +25,18 @@ export default function Hero() {
 
   return (
     <section className="relative overflow-hidden bg-[#070F1E] text-[#F8FAFC]">
-      <Image
-        src="/talago-hero-red-sea-desert.png"
-        alt="Luxury Red Sea yacht and golden Hurghada desert landscape"
-        fill
-        priority
-        className="object-cover"
-      />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0EA5E9]/30 via-[#070F1E]/80 to-[#EAB308]/20" />
+      {!heroError && (
+        <Image
+          src={heroBackground || '/talago-hero-red-sea-desert.png'}
+          alt="Luxury Red Sea yacht and golden Hurghada desert landscape"
+          fill
+          priority
+          unoptimized={!!heroBackground}
+          className="object-cover"
+          onError={() => setHeroError(true)}
+        />
+      )}
       <div className="absolute inset-0 bg-gradient-to-br from-[#070F1E]/95 via-[#070F1E]/72 to-[#070F1E]/45" />
       <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#070F1E] to-transparent" />
 
@@ -69,16 +83,22 @@ export default function Hero() {
 
           <div className="relative hidden lg:block">
             <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-[#0EA5E9]/20 via-[#0B1528] to-[#EAB308]/20 p-4 shadow-2xl shadow-[#020617]/60 transition-all duration-300 ease-in-out hover:scale-[1.02]">
-              <div className="aspect-[4/5] rounded-[1.5rem] bg-[radial-gradient(circle_at_30%_20%,rgba(248,250,252,0.20),transparent_18%),linear-gradient(155deg,rgba(14,165,233,0.55),rgba(7,15,30,0.15)_38%,rgba(234,179,8,0.45)_100%)]" />
+              <div className="relative aspect-[4/5] rounded-[1.5rem] overflow-hidden">
+                {conciergePickImage ? (
+                  <img src={conciergePickImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full bg-[radial-gradient(circle_at_30%_20%,rgba(248,250,252,0.20),transparent_18%),linear-gradient(155deg,rgba(14,165,233,0.55),rgba(7,15,30,0.15)_38%,rgba(234,179,8,0.45)_100%)]" />
+                )}
+              </div>
               <div className="absolute bottom-8 left-8 right-8 rounded-3xl border border-white/10 bg-[#070F1E]/70 p-5 shadow-2xl shadow-black/40 backdrop-blur-md">
                 <p className="text-xs font-black uppercase tracking-[0.24em] text-[#EAB308]">
                   {dict.hero.concierge.pick}
                 </p>
                 <p className="mt-2 text-2xl font-black text-white">
-                  {dict.hero.concierge.title}
+                  {conciergePickTitle || dict.hero.concierge.title}
                 </p>
                 <p className="mt-3 text-sm leading-6 text-slate-300">
-                  {dict.hero.concierge.description}
+                  {conciergePickDescription || dict.hero.concierge.description}
                 </p>
               </div>
             </div>

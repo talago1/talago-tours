@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Settings,
   Save,
@@ -103,6 +103,45 @@ export default function AdminSettingsPage() {
       }
       return updated;
     });
+  }
+
+  const conciergeUploadRef = useRef<HTMLInputElement>(null);
+  const aboutUploadRef = useRef<HTMLInputElement>(null);
+
+  async function handleConciergeUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('files', file);
+    try {
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      const url = data.uploaded?.[0]?.url;
+      if (url) {
+        setSettings((prev) => ({ ...prev, banners: { ...prev.banners, conciergePickImage: url } }));
+      }
+    } catch {
+      // silent
+    }
+    if (e.target) e.target.value = '';
+  }
+
+  async function handleAboutUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('files', file);
+    try {
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      const url = data.uploaded?.[0]?.url;
+      if (url) {
+        setSettings((prev) => ({ ...prev, banners: { ...prev.banners, aboutPhilosophyImage: url } }));
+      }
+    } catch {
+      // silent
+    }
+    if (e.target) e.target.value = '';
   }
 
   function updateRate(currency: string, value: number) {
@@ -439,6 +478,116 @@ export default function AdminSettingsPage() {
                     </label>
                   </div>
 
+                  {/* Concierge Pick */}
+                  <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5">
+                    <p className="mb-4 text-sm font-bold text-white">Concierge Pick Card</p>
+                    <div className="space-y-4">
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Background Image</span>
+                        <div className="flex gap-2">
+                          <input
+                            type="url"
+                            value={settings.banners.conciergePickImage}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, conciergePickImage: e.target.value },
+                              }))
+                            }
+                            placeholder="https://images.unsplash.com/..."
+                            className="flex-1 rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                          <input
+                            ref={conciergeUploadRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleConciergeUpload}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => conciergeUploadRef.current?.click()}
+                            className="flex shrink-0 items-center gap-2 rounded-2xl bg-[#FFD700]/10 px-4 py-3.5 text-xs font-black uppercase tracking-[0.12em] text-[#FFD700] transition-all hover:bg-[#FFD700]/20"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Upload
+                          </button>
+                        </div>
+                      </label>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Title</span>
+                        <input
+                          type="text"
+                          value={settings.banners.conciergePickTitle}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, conciergePickTitle: e.target.value },
+                            }))
+                          }
+                          placeholder="Private yacht sunrise to Giftun Island"
+                          className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Description</span>
+                        <textarea
+                          rows={2}
+                          value={settings.banners.conciergePickDescription}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, conciergePickDescription: e.target.value },
+                            }))
+                          }
+                          placeholder="Champagne breakfast, reef snorkel guide, and flexible return timing."
+                          className="w-full resize-none rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                  </div>
+
+                  {/* About Philosophy Image */}
+                  <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5">
+                    <p className="mb-4 text-sm font-bold text-white">About Page Philosophy Image</p>
+                    <div className="space-y-4">
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Philosophy Section Image</span>
+                        <div className="flex gap-2">
+                          <input
+                            type="url"
+                            value={settings.banners.aboutPhilosophyImage}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, aboutPhilosophyImage: e.target.value },
+                              }))
+                            }
+                            placeholder="https://images.unsplash.com/..."
+                            className="flex-1 rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                          <input
+                            ref={aboutUploadRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleAboutUpload}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => aboutUploadRef.current?.click()}
+                            className="flex shrink-0 items-center gap-2 rounded-2xl bg-[#FFD700]/10 px-4 py-3.5 text-xs font-black uppercase tracking-[0.12em] text-[#FFD700] transition-all hover:bg-[#FFD700]/20"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Upload
+                          </button>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
                   {/* Native File Upload Input */}
                   <GlobalAssetStudio onUploadSuccess={(newAssets) => {
                     const mappedAssets = newAssets.map((asset) => ({
@@ -475,6 +624,49 @@ export default function AdminSettingsPage() {
                                 }}
                               />
                             </div>
+                            {/* Quick-apply overlay buttons */}
+                            <div className="absolute inset-x-0 top-0 flex gap-1 p-2 opacity-0 transition-opacity group-hover:opacity-100">
+                              <button
+                                type="button"
+                                onClick={() => setSettings((prev) => ({ ...prev, banners: { ...prev.banners, heroBackground: asset.url } }))}
+                                className="flex-1 rounded-lg bg-[#FFD700]/90 px-1.5 py-1 text-[10px] font-black text-[#070F1E] transition-all hover:bg-[#FFD700]"
+                                title="Set as hero background"
+                              >
+                                Hero BG
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSettings((prev) => ({ ...prev, banners: { ...prev.banners, splitSectionLeft: asset.url } }))}
+                                className="flex-1 rounded-lg bg-[#06B6D4]/90 px-1.5 py-1 text-[10px] font-black text-white transition-all hover:bg-[#06B6D4]"
+                                title="Set as split-section left"
+                              >
+                                Split L
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSettings((prev) => ({ ...prev, banners: { ...prev.banners, splitSectionRight: asset.url } }))}
+                                className="flex-1 rounded-lg bg-[#8B5CF6]/90 px-1.5 py-1 text-[10px] font-black text-white transition-all hover:bg-[#8B5CF6]"
+                                title="Set as split-section right"
+                              >
+                                Split R
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSettings((prev) => ({ ...prev, banners: { ...prev.banners, conciergePickImage: asset.url } }))}
+                                className="flex-1 rounded-lg bg-emerald-500/90 px-1.5 py-1 text-[10px] font-black text-white transition-all hover:bg-emerald-500"
+                                title="Set as concierge pick card background"
+                              >
+                                Card
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSettings((prev) => ({ ...prev, banners: { ...prev.banners, aboutPhilosophyImage: asset.url } }))}
+                                className="flex-1 rounded-lg bg-amber-500/90 px-1.5 py-1 text-[10px] font-black text-white transition-all hover:bg-amber-500"
+                                title="Set as about philosophy image"
+                              >
+                                About
+                              </button>
+                            </div>
                             <div className="flex items-center justify-between p-2.5">
                               <span className="truncate text-xs font-bold text-slate-300">{asset.label}</span>
                               <button
@@ -501,7 +693,7 @@ export default function AdminSettingsPage() {
                   {/* Preview Area */}
                   <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-5">
                     <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Live Preview</p>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                       <div className="relative h-32 overflow-hidden rounded-xl bg-[#070F1E]">
                         {settings.banners.heroBackground ? (
                           <img src={settings.banners.heroBackground} alt="Hero" className="h-full w-full object-cover" />
@@ -509,6 +701,22 @@ export default function AdminSettingsPage() {
                           <div className="flex h-full items-center justify-center text-xs text-slate-600">Hero BG</div>
                         )}
                         <span className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">Hero</span>
+                      </div>
+                      <div className="relative h-32 overflow-hidden rounded-xl bg-[#070F1E]">
+                        {settings.banners.conciergePickImage ? (
+                          <img src={settings.banners.conciergePickImage} alt="Card" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-xs text-slate-600">Concierge Card</div>
+                        )}
+                        <span className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">Card</span>
+                      </div>
+                      <div className="relative h-32 overflow-hidden rounded-xl bg-[#070F1E]">
+                        {settings.banners.aboutPhilosophyImage ? (
+                          <img src={settings.banners.aboutPhilosophyImage} alt="About" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-xs text-slate-600">About</div>
+                        )}
+                        <span className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-white">About</span>
                       </div>
                       <div className="relative h-32 overflow-hidden rounded-xl bg-[#070F1E]">
                         {settings.banners.splitSectionLeft ? (

@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { Ship, Compass, Waves, Utensils, Building, MapPin } from 'lucide-react';
 
-export type LanguageCode = 'en' | 'de' | 'ru' | 'fr' | 'it' | 'tr';
+export type LanguageCode = 'en' | 'de' | 'ru' | 'fr' | 'it' | 'pl' | 'es';
 
 export type IconToken = 'boat' | 'safari' | 'swim' | 'food' | 'hotel' | 'generic';
 
@@ -11,7 +11,8 @@ export interface LocalizedMilestoneTitle {
   ru: string;
   fr: string;
   it: string;
-  tr: string;
+  pl: string;
+  es: string;
 }
 
 export interface ItineraryMilestone {
@@ -46,10 +47,10 @@ export function createEmptyMilestone(): ItineraryMilestone {
     id: crypto.randomUUID(),
     timeTag: '',
     iconToken: 'generic',
-    title: { en: '', de: '', ru: '', fr: '', it: '', tr: '' },
+    title: { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '' },
   };
 }
 
 export function createLocalizedMilestoneTitle(): LocalizedMilestoneTitle {
-  return { en: '', de: '', ru: '', fr: '', it: '', tr: '' };
+  return { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '' };
 }

@@ -13,6 +13,7 @@ export interface CheckoutFormData {
   hotelName: string;
   roomNumber?: string;
   pickupTime: string;
+  currency?: string;
   pickupDirectives?: string;
   flightNumbers?: string;
   bedConfiguration?: string;
@@ -24,7 +25,11 @@ export interface InitializeRequest {
   tourId: string;
   departureDate: string;
   guestCount: number;
+  adultsCount?: number;
+  childrenCount?: number;
+  infantsCount?: number;
   formData: CheckoutFormData;
+  promoCode?: string | null;
 }
 
 export interface InitializeResponse {

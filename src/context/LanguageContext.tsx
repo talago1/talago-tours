@@ -1,57 +1,59 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { en } from '@/locales/en';
-import { de } from '@/locales/de';
-import { ru } from '@/locales/ru';
-import { it } from '@/locales/it';
-import { fr } from '@/locales/fr';
-import { pl } from '@/locales/pl';
-import { es } from '@/locales/es';
 
 export type LanguageCode = 'en' | 'de' | 'ru' | 'it' | 'fr' | 'pl' | 'es';
+type LocaleDict = typeof en;
 
 export const languageLabels: Record<LanguageCode, string> = {
-  en: 'EN',
-  de: 'DE',
-  ru: 'RU',
-  it: 'IT',
-  fr: 'FR',
-  pl: 'PL',
-  es: 'ES',
+  en: 'EN', de: 'DE', ru: 'RU', it: 'IT', fr: 'FR', pl: 'PL', es: 'ES',
 };
 
-const dictionaries = { en, de, ru, it, fr, pl, es };
+const LANGUAGES: LanguageCode[] = ['en', 'de', 'ru', 'it', 'fr', 'pl', 'es'];
+const localeCache: Partial<Record<LanguageCode, LocaleDict>> = { en };
+
+async function loadLocale(lang: LanguageCode): Promise<LocaleDict> {
+  if (localeCache[lang]) return localeCache[lang]!;
+  const mod = await import(`@/locales/${lang}`);
+  localeCache[lang] = mod[lang] as LocaleDict;
+  return localeCache[lang]!;
+}
 
 interface LanguageContextType {
   language: LanguageCode;
   setLanguage: (lang: LanguageCode) => void;
-  dict: typeof en;
+  dict: LocaleDict;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<LanguageCode>('en');
+  const [dict, setDict] = useState<LocaleDict>(en);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('talago-lang') as LanguageCode;
-    if (saved && ['en', 'de', 'ru', 'it', 'fr', 'pl', 'es'].includes(saved)) {
+    if (saved && saved !== 'en' && LANGUAGES.includes(saved)) {
       setLanguageState(saved);
+      loadLocale(saved).then(setDict);
     }
     setMounted(true);
   }, []);
 
-  const setLanguage = (lang: LanguageCode) => {
+  const setLanguage = useCallback((lang: LanguageCode) => {
     localStorage.setItem('talago-lang', lang);
     setLanguageState(lang);
-  };
-
-  const dict = mounted ? dictionaries[language] : en;
+    if (lang === 'en') {
+      setDict(en);
+    } else {
+      loadLocale(lang).then(setDict);
+    }
+  }, []);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, dict }}>
+    <LanguageContext.Provider value={{ language, setLanguage, dict: mounted ? dict : en }}>
       {children}
     </LanguageContext.Provider>
   );

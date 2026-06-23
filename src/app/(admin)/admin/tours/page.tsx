@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import AdminToursClient from './AdminToursClient';
+import { safeParseItinerary, safeParseReviews } from '@/utils/tourJsonSchemas';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,27 @@ export default async function AdminToursPage() {
         zoneId: true,
         maxCapacity: true,
         durationHours: true,
+        pickupTime: true,
+        pickupDescription: true,
+        whatToBring: true,
+        cancellationPolicy: true,
+        hotelPickupIncluded: true,
+        allowDeposit: true,
+        depositPercentage: true,
+        allowPayAtLocation: true,
+        childPrice: true,
+        childMinAge: true,
+        childMaxAge: true,
+        infantPrice: true,
+        infantMinAge: true,
+        infantMaxAge: true,
+        ageRestrictionsNotes: true,
+        itinerary: true,
+        cardExcerpt: true,
+        showExcerptOnCard: true,
+        reviews: true,
+        ratingAverage: true,
+        ratingCount: true,
         destination: { select: { name: true } },
       },
     }),
@@ -44,6 +66,27 @@ export default async function AdminToursPage() {
     category: t.category ?? null,
     adultPrice: Number(t.adultPrice || t.basePriceUSD || 0),
     basePriceUSD: Number(t.basePriceUSD || 0),
+    pickupTime: t.pickupTime ?? undefined,
+    pickupDescription: t.pickupDescription ?? undefined,
+    whatToBring: t.whatToBring ?? undefined,
+    cancellationPolicy: t.cancellationPolicy ?? undefined,
+    hotelPickupIncluded: t.hotelPickupIncluded ?? false,
+    allowDeposit: t.allowDeposit ?? false,
+    depositPercentage: t.depositPercentage ?? 100,
+    allowPayAtLocation: t.allowPayAtLocation ?? true,
+    childPrice: t.childPrice ?? undefined,
+    childMinAge: t.childMinAge ?? undefined,
+    childMaxAge: t.childMaxAge ?? undefined,
+    infantPrice: t.infantPrice ?? undefined,
+    infantMinAge: t.infantMinAge ?? undefined,
+    infantMaxAge: t.infantMaxAge ?? undefined,
+    ageRestrictionsNotes: t.ageRestrictionsNotes ?? undefined,
+    cardExcerpt: t.cardExcerpt ?? undefined,
+    showExcerptOnCard: t.showExcerptOnCard ?? true,
+    itinerary: safeParseItinerary(t.itinerary),
+    reviews: safeParseReviews(t.reviews),
+    ratingAverage: t.ratingAverage ?? undefined,
+    ratingCount: t.ratingCount ?? undefined,
   }));
 
   return (

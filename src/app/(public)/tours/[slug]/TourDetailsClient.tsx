@@ -16,6 +16,8 @@ import {
   CreditCard,
   Wallet,
   Building2,
+  UserRound,
+  Baby,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
@@ -252,9 +254,90 @@ function StarRating({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'md
 }
 
 // ========== MAIN EXPORT ==========
+// Inline stepper with click-to-type for the sidebar
+function SidebarStepper({
+  label,
+  sublabel,
+  priceLabel,
+  icon: Icon,
+  iconBg,
+  value,
+  onChange,
+  min = 0,
+}: {
+  label: string;
+  sublabel?: string;
+  priceLabel?: string;
+  icon: React.ElementType;
+  iconBg: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [raw, setRaw] = useState('');
+  const commit = () => {
+    const n = parseInt(raw, 10);
+    onChange(isNaN(n) ? value : Math.max(min, n));
+    setEditing(false);
+  };
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-white">{label}</p>
+          {sublabel && <p className="text-xs text-slate-500">{sublabel}</p>}
+          {priceLabel && <p className="text-xs font-medium text-[#00E5FF]">{priceLabel}</p>}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(min, value - 1))}
+          disabled={value <= min}
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20 12H4" /></svg>
+        </button>
+        {editing ? (
+          <input
+            autoFocus
+            type="number"
+            min={min}
+            value={raw}
+            onChange={(e) => setRaw(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
+            className="w-12 text-center text-base font-black text-white bg-white/10 border border-[#00E5FF] rounded-lg px-1 py-0.5 outline-none"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setRaw(String(value)); setEditing(true); }}
+            className="w-12 text-center text-xl font-black text-white hover:text-[#00E5FF] transition-colors cursor-pointer"
+            title="Click to type"
+          >{value}</button>
+        )}
+        <button
+          type="button"
+          onClick={() => onChange(value + 1)}
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function TourDetailsClient({ tour, reviews }: Props) {
   const { dict, language } = useLanguage();
-  const [guestCount, setGuestCount] = useState(1);
+  const [adultsCount, setAdultsCount] = useState(1);
+  const [childrenCount, setChildrenCount] = useState(0);
+  const [infantsCount, setInfantsCount] = useState(0);
   const [selectedPayment, setSelectedPayment] = useState<'full' | 'deposit' | 'arrival'>(
     tour.allowPayAtLocation ? 'arrival' : tour.allowDeposit ? 'deposit' : 'full'
   );
@@ -265,9 +348,17 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
   const localizedDesc = translations?.[language]?.description ?? tour.description;
 
   const pricePerAdult = tour.adultPrice ?? tour.basePrice;
-  const totalPrice = pricePerAdult * guestCount;
+  const effectiveChildPrice = tour.childPrice ?? null;
+  const effectiveInfantPrice = tour.infantPrice ?? null;
+
+  const totalGuests = adultsCount + childrenCount + infantsCount;
+  const totalPrice =
+    pricePerAdult * adultsCount +
+    (effectiveChildPrice ?? pricePerAdult) * childrenCount +
+    (effectiveInfantPrice ?? 0) * infantsCount;
   const depositAmount = Math.round(totalPrice * (tour.depositPercentage / 100) * 100) / 100;
   const dueOnArrival = Math.round((totalPrice - depositAmount) * 100) / 100;
+  const reserveHref = `/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}`;
 
   const whatToBringItems: string[] = (() => {
     if (Array.isArray(tour.whatToBring)) return tour.whatToBring as string[];
@@ -318,7 +409,7 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
             {/* Highlights */}
             {tour.highlights.length > 0 && (
               <div className="mb-10">
-                <h2 className="mb-4 text-xl font-black text-white">Highlights</h2>
+                <h2 className="mb-4 text-xl font-black text-white">{dict.tourDetails.highlights}</h2>
                 <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {tour.highlights.map((h, i) => (
                     <li key={i} className="flex items-start gap-3 rounded-xl border border-[#00E5FF]/10 bg-[#00E5FF]/5 p-4 transition-all duration-300 hover:border-[#00E5FF]/30">
@@ -339,23 +430,22 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
                   <ShieldCheck className="h-6 w-6 text-[#FFD700]" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-white">Free Cancellation</h3>
+                  <h3 className="text-lg font-black text-white">{dict.tourDetails.freeCancellation}</h3>
                   <p className="mt-1 text-sm leading-7 text-slate-300">
-                    Cancel up to <span className="font-bold text-[#FFD700]">24 hours</span> in advance
-                    for a full refund. No questions asked — because plans change.
+                    {dict.tourDetails.cancelUpTo}
                   </p>
                   <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-[#FFD700]">Free Cancellation</p>
-                      <p className="mt-1 text-xs text-slate-400">Up to 24h before departure</p>
+                      <p className="text-xs font-black uppercase tracking-[0.12em] text-[#FFD700]">{dict.tourDetails.freeCancellation}</p>
+                      <p className="mt-1 text-xs text-slate-400">{dict.tourDetails.upTo24h}</p>
                     </div>
                     <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-[#00E5FF]">Secure Checkout</p>
-                      <p className="mt-1 text-xs text-slate-400">Encrypted payment processing</p>
+                      <p className="text-xs font-black uppercase tracking-[0.12em] text-[#00E5FF]">{dict.tourDetails.secureCheckout}</p>
+                      <p className="mt-1 text-xs text-slate-400">{dict.tourDetails.encryptedPayment}</p>
                     </div>
                     <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-400">Premium Support</p>
-                      <p className="mt-1 text-xs text-slate-400">24/7 concierge assistance</p>
+                      <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-400">{dict.tourDetails.premiumSupport}</p>
+                      <p className="mt-1 text-xs text-slate-400">{dict.tourDetails.concierge247}</p>
                     </div>
                   </div>
                 </div>
@@ -366,17 +456,17 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
             <div className="divide-y divide-white/10 border-t border-white/10">
               {/* Inclusions & Exclusions */}
               {(tour.inclusions.length > 0 || tour.exclusions.length > 0) && (
-                <Accordion title="What's Included" defaultOpen>
+                <Accordion title={dict.tourDetails.whatsIncluded} defaultOpen>
                   <div className="space-y-6">
                     {tour.inclusions.length > 0 && (
                       <div>
-                        <p className="mb-3 text-sm font-bold text-emerald-400">Included</p>
+                        <p className="mb-3 text-sm font-bold text-emerald-400">{dict.tourDetails.included}</p>
                         <Checklist items={tour.inclusions} icon="check" />
                       </div>
                     )}
                     {tour.exclusions.length > 0 && (
                       <div>
-                        <p className="mb-3 text-sm font-bold text-red-400">Excluded</p>
+                        <p className="mb-3 text-sm font-bold text-red-400">{dict.tourDetails.excluded}</p>
                         <Checklist items={tour.exclusions} icon="x" />
                       </div>
                     )}
@@ -386,14 +476,14 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
 
               {/* Itinerary */}
               {itineraryItems.length > 0 && (
-                <Accordion title="Itinerary" defaultOpen>
+                <Accordion title={dict.tourDetails.itinerary} defaultOpen>
                   <ItineraryTimeline itinerary={itineraryItems} />
                 </Accordion>
               )}
 
               {/* What to Bring */}
               {whatToBringItems.length > 0 && (
-                <Accordion title="What to Bring">
+                <Accordion title={dict.tourDetails.whatToBring}>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {whatToBringItems.map((item, i) => (
                       <div key={i} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-4">
@@ -407,13 +497,13 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
 
               {/* Pickup Info */}
               {(tour.pickupDescription || tour.hotelPickupIncluded) && (
-                <Accordion title="Pickup Information">
+                <Accordion title={dict.tourDetails.pickupInfo}>
                   <div className="rounded-xl border border-[#00E5FF]/10 bg-[#00E5FF]/5 p-5">
                     <div className="flex items-start gap-3">
                       <Info className="mt-0.5 h-5 w-5 shrink-0 text-[#00E5FF]" />
                       <div>
                         {tour.hotelPickupIncluded && (
-                          <p className="mb-2 text-sm font-bold text-emerald-400">Hotel Pickup Included</p>
+                          <p className="mb-2 text-sm font-bold text-emerald-400">{dict.tourDetails.hotelPickupIncluded}</p>
                         )}
                         {tour.pickupDescription && (
                           <p className="text-sm leading-7 text-slate-300">{tour.pickupDescription}</p>
@@ -426,7 +516,7 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
 
               {/* Verified Reviews */}
               {reviews.reviews.length > 0 && (
-                <Accordion title={`Verified Reviews (${reviews.ratingCount})`} defaultOpen>
+                <Accordion title={`${dict.tourDetails.reviews} (${reviews.ratingCount})`} defaultOpen>
                   <div className="space-y-6">
                     {/* Rating Summary */}
                     <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
@@ -437,7 +527,7 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
                             <StarRating rating={reviews.ratingAverage} size="md" />
                           </div>
                           <p className="mt-1 text-xs text-slate-500">
-                            {reviews.ratingCount} review{reviews.ratingCount !== 1 ? 's' : ''}
+                            {reviews.ratingCount} {dict.catalog.reviews}
                           </p>
                         </div>
                         <div className="flex-1 space-y-1.5">
@@ -470,13 +560,13 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
                               <div>
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-bold text-white">
-                                    {review.customerName || 'Verified Guest'}
+                                    {review.customerName || dict.tourDetails.verifiedGuest}
                                   </span>
                                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
                                     <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
-                                    Verified
+                                    {dict.tourDetails.verified}
                                   </span>
                                 </div>
                                 <div className="mt-1 flex items-center gap-2">
@@ -507,47 +597,62 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
             <div className="sticky top-28 rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] p-6 shadow-2xl shadow-black/20 backdrop-blur-xl">
               {/* Price */}
               <div className="mb-6">
-                <p className="text-sm font-black uppercase tracking-[0.22em] text-slate-500">From</p>
+                <p className="text-sm font-black uppercase tracking-[0.22em] text-slate-500">{dict.tourDetails.from}</p>
                 <div className="mt-1 flex items-baseline gap-2">
                   <span className="text-4xl font-black text-white">${pricePerAdult.toFixed(0)}</span>
-                  <span className="text-sm text-slate-400">/ person</span>
+                  <span className="text-sm text-slate-400">{dict.tourDetails.perPerson}</span>
                 </div>
               </div>
 
               {/* Guest Selector */}
               <div className="mb-6">
-                <label className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-300">
+                <p className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-300">
                   <Users className="h-4 w-4 text-[#00E5FF]" />
-                  Number of Guests
-                </label>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setGuestCount((c) => Math.max(1, c - 1))}
-                    disabled={guestCount <= 1}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                    </svg>
-                  </button>
-                  <span className="w-8 text-center text-xl font-black text-white">{guestCount}</span>
-                  <button
-                    type="button"
-                    onClick={() => setGuestCount((c) => Math.min(tour.maxCapacity, c + 1))}
-                    disabled={guestCount >= tour.maxCapacity}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </button>
+                  {dict.tourDetails.guests}
+                </p>
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4">
+                  <SidebarStepper
+                    label={dict.tourDetails.adults}
+                    sublabel={dict.tourDetails.ageAdult}
+                    priceLabel={`$${pricePerAdult.toFixed(0)} ${dict.tourDetails.perPerson}`}
+                    icon={UserRound}
+                    iconBg="bg-[#00E5FF]/10 text-[#00E5FF]"
+                    value={adultsCount}
+                    onChange={setAdultsCount}
+                    min={1}
+                  />
+                  <SidebarStepper
+                    label={dict.tourDetails.children}
+                    sublabel={dict.tourDetails.ageChild}
+                    priceLabel={
+                      effectiveChildPrice
+                        ? `$${effectiveChildPrice.toFixed(0)} ${dict.tourDetails.perChild}`
+                        : dict.tourDetails.sameAsAdult
+                    }
+                    icon={Users}
+                    iconBg="bg-blue-500/10 text-blue-400"
+                    value={childrenCount}
+                    onChange={setChildrenCount}
+                  />
+                  <SidebarStepper
+                    label={dict.tourDetails.infants}
+                    sublabel={dict.tourDetails.ageInfant}
+                    priceLabel={
+                      effectiveInfantPrice
+                        ? `$${effectiveInfantPrice.toFixed(0)} ${dict.tourDetails.perInfant}`
+                        : dict.tourDetails.free
+                    }
+                    icon={Baby}
+                    iconBg="bg-purple-500/10 text-purple-400"
+                    value={infantsCount}
+                    onChange={setInfantsCount}
+                  />
                 </div>
               </div>
 
               {/* Payment Option Selector — Dynamic Action Drawer */}
               <div className="mb-6 space-y-3">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Payment Method</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{dict.tourDetails.paymentMethod}</p>
 
                 {/* Full Online */}
                 <button
@@ -561,8 +666,8 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
                     <CreditCard className={`h-5 w-5 ${selectedPayment === 'full' ? 'text-emerald-400' : 'text-slate-500'}`} />
                   </div>
                   <div className="flex-1">
-                    <p className={`text-sm font-bold ${selectedPayment === 'full' ? 'text-emerald-300' : 'text-slate-300'}`}>Full Online Payment</p>
-                    <p className="text-xs text-slate-500">Pay 100% now — nothing due on tour day</p>
+                    <p className={`text-sm font-bold ${selectedPayment === 'full' ? 'text-emerald-300' : 'text-slate-300'}`}>{dict.tourDetails.fullOnlinePayment}</p>
+                    <p className="text-xs text-slate-500">{dict.tourDetails.fullOnlineDesc}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-white">${totalPrice.toFixed(0)}</p>
@@ -583,9 +688,9 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
                     </div>
                     <div className="flex-1">
                       <p className={`text-sm font-bold ${selectedPayment === 'deposit' ? 'text-purple-300' : 'text-slate-300'}`}>
-                        Deposit Online ({tour.depositPercentage}%)
+                        {dict.tourDetails.depositOnline} ({tour.depositPercentage}%)
                       </p>
-                      <p className="text-xs text-slate-500">Pay {tour.depositPercentage}% now, remaining on arrival</p>
+                      <p className="text-xs text-slate-500">{dict.tourDetails.depositDesc}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-white">${depositAmount.toFixed(0)}</p>
@@ -606,8 +711,8 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
                       <Building2 className={`h-5 w-5 ${selectedPayment === 'arrival' ? 'text-amber-400' : 'text-slate-500'}`} />
                     </div>
                     <div className="flex-1">
-                      <p className={`text-sm font-bold ${selectedPayment === 'arrival' ? 'text-amber-300' : 'text-slate-300'}`}>Cash on Arrival</p>
-                      <p className="text-xs text-slate-500">Zero advance fee — pay cash upon pickup</p>
+                      <p className={`text-sm font-bold ${selectedPayment === 'arrival' ? 'text-amber-300' : 'text-slate-300'}`}>{dict.tourDetails.payArrival}</p>
+                      <p className="text-xs text-slate-500">{dict.tourDetails.payArrivalDesc}</p>
                     </div>
                     <div className="text-right">
                       {selectedPayment === 'arrival' && <p className="text-sm font-bold text-amber-400">$0</p>}
@@ -617,28 +722,44 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
               </div>
 
               {/* Price breakdown */}
-              <div className="mb-6 space-y-3 border-t border-white/10 pt-5">
+              <div className="mb-6 space-y-2 border-t border-white/10 pt-5">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">${pricePerAdult.toFixed(0)} x {guestCount} guest{guestCount > 1 ? 's' : ''}</span>
-                  <span className="font-bold text-white">${totalPrice.toFixed(0)}</span>
+                  <span className="text-slate-400">${pricePerAdult.toFixed(0)} × {adultsCount} {dict.tourDetails.adults?.toLowerCase()}</span>
+                  <span className="font-bold text-white">${(pricePerAdult * adultsCount).toFixed(0)}</span>
+                </div>
+                {childrenCount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-400">${(effectiveChildPrice ?? pricePerAdult).toFixed(0)} × {childrenCount} {dict.tourDetails.children?.toLowerCase()}</span>
+                    <span className="font-bold text-white">${((effectiveChildPrice ?? pricePerAdult) * childrenCount).toFixed(0)}</span>
+                  </div>
+                )}
+                {infantsCount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-400">{effectiveInfantPrice ? `$${effectiveInfantPrice.toFixed(0)} × ${infantsCount} ${dict.tourDetails.infants?.toLowerCase()}` : `${infantsCount} ${dict.tourDetails.infants?.toLowerCase()} · ${dict.tourDetails.free}`}</span>
+                    <span className="font-bold text-white">{effectiveInfantPrice ? `$${(effectiveInfantPrice * infantsCount).toFixed(0)}` : '$0'}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between border-t border-white/5 pt-2 text-sm">
+                  <span className="text-slate-300 font-semibold">{dict.tourDetails.total} · {totalGuests} {dict.tourDetails.guests?.toLowerCase()}</span>
+                  <span className="text-lg font-black text-white">${totalPrice.toFixed(0)}</span>
                 </div>
                 {selectedPayment === 'deposit' && tour.allowDeposit && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">Due on arrival</span>
+                    <span className="text-slate-400">{dict.tourDetails.dueOnArrival}</span>
                     <span className="font-bold text-amber-400">${dueOnArrival.toFixed(0)}</span>
                   </div>
                 )}
               </div>
 
               {/* CTA */}
-              <Link href={`/checkout/${tour.id}`}>
-                <Button variant="primary" size="lg" fullWidth>Reserve Now</Button>
+              <Link href={reserveHref}>
+                <Button variant="primary" size="lg" fullWidth>{dict.tourDetails.reserveNow}</Button>
               </Link>
 
               {/* Trust footer */}
               <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500">
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                Secure booking — Free cancellation
+                {dict.tourDetails.secureBooking}
               </div>
             </div>
           </aside>
@@ -649,14 +770,14 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#0B1528]/95 backdrop-blur-xl lg:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">From</p>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">{dict.tourDetails.from}</p>
             <p className="text-2xl font-black text-white">
               ${pricePerAdult.toFixed(0)}
-              <span className="ml-1 text-sm font-normal text-slate-400">/ person</span>
+              <span className="ml-1 text-sm font-normal text-slate-400">{dict.tourDetails.perPerson}</span>
             </p>
           </div>
           <Link href={`/checkout/${tour.id}`}>
-            <Button variant="primary" size="md">Book Now</Button>
+            <Button variant="primary" size="md">{dict.tourDetails.bookNow}</Button>
           </Link>
         </div>
       </div>

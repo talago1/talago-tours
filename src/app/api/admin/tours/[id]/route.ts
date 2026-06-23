@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
-
+import { z } from 'zod';
+import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema } from '@/utils/tourJsonSchemas';
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 const ALLOWED_TYPES = ['SHARED', 'PRIVATE'];
 
@@ -67,6 +67,16 @@ export async function PUT(
       allowDeposit,
       depositPercentage,
       allowPayAtLocation,
+      itinerary,
+      cardExcerpt,
+      showExcerptOnCard,
+      displayExcerpt,
+      whatToBring,
+      pickupDescription,
+      hotelPickupIncluded,
+      pickupTime,
+      cancellationPolicy,
+      reviews,
     } = body;
 
     // Build update payload
@@ -137,6 +147,10 @@ export async function PUT(
     }
 
     if (translations !== undefined) {
+      const parsedTranslations = TourTranslationsRecordSchema.safeParse(translations);
+      if (!parsedTranslations.success) {
+        return NextResponse.json({ error: 'Invalid translations structure', field: 'translations' }, { status: 400 });
+      }
       updateData.translations = translations;
     }
 
@@ -151,7 +165,7 @@ export async function PUT(
         return NextResponse.json({ error: 'Adult price must be positive' }, { status: 400 });
       }
       updateData.adultPrice = adultPrice;
-      updateData.basePrice = new Prisma.Decimal(adultPrice); // Catalog legacy sync
+      updateData.basePrice = adultPrice; // Catalog legacy sync
     }
 
     if (childPrice !== undefined) updateData.childPrice = childPrice;
@@ -166,6 +180,45 @@ export async function PUT(
     if (allowDeposit !== undefined) updateData.allowDeposit = allowDeposit;
     if (depositPercentage !== undefined) updateData.depositPercentage = depositPercentage;
     if (allowPayAtLocation !== undefined) updateData.allowPayAtLocation = allowPayAtLocation;
+    if (itinerary !== undefined) {
+      const parsedItinerary = z.array(ItineraryStepSchema).safeParse(itinerary);
+      if (!parsedItinerary.success) {
+        return NextResponse.json({ error: 'Invalid itinerary data structure', field: 'itinerary' }, { status: 400 });
+      }
+      updateData.itinerary = itinerary;
+    }
+    if (cardExcerpt !== undefined) updateData.cardExcerpt = cardExcerpt;
+    if (showExcerptOnCard !== undefined) updateData.showExcerptOnCard = showExcerptOnCard;
+    if (displayExcerpt !== undefined) updateData.displayExcerpt = displayExcerpt;
+    if (whatToBring !== undefined) updateData.whatToBring = whatToBring;
+    if (pickupDescription !== undefined) updateData.pickupDescription = pickupDescription;
+    if (hotelPickupIncluded !== undefined) updateData.hotelPickupIncluded = hotelPickupIncluded;
+    if (pickupTime !== undefined) updateData.pickupTime = pickupTime;
+    if (cancellationPolicy !== undefined) updateData.cancellationPolicy = cancellationPolicy;
+
+    if (reviews !== undefined) {
+      const parsedReviews = z.array(SeededReviewSchema).safeParse(reviews);
+      if (!parsedReviews.success) {
+        return NextResponse.json({ error: 'Invalid reviews data structure', field: 'reviews' }, { status: 400 });
+      }
+      updateData.reviews = Array.isArray(reviews)
+        ? reviews.map((review: any, index: number) => ({
+            id: `seed-${Date.now()}-${index}`,
+            customerName: review.customerName || 'Verified Guest',
+            rating: Number(review.rating) || 5,
+            comment: review.comment || '',
+            status: 'APPROVED',
+            createdAt: new Date().toISOString(),
+          }))
+        : reviews;
+      if (Array.isArray(reviews)) {
+        updateData.ratingAverage = reviews.reduce((sum: number, review: any) => sum + (Number(review.rating) || 5), 0) / reviews.length;
+        updateData.ratingCount = reviews.length;
+      } else {
+        updateData.ratingAverage = null;
+        updateData.ratingCount = null;
+      }
+    }
 
     const tour = await prisma.tour.update({
       where: { id: params.id },

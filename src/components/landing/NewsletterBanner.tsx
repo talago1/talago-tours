@@ -45,13 +45,13 @@ export default function NewsletterBanner() {
             <div>
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#00473F]/30 bg-[#00473F]/20 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#A7F3D0]">
                 <Mail className="h-4 w-4" />
-                Stay in the loop
+                {dict.leadCapture.badge}
               </div>
               <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
-                Never miss an adventure
+                {dict.leadCapture.heading}
               </h2>
               <p className="mt-4 max-w-lg text-base leading-7 text-slate-400">
-                Subscribe for exclusive offers, new experience launches, and travel inspiration from the Red Sea.
+                {dict.leadCapture.description}
               </p>
             </div>
 
@@ -60,7 +60,7 @@ export default function NewsletterBanner() {
                 <div className="flex items-center gap-3 rounded-2xl border border-[#00473F]/30 bg-[#00473F]/20 p-5">
                   <CheckCircle2 className="h-6 w-6 shrink-0 text-[#A7F3D0]" />
                   <p className="text-sm font-bold text-[#A7F3D0]">
-                    You&apos;re subscribed! Check your inbox for the welcome email.
+                    {dict.leadCapture.successMessage}
                   </p>
                 </div>
               ) : (
@@ -71,7 +71,7 @@ export default function NewsletterBanner() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="your@email.com"
+                      placeholder={dict.leadCapture.placeholder}
                       required
                       className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-4 pl-12 pr-4 text-base font-medium text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-[#06B6D4]/40 focus:bg-white/[0.06 focus:shadow-lg focus:shadow-[#06B6D4]/5"
                     />
@@ -86,7 +86,7 @@ export default function NewsletterBanner() {
                     ) : (
                       <>
                         <Send className="h-4 w-4" />
-                        Subscribe
+                        {dict.leadCapture.subscribeButton}
                       </>
                     )}
                   </button>
@@ -96,12 +96,12 @@ export default function NewsletterBanner() {
               {status === 'error' && (
                 <div className="mt-3 flex items-center gap-2 text-xs text-red-400">
                   <AlertCircle className="h-3.5 w-3.5" />
-                  Something went wrong. Please try again.
+                  {dict.leadCapture.errorMessage}
                 </div>
               )}
 
               <p className="mt-3 text-xs text-slate-500">
-                No spam — unsubscribe anytime. We respect your inbox.
+                {dict.leadCapture.footnote}
               </p>
             </div>
           </div>

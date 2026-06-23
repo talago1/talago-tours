@@ -173,10 +173,8 @@ export default function TourBuilderForm({ zones }: TourBuilderFormProps) {
           pickupTime: logistics.pickupTime || undefined,
           cancellationPolicy: logistics.cancellationPolicy || undefined,
           adultPrice: pricing.adultPrice,
-          priceAdult: pricing.adultPrice,
           childEnabled: pricing.childEnabled,
           childPrice: pricing.childEnabled ? pricing.childPrice : undefined,
-          priceChild: pricing.childEnabled ? pricing.childPrice : undefined,
           childMinAge: pricing.childEnabled ? pricing.childMinAge : undefined,
           childMaxAge: pricing.childEnabled ? pricing.childMaxAge : undefined,
           infantEnabled: pricing.infantEnabled,
@@ -430,8 +428,8 @@ export default function TourBuilderForm({ zones }: TourBuilderFormProps) {
             />
 
             {/* Localized Content */}
-            <section className="rounded-xl border border-gray-200 bg-white p-5 mb-6">
-              <h2 className="mb-4 text-lg font-semibold text-gray-800">
+            <section className="rounded-[2rem] border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
+              <h2 className="mb-4 text-lg font-black text-white">
                 Localized Content
               </h2>
 

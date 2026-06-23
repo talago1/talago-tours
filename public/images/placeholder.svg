@@ -1,0 +1,8 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="600" fill="#0B1528"/>
+  <rect x="300" y="260" width="200" height="16" rx="8" fill="#1E2D4A"/>
+  <rect x="340" y="300" width="120" height="16" rx="8" fill="#1E2D4A"/>
+  <path d="M360 200L400 160L440 200L480 180L520 220L520 360L280 360L280 240L320 210L360 200Z" fill="#1E2D4A"/>
+  <circle cx="400" cy="300" r="120" fill="none" stroke="#1E2D4A" stroke-width="2" stroke-dasharray="8 8"/>
+  <text x="400" y="460" text-anchor="middle" fill="#2A3D5C" font-family="system-ui" font-size="20" font-weight="bold">TALAGO</text>
+</svg>

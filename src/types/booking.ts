@@ -8,6 +8,9 @@ export interface ActiveQueueTicket {
   customerPhone: string;
   travelDate: string;
   guestCount: number;
+  adultsCount?: number;
+  childrenCount?: number;
+  infantsCount?: number;
   totalPriceUSD: number;
   hotelName: string | null;
   pickupTime: string | null;

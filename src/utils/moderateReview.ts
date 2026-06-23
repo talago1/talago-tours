@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma';
 import {
-  calculateTourRatings,
+  recalculateTourRatings,
   type RatingCalculationResult,
 } from './calculateTourRatings';
 import type { ModerationPayload } from '../types/review';
@@ -52,7 +52,7 @@ export async function moderateReview({
   const prismaClient = dependencies.prismaClient ?? (prisma as unknown as ModerationPrismaClient);
   const calculateRatings: RatingCalculator =
     dependencies.calculateRatings ??
-    (calculateTourRatings as unknown as RatingCalculator);
+    (recalculateTourRatings as unknown as RatingCalculator);
 
   return prismaClient.$transaction(async (tx) => {
     const existing = await tx.review.findUniqueOrThrow({

@@ -38,64 +38,64 @@ export default function LocalizedPanel({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Title {isEnglish && <span className="text-red-500">*</span>}
+        <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+          Title {isEnglish && <span className="text-red-400">*</span>}
         </label>
         <input
           type="text"
           value={data.title}
           onChange={(e) => onChange({ ...data, title: e.target.value })}
           placeholder={`Tour title (${language.toUpperCase()})`}
-          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-coral/50 ${
-            errors[`translations.${language}.title`] ? 'border-red-500' : 'border-gray-300'
-          }`}
+          className={`w-full rounded-2xl border px-4 py-3 text-sm text-white outline-none ${
+            errors[`translations.${language}.title`] ? 'border-red-500/50' : 'border-white/10'
+          } bg-[#070F1E] focus:border-[#00E5FF]`}
         />
         {errors[`translations.${language}.title`] && (
-          <p className="mt-1 text-xs text-red-500">
+          <p className="mt-1 text-xs text-red-400">
             {errors[`translations.${language}.title`]}
           </p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Description {isEnglish && <span className="text-red-500">*</span>}
+        <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+          Description {isEnglish && <span className="text-red-400">*</span>}
         </label>
         <textarea
           value={data.description}
           onChange={(e) => onChange({ ...data, description: e.target.value })}
           placeholder={`Tour description (${language.toUpperCase()})`}
           rows={4}
-          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-coral/50 ${
-            errors[`translations.${language}.description`] ? 'border-red-500' : 'border-gray-300'
-          }`}
+          className={`w-full resize-y rounded-2xl border px-4 py-3 text-sm text-white outline-none ${
+            errors[`translations.${language}.description`] ? 'border-red-500/50' : 'border-white/10'
+          } bg-[#070F1E] focus:border-[#00E5FF]`}
         />
         {errors[`translations.${language}.description`] && (
-          <p className="mt-1 text-xs text-red-500">
+          <p className="mt-1 text-xs text-red-400">
             {errors[`translations.${language}.description`]}
           </p>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
           Cancellation Policies
         </label>
         {data.cancellationPolicies.map((policy, index) => (
-          <div key={index} className="flex gap-2 mb-2">
+          <div key={index} className="mb-2 flex gap-2">
             <input
               type="text"
               value={policy}
               onChange={(e) => updatePolicy(index, e.target.value)}
               placeholder={`Policy ${index + 1}`}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-coral/50"
+              className="flex-1 rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#00E5FF]"
             />
             <button
               type="button"
               onClick={() => removePolicy(index)}
-              className="px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors duration-200"
+              className="rounded-2xl px-4 py-2 text-sm text-red-400 transition-all hover:bg-red-500/10 hover:text-red-300"
             >
               Remove
             </button>
@@ -104,7 +104,7 @@ export default function LocalizedPanel({
         <button
           type="button"
           onClick={addPolicy}
-          className="mt-1 px-4 py-2 text-sm font-medium text-primary-coral border border-primary-coral/30 rounded-lg hover:bg-primary-coral/5 transition-colors duration-200"
+          className="mt-1 rounded-2xl border border-[#00E5FF]/30 px-5 py-2.5 text-sm font-bold text-[#00E5FF] transition-all hover:bg-[#00E5FF]/10"
         >
           + Add Policy
         </button>

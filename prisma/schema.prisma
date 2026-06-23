@@ -131,6 +131,7 @@ model Tour {
   pickupDescription   String?
   hotelPickupIncluded Boolean  @default(false)
   pickupTime          String?
+  pickupTimes         String[]
   cancellationPolicy  String?
 
   // Detailed Pricing Tiers
@@ -175,6 +176,9 @@ model Booking {
   hotelName        String?
   travelDate       DateTime
   guestCount       Int
+  adultsCount      Int     @default(0)
+  childrenCount    Int     @default(0)
+  infantsCount     Int     @default(0)
   totalPriceUSD    Float
   customerName     String
   customerEmail    String
@@ -206,10 +210,14 @@ model Booking {
   amountDueOnArrival Float?
 
   // Scheduling
-  timeSlotId       String?
+  timeSlotId          String?
+  selectedPickupTime  String?
 
   // Customer profile link
   customerProfileId String?
+
+  // Currency
+  currency String @default("USD")
 
   // WhatsApp opt-in
   whatsappOptIn Boolean @default(false)
@@ -225,6 +233,11 @@ model Booking {
 
   @@index([tourId])
   @@index([bookingReference])
+  @@index([tourId, travelDate, status])
+  @@index([travelDate, status])
+  @@index([status, createdAt])
+  @@index([channel])
+  @@index([promoCodeId])
 }
 
 model Review {
@@ -324,3 +337,118 @@ model MediaAsset {
 
   @@index([tourId])
 }
+
+model NewsletterSubscription {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  locale    String   @default("en")
+  subscribedAt DateTime @default(now())
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("newsletter_subscriptions")
+}
+
+// ─── Spec 013: Crew, Fleet & Expense ────────────────────────────────────────
+
+enum CrewRole {
+  CAPTAIN
+  GUIDE
+  DRIVER
+}
+
+enum FleetType {
+  BOAT
+  SPEEDBOAT
+  VEHICLE
+  QUAD
+}
+
+enum ExpenseCategory {
+  FUEL
+  CREW_PAYROLL
+  CATERING
+  PERMITS
+  MISC
+}
+
+enum ExpenseCurrency {
+  USD
+  EGP
+}
+
+model CrewMember {
+  id        String   @id @default(cuid())
+  name      String
+  role      CrewRole
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments CrewAssignment[]
+
+  @@index([role, isActive])
+  @@map("crew_members")
+}
+
+model FleetAsset {
+  id        String    @id @default(cuid())
+  name      String
+  type      FleetType
+  capacity  Int?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  assignments FleetAssignment[]
+
+  @@index([type, isActive])
+  @@map("fleet_assets")
+}
+
+model CrewAssignment {
+  id            String   @id @default(cuid())
+  crewMemberId  String
+  tourId        String
+  departureDate String   // YYYY-MM-DD
+
+  createdAt DateTime @default(now())
+
+  crewMember CrewMember @relation(fields: [crewMemberId], references: [id], onDelete: Cascade)
+
+  @@index([departureDate, tourId])
+  @@index([crewMemberId, departureDate])
+  @@map("crew_assignments")
+}
+
+model FleetAssignment {
+  id            String   @id @default(cuid())
+  fleetAssetId  String
+  tourId        String
+  departureDate String   // YYYY-MM-DD
+
+  createdAt DateTime @default(now())
+
+  fleetAsset FleetAsset @relation(fields: [fleetAssetId], references: [id], onDelete: Cascade)
+
+  @@index([departureDate, tourId])
+  @@index([fleetAssetId, departureDate])
+  @@map("fleet_assignments")
+}
+
+model TripExpense {
+  id                 String          @id @default(cuid())
+  departureDateGroup String          // YYYY-MM-DD
+  tourId             String
+  category           ExpenseCategory
+  amount             Decimal         @db.Decimal(10, 2)
+  currency           ExpenseCurrency
+  notes              String?
+  createdAt          DateTime        @default(now())
+
+  @@index([departureDateGroup, tourId])
+  @@map("trip_expenses")
+}
+

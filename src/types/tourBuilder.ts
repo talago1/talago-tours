@@ -1,6 +1,6 @@
-export type LanguageCode = 'en' | 'de' | 'ru' | 'fr' | 'it' | 'tr';
+export type LanguageCode = 'en' | 'de' | 'ru' | 'fr' | 'it' | 'pl' | 'es';
 
-export const LANGUAGE_CODES: LanguageCode[] = ['en', 'de', 'ru', 'fr', 'it', 'tr'];
+export const LANGUAGE_CODES: LanguageCode[] = ['en', 'de', 'ru', 'fr', 'it', 'pl', 'es'];
 
 export const LANGUAGE_LABELS: Record<LanguageCode, string> = {
   en: 'EN',
@@ -8,7 +8,8 @@ export const LANGUAGE_LABELS: Record<LanguageCode, string> = {
   ru: 'RU',
   fr: 'FR',
   it: 'IT',
-  tr: 'TR',
+  pl: 'PL',
+  es: 'ES',
 };
 
 export interface TranslationEntry {
@@ -26,7 +27,8 @@ export function createEmptyTranslations(): Translations {
     ru: { title: '', description: '', cancellationPolicies: [] },
     fr: { title: '', description: '', cancellationPolicies: [] },
     it: { title: '', description: '', cancellationPolicies: [] },
-    tr: { title: '', description: '', cancellationPolicies: [] },
+    pl: { title: '', description: '', cancellationPolicies: [] },
+    es: { title: '', description: '', cancellationPolicies: [] },
   };
 }
 
@@ -78,6 +80,7 @@ export interface LogisticsFields {
   pickupDescription: string;
   hotelPickupIncluded: boolean;
   pickupTime: string;
+  pickupTimes: string[];
   cancellationPolicy: string;
 }
 
@@ -87,6 +90,7 @@ export function createDefaultLogisticsFields(): LogisticsFields {
     pickupDescription: '',
     hotelPickupIncluded: false,
     pickupTime: '',
+    pickupTimes: [],
     cancellationPolicy: '',
   };
 }
@@ -184,6 +188,7 @@ export interface TourCreatePayload {
   pickupDescription?: string;
   hotelPickupIncluded?: boolean;
   pickupTime?: string;
+  pickupTimes?: string[];
   cancellationPolicy?: string;
   adultPrice: number;
   priceAdult?: number;

@@ -20,13 +20,13 @@ export default function GlobalFields({
   };
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4">
+    <section className="rounded-[2rem] border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
+      <h2 className="mb-4 text-lg font-black text-white">
         Tour Details
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
             Slug
           </label>
           <input
@@ -34,17 +34,17 @@ export default function GlobalFields({
             value={values.slug}
             onChange={(e) => update({ slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
             placeholder="my-tour-name"
-            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-coral/50 ${
-              errors.slug ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full rounded-2xl border px-4 py-3 text-sm text-white outline-none ${
+              errors.slug ? 'border-red-500/50' : 'border-white/10'
+            } bg-[#070F1E] focus:border-[#00E5FF]`}
           />
           {errors.slug && (
-            <p className="mt-1 text-xs text-red-500">{errors.slug}</p>
+            <p className="mt-1 text-xs text-red-400">{errors.slug}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
             Base Price (USD)
           </label>
           <input
@@ -54,17 +54,17 @@ export default function GlobalFields({
             value={values.basePriceUSD || ''}
             onChange={(e) => update({ basePriceUSD: parseFloat(e.target.value) || 0 })}
             placeholder="0.00"
-            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-coral/50 ${
-              errors.basePriceUSD ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full rounded-2xl border px-4 py-3 text-sm text-white outline-none ${
+              errors.basePriceUSD ? 'border-red-500/50' : 'border-white/10'
+            } bg-[#070F1E] focus:border-[#00E5FF]`}
           />
           {errors.basePriceUSD && (
-            <p className="mt-1 text-xs text-red-500">{errors.basePriceUSD}</p>
+            <p className="mt-1 text-xs text-red-400">{errors.basePriceUSD}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
             Duration (hours)
           </label>
           <input
@@ -73,17 +73,17 @@ export default function GlobalFields({
             value={values.durationHours || ''}
             onChange={(e) => update({ durationHours: parseInt(e.target.value) || 0 })}
             placeholder="4"
-            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-coral/50 ${
-              errors.durationHours ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full rounded-2xl border px-4 py-3 text-sm text-white outline-none ${
+              errors.durationHours ? 'border-red-500/50' : 'border-white/10'
+            } bg-[#070F1E] focus:border-[#00E5FF]`}
           />
           {errors.durationHours && (
-            <p className="mt-1 text-xs text-red-500">{errors.durationHours}</p>
+            <p className="mt-1 text-xs text-red-400">{errors.durationHours}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
             Max Capacity
           </label>
           <input
@@ -92,23 +92,23 @@ export default function GlobalFields({
             value={values.maxCapacity || ''}
             onChange={(e) => update({ maxCapacity: parseInt(e.target.value) || 0 })}
             placeholder="20"
-            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-coral/50 ${
-              errors.maxCapacity ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full rounded-2xl border px-4 py-3 text-sm text-white outline-none ${
+              errors.maxCapacity ? 'border-red-500/50' : 'border-white/10'
+            } bg-[#070F1E] focus:border-[#00E5FF]`}
           />
           {errors.maxCapacity && (
-            <p className="mt-1 text-xs text-red-500">{errors.maxCapacity}</p>
+            <p className="mt-1 text-xs text-red-400">{errors.maxCapacity}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
             Tour Type
           </label>
           <select
             value={values.tourType}
             onChange={(e) => update({ tourType: e.target.value as TourType })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-coral/50 bg-white"
+            className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#00E5FF]"
           >
             <option value="SHARED">Shared</option>
             <option value="PRIVATE">Private</option>
@@ -116,15 +116,15 @@ export default function GlobalFields({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
             Zone
           </label>
           <select
             value={values.zoneId}
             onChange={(e) => update({ zoneId: e.target.value })}
-            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-coral/50 bg-white ${
-              errors.zoneId ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full rounded-2xl border px-4 py-3 text-sm text-white outline-none ${
+              errors.zoneId ? 'border-red-500/50' : 'border-white/10'
+            } bg-[#070F1E] focus:border-[#00E5FF]`}
           >
             <option value="">Select zone</option>
             {zones.map((z) => (
@@ -134,7 +134,7 @@ export default function GlobalFields({
             ))}
           </select>
           {errors.zoneId && (
-            <p className="mt-1 text-xs text-red-500">{errors.zoneId}</p>
+            <p className="mt-1 text-xs text-red-400">{errors.zoneId}</p>
           )}
         </div>
       </div>

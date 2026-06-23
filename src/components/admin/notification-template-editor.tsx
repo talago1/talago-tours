@@ -11,14 +11,14 @@ interface Template {
 }
 
 const PLACEHOLDER_TOKENS = [
-  '{{customer_name}}',
-  '{{tour_title}}',
-  '{{departure_date}}',
-  '{{pickup_time}}',
-  '{{pickup_location}}',
-  '{{voucher_url}}',
-  '{{booking_reference}}',
-  '{{amount_due_on_arrival}}',
+  '{customerName}',
+  '{tourTitle}',
+  '{departureDate}',
+  '{pickupTime}',
+  '{pickupLocation}',
+  '{voucherUrl}',
+  '{bookingReference}',
+  '{amountDueOnArrival}',
 ];
 
 export default function NotificationTemplateEditor() {
@@ -60,12 +60,12 @@ export default function NotificationTemplateEditor() {
           templates: [
             {
               channel: 'WHATSAPP',
-              body: `Hi {{customer_name}}, your tour {{tour_title}} is confirmed!\n\nDate: {{departure_date}}\nPickup: {{pickup_time}} at {{pickup_location}}\nBooking: {{booking_reference}}\nDue on arrival: {{amount_due_on_arrival}}\n\nView voucher: {{voucher_url}}`,
+              body: `Dear {customerName},\n\nYour {tourTitle} journey is confirmed.\n\nDate: {departureDate}\nPickup: {pickupTime} at {pickupLocation}\nBooking: {bookingReference}\nDue on arrival: {amountDueOnArrival}\n\nView your digital voucher:\n{voucherUrl}\n\nWe look forward to welcoming you.\n— The TALAGO Concierge Team`,
             },
             {
               channel: 'EMAIL',
-              subject: 'Your TALAGO Booking Confirmation - {{booking_reference}}',
-              body: `Dear {{customer_name}},\n\nWe're excited to confirm your booking for:\n\nTour: {{tour_title}}\nDeparture: {{departure_date}}\nPickup Time: {{pickup_time}}\nPickup Location: {{pickup_location}}\n\nAmount Due on Arrival: {{amount_due_on_arrival}}\nBooking Reference: {{booking_reference}}\nView Your Voucher: {{voucher_url}}\n\nSee you soon!\nThe TALAGO Team`,
+              subject: 'Your TALAGO Booking Confirmation — {bookingReference}',
+              body: `Dear {customerName},\n\nThank you for choosing TALAGO for your Red Sea experience.\n\nWe are pleased to confirm your booking:\n\nTour: {tourTitle}\nDeparture: {departureDate}\nPickup Time: {pickupTime}\nPickup Location: {pickupLocation}\n\nAmount Due on Arrival: {amountDueOnArrival}\nBooking Reference: {bookingReference}\nDigital Voucher: {voucherUrl}\n\nShould you require any arrangements or have special requests, our concierge team remains at your service.\n\nSee you soon,\nThe TALAGO Concierge Team`,
             },
           ],
         }),
@@ -128,19 +128,19 @@ export default function NotificationTemplateEditor() {
   return (
     <div className="space-y-4">
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Notification Templates</h2>
-        <p className="text-sm text-gray-500">Edit message templates for each channel. Changes take effect immediately.</p>
+        <h2 className="text-lg font-black text-white">Notification Templates</h2>
+        <p className="text-sm text-slate-400">Edit message templates for each channel. Changes take effect immediately.</p>
       </div>
 
-      <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
-        <p className="mb-2 text-xs font-medium text-gray-600">Available Tokens</p>
+      <div className="mb-4 rounded-2xl border border-white/10 bg-[#070F1E] p-4">
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Available Tokens</p>
         <div className="flex flex-wrap gap-1.5">
           {PLACEHOLDER_TOKENS.map((token) => (
             <button
               key={token}
               type="button"
               onClick={() => insertToken(token)}
-              className="rounded bg-white px-2 py-1 font-mono text-xs text-[#FF5B00] shadow-sm ring-1 ring-gray-200 hover:bg-[#FFF0E8]"
+              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-xs text-[#00E5FF] transition-colors hover:bg-[#00E5FF]/10"
             >
               {token}
             </button>
@@ -149,23 +149,29 @@ export default function NotificationTemplateEditor() {
       </div>
 
       {message && (
-        <div className={`rounded-lg p-3 text-sm ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+        <div className={`rounded-2xl px-4 py-3 text-sm ${
+          message.type === 'success'
+            ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+            : 'border border-red-500/20 bg-red-500/10 text-red-300'
+        }`}>
           {message.text}
         </div>
       )}
 
       {templates.map((t) => (
-        <div key={t.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <span className="font-medium text-gray-900">{t.channel === 'WHATSAPP' ? 'WhatsApp' : 'Email'}</span>
-              <span className="ml-2 text-xs text-gray-400">Last updated: {new Date(t.updatedAt).toLocaleString()}</span>
+        <div key={t.id} className="rounded-2xl border border-white/10 bg-[#0B1528] p-5 shadow-2xl shadow-black/20">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="rounded-xl bg-[#00E5FF]/10 px-3 py-1.5 text-xs font-black text-[#00E5FF]">
+                {t.channel === 'WHATSAPP' ? 'WhatsApp' : 'Email'}
+              </span>
+              <span className="text-xs text-slate-500">Updated {new Date(t.updatedAt).toLocaleString()}</span>
             </div>
             {editingId !== t.id && (
               <button
                 type="button"
                 onClick={() => startEdit(t)}
-                className="rounded px-3 py-1 text-sm text-[#FF5B00] hover:bg-[#FFF0E8]"
+                className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:text-[#00E5FF]"
               >
                 Edit
               </button>
@@ -173,47 +179,47 @@ export default function NotificationTemplateEditor() {
           </div>
 
           {editingId === t.id ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {t.channel === 'EMAIL' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Subject</label>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Subject</label>
                   <input
                     type="text"
                     value={editSubject}
                     onChange={(e) => setEditSubject(e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#FF5B00] focus:outline-none focus:ring-1 focus:ring-[#FF5B00]"
+                    className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#00E5FF]"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Body</label>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Body</label>
                 <textarea
                   value={editBody}
                   onChange={(e) => setEditBody(e.target.value)}
                   rows={8}
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-[#FF5B00] focus:outline-none focus:ring-1 focus:ring-[#FF5B00]"
+                  className="w-full resize-y rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 font-mono text-sm text-white outline-none focus:border-[#00E5FF]"
                 />
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="rounded-lg bg-[#FF5B00] px-4 py-2 text-sm font-medium text-white hover:bg-[#E55200] disabled:opacity-50"
+                  className="rounded-full bg-[#00E5FF] px-6 py-2.5 text-sm font-black text-[#070F1E] transition-all hover:bg-[#00E5FF]/90 disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : 'Save'}
                 </button>
                 <button
                   type="button"
                   onClick={cancelEdit}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="rounded-full border border-white/10 px-6 py-2.5 text-sm font-bold text-slate-300 transition-all hover:bg-white/10"
                 >
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
-            <pre className="whitespace-pre-wrap rounded bg-gray-50 p-3 font-mono text-xs text-gray-600">
+            <pre className="whitespace-pre-wrap rounded-2xl bg-[#070F1E] p-4 font-mono text-xs text-slate-400">
               {t.channel === 'EMAIL' && t.subject ? `Subject: ${t.subject}\n\n` : ''}{t.body}
             </pre>
           )}

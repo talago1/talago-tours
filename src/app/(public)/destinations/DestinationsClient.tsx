@@ -145,7 +145,7 @@ export default function DestinationsClient({ destinations }: Props) {
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filtered.map((dest, index) => {
-                const covers = DESTINATION_COVERS[dest.slug] ?? [FALLBACK_COVER];
+                const covers = dest.imageUrl ? [dest.imageUrl] : (DESTINATION_COVERS[dest.slug] ?? [FALLBACK_COVER]);
                 const localizedName = getLocalized(dest, language, 'name');
                 const localizedDesc = getLocalized(dest, language, 'description');
 
