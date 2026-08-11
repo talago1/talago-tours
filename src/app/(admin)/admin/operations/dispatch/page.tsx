@@ -30,22 +30,18 @@ export default async function DispatchPage({
     });
 
     return (
-      <div className="mx-auto max-w-lg p-6">
-        <h1 className="mb-6 text-xl font-bold text-gray-900">Trip Dispatcher</h1>
+      <div className="mx-auto max-w-xl px-6 py-10 text-[#F8FAFC]">
+        <h1 className="mb-2 text-3xl font-black text-white">Trip Dispatcher Studio</h1>
+        <p className="mb-6 text-sm text-slate-400">Select an active experience and departure date to manage crew, fleet, and trip expenses.</p>
         <DispatchSelector tours={tourOptions} />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900">Trip Dispatcher</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Tour ID: {tourId} — Date: {date}
-        </p>
-      </div>
+    <div className="mx-auto max-w-5xl px-6 py-10 text-[#F8FAFC]">
       <TripDispatcher tourId={tourId} date={date} />
     </div>
   );
 }
+

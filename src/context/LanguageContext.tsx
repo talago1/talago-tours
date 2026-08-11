@@ -34,17 +34,61 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('talago-lang') as LanguageCode;
-    if (saved && saved !== 'en' && LANGUAGES.includes(saved)) {
-      setLanguageState(saved);
-      loadLocale(saved).then(setDict);
+    let chosenLang: LanguageCode | null = null;
+
+    // 1. Check URL query string (?lang=de)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlLang = params.get('lang') as LanguageCode;
+      if (urlLang && LANGUAGES.includes(urlLang)) {
+        chosenLang = urlLang;
+      }
     }
+
+    // 2. Check localStorage (user explicit preference)
+    if (!chosenLang) {
+      const saved = localStorage.getItem('talago-lang') as LanguageCode;
+      if (saved && LANGUAGES.includes(saved)) {
+        chosenLang = saved;
+      }
+    }
+
+    // 3. Fallback: Auto-detect device/browser language (phone settings)
+    if (!chosenLang && typeof navigator !== 'undefined') {
+      const userLangs = navigator.languages ? Array.from(navigator.languages) : [navigator.language];
+      for (const l of userLangs) {
+        if (!l) continue;
+        const code = l.split('-')[0].toLowerCase() as LanguageCode;
+        if (LANGUAGES.includes(code)) {
+          chosenLang = code;
+          break;
+        }
+      }
+    }
+
+    if (chosenLang && LANGUAGES.includes(chosenLang)) {
+      setLanguageState(chosenLang);
+      if (chosenLang !== 'en') {
+        loadLocale(chosenLang).then(setDict);
+      }
+    }
+
     setMounted(true);
   }, []);
+
+  // Sync html lang attribute for SEO and accessibility
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = language;
+    }
+  }, [language]);
 
   const setLanguage = useCallback((lang: LanguageCode) => {
     localStorage.setItem('talago-lang', lang);
     setLanguageState(lang);
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+    }
     if (lang === 'en') {
       setDict(en);
     } else {

@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { convertUsdToEgp } from '@/config/exchangeRates';
+import { parseSettingValue } from '@/lib/systemSettings';
 import type { ExecutiveDashboardStats, ChannelSummary } from '@/types/analytics';
 
 function getTourTitle(translations: unknown, lang = 'en'): string {
@@ -158,6 +158,12 @@ export async function GET(request: NextRequest) {
         channelBreakdown.push({ channel: ch, _count: 0, totalRevenueUSD: 0 });
       }
     }
+
+    const financialSetting = await prisma.systemSetting.findUnique({ where: { key: 'financial' } });
+    const financialData = financialSetting ? parseSettingValue<{ exchangeRates?: { EGP?: number } }>(financialSetting.value, {}) : {};
+    const usdToEgpRate = financialData.exchangeRates?.EGP ?? 48.5;
+
+    const convertUsdToEgp = (amount: number) => Math.round(amount * usdToEgpRate * 100) / 100;
 
     const response: ExecutiveDashboardStats = {
       grossRevenueUSD,

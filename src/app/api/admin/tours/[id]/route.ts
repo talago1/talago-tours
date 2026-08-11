@@ -110,30 +110,33 @@ export async function PUT(
     }
 
     if (basePriceUSD !== undefined) {
-      if (typeof basePriceUSD !== 'number' || basePriceUSD <= 0) {
-        return NextResponse.json({ error: 'Base price must be positive' }, { status: 400 });
+      const numBase = Number(basePriceUSD);
+      if (isNaN(numBase) || numBase <= 0) {
+        return NextResponse.json({ error: 'Base price must be a positive number', field: 'basePriceUSD' }, { status: 400 });
       }
-      updateData.basePriceUSD = basePriceUSD;
+      updateData.basePriceUSD = numBase;
     }
 
     if (durationHours !== undefined) {
-      if (!Number.isInteger(durationHours) || durationHours <= 0) {
-        return NextResponse.json({ error: 'Duration must be a positive integer' }, { status: 400 });
+      const numDuration = Number(durationHours);
+      if (isNaN(numDuration) || numDuration <= 0) {
+        return NextResponse.json({ error: 'Duration must be a positive number', field: 'durationHours' }, { status: 400 });
       }
-      updateData.durationHours = durationHours;
+      updateData.durationHours = numDuration;
     }
 
     if (maxCapacity !== undefined) {
-      if (!Number.isInteger(maxCapacity) || maxCapacity <= 0) {
-        return NextResponse.json({ error: 'Max capacity must be a positive integer' }, { status: 400 });
+      const numCapacity = Number(maxCapacity);
+      if (isNaN(numCapacity) || numCapacity <= 0) {
+        return NextResponse.json({ error: 'Max capacity must be a positive number', field: 'maxCapacity' }, { status: 400 });
       }
-      updateData.maxCapacity = maxCapacity;
+      updateData.maxCapacity = numCapacity;
     }
 
     if (zoneId !== undefined) {
       const zoneExists = await prisma.zone.findUnique({ where: { id: zoneId } });
       if (!zoneExists) {
-        return NextResponse.json({ error: 'Selected zone does not exist' }, { status: 400 });
+        return NextResponse.json({ error: 'Selected zone does not exist', field: 'zoneId' }, { status: 400 });
       }
       updateData.zoneId = zoneId;
     }
@@ -141,7 +144,7 @@ export async function PUT(
     if (destinationId !== undefined) {
       const destinationExists = await prisma.destination.findUnique({ where: { id: destinationId } });
       if (!destinationExists) {
-        return NextResponse.json({ error: 'Selected destination does not exist' }, { status: 400 });
+        return NextResponse.json({ error: 'Selected destination does not exist', field: 'destinationId' }, { status: 400 });
       }
       updateData.destinationId = destinationId;
     }
@@ -149,43 +152,61 @@ export async function PUT(
     if (translations !== undefined) {
       const parsedTranslations = TourTranslationsRecordSchema.safeParse(translations);
       if (!parsedTranslations.success) {
-        return NextResponse.json({ error: 'Invalid translations structure', field: 'translations' }, { status: 400 });
+        console.error('Translations Zod Error:', JSON.stringify(parsedTranslations.error.issues, null, 2));
+        return NextResponse.json({
+          error: 'Invalid translations structure',
+          field: 'translations',
+          details: parsedTranslations.error.issues,
+        }, { status: 400 });
       }
       updateData.translations = translations;
     }
 
     if (coverImage !== undefined) updateData.coverImage = coverImage;
-    if (galleryImages !== undefined) updateData.galleryImages = galleryImages.filter(Boolean);
+    if (galleryImages !== undefined) updateData.galleryImages = Array.isArray(galleryImages) ? galleryImages.filter(Boolean) : [];
     if (highlights !== undefined) updateData.highlights = highlights;
     if (inclusions !== undefined) updateData.inclusions = inclusions;
     if (exclusions !== undefined) updateData.exclusions = exclusions;
 
     if (adultPrice !== undefined) {
-      if (typeof adultPrice !== 'number' || adultPrice <= 0) {
-        return NextResponse.json({ error: 'Adult price must be positive' }, { status: 400 });
+      const numAdult = Number(adultPrice);
+      if (isNaN(numAdult) || numAdult <= 0) {
+        return NextResponse.json({ error: 'Adult price must be a positive number', field: 'adultPrice' }, { status: 400 });
       }
-      updateData.adultPrice = adultPrice;
-      updateData.basePrice = adultPrice; // Catalog legacy sync
+      updateData.adultPrice = numAdult;
+      updateData.basePrice = numAdult; // Catalog legacy sync
     }
 
-    if (childPrice !== undefined) updateData.childPrice = childPrice;
-    if (childMinAge !== undefined) updateData.childMinAge = childMinAge;
-    if (childMaxAge !== undefined) updateData.childMaxAge = childMaxAge;
-    if (infantPrice !== undefined) updateData.infantPrice = infantPrice;
-    if (infantMinAge !== undefined) updateData.infantMinAge = infantMinAge;
-    if (infantMaxAge !== undefined) updateData.infantMaxAge = infantMaxAge;
+    if (childPrice !== undefined) updateData.childPrice = childPrice !== null ? Number(childPrice) : null;
+    if (childMinAge !== undefined) updateData.childMinAge = childMinAge !== null ? Number(childMinAge) : null;
+    if (childMaxAge !== undefined) updateData.childMaxAge = childMaxAge !== null ? Number(childMaxAge) : null;
+    if (infantPrice !== undefined) updateData.infantPrice = infantPrice !== null ? Number(infantPrice) : null;
+    if (infantMinAge !== undefined) updateData.infantMinAge = infantMinAge !== null ? Number(infantMinAge) : null;
+    if (infantMaxAge !== undefined) updateData.infantMaxAge = infantMaxAge !== null ? Number(infantMaxAge) : null;
     if (ageRestrictionsNotes !== undefined) updateData.ageRestrictionsNotes = ageRestrictionsNotes;
     if (status !== undefined) updateData.status = status;
     if (category !== undefined) updateData.category = category;
     if (allowDeposit !== undefined) updateData.allowDeposit = allowDeposit;
-    if (depositPercentage !== undefined) updateData.depositPercentage = depositPercentage;
+    if (depositPercentage !== undefined) updateData.depositPercentage = depositPercentage !== null ? Number(depositPercentage) : 100;
     if (allowPayAtLocation !== undefined) updateData.allowPayAtLocation = allowPayAtLocation;
+
     if (itinerary !== undefined) {
-      const parsedItinerary = z.array(ItineraryStepSchema).safeParse(itinerary);
-      if (!parsedItinerary.success) {
-        return NextResponse.json({ error: 'Invalid itinerary data structure', field: 'itinerary' }, { status: 400 });
+      if (itinerary === null) {
+        updateData.itinerary = null;
+      } else if (Array.isArray(itinerary)) {
+        const parsedItinerary = z.array(ItineraryStepSchema).safeParse(itinerary);
+        if (!parsedItinerary.success) {
+          console.error('Itinerary Zod Error:', JSON.stringify(parsedItinerary.error.issues, null, 2));
+          return NextResponse.json({
+            error: 'Invalid itinerary data structure',
+            field: 'itinerary',
+            details: parsedItinerary.error.issues,
+          }, { status: 400 });
+        }
+        updateData.itinerary = itinerary;
+      } else {
+        updateData.itinerary = itinerary;
       }
-      updateData.itinerary = itinerary;
     }
     if (cardExcerpt !== undefined) updateData.cardExcerpt = cardExcerpt;
     if (showExcerptOnCard !== undefined) updateData.showExcerptOnCard = showExcerptOnCard;
@@ -196,29 +217,34 @@ export async function PUT(
     if (pickupTime !== undefined) updateData.pickupTime = pickupTime;
     if (cancellationPolicy !== undefined) updateData.cancellationPolicy = cancellationPolicy;
 
-    if (reviews !== undefined) {
-      const parsedReviews = z.array(SeededReviewSchema).safeParse(reviews);
-      if (!parsedReviews.success) {
-        return NextResponse.json({ error: 'Invalid reviews data structure', field: 'reviews' }, { status: 400 });
-      }
-      updateData.reviews = Array.isArray(reviews)
-        ? reviews.map((review: any, index: number) => ({
-            id: `seed-${Date.now()}-${index}`,
-            customerName: review.customerName || 'Verified Guest',
-            rating: Number(review.rating) || 5,
-            comment: review.comment || '',
-            status: 'APPROVED',
-            createdAt: new Date().toISOString(),
-          }))
-        : reviews;
+    if (reviews !== undefined && reviews !== null) {
       if (Array.isArray(reviews)) {
-        updateData.ratingAverage = reviews.reduce((sum: number, review: any) => sum + (Number(review.rating) || 5), 0) / reviews.length;
-        updateData.ratingCount = reviews.length;
+        const parsedReviews = z.array(SeededReviewSchema).safeParse(reviews);
+        if (!parsedReviews.success) {
+          console.error('Reviews Zod Error:', JSON.stringify(parsedReviews.error.issues, null, 2));
+          return NextResponse.json({
+            error: 'Invalid reviews data structure',
+            field: 'reviews',
+            details: parsedReviews.error.issues,
+          }, { status: 400 });
+        }
+        updateData.reviews = reviews.map((review: any, index: number) => ({
+          id: review.id || `seed-${Date.now()}-${index}`,
+          customerName: review.customerName || 'Verified Guest',
+          rating: Number(review.rating) || 5,
+          comment: review.comment || '',
+          status: review.status || 'APPROVED',
+          createdAt: review.createdAt || new Date().toISOString(),
+        }));
+        if (reviews.length > 0) {
+          updateData.ratingAverage = reviews.reduce((sum: number, review: any) => sum + (Number(review.rating) || 5), 0) / reviews.length;
+          updateData.ratingCount = reviews.length;
+        }
       } else {
-        updateData.ratingAverage = null;
-        updateData.ratingCount = null;
+        updateData.reviews = reviews;
       }
     }
+
 
     const tour = await prisma.tour.update({
       where: { id: params.id },

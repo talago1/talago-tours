@@ -4,10 +4,39 @@ import dynamic from 'next/dynamic';
 
 const Navbar = dynamic(() => import('@/components/layout/Navbar'), { ssr: false });
 const FooterContent = dynamic(() => import('@/components/layout/FooterContent'), { ssr: false });
+const FloatingConciergeWidget = dynamic(() => import('@/components/layout/FloatingConciergeWidget'), { ssr: false });
+
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
 
 export const metadata: Metadata = {
-  title: { template: '%s — TALAGO', default: 'TALAGO — Luxury Tours & Experiences' },
-  description: 'Hand-curated luxury yacht charters, private island escapes, and premium desert quad safaris in Hurghada, Egypt.',
+  metadataBase: new URL(baseUrl),
+  title: { template: '%s — TALAGO', default: 'TALAGO — Luxury Tours & Experiences in Hurghada' },
+  description: 'Hand-curated luxury yacht charters, private island escapes, and premium desert quad safaris in Hurghada, Red Sea, Egypt.',
+  keywords: [
+    'Hurghada tours', 'Red Sea excursions', 'Luxury yacht charter', 'Desert safari Hurghada',
+    'Talago tours', 'Egypt excursions', 'Hurghada boat trip', 'Hurghada Ausflüge', 'Экскурсии Хургада'
+  ],
+  alternates: {
+    canonical: baseUrl,
+    languages: {
+      'en': `${baseUrl}?lang=en`,
+      'de': `${baseUrl}?lang=de`,
+      'ru': `${baseUrl}?lang=ru`,
+      'it': `${baseUrl}?lang=it`,
+      'fr': `${baseUrl}?lang=fr`,
+      'pl': `${baseUrl}?lang=pl`,
+      'es': `${baseUrl}?lang=es`,
+      'x-default': baseUrl,
+    },
+  },
+  openGraph: {
+    title: 'TALAGO — Luxury Tours & Experiences in Hurghada',
+    description: 'Hand-curated luxury yacht charters, private island escapes, and premium desert quad safaris in Hurghada, Egypt.',
+    url: baseUrl,
+    siteName: 'TALAGO Tours',
+    locale: 'en_US',
+    type: 'website',
+  },
 };
 
 export default function PublicRouteLayout({ children }: { children: React.ReactNode }) {
@@ -19,8 +48,12 @@ export default function PublicRouteLayout({ children }: { children: React.ReactN
       {/* ─── Main Content ─── */}
       <main className="flex-1">{children}</main>
 
+      {/* ─── Floating VIP Concierge WhatsApp Widget ─── */}
+      <FloatingConciergeWidget />
+
       {/* ─── Premium Footer ─── */}
       <footer className="border-t border-white/[0.06] bg-gradient-to-b from-[#0B1528] to-[#070F1E]">
+
         <div className="mx-auto max-w-7xl px-5 py-16 lg:px-10">
           {/* Top: Brand + Link Columns */}
           <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-5">

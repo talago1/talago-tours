@@ -14,3 +14,4 @@ Thumbs.db
 *.tsbuildinfo
 next-env.d.ts
 coverage/
+_archive/

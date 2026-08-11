@@ -13,16 +13,18 @@ function generateUUID(): string {
 // ---------------------------------------------------------------------------
 export const ItineraryStepSchema = z.object({
   id: z.string().default(() => generateUUID()),
-  timeTag: z.string().catch(''),
-  activity: z.string().catch(''),
-  inclusions: z.string().catch(''),
-  // Legacy / alternate key compatibility
+  timeTag: z.string().catch('').default(''),
+  activity: z.string().catch('').default(''),
+  inclusions: z.string().catch('').default(''),
   time: z.string().optional(),
-  title: z.string().optional(),
+  title: z.union([z.string(), z.record(z.string(), z.string()), z.any()]).optional(),
+  iconToken: z.string().optional(),
   description: z.string().optional(),
-  checklist: z.array(z.string()).catch([]),
-  location: z.string().catch(''),
-});
+  checklist: z.array(z.string()).catch([]).default([]),
+  location: z.string().catch('').default(''),
+}).passthrough();
+
+
 
 export type ItineraryStep = z.infer<typeof ItineraryStepSchema>;
 

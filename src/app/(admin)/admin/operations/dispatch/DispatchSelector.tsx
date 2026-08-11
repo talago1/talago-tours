@@ -25,17 +25,17 @@ export default function DispatchSelector({ tours }: DispatchSelectorProps) {
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="space-y-5 rounded-3xl border border-white/10 bg-[#0B1528] p-7 shadow-2xl backdrop-blur-xl">
       <div>
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Tour</label>
+        <label className="mb-2 block text-xs font-black uppercase tracking-[0.2em] text-[#06B6D4]">Select Experience</label>
         <select
           value={selectedTourId}
           onChange={(e) => setSelectedTourId(e.target.value)}
-          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#FF5B00] focus:outline-none focus:ring-1 focus:ring-[#FF5B00]"
+          className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#06B6D4]"
         >
-          <option value="">Select a tour...</option>
+          <option value="">Choose a tour...</option>
           {tours.map((t) => (
-            <option key={t.id} value={t.id}>
+            <option key={t.id} value={t.id} className="bg-[#0B1528] text-white">
               {t.title}
             </option>
           ))}
@@ -43,27 +43,28 @@ export default function DispatchSelector({ tours }: DispatchSelectorProps) {
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Departure Date</label>
+        <label className="mb-2 block text-xs font-black uppercase tracking-[0.2em] text-[#EAB308]">Departure Date</label>
         <input
           type="date"
           value={selectedDate}
           onChange={(e) => setSelectedDate(e.target.value)}
           min={today}
-          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[#FF5B00] focus:outline-none focus:ring-1 focus:ring-[#FF5B00]"
+          className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#EAB308] [color-scheme:dark]"
         />
       </div>
 
       <button
         onClick={handleOpen}
         disabled={!selectedTourId || !selectedDate}
-        className={`w-full rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${
+        className={`w-full rounded-2xl py-3.5 text-sm font-black uppercase tracking-wider transition-all duration-300 ${
           !selectedTourId || !selectedDate
-            ? 'cursor-not-allowed bg-gray-400'
-            : 'bg-[#FF5B00] hover:bg-[#e65200]'
+            ? 'cursor-not-allowed bg-white/10 text-slate-500'
+            : 'bg-[#06B6D4] text-[#070F1E] shadow-xl shadow-[#06B6D4]/20 hover:bg-[#00E5FF]'
         }`}
       >
-        Open Dispatcher
+        Open Live Dispatcher
       </button>
     </div>
   );
 }
+
