@@ -407,6 +407,7 @@ export const it: typeof en = {
     dueOnArrival: 'Dovuto all\'arrivo',
     free: 'Gratuito',
     sameAsAdult: 'Stesso prezzo dell\'adulto',
+    viewAllPhotos: 'Vedi foto a schermo intero',
   },
   privacyPage: {
     badge: 'Informativa sulla Privacy',

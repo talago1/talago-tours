@@ -404,9 +404,10 @@ export const de: typeof en = {
     payArrival: 'Barzahlung bei Ankunft',
     payArrivalDesc: 'Keine Vorauszahlung — bar bei Abholung zahlen',
     total: 'Gesamt',
-    dueOnArrival: 'Bei Ankunft fällig',
+    dueOnArrival: 'Fällig bei Ankunft',
     free: 'Kostenlos',
-    sameAsAdult: 'Gleicher Preis wie Erwachsene',
+    sameAsAdult: 'Gleicher Preis wie für Erwachsene',
+    viewAllPhotos: 'Vollbild-Fotos anzeigen',
   },
   privacyPage: {
     badge: 'Datenschutzrichtlinie',

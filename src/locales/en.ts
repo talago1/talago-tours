@@ -405,6 +405,7 @@ export const en = {
     dueOnArrival: 'Due on arrival',
     free: 'Free',
     sameAsAdult: 'Same as adult price',
+    viewAllPhotos: 'View Full Photos',
   },
   privacyPage: {
     badge: 'Privacy Policy',

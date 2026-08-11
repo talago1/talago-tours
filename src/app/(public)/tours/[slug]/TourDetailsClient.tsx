@@ -18,6 +18,7 @@ import {
   Building2,
   UserRound,
   Baby,
+  Maximize2,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
@@ -68,19 +69,49 @@ interface Props {
 
 // ---------- Hero Slider ----------
 function HeroSlider({ images, title, destinationName, category }: { images: string[]; title: string; destinationName: string; category: string | null }) {
+  const { dict } = useLanguage();
   const [current, setCurrent] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startInterval = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    if (images.length <= 1) return;
+    if (images.length <= 1 || lightboxOpen) return;
     intervalRef.current = setInterval(() => setCurrent((c) => (c + 1) % images.length), 5000);
-  }, [images.length]);
+  }, [images.length, lightboxOpen]);
 
   useEffect(() => {
     startInterval();
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [startInterval]);
+
+  const openLightbox = (index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  };
+
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+    startInterval();
+  };
+
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowRight') setLightboxIndex((prev) => (prev + 1) % images.length);
+      if (e.key === 'ArrowLeft') setLightboxIndex((prev) => (prev - 1 + images.length) % images.length);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'auto';
+    };
+  }, [lightboxOpen, images.length]);
 
   const goTo = (i: number) => { setCurrent(i); startInterval(); };
   const goPrev = () => goTo((current - 1 + images.length) % images.length);
@@ -90,7 +121,7 @@ function HeroSlider({ images, title, destinationName, category }: { images: stri
 
   return (
     <section className="relative overflow-hidden">
-      <div className="relative h-[50vh] md:h-[70vh]">
+      <div className="group relative h-[50vh] cursor-pointer md:h-[70vh]" onClick={() => openLightbox(current)}>
         {images.map((img, i) => (
           <div
             key={i}
@@ -98,24 +129,36 @@ function HeroSlider({ images, title, destinationName, category }: { images: stri
               i === current ? 'scale-100 opacity-100' : 'scale-105 opacity-0'
             }`}
           >
-            <img src={img} alt={`${title} ${i + 1}`} className="h-full w-full object-cover" />
+            <img src={img} alt={`${title} ${i + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
           </div>
         ))}
         <div className="absolute inset-0 bg-gradient-to-t from-[#070F1E] via-[#070F1E]/20 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#070F1E] to-transparent" />
 
+        {/* View All Photos Button Badge */}
+        <div className="absolute bottom-6 right-6 z-10">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); openLightbox(current); }}
+            className="flex items-center gap-2 rounded-full border border-white/20 bg-[#0B1528]/90 px-4 py-2.5 text-xs font-bold text-white shadow-2xl backdrop-blur-md transition-all hover:bg-[#00E5FF] hover:text-[#070F1E] hover:scale-105"
+          >
+            <Maximize2 className="h-4 w-4 text-[#00E5FF]" />
+            <span>{dict.tourDetails?.sameAsAdult ? (dict.tourDetails as any).viewAllPhotos || 'View Full Photos' : 'View Full Photos'} ({images.length})</span>
+          </button>
+        </div>
+
         {images.length > 1 && (
           <>
             <button
               type="button"
-              onClick={goPrev}
+              onClick={(e) => { e.stopPropagation(); goPrev(); }}
               className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/10 bg-black/50 p-2 text-white backdrop-blur-sm transition-all hover:bg-black/70 hover:scale-110"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               type="button"
-              onClick={goNext}
+              onClick={(e) => { e.stopPropagation(); goNext(); }}
               className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/10 bg-black/50 p-2 text-white backdrop-blur-sm transition-all hover:bg-black/70 hover:scale-110"
             >
               <ChevronRight className="h-5 w-5" />
@@ -129,7 +172,7 @@ function HeroSlider({ images, title, destinationName, category }: { images: stri
               <button
                 key={i}
                 type="button"
-                onClick={() => goTo(i)}
+                onClick={(e) => { e.stopPropagation(); goTo(i); }}
                 className={`h-2 rounded-full transition-all duration-300 ${
                   i === current ? 'w-8 bg-[#00E5FF]' : 'w-2 bg-white/40 hover:bg-white/60'
                 }`}
@@ -150,6 +193,74 @@ function HeroSlider({ images, title, destinationName, category }: { images: stri
           )}
         </div>
       </div>
+
+      {/* ---------- Fullscreen Lightbox Modal ---------- */}
+      {lightboxOpen && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-black/95 p-4 backdrop-blur-md animate-fadeIn"
+          onClick={closeLightbox}
+        >
+          {/* Lightbox Header */}
+          <div className="flex w-full items-center justify-between px-4 py-2" onClick={(e) => e.stopPropagation()}>
+            <span className="text-sm font-bold tracking-widest text-slate-300">
+              {title} &mdash; <span className="text-[#00E5FF]">{lightboxIndex + 1} / {images.length}</span>
+            </span>
+            <button
+              type="button"
+              onClick={closeLightbox}
+              className="rounded-full border border-white/20 bg-white/10 p-2 text-white transition-colors hover:bg-red-500 hover:text-white"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Lightbox Main Uncropped Image Container */}
+          <div className="relative flex max-h-[75vh] w-full flex-1 items-center justify-center py-2" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={images[lightboxIndex]}
+              alt={`${title} full size ${lightboxIndex + 1}`}
+              className="max-h-[75vh] max-w-[95vw] rounded-lg object-contain shadow-2xl transition-all duration-300"
+            />
+
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setLightboxIndex((prev) => (prev - 1 + images.length) % images.length)}
+                  className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/20 bg-black/70 p-3 text-white transition-all hover:bg-[#00E5FF] hover:text-[#070F1E] hover:scale-110 md:left-6"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLightboxIndex((prev) => (prev + 1) % images.length)}
+                  className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/20 bg-black/70 p-3 text-white transition-all hover:bg-[#00E5FF] hover:text-[#070F1E] hover:scale-110 md:right-6"
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Lightbox Thumbnails Strip */}
+          {images.length > 1 && (
+            <div className="flex max-w-full gap-3 overflow-x-auto p-2" onClick={(e) => e.stopPropagation()}>
+              {images.map((img, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setLightboxIndex(idx)}
+                  className={`relative h-16 w-20 flex-shrink-0 overflow-hidden rounded-md border-2 transition-all ${
+                    idx === lightboxIndex ? 'border-[#00E5FF] scale-105 opacity-100 shadow-lg' : 'border-transparent opacity-50 hover:opacity-100'
+                  }`}
+                >
+                  <img src={img} alt={`Thumbnail ${idx + 1}`} className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

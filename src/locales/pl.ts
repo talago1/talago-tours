@@ -407,6 +407,7 @@ export const pl: typeof en = {
     dueOnArrival: 'Do zapłaty na miejscu',
     free: 'Bezpłatny',
     sameAsAdult: 'Taka sama cena jak dla dorosłego',
+    viewAllPhotos: 'Zobacz pełne zdjęcia',
   },
   privacyPage: {
     badge: 'Polityka Prywatności',

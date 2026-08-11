@@ -407,6 +407,7 @@ export const ru: typeof en = {
     dueOnArrival: 'Оплата по прибытии',
     free: 'Бесплатно',
     sameAsAdult: 'Такая же цена, как для взрослого',
+    viewAllPhotos: 'Посмотреть все фото полностью',
   },
   privacyPage: {
     badge: 'Политика Конфиденциальности',
