@@ -94,16 +94,24 @@ export const pl: typeof en = {
     verified: 'Zweryfikowana rezerwacja'
   },
   footer: {
-    tagline: 'Elitarne wycieczki morskie po Morzu Czerwonym i ekskluzywne safari pustynne stworzone dla wymagających podróżników poszukujących prywatnego dostępu, doskonałej obsługi i bezproblemowego luksusu w Hurghadzie.',
+    tagline: 'Ekskluzywne wycieczki nad Morze Czerwone i safari quadami w Hurghadzie.',
     experiences: 'Doświadczenia',
     support: 'Wsparcie',
+    policies: 'Zasady',
+    contactUs: 'Skontaktuj się z nami',
+    conciergeHelp: 'Pomoc Concierge',
+    bookingTerms: 'Warunki Rezerwacji',
+    safetyPolicies: 'Zasady Bezpieczeństwa',
+    cancellationPolicy: 'Polityka Anulowania',
+    privacyPolicy: 'Polityka Prywatności',
+    flexibleProtection: 'Elastyczna Ochrona',
     innerCircle: 'Dołącz do Inner Circle',
-    newsletterDesc: 'Otrzymuj powiadomienia o prywatnych rejsach, sezonowych ofertach jachtów i priorytetowym dostępie do limitowanych wypraw pustynnych.',
+    newsletterDesc: 'Otrzymuj powiadomienia o prywatnych rejsach i dostęp do ekskluzywnych wycieczek.',
     emailPlaceholder: 'Adres e-mail',
     copyright: '© 2026 TALAGO. Wszelkie prawa zastrzeżone.',
-    privacy: 'Polityka prywatności',
-    terms: 'Warunki świadczenia usług',
-    safety: 'Standardy bezpieczeństwa'
+    privacy: 'Polityka Prywatności',
+    terms: 'Warunki Korzystania',
+    safety: 'Standardy Bezpieczeństwa'
   },
   about: {
     badge: 'LUKSUSOWE CZARTERY I WYPRAWY LĄDOWE',

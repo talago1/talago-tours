@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 
 const Navbar = dynamic(() => import('@/components/layout/Navbar'), { ssr: false });
 const FooterContent = dynamic(() => import('@/components/layout/FooterContent'), { ssr: false });
+const FooterBrandColumn = dynamic(() => import('@/components/layout/FooterContent').then(m => m.FooterBrandColumn), { ssr: false });
 const FloatingConciergeWidget = dynamic(() => import('@/components/layout/FloatingConciergeWidget'), { ssr: false });
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
@@ -58,21 +59,7 @@ export default function PublicRouteLayout({ children }: { children: React.ReactN
           {/* Top: Brand + Link Columns */}
           <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-5">
             {/* Brand Column (spans 2 cols) */}
-            <div className="sm:col-span-2 lg:col-span-2">
-              <Link href="/" className="inline-flex items-center gap-2.5">
-                <span className="text-2xl font-black uppercase tracking-[0.34em] text-white">TALAGO</span>
-                <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40" />
-              </Link>
-              <p className="mt-5 max-w-md text-sm leading-7 text-slate-400">
-                Hand-curated luxury yacht charters, private island escapes, and premium desert quad safaris in Hurghada, Egypt. Every journey backed by elite hospitality.
-              </p>
-              {/* Contact info */}
-              <div className="mt-6 space-y-2 text-sm text-slate-500">
-                <p>Hurghada, Red Sea, Egypt</p>
-                <p>+20 102 224 34602</p>
-                <p>tala.tour@outlook.com</p>
-              </div>
-            </div>
+            <FooterBrandColumn />
 
             <FooterContent />
           </div>

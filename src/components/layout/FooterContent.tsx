@@ -4,12 +4,33 @@ import Link from 'next/link';
 import { Compass, MessageCircle, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
+export function FooterBrandColumn() {
+  const { dict } = useLanguage();
+  return (
+    <div className="sm:col-span-2 lg:col-span-2">
+      <Link href="/" className="inline-flex items-center gap-2.5">
+        <span className="text-2xl font-black uppercase tracking-[0.34em] text-white">TALAGO</span>
+        <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40" />
+      </Link>
+      <p className="mt-5 max-w-md text-sm leading-7 text-slate-400">
+        {dict.footer.tagline}
+      </p>
+      {/* Contact info */}
+      <div className="mt-6 space-y-2 text-sm text-slate-500">
+        <p>Hurghada, Red Sea, Egypt</p>
+        <p>+20 102 224 34602</p>
+        <p>tala.tour@outlook.com</p>
+      </div>
+    </div>
+  );
+}
+
 export default function FooterContent() {
   const { dict } = useLanguage();
 
   const FOOTER_SECTIONS = [
     {
-      title: dict.footer.experiences,
+      title: dict.footer.experiences || 'Experiences',
       icon: Compass,
       links: [
         { label: dict.navbar.tours, href: '/tours' },
@@ -19,22 +40,22 @@ export default function FooterContent() {
       ],
     },
     {
-      title: dict.footer.support,
+      title: dict.footer.support || 'Support',
       icon: MessageCircle,
       links: [
-        { label: 'Contact Us', href: '/support' },
-        { label: 'Concierge Help', href: '/concierge-help' },
-        { label: 'Booking Terms', href: '/booking-terms' },
-        { label: 'Safety Policies', href: '/safety-policies' },
+        { label: dict.footer.contactUs || 'Contact Us', href: '/support' },
+        { label: dict.footer.conciergeHelp || 'Concierge Help', href: '/concierge-help' },
+        { label: dict.footer.bookingTerms || 'Booking Terms', href: '/booking-terms' },
+        { label: dict.footer.safetyPolicies || 'Safety Policies', href: '/safety-policies' },
       ],
     },
     {
-      title: 'Policies',
+      title: dict.footer.policies || 'Policies',
       icon: ShieldCheck,
       links: [
-        { label: dict.footer.privacy, href: '/cancellation' },
-        { label: dict.footer.privacy, href: '/privacy' },
-        { label: 'Flexible Protection', href: '/flexible-protection' },
+        { label: dict.footer.cancellationPolicy || dict.cancellationPage?.badge || 'Cancellation Policy', href: '/cancellation' },
+        { label: dict.footer.privacyPolicy || dict.privacyPage?.title || 'Privacy Policy', href: '/privacy' },
+        { label: dict.footer.flexibleProtection || dict.flexibleProtection?.badge || 'Flexible Protection', href: '/flexible-protection' },
         { label: dict.navbar.signInRegister, href: '/auth' },
       ],
     },

@@ -94,16 +94,24 @@ export const fr: typeof en = {
     verified: 'Réservation vérifiée'
   },
   footer: {
-    tagline: 'Excursions d\'élite en mer Rouge et safaris de luxe dans le désert conçus pour les voyageurs exigeants en quête d\'accès privé, de service impeccable et de confort sans faille à Hurghada.',
+    tagline: 'Excursions en mer Rouge et safaris en quad de luxe à Hurghada.',
     experiences: 'Expériences',
-    support: 'Support',
-    innerCircle: 'Rejoindre l\'Inner Circle',
-    newsletterDesc: 'Recevez des alertes sur les départs privés, nos offres saisonnières de yachts et l\'accès exclusif à des expériences désertiques limitées.',
+    support: 'Assistance',
+    policies: 'Politiques',
+    contactUs: 'Contactez-nous',
+    conciergeHelp: 'Aide Conciergerie',
+    bookingTerms: 'Conditions de Réservation',
+    safetyPolicies: 'Règles de Sécurité',
+    cancellationPolicy: 'Politique d\'Annulation',
+    privacyPolicy: 'Politique de Confidentialité',
+    flexibleProtection: 'Protection Flexible',
+    innerCircle: 'Rejoignez l\'Inner Circle',
+    newsletterDesc: 'Recevez des alertes de départs privés et un accès prioritaire aux expériences dans le désert.',
     emailPlaceholder: 'Adresse e-mail',
     copyright: '© 2026 TALAGO. Tous droits réservés.',
-    privacy: 'Politique de confidentialité',
-    terms: 'Conditions d\'utilisation',
-    safety: 'Normes de sécurité'
+    privacy: 'Politique de Confidentialité',
+    terms: 'Conditions d\'Utilisation',
+    safety: 'Normes de Sécurité'
   },
   about: {
     badge: 'CHARTERS DE LUXE & EXPÉDITIONS TERRESTRES',
