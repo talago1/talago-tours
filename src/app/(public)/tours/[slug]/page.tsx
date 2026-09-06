@@ -56,6 +56,7 @@ export default async function TourDetailPage({ params }: Props) {
       ratingCount: true,
       adultPrice: true,
       priceAdult: true,
+      originalPrice: true,
       childPrice: true,
       priceChild: true,
       infantPrice: true,
@@ -83,7 +84,7 @@ export default async function TourDetailPage({ params }: Props) {
     },
   });
 
-  if (!tour || tour.status !== 'ACTIVE') {
+  if (!tour || (tour.status && tour.status.toUpperCase() !== 'ACTIVE')) {
     notFound();
   }
 

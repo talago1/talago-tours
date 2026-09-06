@@ -50,6 +50,7 @@ export default function MediaUploader({
 }: MediaUploaderProps) {
   const [uploading, setUploading] = useState<UploadingFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
   const coverInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -193,6 +194,45 @@ export default function MediaUploader({
         <p className="mt-1 text-xs text-slate-600">
           WebP, JPEG, PNG, GIF, AVIF &middot; Max 10MB per file
         </p>
+      </div>
+
+      {/* Direct URL input fallback / alternative */}
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <input
+          type="url"
+          value={urlInput}
+          onChange={(e) => setUrlInput(e.target.value)}
+          placeholder="Or paste direct image URL (https://...)"
+          className="flex-1 rounded-xl border border-white/10 bg-[#060D1A] px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
+        />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (urlInput.trim()) {
+                onCoverChange(urlInput.trim());
+                setUrlInput('');
+              }
+            }}
+            disabled={!urlInput.trim()}
+            className="rounded-xl bg-[#00E5FF]/20 px-3 py-2 text-xs font-bold text-[#00E5FF] transition-colors hover:bg-[#00E5FF] hover:text-[#060D1A] disabled:opacity-40"
+          >
+            Set Cover
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (urlInput.trim()) {
+                onGalleryAdd(urlInput.trim());
+                setUrlInput('');
+              }
+            }}
+            disabled={!urlInput.trim()}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
+          >
+            + Gallery
+          </button>
+        </div>
       </div>
 
       {uploading.length > 0 && (

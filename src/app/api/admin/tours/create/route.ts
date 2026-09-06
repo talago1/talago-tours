@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       pickupTime,
       cancellationPolicy,
       adultPrice,
+      originalPrice,
       priceAdult,
       childEnabled,
       childPrice,
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
       showExcerptOnCard,
       displayExcerpt,
       reviews,
+      tourOptions,
     } = body;
 
     if (!slug || !type || basePriceUSD === undefined || durationHours === undefined || maxCapacity === undefined || !zoneId || !translations) {
@@ -242,6 +244,7 @@ export async function POST(request: NextRequest) {
         pickupTime: pickupTime || null,
         cancellationPolicy: cancellationPolicy || null,
         adultPrice,
+        originalPrice: typeof originalPrice === 'number' && originalPrice > 0 ? originalPrice : null,
         childPrice: childEnabled ? childPrice : null,
         childMinAge: childEnabled ? (childMinAge ?? 3) : null,
         childMaxAge: childEnabled ? (childMaxAge ?? 11) : null,
@@ -252,6 +255,7 @@ export async function POST(request: NextRequest) {
         cardExcerpt: cardExcerpt || null,
         showExcerptOnCard: showExcerptOnCard ?? true,
         displayExcerpt: displayExcerpt ?? showExcerptOnCard ?? false,
+        tourOptions: Array.isArray(tourOptions) ? tourOptions : undefined,
         reviews: Array.isArray(reviews)
           ? reviews.map((review, index) => ({
               id: `seed-${Date.now()}-${index}`,

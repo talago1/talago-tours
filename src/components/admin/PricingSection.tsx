@@ -95,19 +95,55 @@ export default function PricingSection({ values, errors, onChange }: PricingSect
       </div>
 
       <div className="space-y-6">
-        {/* Adult (always visible, required) */}
+        {/* Adult & Original Price */}
         <div className="pb-5 border-b border-white/10">
-          <label className="block text-sm font-bold text-slate-300 mb-2">Adult Price (USD)</label>
-          <div className="max-w-xs">
-            <NumberInput
-              value={values.adultPrice}
-              onChange={(v) => update({ adultPrice: v })}
-              placeholder="0.00"
-              min={0}
-              prefix="$"
-              error={errors.adultPrice}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-300 mb-1.5">
+                Adult Price (USD) <span className="text-[#00E5FF]">*</span>
+              </label>
+              <p className="text-xs text-slate-400 mb-2">The actual price charged per adult guest.</p>
+              <NumberInput
+                value={values.adultPrice}
+                onChange={(v) => update({ adultPrice: v })}
+                placeholder="0.00"
+                min={0}
+                prefix="$"
+                error={errors.adultPrice}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-300 mb-1.5">
+                Original / Compare-at Price (USD) <span className="text-xs text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <p className="text-xs text-slate-400 mb-2">If set higher than adult price, it appears crossed out ($~~120~~).</p>
+              <NumberInput
+                value={values.originalPrice ?? 0}
+                onChange={(v) => update({ originalPrice: v })}
+                placeholder="0.00"
+                min={0}
+                prefix="$"
+              />
+            </div>
           </div>
+
+          {/* Live Discount Calculator Preview */}
+          {(values.originalPrice ?? 0) > values.adultPrice && values.adultPrice > 0 && (
+            <div className="mt-3.5 flex items-center gap-3 rounded-xl border border-[#FF5B00]/20 bg-[#FF5B00]/5 px-4 py-2.5">
+              <span className="text-lg">🔥</span>
+              <div className="text-xs">
+                <span className="font-bold text-[#FF5B00]">Live Discount Preview: </span>
+                <span className="font-medium text-slate-300">
+                  Customers see <span className="line-through text-slate-500">${(values.originalPrice ?? 0).toFixed(0)}</span>{' '}
+                  <span className="font-bold text-white">${values.adultPrice.toFixed(0)}</span> — Save{' '}
+                  <strong className="text-emerald-400">
+                    ${((values.originalPrice ?? 0) - values.adultPrice).toFixed(0)} ({Math.round((1 - values.adultPrice / (values.originalPrice ?? 1)) * 100)}% OFF)
+                  </strong>
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Child Tier */}

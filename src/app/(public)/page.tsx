@@ -34,6 +34,7 @@ export default async function HomePage() {
         ratingCount: true,
         priceAdult: true,
         adultPrice: true,
+        originalPrice: true,
         destination: {
           select: { name: true, slug: true },
         },

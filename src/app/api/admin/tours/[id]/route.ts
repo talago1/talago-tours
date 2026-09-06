@@ -55,6 +55,7 @@ export async function PUT(
       inclusions,
       exclusions,
       adultPrice,
+      originalPrice,
       childPrice,
       childMinAge,
       childMaxAge,
@@ -77,6 +78,7 @@ export async function PUT(
       pickupTime,
       cancellationPolicy,
       reviews,
+      tourOptions,
     } = body;
 
     // Build update payload
@@ -177,6 +179,10 @@ export async function PUT(
       updateData.basePrice = numAdult; // Catalog legacy sync
     }
 
+    if (originalPrice !== undefined) {
+      updateData.originalPrice = originalPrice !== null && Number(originalPrice) > 0 ? Number(originalPrice) : null;
+    }
+
     if (childPrice !== undefined) updateData.childPrice = childPrice !== null ? Number(childPrice) : null;
     if (childMinAge !== undefined) updateData.childMinAge = childMinAge !== null ? Number(childMinAge) : null;
     if (childMaxAge !== undefined) updateData.childMaxAge = childMaxAge !== null ? Number(childMaxAge) : null;
@@ -216,6 +222,7 @@ export async function PUT(
     if (hotelPickupIncluded !== undefined) updateData.hotelPickupIncluded = hotelPickupIncluded;
     if (pickupTime !== undefined) updateData.pickupTime = pickupTime;
     if (cancellationPolicy !== undefined) updateData.cancellationPolicy = cancellationPolicy;
+    if (tourOptions !== undefined) updateData.tourOptions = Array.isArray(tourOptions) ? tourOptions : null;
 
     if (reviews !== undefined && reviews !== null) {
       if (Array.isArray(reviews)) {

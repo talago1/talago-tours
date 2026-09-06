@@ -87,6 +87,7 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
         ratingCount: true,
         priceAdult: true,
         adultPrice: true,
+        originalPrice: true,
         destination: {
           select: { name: true, slug: true },
         },

@@ -137,6 +137,7 @@ model Tour {
   // Detailed Pricing Tiers
   adultPrice Float
   priceAdult Float?
+  originalPrice Float?
 
   childPrice  Float?
   priceChild  Float?
@@ -152,6 +153,9 @@ model Tour {
 
   // Analytics & Reporting
   costPerPerson Decimal?
+
+  // Tour Add-ons / Options (JSON array of { id, price, priceType, enabled, labels })
+  tourOptions Json?
 
   // Legacy
   images    String[]

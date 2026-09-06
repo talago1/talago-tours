@@ -2,6 +2,28 @@ export type LanguageCode = 'en' | 'de' | 'ru' | 'fr' | 'it' | 'pl' | 'es';
 
 export const LANGUAGE_CODES: LanguageCode[] = ['en', 'de', 'ru', 'fr', 'it', 'pl', 'es'];
 
+// Tour Add-on / Option that the admin can fully control
+export interface TourAddon {
+  id: string;
+  price: number;
+  priceType: 'per_person' | 'flat';
+  enabled: boolean;
+  labels: Record<LanguageCode, string>; // e.g. { en: 'Photo Pack', ru: 'Фото-пакет', ... }
+  descriptions: Record<LanguageCode, string>;
+}
+
+export function createDefaultAddon(): TourAddon {
+  const emptyLabels = { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '' };
+  return {
+    id: `addon-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    price: 0,
+    priceType: 'per_person',
+    enabled: true,
+    labels: { ...emptyLabels },
+    descriptions: { ...emptyLabels },
+  };
+}
+
 export const LANGUAGE_LABELS: Record<LanguageCode, string> = {
   en: 'EN',
   de: 'DE',
@@ -15,20 +37,42 @@ export const LANGUAGE_LABELS: Record<LanguageCode, string> = {
 export interface TranslationEntry {
   title: string;
   description: string;
-  cancellationPolicies: string[];
+  cardExcerpt?: string;
+  highlights?: string[];
+  inclusions?: string[];
+  exclusions?: string[];
+  whatToBring?: string;
+  pickupDescription?: string;
+  cancellationPolicy?: string;
+  cancellationPolicies?: string[];
 }
 
 export type Translations = Record<LanguageCode, TranslationEntry>;
 
+export function createEmptyTranslationEntry(): TranslationEntry {
+  return {
+    title: '',
+    description: '',
+    cardExcerpt: '',
+    highlights: [],
+    inclusions: [],
+    exclusions: [],
+    whatToBring: '',
+    pickupDescription: '',
+    cancellationPolicy: '',
+    cancellationPolicies: [],
+  };
+}
+
 export function createEmptyTranslations(): Translations {
   return {
-    en: { title: '', description: '', cancellationPolicies: [] },
-    de: { title: '', description: '', cancellationPolicies: [] },
-    ru: { title: '', description: '', cancellationPolicies: [] },
-    fr: { title: '', description: '', cancellationPolicies: [] },
-    it: { title: '', description: '', cancellationPolicies: [] },
-    pl: { title: '', description: '', cancellationPolicies: [] },
-    es: { title: '', description: '', cancellationPolicies: [] },
+    en: createEmptyTranslationEntry(),
+    de: createEmptyTranslationEntry(),
+    ru: createEmptyTranslationEntry(),
+    fr: createEmptyTranslationEntry(),
+    it: createEmptyTranslationEntry(),
+    pl: createEmptyTranslationEntry(),
+    es: createEmptyTranslationEntry(),
   };
 }
 
@@ -97,6 +141,7 @@ export function createDefaultLogisticsFields(): LogisticsFields {
 
 export interface PricingFields {
   adultPrice: number;
+  originalPrice?: number;
   childEnabled: boolean;
   childPrice: number;
   childMinAge: number;
@@ -111,6 +156,7 @@ export interface PricingFields {
 export function createDefaultPricingFields(): PricingFields {
   return {
     adultPrice: 0,
+    originalPrice: 0,
     childEnabled: false,
     childPrice: 0,
     childMinAge: 3,
@@ -130,6 +176,7 @@ export interface TourFormState {
   itinerary: ItineraryMilestone[];
   logistics: LogisticsFields;
   pricing: PricingFields;
+  addons: TourAddon[];
   translations: Translations;
   activeLanguage: LanguageCode;
   activeStep: number;
@@ -138,6 +185,7 @@ export interface TourFormState {
   seededReviews: SeededReview[];
   isSubmitting: boolean;
   isDirty: boolean;
+  editingTourId?: string; // set when in edit mode
 }
 
 export interface SeededReview {
@@ -154,6 +202,7 @@ export function createInitialFormState(): TourFormState {
     itinerary: [],
     logistics: createDefaultLogisticsFields(),
     pricing: createDefaultPricingFields(),
+    addons: [],
     translations: createEmptyTranslations(),
     activeLanguage: 'en',
     activeStep: 0,
@@ -191,6 +240,7 @@ export interface TourCreatePayload {
   pickupTimes?: string[];
   cancellationPolicy?: string;
   adultPrice: number;
+  originalPrice?: number;
   priceAdult?: number;
   childEnabled?: boolean;
   childPrice?: number;

@@ -992,14 +992,22 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
               Manage sea trips, safari products, destination assignment, pricing posture, and live catalog status.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="inline-flex items-center gap-2 rounded-full bg-[#EAB308] px-5 py-3 text-sm font-black text-[#070F1E] transition-all duration-300 ease-in-out hover:scale-[1.02]"
-          >
-            <Plus className="h-4 w-4" />
-            Add Experience
-          </button>
+          <div className="flex items-center gap-3">
+            <a
+              href="/admin/tours/new"
+              className="inline-flex items-center gap-2 rounded-full bg-[#00E5FF] px-5 py-3 text-sm font-black text-[#070F1E] transition-all duration-300 ease-in-out hover:bg-[#00E5FF]/90 hover:scale-[1.02]"
+            >
+              <Plus className="h-4 w-4" />
+              New Tour Builder
+            </a>
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+            >
+              Quick Add
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -1102,14 +1110,13 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 border-t border-white/5 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEdit(tour)}
-                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-2.5 text-xs font-black text-slate-200 transition-all hover:border-[#06B6D4]/40 hover:text-[#06B6D4]"
+                    <a
+                      href={`/admin/tours/${tour.id}`}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-[#06B6D4]/10 border border-[#06B6D4]/30 px-3.5 py-2.5 text-xs font-black text-[#06B6D4] transition-all hover:bg-[#06B6D4]/20 hover:scale-[1.02]"
                     >
                       <Edit3 className="h-3.5 w-3.5" />
-                      Manage
-                    </button>
+                      Edit Tour
+                    </a>
                     <button
                       type="button"
                       onClick={() => setPreviewTour(tour)}

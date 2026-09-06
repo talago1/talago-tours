@@ -47,6 +47,7 @@ interface TourData {
   hotelPickupIncluded: boolean | null;
   images: string[];
   adultPrice: number;
+  originalPrice?: number | null;
   childPrice: number | null;
   infantPrice: number | null;
   allowDeposit: boolean;
@@ -457,6 +458,7 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
   const translations = tour.translations;
   const localizedTitle = translations?.[language]?.title ?? tour.title;
   const localizedDesc = translations?.[language]?.description ?? tour.description;
+  const localizedCancelPolicy = (translations?.[language] as any)?.cancellationPolicies?.[0] ?? tour.cancellationPolicy ?? dict.tourDetails.cancelUpTo;
 
   const pricePerAdult = tour.adultPrice ?? tour.basePrice;
   const effectiveChildPrice = tour.childPrice ?? null;
@@ -543,7 +545,7 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
                 <div>
                   <h3 className="text-lg font-black text-white">{dict.tourDetails.freeCancellation}</h3>
                   <p className="mt-1 text-sm leading-7 text-slate-300">
-                    {dict.tourDetails.cancelUpTo}
+                    {localizedCancelPolicy}
                   </p>
                   <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
@@ -709,8 +711,18 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
               {/* Price */}
               <div className="mb-6">
                 <p className="text-sm font-black uppercase tracking-[0.22em] text-slate-500">{dict.tourDetails.from}</p>
-                <div className="mt-1 flex items-baseline gap-2">
+                <div className="mt-1 flex flex-wrap items-baseline gap-2">
                   <span className="text-4xl font-black text-white">${pricePerAdult.toFixed(0)}</span>
+                  {tour.originalPrice && tour.originalPrice > pricePerAdult && (
+                    <>
+                      <span className="text-base font-bold text-slate-500 line-through">
+                        ${tour.originalPrice.toFixed(0)}
+                      </span>
+                      <span className="rounded-full bg-gradient-to-r from-[#FF5B00] to-[#EAB308] px-2.5 py-0.5 text-xs font-black text-white shadow-md shadow-[#FF5B00]/30">
+                        -{Math.round((1 - pricePerAdult / tour.originalPrice) * 100)}% OFF
+                      </span>
+                    </>
+                  )}
                   <span className="text-sm text-slate-400">{dict.tourDetails.perPerson}</span>
                 </div>
               </div>
@@ -882,10 +894,17 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">{dict.tourDetails.from}</p>
-            <p className="text-2xl font-black text-white">
-              ${pricePerAdult.toFixed(0)}
-              <span className="ml-1 text-sm font-normal text-slate-400">{dict.tourDetails.perPerson}</span>
-            </p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl font-black text-white">
+                ${pricePerAdult.toFixed(0)}
+              </p>
+              {tour.originalPrice && tour.originalPrice > pricePerAdult && (
+                <span className="text-sm font-bold text-slate-500 line-through">
+                  ${tour.originalPrice.toFixed(0)}
+                </span>
+              )}
+              <span className="text-xs font-normal text-slate-400">{dict.tourDetails.perPerson}</span>
+            </div>
           </div>
           <Link href={`/checkout/${tour.id}`}>
             <Button variant="primary" size="md">{dict.tourDetails.bookNow}</Button>

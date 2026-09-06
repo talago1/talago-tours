@@ -47,17 +47,44 @@ function generateUniqueFilename(originalName: string): string {
 
 async function uploadSingleFile(file: File): Promise<UploadedFileResult> {
   const uniqueFilename = generateUniqueFilename(file.name);
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-  
-  // Ensure the directory exists
-  await fs.mkdir(uploadDir, { recursive: true });
-  
-  const filePath = path.join(uploadDir, uniqueFilename);
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
-  
+
+  // 1. Try Supabase Storage if credentials are configured
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const { supabaseAdmin } = await import('@/lib/supabase/server');
+      const bucketName = 'talago-tour-media';
+      const storagePath = `tours/${uniqueFilename}`;
+
+      const { data, error } = await supabaseAdmin.storage
+        .from(bucketName)
+        .upload(storagePath, buffer, {
+          contentType: file.type || 'image/jpeg',
+          upsert: true,
+        });
+
+      if (!error && data) {
+        const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucketName}/${storagePath}`;
+        return {
+          url: publicUrl,
+          filename: uniqueFilename,
+          mimeType: file.type,
+          sizeBytes: file.size,
+        };
+      }
+      console.warn('Supabase storage upload returned error, falling back to local storage:', error?.message);
+    } catch (sbErr) {
+      console.warn('Supabase storage upload exception, falling back to local storage:', sbErr);
+    }
+  }
+
+  // 2. Local disk fallback
+  const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+  await fs.mkdir(uploadDir, { recursive: true });
+  const filePath = path.join(uploadDir, uniqueFilename);
   await fs.writeFile(filePath, buffer);
-  
+
   return {
     url: `/uploads/${uniqueFilename}`,
     filename: uniqueFilename,

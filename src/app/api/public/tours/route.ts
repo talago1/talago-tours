@@ -26,6 +26,7 @@ const selectFields = {
   ratingAverage: true,
   ratingCount: true,
   adultPrice: true,
+  originalPrice: true,
   priceAdult: true,
   childPrice: true,
   infantPrice: true,
@@ -38,6 +39,7 @@ const selectFields = {
   hotelPickupIncluded: true,
   pickupTime: true,
   cancellationPolicy: true,
+  tourOptions: true,
   destination: {
     select: { id: true, name: true, slug: true },
   },
@@ -61,7 +63,16 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Tour not found' }, { status: 404 });
       }
 
-      return NextResponse.json(tour);
+      let availableZones: Array<{ id: string; name: string; transferFee: number }> = [];
+      if (tour.destinationId) {
+        availableZones = await prisma.zone.findMany({
+          where: { destinationId: tour.destinationId },
+          select: { id: true, name: true, transferFee: true },
+          orderBy: { transferFee: 'asc' },
+        });
+      }
+
+      return NextResponse.json({ ...tour, availableZones });
     }
 
     const tours = await prisma.tour.findMany({

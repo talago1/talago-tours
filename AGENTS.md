@@ -5,27 +5,27 @@ Talago Tours — Next.js 14 tourism booking platform with public storefront, adm
 ## Setup commands
 
 - Install deps: `npm install`
-- Start dev:    `npm run dev`             # Next.js dev server
-- Build:        `npm run build`           # `next build` (production)
-- Start:        `npm run start`           # production server
-- Lint:         `npm run lint`            # `next lint` (no ESLint config — Next.js defaults)
-- DB generate:  `npm run db:generate`     # `prisma generate`
-- DB push:      `npm run db:push`         # `prisma db push`
-- DB studio:    `npm run db:studio`       # `prisma studio`
+- Start dev: `npm run dev` # Next.js dev server
+- Build: `npm run build` # `next build` (production)
+- Start: `npm run start` # production server
+- Lint: `npm run lint` # `next lint` (no ESLint config — Next.js defaults)
+- DB generate: `npm run db:generate` # `prisma generate`
+- DB push: `npm run db:push` # `prisma db push`
+- DB studio: `npm run db:studio` # `prisma studio`
 
 No test framework is configured — verify by build + manual smoke (`npm run build` then exercise affected flows).
 
 ## Project layout
 
-- `src/app/(public)/`  — customer-facing routes (tours, booking, checkout, boarding pass, voucher, destinations, info pages)
+- `src/app/(public)/` — customer-facing routes (tours, booking, checkout, boarding pass, voucher, destinations, info pages)
 - `src/app/(admin)/admin/` — admin dashboard (bookings, tours, destinations, reviews, notifications, campaigns, operations, analytics, settings)
-- `src/app/api/`       — route handlers (admin/, bookings/, checkout/, payments/, media/, auth/, notifications/, public/)
-- `src/components/`    — domain-grouped components: `admin/`, `landing/`, `tours/`, `checkout/`, `public/`, `ui/`, `layout/`, `modals/`, `vouchers/`
-- `src/lib/`           — shared clients/services (Supabase client, system settings)
-- `src/locales/`       — 7 hand-written i18n bundles (en, de, es, fr, it, pl, ru)
-- `src/types/`         — shared TypeScript types
-- `src/utils/`         — price calculator, booking validation, promo codes, WhatsApp notifications
-- `prisma/`            — Prisma schema (PostgreSQL)
+- `src/app/api/` — route handlers (admin/, bookings/, checkout/, payments/, media/, auth/, notifications/, public/)
+- `src/components/` — domain-grouped components: `admin/`, `landing/`, `tours/`, `checkout/`, `public/`, `ui/`, `layout/`, `modals/`, `vouchers/`
+- `src/lib/` — shared clients/services (Supabase client, system settings)
+- `src/locales/` — 7 hand-written i18n bundles (en, de, es, fr, it, pl, ru)
+- `src/types/` — shared TypeScript types
+- `src/utils/` — price calculator, booking validation, promo codes, WhatsApp notifications
+- `prisma/` — Prisma schema (PostgreSQL)
 
 ## Code style
 

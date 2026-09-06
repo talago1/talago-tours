@@ -26,6 +26,7 @@ interface TourData {
   ratingCount: number;
   priceAdult: number | null;
   adultPrice: number | null;
+  originalPrice?: number | null;
   destination: { name: string; slug: string } | null;
 }
 
@@ -129,6 +130,8 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
               const price = tour.priceAdult ?? tour.adultPrice ?? tour.basePriceUSD ?? tour.basePrice;
               const duration = tour.duration || `${tour.durationHours ?? 0}h`;
               const cat = normalizeCategory(tour.category);
+              const hasDiscount = Boolean(tour.originalPrice && price && tour.originalPrice > price);
+              const discountPercent = hasDiscount ? Math.round((1 - price! / tour.originalPrice!) * 100) : 0;
 
               return (
                 <article
@@ -176,6 +179,11 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
                       <div className="absolute left-5 top-5 rounded-full bg-[#EAB308] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#070F1E] shadow-xl shadow-[#EAB308]/30 z-10">
                         {getBadge(tour.ratingAverage)}
                       </div>
+                      {hasDiscount && (
+                        <div className="absolute right-5 top-5 rounded-full bg-gradient-to-r from-[#FF5B00] to-[#EAB308] px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-xl shadow-[#FF5B00]/40 z-10">
+                          -{discountPercent}% OFF
+                        </div>
+                      )}
                     </div>
 
                     <div className="p-6">
@@ -218,9 +226,16 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
                               <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
                                 {dict.catalog.startingAt}
                               </p>
-                              <p className="mt-1 text-3xl font-black text-white">
-                                ${price.toFixed(0)}
-                              </p>
+                              <div className="mt-1 flex items-baseline gap-2">
+                                <p className="text-3xl font-black text-white">
+                                  ${price.toFixed(0)}
+                                </p>
+                                {hasDiscount && (
+                                  <span className="text-base font-bold text-slate-500 line-through">
+                                    ${tour.originalPrice!.toFixed(0)}
+                                  </span>
+                                )}
+                              </div>
                             </>
                           )}
                         </div>
@@ -233,6 +248,7 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
                   </Link>
                 </article>
               );
+
             })}
           </div>
         )}

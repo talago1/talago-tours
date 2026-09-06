@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { ArrowRight, Clock, MapPin, Star, Waves, Mountain } from 'lucide-react';
 import CarouselImages from '@/components/ui/CarouselImages';
 
+import { useLanguage } from '@/context/LanguageContext';
+
 type TourCategory = 'sea' | 'snorkeling' | 'diving' | 'boat_trip' | 'safari' | 'desert' | 'adventure' | 'city';
 
 interface TourData {
@@ -25,6 +27,7 @@ interface TourData {
   ratingCount: number;
   priceAdult: number | null;
   adultPrice: number | null;
+  originalPrice?: number | null;
   destination: { name: string; slug: string } | null;
 }
 
@@ -69,14 +72,19 @@ function RatingStars({ ratingAverage }: { ratingAverage: number }) {
 
 export default function PublicTourCard({ tour }: { tour: TourData }) {
   const [isHovered, setIsHovered] = useState(false);
+  const { language } = useLanguage();
 
   const t = tour.translations as Record<string, { title?: string; description?: string }> | undefined;
-  const title = t?.en?.title ?? 'Untitled Experience';
+  const title = t?.[language]?.title ?? t?.en?.title ?? 'Untitled Experience';
+  const description = t?.[language]?.description ?? t?.en?.description ?? tour.cardExcerpt ?? '';
   const gallery = (tour.galleryImages || []).filter(Boolean) as string[];
   const allImages = [tour.coverImage, ...gallery].filter((x): x is string => typeof x === 'string' && x.length > 0);
   const price = tour.priceAdult ?? tour.adultPrice ?? tour.basePriceUSD ?? tour.basePrice;
   const duration = tour.duration || `${tour.durationHours ?? 0}h`;
   const cat = normalizeCategory(tour.category);
+
+  const hasDiscount = Boolean(tour.originalPrice && price && tour.originalPrice > price);
+  const discountPercent = hasDiscount ? Math.round((1 - price! / tour.originalPrice!) * 100) : 0;
 
   return (
     <article
@@ -123,6 +131,11 @@ export default function PublicTourCard({ tour }: { tour: TourData }) {
           <div className="absolute left-5 top-5 rounded-full bg-[#EAB308] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#070F1E] shadow-xl shadow-[#EAB308]/30 z-10">
             {getBadge(tour.ratingAverage)}
           </div>
+          {hasDiscount && (
+            <div className="absolute right-5 top-5 rounded-full bg-gradient-to-r from-[#FF5B00] to-[#EAB308] px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-xl shadow-[#FF5B00]/40 z-10">
+              -{discountPercent}% OFF
+            </div>
+          )}
         </div>
 
         <div className="p-6">
@@ -141,9 +154,9 @@ export default function PublicTourCard({ tour }: { tour: TourData }) {
             {title}
           </h3>
 
-          {tour.displayExcerpt && tour.cardExcerpt && (
+          {(description || (tour.displayExcerpt && tour.cardExcerpt)) && (
             <p className="mb-3 mt-2 line-clamp-2 text-sm leading-relaxed text-slate-400">
-              {tour.cardExcerpt}
+              {description || tour.cardExcerpt}
             </p>
           )}
 
@@ -165,9 +178,16 @@ export default function PublicTourCard({ tour }: { tour: TourData }) {
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
                     Starting at
                   </p>
-                  <p className="mt-1 text-3xl font-black text-white">
-                    ${price.toFixed(0)}
-                  </p>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <p className="text-3xl font-black text-white">
+                      ${price.toFixed(0)}
+                    </p>
+                    {hasDiscount && (
+                      <span className="text-base font-bold text-slate-500 line-through">
+                        ${tour.originalPrice!.toFixed(0)}
+                      </span>
+                    )}
+                  </div>
                 </>
               )}
             </div>
@@ -179,5 +199,6 @@ export default function PublicTourCard({ tour }: { tour: TourData }) {
         </div>
       </Link>
     </article>
+
   );
 }

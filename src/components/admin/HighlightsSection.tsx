@@ -1,19 +1,39 @@
 'use client';
 
+import { Sparkles, Plus, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import type { MarketingFields } from '@/types/tourBuilder';
 
 interface HighlightsSectionProps {
   values: MarketingFields;
+  languageLabel?: string;
   errors: Record<string, string>;
   onChange: (values: MarketingFields) => void;
 }
 
 type ListKey = 'highlights' | 'inclusions' | 'exclusions';
 
-const LIST_CONFIG: Record<ListKey, { label: string; placeholder: string }> = {
-  highlights: { label: 'Highlights', placeholder: 'Snorkel at vibrant coral reefs' },
-  inclusions: { label: 'Inclusions', placeholder: 'Lunch, Guide, Equipment' },
-  exclusions: { label: 'Exclusions', placeholder: 'Tipping, National Park Fees' },
+const LIST_CONFIG: Record<ListKey, { label: string; placeholder: string; icon: React.ElementType; color: string; badgeBg: string }> = {
+  highlights: {
+    label: 'Key Highlights',
+    placeholder: 'e.g. 50km desert quad biking to Bedouin village',
+    icon: Sparkles,
+    color: 'text-[#EAB308]',
+    badgeBg: 'bg-[#EAB308]/10 border-[#EAB308]/30',
+  },
+  inclusions: {
+    label: "What's Included (Inclusions)",
+    placeholder: 'e.g. Quad bike, Helmet, Bedouin tea, Hotel transfer',
+    icon: CheckCircle,
+    color: 'text-emerald-400',
+    badgeBg: 'bg-emerald-500/10 border-emerald-500/30',
+  },
+  exclusions: {
+    label: "What's Not Included (Exclusions)",
+    placeholder: 'e.g. Scarf & Goggles ($3), Gratuities / Tips',
+    icon: XCircle,
+    color: 'text-rose-400',
+    badgeBg: 'bg-rose-500/10 border-rose-500/30',
+  },
 };
 
 function ListEditor({
@@ -26,6 +46,7 @@ function ListEditor({
   onChange: (items: string[]) => void;
 }) {
   const config = LIST_CONFIG[field];
+  const Icon = config.icon;
 
   const add = () => onChange([...items, '']);
   const update = (index: number, value: string) => {
@@ -38,17 +59,25 @@ function ListEditor({
   };
 
   return (
-    <div className="flex-1">
-      <div className="flex items-center justify-between mb-2">
-        <label className="block text-sm font-medium text-gray-700">{config.label}</label>
+    <div className="flex-1 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Icon className={`h-4 w-4 ${config.color}`} />
+          <label className="text-sm font-bold text-white">{config.label}</label>
+          <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-black text-slate-400">
+            {items.length}
+          </span>
+        </div>
         <button
           type="button"
           onClick={add}
-          className="text-xs px-3 py-1.5 bg-secondary-forest text-white rounded-lg hover:bg-secondary-forest/90 transition-colors duration-200"
+          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition hover:scale-105 ${config.badgeBg} ${config.color}`}
         >
-          + Add
+          <Plus className="h-3 w-3" />
+          Add Item
         </button>
       </div>
+
       <div className="space-y-2">
         {items.map((item, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -57,42 +86,43 @@ function ListEditor({
               value={item}
               onChange={(e) => update(i, e.target.value)}
               placeholder={config.placeholder}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-coral/50"
+              className="flex-1 rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2.5 text-sm text-white outline-none transition focus:border-[#06B6D4] placeholder:text-slate-600"
             />
             <button
               type="button"
               onClick={() => remove(i)}
-              className="p-2 text-gray-400 hover:text-red-500 transition-colors duration-200"
+              className="rounded-xl p-2.5 text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <Trash2 className="h-4 w-4" />
             </button>
           </div>
         ))}
         {items.length === 0 && (
-          <p className="text-xs text-gray-400 italic">No items added.</p>
+          <p className="text-xs text-slate-500 italic py-2">No items added yet. Click &quot;Add Item&quot; to include details.</p>
         )}
       </div>
     </div>
   );
 }
 
-export default function HighlightsSection({ values, errors, onChange }: HighlightsSectionProps) {
+export default function HighlightsSection({ values, languageLabel, errors, onChange }: HighlightsSectionProps) {
   const update = (partial: Partial<MarketingFields>) => {
     onChange({ ...values, ...partial });
   };
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-      <div className="flex items-center gap-2 mb-4">
-        <svg className="w-5 h-5 text-secondary-forest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-        </svg>
-        <h2 className="text-lg font-semibold text-gray-800">Marketing & Value Points</h2>
+    <section className="rounded-[2rem] border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20 mb-6">
+      <div className="mb-5">
+        <h2 className="text-lg font-black text-white flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-[#00E5FF]" />
+          Marketing &amp; Value Points (Highlights, Inclusions, Exclusions) {languageLabel && <span className="text-[#00E5FF] text-sm font-bold ml-1">({languageLabel})</span>}
+        </h2>
+        <p className="mt-0.5 text-xs text-slate-400">
+          Manage everything included and excluded in the tour package with full add/remove/edit controls.
+        </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
         <ListEditor
           field="highlights"
           items={values.highlights}
@@ -111,7 +141,7 @@ export default function HighlightsSection({ values, errors, onChange }: Highligh
       </div>
 
       {Object.keys(errors).some((k) => k.startsWith('marketing.')) && (
-        <p className="mt-2 text-xs text-red-500">
+        <p className="mt-4 text-xs text-rose-400">
           {Object.entries(errors)
             .filter(([k]) => k.startsWith('marketing.'))
             .map(([, v]) => v)
@@ -121,3 +151,4 @@ export default function HighlightsSection({ values, errors, onChange }: Highligh
     </section>
   );
 }
+

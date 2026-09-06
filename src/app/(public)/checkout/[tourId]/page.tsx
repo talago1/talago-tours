@@ -19,12 +19,20 @@ import {
   Loader2,
   Baby,
   UserRound,
+  MapPin,
+  Sparkles,
 } from 'lucide-react';
 import PriceSummarySidebar from '@/components/checkout/PriceSummarySidebar';
 import Button from '@/components/ui/Button';
 import { PaymentScheme, type CheckoutFormData, type InitializeResponse } from '@/types/checkout';
 import type { PromoDiscount } from '@/utils/promo';
 import { useLanguage } from '@/context/LanguageContext';
+
+interface ZoneOption {
+  id: string;
+  name: string;
+  transferFee: number;
+}
 
 // Stepper with +/- and direct text input
 function GuestStepper({
@@ -121,6 +129,15 @@ function GuestStepper({
   );
 }
 
+interface TourAddonOption {
+  id: string;
+  price: number;
+  priceType: 'per_person' | 'flat';
+  enabled: boolean;
+  labels: Record<string, string>;
+  descriptions: Record<string, string>;
+}
+
 interface TourDetails {
   id: string;
   title: string;
@@ -133,6 +150,7 @@ interface TourDetails {
   zoneTransferFee: number;
   maxCapacity: number | null;
   pickupTimes: string[];
+  tourOptions: TourAddonOption[];
 }
 
 type FormErrors = Partial<Record<keyof CheckoutFormData, string>>;
@@ -218,7 +236,7 @@ export default function CheckoutPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { dict } = useLanguage();
+  const { dict, language } = useLanguage();
   const tourId = params.tourId as string;
   const currencySymbol = (c: string | undefined) => c === 'EGP' ? 'EGP ' : c === 'EUR' ? '€' : c === 'GBP' ? '£' : '$';
 
@@ -233,6 +251,21 @@ export default function CheckoutPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [resumeBookingId, setResumeBookingId] = useState<string | null>(null);
   const [promoDiscount, setPromoDiscount] = useState<PromoDiscount | null>(null);
+
+  const [availableZones, setAvailableZones] = useState<ZoneOption[]>([]);
+  const [selectedZoneId, setSelectedZoneId] = useState<string>('');
+  const [selectedZoneFee, setSelectedZoneFee] = useState<number>(0);
+  const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
+
+  const totalPayingGuests = adultsCount + childrenCount;
+  const addonsTotal = tour
+    ? (tour.tourOptions || []).reduce((sum, opt) => {
+        if (!selectedAddons[opt.id]) return sum;
+        return sum + (opt.priceType === 'per_person' ? opt.price * totalPayingGuests : opt.price);
+      }, 0)
+    : 0;
+
+  const effectiveZoneFee = selectedZoneFee * totalPayingGuests;
 
   const [form, setForm] = useState<CheckoutFormData>({
     leadName: '',
@@ -270,6 +303,20 @@ export default function CheckoutPage() {
         } else {
           title = data.slug ?? 'Tour';
         }
+
+        const zonesList: ZoneOption[] = Array.isArray(data.availableZones) && data.availableZones.length > 0
+          ? data.availableZones
+          : [
+              { id: 'zone-hurghada-city', name: 'Hurghada City Hotels / Center', transferFee: 0 },
+              { id: 'zone-sahl-makadi', name: 'Sahl Hasheesh & Makadi Bay', transferFee: 5 },
+              { id: 'zone-gouna-soma-safaga', name: 'El Gouna, Soma Bay & Safaga', transferFee: 10 },
+            ];
+        setAvailableZones(zonesList);
+        if (zonesList.length > 0) {
+          setSelectedZoneId(zonesList[0].id);
+          setSelectedZoneFee(zonesList[0].transferFee);
+        }
+
         setTour({
           id: data.id,
           title,
@@ -283,6 +330,9 @@ export default function CheckoutPage() {
           maxCapacity: data.maxCapacity ?? null,
           pickupTimes: data.pickupTime
             ? String(data.pickupTime).split('|').map((t: string) => t.trim()).filter(Boolean)
+            : [],
+          tourOptions: Array.isArray(data.tourOptions)
+            ? (data.tourOptions as TourAddonOption[]).filter((o) => o.enabled !== false)
             : [],
         });
       } catch {
@@ -692,6 +742,103 @@ export default function CheckoutPage() {
                   </FormField>
                 </div>
 
+                {/* Transfer & Pickup Region Selector */}
+                {availableZones.length > 0 && (
+                  <div className="border-t border-white/10 pt-6 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-[#06B6D4]" />
+                        Transfer &amp; Pickup Region
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Choose your hotel zone for pickup logistics and transfer calculation.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {availableZones.map((z) => {
+                        const isSelected = selectedZoneId === z.id;
+                        return (
+                          <button
+                            key={z.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedZoneId(z.id);
+                              setSelectedZoneFee(z.transferFee);
+                            }}
+                            className={`flex flex-col justify-between rounded-2xl border p-4 text-left transition-all ${
+                              isSelected
+                                ? 'border-[#06B6D4] bg-[#06B6D4]/10 shadow-[0_0_15px_rgba(6,182,212,0.15)]'
+                                : 'border-white/10 bg-white/[0.03] hover:border-white/20'
+                            }`}
+                          >
+                            <div>
+                              <p className="text-sm font-bold text-white">{z.name}</p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                {z.transferFee === 0 ? 'Free Hotel Transfer' : `+$${z.transferFee} / person`}
+                              </p>
+                            </div>
+                            <div className="mt-3">
+                              <span className={`inline-block text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${
+                                z.transferFee === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-300'
+                              }`}>
+                                {z.transferFee === 0 ? 'Included' : `+$${z.transferFee}`}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Dynamic Tour Options & Experience Upgrades (configured via Admin Tour Builder) */}
+                {tour && tour.tourOptions && tour.tourOptions.length > 0 && (
+                  <div className="border-t border-white/10 pt-6 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-[#EAB308]" />
+                        Optional Tour Upgrades &amp; Extras
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Customize your booking with exclusive upgrades and options.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {tour.tourOptions.map((opt) => {
+                        const isSelected = Boolean(selectedAddons[opt.id]);
+                        const optTitle = opt.labels?.[language] || opt.labels?.['en'] || Object.values(opt.labels || {})[0] || 'Upgrade Option';
+                        const optDesc = opt.descriptions?.[language] || opt.descriptions?.['en'] || Object.values(opt.descriptions || {})[0] || '';
+                        const priceDisplay = opt.priceType === 'per_person'
+                          ? `+$${opt.price} / person (+$${opt.price * totalPayingGuests} total)`
+                          : `+$${opt.price} Total`;
+
+                        return (
+                          <label
+                            key={opt.id}
+                            className={`flex items-start gap-3 rounded-2xl border p-4 cursor-pointer transition-all ${
+                              isSelected
+                                ? 'border-[#EAB308] bg-[#EAB308]/10 shadow-[0_0_15px_rgba(234,179,8,0.15)]'
+                                : 'border-white/10 bg-white/[0.03] hover:border-white/20'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => setSelectedAddons(prev => ({ ...prev, [opt.id]: e.target.checked }))}
+                              className="mt-1 h-4 w-4 text-[#EAB308] rounded border-slate-600 focus:ring-[#EAB308]"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-white">{optTitle}</p>
+                              {optDesc && <p className="text-xs text-slate-400 mt-0.5">{optDesc}</p>}
+                              <p className="text-xs font-bold text-[#EAB308] mt-1.5">{priceDisplay}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {pageState === 'error' && errorMessage && (
                   <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
                     <div className="flex items-start gap-3">
@@ -732,7 +879,8 @@ export default function CheckoutPage() {
               childPrice={tour.childPrice ?? tour.adultPrice}
               infantPrice={tour.infantPrice ?? 0}
               depositPercentage={tour.depositPercentage}
-              zoneTransferFee={tour.zoneTransferFee}
+              zoneTransferFee={effectiveZoneFee}
+              addonsTotal={addonsTotal}
               scheme={scheme}
               onSchemeChange={handleSchemeChange}
               promoDiscount={promoDiscount}

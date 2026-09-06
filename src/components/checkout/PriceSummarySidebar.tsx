@@ -17,6 +17,7 @@ interface PriceSummarySidebarProps {
   infantPrice: number;
   depositPercentage: number;
   zoneTransferFee: number;
+  addonsTotal?: number;
   scheme: PaymentScheme;
   onSchemeChange: (s: PaymentScheme) => void;
   promoDiscount: PromoDiscount | null;
@@ -35,6 +36,7 @@ export default function PriceSummarySidebar({
   infantPrice,
   depositPercentage,
   zoneTransferFee,
+  addonsTotal = 0,
   scheme,
   onSchemeChange,
   promoDiscount,
@@ -55,14 +57,14 @@ export default function PriceSummarySidebar({
     adultPrice,
     childPrice,
     infantPrice,
-    zoneTransferFee,
+    zoneTransferFee: zoneTransferFee + addonsTotal,
     depositPercentage,
     scheme,
     promo: promoDiscount
       ? { type: promoDiscount.type, value: promoDiscount.value, minBookingValue: promoDiscount.minBookingValue }
       : null,
   }), [adultsCount, childrenCount, infantsCount, adultPrice, childPrice, infantPrice,
-      zoneTransferFee, depositPercentage, scheme, promoDiscount]);
+      zoneTransferFee, addonsTotal, depositPercentage, scheme, promoDiscount]);
 
   const { baseSubtotal, discountAmount, grandTotal, amountPaidOnline, amountDueOnArrival } = pricing;
 
@@ -142,6 +144,13 @@ export default function PriceSummarySidebar({
             <div className="flex justify-between items-center text-slate-400">
               <span>{dict.checkout.pickupFee}</span>
               <span className="font-semibold text-white">+${zoneTransferFee.toFixed(2)}</span>
+            </div>
+          )}
+
+          {addonsTotal > 0 && (
+            <div className="flex justify-between items-center text-[#06B6D4]">
+              <span>Upgrades & Extras</span>
+              <span className="font-semibold text-[#06B6D4]">+${addonsTotal.toFixed(2)}</span>
             </div>
           )}
         </div>
