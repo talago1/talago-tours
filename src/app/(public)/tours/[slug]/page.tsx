@@ -13,18 +13,63 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
   const tour = await prisma.tour.findUnique({
     where: { slug: params.slug },
-    select: { translations: true },
+    select: {
+      translations: true,
+      coverImage: true,
+      priceAdult: true,
+      adultPrice: true,
+      basePrice: true,
+      destination: { select: { name: true } },
+    },
   });
 
   const t = tour?.translations as Record<string, { title?: string; description?: string }> | undefined;
-  const title = t?.en?.title ?? 'Tour';
-  const description = t?.en?.description ?? '';
+  const title = t?.en?.title ?? 'Luxury Tour';
+  const description = t?.en?.description ?? 'Curated VIP tour and excursion in Hurghada, Red Sea, Egypt.';
+  const image = tour?.coverImage || `${baseUrl}/talago-hero-red-sea-desert.png`;
+  const price = tour?.priceAdult ?? tour?.adultPrice ?? tour?.basePrice ?? 0;
+  const pageUrl = `${baseUrl}/tours/${params.slug}`;
 
   return {
-    title: `${title} — TALAGO`,
+    title: `${title} | TALAGO Tours`,
     description,
+    alternates: {
+      canonical: pageUrl,
+      languages: {
+        en: `${pageUrl}?lang=en`,
+        de: `${pageUrl}?lang=de`,
+        ru: `${pageUrl}?lang=ru`,
+        it: `${pageUrl}?lang=it`,
+        fr: `${pageUrl}?lang=fr`,
+        pl: `${pageUrl}?lang=pl`,
+        es: `${pageUrl}?lang=es`,
+        'x-default': pageUrl,
+      },
+    },
+    openGraph: {
+      title: `${title} — TALAGO Tours`,
+      description,
+      url: pageUrl,
+      siteName: 'TALAGO Tours',
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${title} — TALAGO Tours`,
+      description,
+      images: [image],
+    },
   };
 }
 
@@ -148,8 +193,47 @@ export default async function TourDetailPage({ params }: Props) {
     tour.thumbnailUrl,
   ].filter((x): x is string => typeof x === 'string' && x.length > 0);
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
+  const effectivePrice = tour.priceAdult ?? tour.adultPrice ?? basePrice;
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'TouristTrip',
+    name: title,
+    description: description,
+    image: allImages.length > 0 ? allImages : [`${baseUrl}/talago-hero-red-sea-desert.png`],
+    touristType: ['Luxury', 'Adventure', 'Family', 'Couples'],
+    offers: {
+      '@type': 'Offer',
+      price: effectivePrice,
+      priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock',
+      url: `${baseUrl}/tours/${tour.slug}`,
+    },
+    provider: {
+      '@type': 'TravelAgency',
+      name: 'TALAGO Tours',
+      url: baseUrl,
+    },
+    ...(tour.ratingCount > 0
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: tour.ratingAverage.toFixed(1),
+            reviewCount: tour.ratingCount,
+            bestRating: '5',
+            worstRating: '1',
+          },
+        }
+      : {}),
+  };
+
   return (
     <main className="min-h-screen bg-[#070F1E]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <TourDetailsClient
         tour={{
           id: tour.id,

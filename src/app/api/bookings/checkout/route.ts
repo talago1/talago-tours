@@ -95,34 +95,78 @@ export async function POST(request: NextRequest) {
     }
 
     const bookingReference = generateBookingReference();
+    const normalizedEmail = customerEmail.trim().toLowerCase();
 
-    const booking = await prisma.booking.create({
-      data: {
-        bookingReference,
-        tourId,
-        zoneId,
-        hotelName: hotelName?.trim() ?? '',
-        travelDate: new Date(travelDate + 'T00:00:00'),
-        guestCount: effectiveGuestCount,
-        adultsCount: adultsCount ?? 0,
-        childrenCount: childrenCount ?? 0,
-        infantsCount: infantsCount ?? 0,
-        totalPriceUSD,
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim(),
-        customerPhone: customerPhone.trim(),
-        roomNumber: roomNumber?.trim() || null,
-        pickupDirectives: pickupDirectives?.trim() || null,
-        flightNumbers: flightNumbers?.trim() || null,
-        bedConfiguration: bedConfiguration?.trim() || null,
-        specialRequirements: specialRequirements?.trim() || null,
-        language: 'en',
-        status: 'PENDING',
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const existingProfile = await tx.customerProfile.findUnique({
+        where: { email: normalizedEmail },
+      });
+
+      const now = new Date();
+      const profile = existingProfile
+        ? await tx.customerProfile.update({
+            where: { id: existingProfile.id },
+            data: {
+              name: customerName.trim(),
+              phone: customerPhone.trim(),
+              lastMagicLinkAt: now,
+            },
+          })
+        : await tx.customerProfile.create({
+            data: {
+              email: normalizedEmail,
+              name: customerName.trim(),
+              phone: customerPhone.trim(),
+              isShadow: true,
+              invitedAt: now,
+              lastMagicLinkAt: now,
+            },
+          });
+
+      const booking = await tx.booking.create({
+        data: {
+          bookingReference,
+          tourId,
+          zoneId,
+          hotelName: hotelName?.trim() ?? '',
+          travelDate: new Date(travelDate + 'T00:00:00'),
+          guestCount: effectiveGuestCount,
+          adultsCount: adultsCount ?? 0,
+          childrenCount: childrenCount ?? 0,
+          infantsCount: infantsCount ?? 0,
+          totalPriceUSD,
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim(),
+          customerPhone: customerPhone.trim(),
+          roomNumber: roomNumber?.trim() || null,
+          pickupDirectives: pickupDirectives?.trim() || null,
+          flightNumbers: flightNumbers?.trim() || null,
+          bedConfiguration: bedConfiguration?.trim() || null,
+          specialRequirements: specialRequirements?.trim() || null,
+          language: 'en',
+          status: 'PENDING',
+          customerProfileId: profile.id,
+        },
+      });
+
+      return { booking, shouldInvite: !existingProfile || existingProfile.isShadow };
     });
 
+    // Auto-invite new / shadow guest to Supabase
+    if (result.shouldInvite) {
+      try {
+        const { supabaseAdmin } = await import('@/lib/supabase/server');
+        const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || request.nextUrl.origin;
+        await supabaseAdmin.auth.admin.inviteUserByEmail(normalizedEmail, {
+          redirectTo: `${siteUrl}/my-bookings`,
+        });
+      } catch (inviteErr) {
+        console.warn('Background auto-invite skipped or failed:', inviteErr);
+      }
+    }
+
     return NextResponse.json(
-      { bookingReference: booking.bookingReference },
+      { bookingReference: result.booking.bookingReference },
       { status: 200 }
     );
   } catch (error) {

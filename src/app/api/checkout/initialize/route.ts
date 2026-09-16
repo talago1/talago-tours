@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
         const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
           email.trim().toLowerCase(),
           {
-            redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL || request.nextUrl.origin}/my-bookings`,
+            redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || request.nextUrl.origin}/my-bookings`,
           }
         );
         if (inviteError) {

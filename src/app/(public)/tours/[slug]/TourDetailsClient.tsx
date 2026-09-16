@@ -454,11 +454,49 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
     tour.allowPayAtLocation ? 'arrival' : tour.allowDeposit ? 'deposit' : 'full'
   );
 
-  // Resolve localized translations from parent
+  // Resolve localized translations from parent with fallback cascade
   const translations = tour.translations;
-  const localizedTitle = translations?.[language]?.title ?? tour.title;
-  const localizedDesc = translations?.[language]?.description ?? tour.description;
-  const localizedCancelPolicy = (translations?.[language] as any)?.cancellationPolicies?.[0] ?? tour.cancellationPolicy ?? dict.tourDetails.cancelUpTo;
+  const langTranslation = (translations?.[language] as any) || {};
+  const enTranslation = (translations?.en as any) || {};
+
+  const localizedTitle = langTranslation.title ?? enTranslation.title ?? tour.title;
+  const localizedDesc = langTranslation.description ?? enTranslation.description ?? tour.description;
+  const localizedCancelPolicy = langTranslation.cancellationPolicies?.[0] ?? enTranslation.cancellationPolicies?.[0] ?? tour.cancellationPolicy ?? dict.tourDetails.cancelUpTo;
+
+  const localizedHighlights: string[] = (() => {
+    if (Array.isArray(langTranslation.highlights) && langTranslation.highlights.length > 0) return langTranslation.highlights;
+    if (Array.isArray(enTranslation.highlights) && enTranslation.highlights.length > 0) return enTranslation.highlights;
+    return Array.isArray(tour.highlights) ? tour.highlights : [];
+  })();
+
+  const localizedInclusions: string[] = (() => {
+    if (Array.isArray(langTranslation.inclusions) && langTranslation.inclusions.length > 0) return langTranslation.inclusions;
+    if (Array.isArray(enTranslation.inclusions) && enTranslation.inclusions.length > 0) return enTranslation.inclusions;
+    return Array.isArray(tour.inclusions) ? tour.inclusions : [];
+  })();
+
+  const localizedExclusions: string[] = (() => {
+    if (Array.isArray(langTranslation.exclusions) && langTranslation.exclusions.length > 0) return langTranslation.exclusions;
+    if (Array.isArray(enTranslation.exclusions) && enTranslation.exclusions.length > 0) return enTranslation.exclusions;
+    return Array.isArray(tour.exclusions) ? tour.exclusions : [];
+  })();
+
+  const localizedWhatToBringItems: string[] = (() => {
+    const raw = langTranslation.whatToBring || enTranslation.whatToBring || tour.whatToBring;
+    if (Array.isArray(raw) && raw.length > 0) return raw;
+    if (typeof raw === 'string' && raw) {
+      return raw.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+    return [];
+  })();
+
+  const localizedItineraryItems: any[] = (() => {
+    if (Array.isArray(langTranslation.itinerary) && langTranslation.itinerary.length > 0) return langTranslation.itinerary;
+    if (Array.isArray(enTranslation.itinerary) && enTranslation.itinerary.length > 0) return enTranslation.itinerary;
+    return Array.isArray(tour.itinerary) ? tour.itinerary : [];
+  })();
+
+  const localizedPickupDescription = langTranslation.pickupDescription || enTranslation.pickupDescription || tour.pickupDescription;
 
   const pricePerAdult = tour.adultPrice ?? tour.basePrice;
   const effectiveChildPrice = tour.childPrice ?? null;
@@ -473,15 +511,8 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
   const dueOnArrival = Math.round((totalPrice - depositAmount) * 100) / 100;
   const reserveHref = `/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}`;
 
-  const whatToBringItems: string[] = (() => {
-    if (Array.isArray(tour.whatToBring)) return tour.whatToBring as string[];
-    if (typeof tour.whatToBring === 'string' && tour.whatToBring) {
-      return tour.whatToBring.split(',').map((s) => s.trim()).filter(Boolean);
-    }
-    return [];
-  })();
-
-  const itineraryItems = Array.isArray(tour.itinerary) ? tour.itinerary : [];
+  const whatToBringItems = localizedWhatToBringItems;
+  const itineraryItems = localizedItineraryItems;
 
   return (
     <>
@@ -520,11 +551,11 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
             </div>
 
             {/* Highlights */}
-            {tour.highlights.length > 0 && (
+            {localizedHighlights.length > 0 && (
               <div className="mb-10">
                 <h2 className="mb-4 text-xl font-black text-white">{dict.tourDetails.highlights}</h2>
                 <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {tour.highlights.map((h, i) => (
+                  {localizedHighlights.map((h, i) => (
                     <li key={i} className="flex items-start gap-3 rounded-xl border border-[#00E5FF]/10 bg-[#00E5FF]/5 p-4 transition-all duration-300 hover:border-[#00E5FF]/30">
                       <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#00E5FF]/20 text-[#00E5FF]">
                         <Star className="h-3.5 w-3.5" />
@@ -568,19 +599,19 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
             {/* Accordion Sections */}
             <div className="divide-y divide-white/10 border-t border-white/10">
               {/* Inclusions & Exclusions */}
-              {(tour.inclusions.length > 0 || tour.exclusions.length > 0) && (
+              {(localizedInclusions.length > 0 || localizedExclusions.length > 0) && (
                 <Accordion title={dict.tourDetails.whatsIncluded} defaultOpen>
                   <div className="space-y-6">
-                    {tour.inclusions.length > 0 && (
+                    {localizedInclusions.length > 0 && (
                       <div>
                         <p className="mb-3 text-sm font-bold text-emerald-400">{dict.tourDetails.included}</p>
-                        <Checklist items={tour.inclusions} icon="check" />
+                        <Checklist items={localizedInclusions} icon="check" />
                       </div>
                     )}
-                    {tour.exclusions.length > 0 && (
+                    {localizedExclusions.length > 0 && (
                       <div>
                         <p className="mb-3 text-sm font-bold text-red-400">{dict.tourDetails.excluded}</p>
-                        <Checklist items={tour.exclusions} icon="x" />
+                        <Checklist items={localizedExclusions} icon="x" />
                       </div>
                     )}
                   </div>
@@ -609,7 +640,7 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
               )}
 
               {/* Pickup Info */}
-              {(tour.pickupDescription || tour.hotelPickupIncluded) && (
+              {(localizedPickupDescription || tour.hotelPickupIncluded) && (
                 <Accordion title={dict.tourDetails.pickupInfo}>
                   <div className="rounded-xl border border-[#00E5FF]/10 bg-[#00E5FF]/5 p-5">
                     <div className="flex items-start gap-3">
@@ -618,8 +649,8 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
                         {tour.hotelPickupIncluded && (
                           <p className="mb-2 text-sm font-bold text-emerald-400">{dict.tourDetails.hotelPickupIncluded}</p>
                         )}
-                        {tour.pickupDescription && (
-                          <p className="text-sm leading-7 text-slate-300">{tour.pickupDescription}</p>
+                        {localizedPickupDescription && (
+                          <p className="text-sm leading-7 text-slate-300">{localizedPickupDescription}</p>
                         )}
                       </div>
                     </div>
