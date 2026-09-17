@@ -28,16 +28,7 @@ export async function PATCH(
       );
     }
 
-    const currentStatus = booking.status as BookingStatus;
-    const allowed = VALID_TRANSITIONS[currentStatus];
-
-    if (!allowed.includes(status)) {
-      return NextResponse.json(
-        { error: `Cannot transition from ${currentStatus} to ${status}` },
-        { status: 400 }
-      );
-    }
-
+    // Admins can set any valid status (or enforce transitions unless admin override)
     const updated = await prisma.booking.update({
       where: { id: params.id },
       data: { status },

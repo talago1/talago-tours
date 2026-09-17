@@ -25,6 +25,10 @@ const DESTINATION_COVERS: Record<string, string[]> = {
     'https://images.unsplash.com/photo-1537956965359-7575e8ff6cf3?w=800&q=80',
     'https://images.unsplash.com/photo-1588412079929-791b9f8ecf0d?w=800&q=80',
   ],
+  'sharm-el-sheikh': [
+    'https://images.unsplash.com/photo-1573843981267-be1999ff37cd?w=1200&q=80',
+    'https://images.unsplash.com/photo-1546026423-cc4642628d2b?w=800&q=80',
+  ],
   sharm: [
     'https://images.unsplash.com/photo-1573843981267-be1999ff37cd?w=1200&q=80',
     'https://images.unsplash.com/photo-1546026423-cc4642628d2b?w=800&q=80',

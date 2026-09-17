@@ -6,6 +6,7 @@ export interface ActiveQueueTicket {
   tourTitle: string;
   customerName: string;
   customerPhone: string;
+  customerEmail?: string;
   travelDate: string;
   guestCount: number;
   adultsCount?: number;
@@ -24,6 +25,11 @@ export interface ActiveQueueTicket {
   bedConfig?: string | null;
   specialRequirements?: string | null;
   tourId?: string;
+  paymentScheme?: string;
+  amountPaidOnline?: number;
+  amountDueOnArrival?: number;
+  zoneName?: string;
+  destinationName?: string;
 }
 
 export interface CheckoutFormData {

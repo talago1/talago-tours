@@ -117,6 +117,16 @@ export default function BookingQueue({ initialBookings }: BookingQueueProps) {
     );
   };
 
+  const handleUpdateBooking = (updated: ActiveQueueTicket) => {
+    setBookings((prev) =>
+      prev.map((b) => (b.id === updated.id ? updated : b))
+    );
+  };
+
+  const handleDeleteBooking = (id: string) => {
+    setBookings((prev) => prev.filter((b) => b.id !== id));
+  };
+
   const toggleExpand = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
   };
@@ -178,7 +188,12 @@ export default function BookingQueue({ initialBookings }: BookingQueueProps) {
                     <td className="px-4 py-3 text-sm font-bold text-white">${b.totalPriceUSD.toFixed(2)}</td>
                     <td className="max-w-[150px] truncate px-4 py-3 text-sm text-slate-400">{b.hotelName}</td>
                     <td className="px-4 py-3">
-                      <BookingRowActions ticket={b} onStatusChange={handleStatusChange} />
+                      <BookingRowActions
+                        ticket={b}
+                        onStatusChange={handleStatusChange}
+                        onUpdateBooking={handleUpdateBooking}
+                        onDeleteBooking={handleDeleteBooking}
+                      />
                     </td>
                   </tr>
                   {expandedId === b.id && (
@@ -204,7 +219,12 @@ export default function BookingQueue({ initialBookings }: BookingQueueProps) {
             <div key={b.id} className="space-y-3 rounded-xl border border-white/10 bg-[#0B1528] p-4">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-sm font-bold text-[#00E5FF]">{b.bookingReference}</span>
-                <BookingRowActions ticket={b} onStatusChange={handleStatusChange} />
+                <BookingRowActions
+                  ticket={b}
+                  onStatusChange={handleStatusChange}
+                  onUpdateBooking={handleUpdateBooking}
+                  onDeleteBooking={handleDeleteBooking}
+                />
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
