@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useCallback } from 'react';
 import type { MediaFields } from '@/types/tourBuilder';
 import MediaUploader from './MediaUploader';
 
@@ -10,9 +11,63 @@ interface MediaSectionProps {
 }
 
 export default function MediaSection({ values, errors, onChange }: MediaSectionProps) {
-  const update = (partial: Partial<MediaFields>) => {
-    onChange({ ...values, ...partial });
-  };
+  const valuesRef = useRef(values);
+  valuesRef.current = values;
+
+  const handleCoverChange = useCallback(
+    (url: string) => {
+      onChange({ ...valuesRef.current, coverImage: url });
+    },
+    [onChange]
+  );
+
+  const handleGalleryAdd = useCallback(
+    (url: string) => {
+      onChange({
+        ...valuesRef.current,
+        galleryImages: [...valuesRef.current.galleryImages, url],
+      });
+    },
+    [onChange]
+  );
+
+  const handleGalleryAddBatch = useCallback(
+    (urls: string[]) => {
+      onChange({
+        ...valuesRef.current,
+        galleryImages: [...valuesRef.current.galleryImages, ...urls],
+      });
+    },
+    [onChange]
+  );
+
+  const handleGalleryRemove = useCallback(
+    (index: number) => {
+      onChange({
+        ...valuesRef.current,
+        galleryImages: valuesRef.current.galleryImages.filter((_, i) => i !== index),
+      });
+    },
+    [onChange]
+  );
+
+  const handleGalleryRemoveBatch = useCallback(
+    (indices: number[]) => {
+      const toRemove = new Set(indices);
+      onChange({
+        ...valuesRef.current,
+        galleryImages: valuesRef.current.galleryImages.filter((_, i) => !toRemove.has(i)),
+      });
+    },
+    [onChange]
+  );
+
+  const handleGalleryClear = useCallback(() => {
+    onChange({
+      ...valuesRef.current,
+      galleryImages: [],
+    });
+  }, [onChange]);
 
   return (
     <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
@@ -26,15 +81,12 @@ export default function MediaSection({ values, errors, onChange }: MediaSectionP
       <MediaUploader
         coverImage={values.coverImage}
         galleryImages={values.galleryImages}
-        onCoverChange={(url) => update({ coverImage: url })}
-        onGalleryAdd={(url) =>
-          update({ galleryImages: [...values.galleryImages, url] })
-        }
-        onGalleryRemove={(index) =>
-          update({
-            galleryImages: values.galleryImages.filter((_, i) => i !== index),
-          })
-        }
+        onCoverChange={handleCoverChange}
+        onGalleryAdd={handleGalleryAdd}
+        onGalleryAddBatch={handleGalleryAddBatch}
+        onGalleryRemove={handleGalleryRemove}
+        onGalleryRemoveBatch={handleGalleryRemoveBatch}
+        onGalleryClear={handleGalleryClear}
       />
 
       {errors.coverImage && (

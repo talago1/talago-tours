@@ -5,8 +5,15 @@ import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 import BookingRowActions from './BookingRowActions';
 import { ChevronDown, ChevronRight, Hotel, MapPin, Users, Hash, Plane, Bed, AlertCircle } from 'lucide-react';
 
+interface AvailableTour {
+  id: string;
+  title: string;
+  category: string | null;
+}
+
 interface BookingQueueProps {
   initialBookings: ActiveQueueTicket[];
+  availableTours?: AvailableTour[];
 }
 
 function SkeletonRow() {
@@ -107,7 +114,7 @@ function ExpandedDetails({ booking }: { booking: ActiveQueueTicket }) {
   );
 }
 
-export default function BookingQueue({ initialBookings }: BookingQueueProps) {
+export default function BookingQueue({ initialBookings, availableTours = [] }: BookingQueueProps) {
   const [bookings, setBookings] = useState<ActiveQueueTicket[]>(initialBookings);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 

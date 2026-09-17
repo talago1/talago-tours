@@ -30,6 +30,8 @@ export interface ActiveQueueTicket {
   amountDueOnArrival?: number;
   zoneName?: string;
   destinationName?: string;
+  category?: string | null;
+  createdAt?: string;
 }
 
 export interface CheckoutFormData {

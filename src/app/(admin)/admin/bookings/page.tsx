@@ -5,17 +5,39 @@ import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminBookingsPage() {
-  const bookings = await prisma.booking.findMany({
-    include: {
-      tour: {
-        select: {
-          translations: true,
-          destination: { select: { name: true } },
-          zone: { select: { name: true } },
+  const [bookings, toursList] = await Promise.all([
+    prisma.booking.findMany({
+      include: {
+        tour: {
+          select: {
+            id: true,
+            category: true,
+            translations: true,
+            destination: { select: { name: true } },
+            zone: { select: { name: true } },
+          },
         },
       },
-    },
-    orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.tour.findMany({
+      select: {
+        id: true,
+        slug: true,
+        category: true,
+        translations: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
+
+  const availableTours = toursList.map((t) => {
+    const translations = t.translations as Record<string, { title?: string }> | null;
+    return {
+      id: t.id,
+      title: translations?.en?.title || t.slug,
+      category: t.category,
+    };
   });
 
   const tickets: ActiveQueueTicket[] = bookings.map((b) => {
@@ -29,6 +51,8 @@ export default async function AdminBookingsPage() {
       customerPhone: b.customerPhone,
       customerEmail: b.customerEmail,
       travelDate: b.travelDate.toISOString().split('T')[0],
+      createdAt: b.createdAt.toISOString(),
+      category: b.tour.category,
       guestCount: b.guestCount,
       adultsCount: b.adultsCount,
       childrenCount: b.childrenCount,
@@ -59,12 +83,12 @@ export default async function AdminBookingsPage() {
           <p className="text-xs font-black uppercase tracking-[0.28em] text-[#06B6D4]">
             Operations
           </p>
-          <h1 className="mt-2 text-2xl font-black text-white">Booking Queue</h1>
+          <h1 className="mt-2 text-2xl font-black text-white">Booking Management & Reports</h1>
           <p className="mt-1 text-sm text-slate-400">
-            {tickets.length} active booking{tickets.length !== 1 ? 's' : ''}
+            Monitor, filter, export reports, and bulk-manage bookings.
           </p>
         </div>
-        <BookingQueue initialBookings={tickets} />
+        <BookingQueue initialBookings={tickets} availableTours={availableTours} />
       </div>
     </main>
   );

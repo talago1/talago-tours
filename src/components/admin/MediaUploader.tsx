@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, type DragEvent } from 'react';
-import { UploadCloud, Image as ImageIcon, Star, Trash2, Plus, X, RefreshCw } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Star, Trash2, Plus, X, RefreshCw, CheckSquare, Square } from 'lucide-react';
 
 interface UploadingFile {
   id: string;
@@ -14,7 +14,10 @@ interface MediaUploaderProps {
   galleryImages: string[];
   onCoverChange: (url: string) => void;
   onGalleryAdd: (url: string) => void;
+  onGalleryAddBatch?: (urls: string[]) => void;
   onGalleryRemove: (index: number) => void;
+  onGalleryRemoveBatch?: (indices: number[]) => void;
+  onGalleryClear?: () => void;
 }
 
 const ALLOWED_TYPES = ['image/webp', 'image/jpeg', 'image/png', 'image/gif', 'image/avif'];
@@ -47,12 +50,16 @@ export default function MediaUploader({
   galleryImages,
   onCoverChange,
   onGalleryAdd,
+  onGalleryAddBatch,
   onGalleryRemove,
+  onGalleryRemoveBatch,
+  onGalleryClear,
 }: MediaUploaderProps) {
   const [uploading, setUploading] = useState<UploadingFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
+  const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
 
   const multiFileInputRef = useRef<HTMLInputElement>(null);
   const coverReplaceInputRef = useRef<HTMLInputElement>(null);
@@ -75,6 +82,9 @@ export default function MediaUploader({
       // Process up to 4 concurrent uploads at a time
       const CONCURRENCY = 4;
       const queue = [...files];
+      // Collect all gallery URLs to commit atomically at the end
+      const batchGalleryUrls: string[] = [];
+      let coverSet = false;
 
       const worker = async () => {
         while (queue.length > 0) {
@@ -109,8 +119,9 @@ export default function MediaUploader({
 
             if (isCover) {
               onCoverChange(uploadedUrl);
+              coverSet = true;
             } else {
-              onGalleryAdd(uploadedUrl);
+              batchGalleryUrls.push(uploadedUrl);
             }
           } catch (err) {
             console.error('File upload failed:', err);
@@ -124,9 +135,19 @@ export default function MediaUploader({
 
       const workers = Array.from({ length: Math.min(CONCURRENCY, files.length) }, () => worker());
       await Promise.all(workers);
+
+      // Commit all gallery images in one atomic state update
+      if (batchGalleryUrls.length > 0) {
+        if (onGalleryAddBatch) {
+          onGalleryAddBatch(batchGalleryUrls);
+        } else {
+          batchGalleryUrls.forEach((url) => onGalleryAdd(url));
+        }
+      }
+
       setIsProcessingBatch(false);
     },
-    [coverImage, onCoverChange, onGalleryAdd, removeUploadItem]
+    [coverImage, onCoverChange, onGalleryAdd, onGalleryAddBatch, removeUploadItem]
   );
 
   const handleDrop = useCallback(
@@ -169,12 +190,50 @@ export default function MediaUploader({
     onCoverChange(selectedUrl);
   };
 
+  // Toggle single item selection
+  const toggleSelect = (index: number) => {
+    setSelectedIndices((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+    );
+  };
+
+  // Select all or deselect all
+  const handleToggleSelectAll = () => {
+    if (selectedIndices.length === galleryImages.length) {
+      setSelectedIndices([]);
+    } else {
+      setSelectedIndices(galleryImages.map((_, i) => i));
+    }
+  };
+
+  // Delete selected photos in batch
+  const handleDeleteSelected = () => {
+    if (selectedIndices.length === 0) return;
+    if (!window.confirm(`Delete ${selectedIndices.length} selected photos?`)) return;
+
+    if (onGalleryRemoveBatch) {
+      onGalleryRemoveBatch(selectedIndices);
+    } else if (onGalleryClear && selectedIndices.length === galleryImages.length) {
+      onGalleryClear();
+    } else {
+      // Fallback in descending order to avoid index shifts
+      [...selectedIndices].sort((a, b) => b - a).forEach((i) => onGalleryRemove(i));
+    }
+    setSelectedIndices([]);
+  };
+
   // Clear all gallery photos
   const handleClearAllGallery = () => {
     if (window.confirm(`Are you sure you want to remove all ${galleryImages.length} gallery photos?`)) {
-      // Remove all one by one in reverse
-      for (let i = galleryImages.length - 1; i >= 0; i--) {
-        onGalleryRemove(i);
+      setSelectedIndices([]);
+      if (onGalleryClear) {
+        onGalleryClear();
+      } else if (onGalleryRemoveBatch) {
+        onGalleryRemoveBatch(galleryImages.map((_, i) => i));
+      } else {
+        for (let i = galleryImages.length - 1; i >= 0; i--) {
+          onGalleryRemove(i);
+        }
       }
     }
   };
@@ -193,9 +252,19 @@ export default function MediaUploader({
 
     if (target === 'cover') {
       onCoverChange(urls[0]);
-      urls.slice(1).forEach((u) => onGalleryAdd(u));
+      if (urls.length > 1) {
+        if (onGalleryAddBatch) {
+          onGalleryAddBatch(urls.slice(1));
+        } else {
+          urls.slice(1).forEach((u) => onGalleryAdd(u));
+        }
+      }
     } else {
-      urls.forEach((u) => onGalleryAdd(u));
+      if (onGalleryAddBatch) {
+        onGalleryAddBatch(urls);
+      } else {
+        urls.forEach((u) => onGalleryAdd(u));
+      }
     }
 
     setUrlInput('');
@@ -396,6 +465,37 @@ export default function MediaUploader({
               + Add Photos (Multi-select)
             </button>
 
+            {galleryImages.length > 0 && (
+              <button
+                type="button"
+                onClick={handleToggleSelectAll}
+                className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
+              >
+                {selectedIndices.length === galleryImages.length ? (
+                  <>
+                    <CheckSquare className="h-3 w-3 text-[#00E5FF]" />
+                    Deselect All
+                  </>
+                ) : (
+                  <>
+                    <Square className="h-3 w-3 text-slate-400" />
+                    Select All
+                  </>
+                )}
+              </button>
+            )}
+
+            {selectedIndices.length > 0 && (
+              <button
+                type="button"
+                onClick={handleDeleteSelected}
+                className="flex items-center gap-1 rounded-xl border border-red-500/30 bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-300 transition-colors hover:bg-red-500/30"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete Selected ({selectedIndices.length})
+              </button>
+            )}
+
             {galleryImages.length > 1 && (
               <button
                 type="button"
@@ -419,44 +519,74 @@ export default function MediaUploader({
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {galleryImages.map((url, i) => (
-              <div
-                key={i}
-                className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-white/10 bg-[#060D1A] transition-all hover:border-[#00E5FF]/50"
-              >
-                <img
-                  src={url}
-                  alt={`Gallery item ${i + 1}`}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
+            {galleryImages.map((url, i) => {
+              const isSelected = selectedIndices.includes(i);
+              return (
+                <div
+                  key={i}
+                  className={`group relative aspect-[4/3] overflow-hidden rounded-xl border bg-[#060D1A] transition-all ${
+                    isSelected
+                      ? 'border-[#00E5FF] ring-2 ring-[#00E5FF]/40'
+                      : 'border-white/10 hover:border-[#00E5FF]/50'
+                  }`}
+                >
+                  <img
+                    src={url}
+                    alt={`Gallery item ${i + 1}`}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
 
-                {/* Overlay actions */}
-                <div className="absolute inset-0 bg-black/60 opacity-0 transition-opacity duration-200 group-hover:opacity-100 flex flex-col justify-between p-2">
-                  <div className="flex items-center justify-between">
-                    <span className="rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                      #{i + 1}
-                    </span>
+                  {/* Top quick-select bar (always visible for easy tapping) */}
+                  <div className="absolute top-2 left-2 z-10">
                     <button
                       type="button"
-                      title="Remove image"
-                      onClick={() => onGalleryRemove(i)}
-                      className="rounded-lg bg-red-500/80 p-1.5 text-white transition-colors hover:bg-red-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelect(i);
+                      }}
+                      className={`flex items-center justify-center rounded-lg p-1 transition-colors ${
+                        isSelected
+                          ? 'bg-[#00E5FF] text-[#060D1A]'
+                          : 'bg-black/60 text-white/70 hover:bg-black/80 hover:text-white'
+                      }`}
+                      title={isSelected ? 'Deselect image' : 'Select image'}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      {isSelected ? (
+                        <CheckSquare className="h-4 w-4" />
+                      ) : (
+                        <Square className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleMakeCover(i)}
-                    className="flex w-full items-center justify-center gap-1 rounded-lg bg-[#00E5FF] py-1 text-[11px] font-bold text-[#060D1A] shadow-lg transition-transform hover:scale-[1.02]"
-                  >
-                    <Star className="h-3 w-3 fill-[#060D1A]" />
-                    Make Cover
-                  </button>
+                  {/* Overlay actions */}
+                  <div className="absolute inset-0 bg-black/60 opacity-0 transition-opacity duration-200 group-hover:opacity-100 flex flex-col justify-between p-2">
+                    <div className="flex items-center justify-between ml-8">
+                      <span className="rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                        #{i + 1}
+                      </span>
+                      <button
+                        type="button"
+                        title="Remove image"
+                        onClick={() => onGalleryRemove(i)}
+                        className="rounded-lg bg-red-500/80 p-1.5 text-white transition-colors hover:bg-red-600"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleMakeCover(i)}
+                      className="flex w-full items-center justify-center gap-1 rounded-lg bg-[#00E5FF] py-1 text-[11px] font-bold text-[#060D1A] shadow-lg transition-transform hover:scale-[1.02]"
+                    >
+                      <Star className="h-3 w-3 fill-[#060D1A]" />
+                      Make Cover
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
