@@ -72,6 +72,11 @@ export default function Hero({ heroBackground, conciergePickImage, conciergePick
             <h1 className="max-w-5xl text-5xl font-black leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-7xl xl:text-8xl">
               {dict.hero.title}
             </h1>
+            {dict.hero.tagline && (
+              <p className="mt-4 max-w-xl text-2xl font-light italic tracking-wide text-[#EAB308]/90 sm:text-3xl lg:text-4xl" style={{ fontStyle: 'italic', letterSpacing: '0.02em' }}>
+                {dict.hero.tagline}
+              </p>
+            )}
             <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl">
               {dict.hero.description}
             </p>

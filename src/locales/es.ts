@@ -13,6 +13,7 @@ export const es: typeof en = {
   },
   hero: {
     badge: 'Escapadas privadas en el mar Rojo y expediciones doradas en el desierto',
+    tagline: 'No es un tour. Es un recuerdo.',
     title: 'Descubra los paraísos ocultos de Hurghada',
     description: 'Donde las profundidades cristalinas del mar Rojo se encuentran con las majestuosas dunas doradas. TALAGO organiza excursiones en yates de lujo, días en islas privadas y safaris cinematográficos en quad en el desierto con una hospitalidad de élite.',
     exploreButton: 'Explorar Tours Exclusivos',

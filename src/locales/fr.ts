@@ -13,6 +13,7 @@ export const fr: typeof en = {
   },
   hero: {
     badge: 'Escapades privées en mer Rouge et expéditions dorées dans le désert',
+    tagline: 'Pas un circuit. Un souvenir.',
     title: 'Dévoilez les paradis cachés de Hurghada',
     description: 'Là où les profondeurs cristallines de la mer Rouge rencontrent les majestueuses dunes dorées. TALAGO propose des excursions en yacht de luxe, des journées sur des îles privées et des safaris cinématographiques dans le désert avec une hospitalité d\'élite.',
     exploreButton: 'Découvrir nos excursions',

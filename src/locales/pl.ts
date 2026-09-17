@@ -13,6 +13,7 @@ export const pl: typeof en = {
   },
   hero: {
     badge: 'Prywatne rejsy po Morzu Czerwonym i ekskluzywne wyprawy na pustynię',
+    tagline: 'Nie wycieczka. Wspomnienie.',
     title: 'Odkryj ukryte raje Hurghady',
     description: 'Tam, gdzie dziewicze głębiny Morza Czerwonego spotykają się z majestatycznymi złotymi wydmami. TALAGO organizuje luksusowe rejsy jachtami, prywatne dni na wyspach i filmowe safari na quadach z elitarną gościnnością.',
     exploreButton: 'Nasze wyjątkowe wycieczki',

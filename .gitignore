@@ -17,3 +17,4 @@ coverage/
 _archive/
 public/uploads/*
 !public/uploads/.gitkeep
+.vercel

@@ -13,6 +13,7 @@ export const de: typeof en = {
   },
   hero: {
     badge: 'Private Ausflüge auf dem Roten Meer und goldene Wüstensafaris',
+    tagline: 'Kein Ausflug. Eine Erinnerung.',
     title: 'Enthüllen Sie Hurghadas verborgene Paradiese',
     description: 'Wo die unberührten Tiefen des Roten Meeres auf die majestätischen goldenen Dünen treffen. TALAGO organisiert erstklassige Yachtausflüge, private Inseltage und filmreife Wüstensafaris mit exzellenter Gastfreundschaft.',
     exploreButton: 'Erkunden Sie unsere Touren',

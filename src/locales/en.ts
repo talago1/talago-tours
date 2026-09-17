@@ -11,6 +11,7 @@ export const en = {
   },
   hero: {
     badge: 'Private Red Sea escapes and golden desert expeditions',
+    tagline: 'Not a Tour. A Memory.',
     title: "Unveil Hurghada's Hidden Paradises",
     description: 'Where the pristine depths of the Red Sea meet the majestic golden dunes. TALAGO curates yacht-level marine trips, private island days, and cinematic desert safaris with elite hospitality.',
     exploreButton: 'Explore Signature Trips',

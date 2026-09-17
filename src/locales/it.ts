@@ -13,6 +13,7 @@ export const it: typeof en = {
   },
   hero: {
     badge: 'Fughe private sul Mar Rosso ed escursioni dorate nel deserto',
+    tagline: 'Non un tour. Un ricordo.',
     title: 'Svela i paradisi nascosti di Hurghada',
     description: 'Dove le profondità incontaminate del Mar Rosso incontrano le maestose dune dorate. TALAGO cura uscite in yacht di altissimo livello, giornate su isole private e safari cinematografici nel deserto con un ospitalità d’élite.',
     exploreButton: 'Esplora i Tour Esclusivi',
