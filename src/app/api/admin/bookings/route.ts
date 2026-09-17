@@ -50,7 +50,15 @@ export async function GET() {
 export async function DELETE(request: Request) {
   try {
     const body = await request.json();
-    const { ids, all, status } = body as { ids?: string[]; all?: boolean; status?: string };
+    const { ids, all, status, tourId, startDate, endDate, month } = body as {
+      ids?: string[];
+      all?: boolean;
+      status?: string;
+      tourId?: string;
+      startDate?: string;
+      endDate?: string;
+      month?: string;
+    };
 
     let whereClause: any = {};
 
@@ -58,13 +66,36 @@ export async function DELETE(request: Request) {
       whereClause = {};
     } else if (Array.isArray(ids) && ids.length > 0) {
       whereClause = { id: { in: ids } };
-    } else if (status) {
-      whereClause = { status };
     } else {
-      return NextResponse.json(
-        { error: 'Provide ids array, status, or all=true to delete' },
-        { status: 400 }
-      );
+      const filters: any[] = [];
+      if (status && status !== 'ALL') {
+        filters.push({ status });
+      }
+      if (tourId && tourId !== 'ALL') {
+        filters.push({ tourId });
+      }
+      if (month) {
+        const [y, m] = month.split('-').map(Number);
+        if (y && m) {
+          const startOfMonth = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
+          const endOfMonth = new Date(Date.UTC(y, m, 0, 23, 59, 59));
+          filters.push({ travelDate: { gte: startOfMonth, lte: endOfMonth } });
+        }
+      } else if (startDate || endDate) {
+        const dateFilter: any = {};
+        if (startDate) dateFilter.gte = new Date(`${startDate}T00:00:00Z`);
+        if (endDate) dateFilter.lte = new Date(`${endDate}T23:59:59Z`);
+        filters.push({ travelDate: dateFilter });
+      }
+
+      if (filters.length === 0) {
+        return NextResponse.json(
+          { error: 'Provide ids array, filter criteria (tourId, date, month, status), or all=true to delete' },
+          { status: 400 }
+        );
+      }
+
+      whereClause = { AND: filters };
     }
 
     const bookingsToDelete = await prisma.booking.findMany({

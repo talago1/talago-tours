@@ -69,6 +69,17 @@ export default function MediaSection({ values, errors, onChange }: MediaSectionP
     });
   }, [onChange]);
 
+  const handleMediaBatchUpdate = useCallback(
+    (newCover: string | undefined, newGallery: string[]) => {
+      const currentCover = newCover !== undefined ? newCover : valuesRef.current.coverImage;
+      const currentGallery = [...(valuesRef.current.galleryImages || []), ...newGallery];
+      const updated = { coverImage: currentCover, galleryImages: currentGallery };
+      valuesRef.current = updated;
+      onChange(updated);
+    },
+    [onChange]
+  );
+
   return (
     <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
       <div className="mb-4 flex items-center gap-2">
@@ -84,6 +95,7 @@ export default function MediaSection({ values, errors, onChange }: MediaSectionP
         onCoverChange={handleCoverChange}
         onGalleryAdd={handleGalleryAdd}
         onGalleryAddBatch={handleGalleryAddBatch}
+        onMediaBatchUpdate={handleMediaBatchUpdate}
         onGalleryRemove={handleGalleryRemove}
         onGalleryRemoveBatch={handleGalleryRemoveBatch}
         onGalleryClear={handleGalleryClear}

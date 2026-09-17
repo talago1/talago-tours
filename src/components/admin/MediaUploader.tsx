@@ -15,6 +15,7 @@ interface MediaUploaderProps {
   onCoverChange: (url: string) => void;
   onGalleryAdd: (url: string) => void;
   onGalleryAddBatch?: (urls: string[]) => void;
+  onMediaBatchUpdate?: (cover: string | undefined, newGallery: string[]) => void;
   onGalleryRemove: (index: number) => void;
   onGalleryRemoveBatch?: (indices: number[]) => void;
   onGalleryClear?: () => void;
@@ -51,6 +52,7 @@ export default function MediaUploader({
   onCoverChange,
   onGalleryAdd,
   onGalleryAddBatch,
+  onMediaBatchUpdate,
   onGalleryRemove,
   onGalleryRemoveBatch,
   onGalleryClear,
@@ -82,9 +84,8 @@ export default function MediaUploader({
       // Process up to 4 concurrent uploads at a time
       const CONCURRENCY = 4;
       const queue = [...files];
-      // Collect all gallery URLs to commit atomically at the end
+      let assignedCover: string | undefined = undefined;
       const batchGalleryUrls: string[] = [];
-      let coverSet = false;
 
       const worker = async () => {
         while (queue.length > 0) {
@@ -118,8 +119,7 @@ export default function MediaUploader({
             setTimeout(() => removeUploadItem(id), 600);
 
             if (isCover) {
-              onCoverChange(uploadedUrl);
-              coverSet = true;
+              assignedCover = uploadedUrl;
             } else {
               batchGalleryUrls.push(uploadedUrl);
             }
@@ -136,18 +136,23 @@ export default function MediaUploader({
       const workers = Array.from({ length: Math.min(CONCURRENCY, files.length) }, () => worker());
       await Promise.all(workers);
 
-      // Commit all gallery images in one atomic state update
-      if (batchGalleryUrls.length > 0) {
-        if (onGalleryAddBatch) {
-          onGalleryAddBatch(batchGalleryUrls);
-        } else {
-          batchGalleryUrls.forEach((url) => onGalleryAdd(url));
+      // Single atomic commit for both cover and all gallery images!
+      if (onMediaBatchUpdate) {
+        onMediaBatchUpdate(assignedCover, batchGalleryUrls);
+      } else {
+        if (assignedCover) onCoverChange(assignedCover);
+        if (batchGalleryUrls.length > 0) {
+          if (onGalleryAddBatch) {
+            onGalleryAddBatch(batchGalleryUrls);
+          } else {
+            batchGalleryUrls.forEach((url) => onGalleryAdd(url));
+          }
         }
       }
 
       setIsProcessingBatch(false);
     },
-    [coverImage, onCoverChange, onGalleryAdd, onGalleryAddBatch, removeUploadItem]
+    [coverImage, onCoverChange, onGalleryAdd, onGalleryAddBatch, onMediaBatchUpdate, removeUploadItem]
   );
 
   const handleDrop = useCallback(
@@ -163,7 +168,7 @@ export default function MediaUploader({
 
   const handleMultiFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      handleBatchFiles(e.target.files);
+      handleBatchFiles(e.target.files, 'gallery');
     }
     if (e.target) e.target.value = '';
   };
