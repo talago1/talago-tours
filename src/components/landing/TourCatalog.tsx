@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { ArrowRight, Clock, MapPin, Star, Waves, Mountain } from 'lucide-react';
+import { ArrowRight, Clock, MapPin, Star, Waves, Mountain, Landmark, Sparkles, Ticket } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import CarouselImages from '../ui/CarouselImages';
 
-type TourCategory = 'Sea' | 'Safari';
+type TourCategory = 'Sea' | 'Safari' | 'Cultural' | 'Spa' | 'Entertainment';
 
 interface TourData {
   id: string;
@@ -36,15 +36,20 @@ interface TourCatalogProps {
 
 function normalizeCategory(cat: string | null): TourCategory {
   if (!cat) return 'Sea';
-  const upper = cat.toUpperCase();
-  if (upper.includes('SAFARI') || upper.includes('DESERT') || upper.includes('ADVENTURE')) return 'Safari';
+  const lower = cat.toLowerCase();
+  if (lower.includes('cultural') || lower.includes('histor') || lower === 'city') return 'Cultural';
+  if (lower.includes('spa') || lower.includes('wellness')) return 'Spa';
+  if (lower.includes('entertainment') || lower.includes('dolphin')) return 'Entertainment';
+  if (lower.includes('safari') || lower.includes('desert') || lower.includes('adventure')) return 'Safari';
   return 'Sea';
 }
 
 function getGradient(category: TourCategory): string {
-  return category === 'Sea'
-    ? 'from-[#0EA5E9] via-[#075985] to-[#070F1E]'
-    : 'from-[#EAB308] via-[#92400E] to-[#070F1E]';
+  if (category === 'Safari') return 'from-[#EAB308] via-[#92400E] to-[#070F1E]';
+  if (category === 'Cultural') return 'from-[#A78BFA] via-[#6D28D9] to-[#070F1E]';
+  if (category === 'Spa') return 'from-[#34D399] via-[#065F46] to-[#070F1E]';
+  if (category === 'Entertainment') return 'from-[#F472B6] via-[#9D174D] to-[#070F1E]';
+  return 'from-[#0EA5E9] via-[#075985] to-[#070F1E]';
 }
 
 function getBadge(rating: number): string {
@@ -67,22 +72,46 @@ function RatingStars({ ratingAverage }: { ratingAverage: number }) {
   );
 }
 
+function getCategoryIcon(category: TourCategory) {
+  if (category === 'Safari') return <Mountain className="h-4 w-4 text-[#EAB308]" />;
+  if (category === 'Cultural') return <Landmark className="h-4 w-4 text-[#A78BFA]" />;
+  if (category === 'Spa') return <Sparkles className="h-4 w-4 text-[#34D399]" />;
+  if (category === 'Entertainment') return <Ticket className="h-4 w-4 text-[#F472B6]" />;
+  return <Waves className="h-4 w-4 text-[#06B6D4]" />;
+}
+
 export default function TourCatalog({ tours }: TourCatalogProps) {
   const { dict } = useLanguage();
   const [activeTab, setActiveTab] = useState<string>(dict.catalog.all);
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
 
-  const tabs = [dict.catalog.all, dict.catalog.sea, dict.catalog.safari];
+  const tabs = [
+    dict.catalog.all,
+    dict.catalog.sea,
+    dict.catalog.safari,
+    dict.catalog.cultural,
+    dict.catalog.spa,
+    dict.catalog.entertainment,
+  ];
 
   const filteredTours = activeTab === dict.catalog.all
     ? tours
     : tours.filter((t) => {
         const cat = normalizeCategory(t.category);
-        return activeTab === dict.catalog.sea ? cat === 'Sea' : cat === 'Safari';
+        if (activeTab === dict.catalog.sea) return cat === 'Sea';
+        if (activeTab === dict.catalog.safari) return cat === 'Safari';
+        if (activeTab === dict.catalog.cultural) return cat === 'Cultural';
+        if (activeTab === dict.catalog.spa) return cat === 'Spa';
+        if (activeTab === dict.catalog.entertainment) return cat === 'Entertainment';
+        return true;
       });
 
   const getLocalizedCategory = (cat: TourCategory) => {
-    return cat === 'Sea' ? dict.catalog.sea : dict.catalog.safari;
+    if (cat === 'Safari') return dict.catalog.safari;
+    if (cat === 'Cultural') return dict.catalog.cultural;
+    if (cat === 'Spa') return dict.catalog.spa;
+    if (cat === 'Entertainment') return dict.catalog.entertainment;
+    return dict.catalog.sea;
   };
 
   return (
@@ -153,11 +182,7 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
                           <div className="flex h-full items-end p-6">
                             <div className="rounded-2xl border border-white/10 bg-[#070F1E]/55 px-4 py-3 backdrop-blur-md">
                               <div className="flex items-center gap-2 text-sm font-bold text-white">
-                                {cat === 'Sea' ? (
-                                  <Waves className="h-4 w-4 text-[#06B6D4]" />
-                                ) : (
-                                  <Mountain className="h-4 w-4 text-[#EAB308]" />
-                                )}
+                                {getCategoryIcon(cat)}
                                 {getLocalizedCategory(cat)}
                               </div>
                             </div>
@@ -167,15 +192,12 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
                       {allImages.length > 0 && (
                         <div className="absolute bottom-4 left-4 rounded-2xl border border-white/10 bg-[#070F1E]/55 px-4 py-3 backdrop-blur-md z-10">
                           <div className="flex items-center gap-2 text-sm font-bold text-white">
-                            {cat === 'Sea' ? (
-                              <Waves className="h-4 w-4 text-[#06B6D4]" />
-                            ) : (
-                              <Mountain className="h-4 w-4 text-[#EAB308]" />
-                            )}
+                            {getCategoryIcon(cat)}
                             {getLocalizedCategory(cat)}
                           </div>
                         </div>
                       )}
+
                       <div className="absolute left-5 top-5 rounded-full bg-[#EAB308] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#070F1E] shadow-xl shadow-[#EAB308]/30 z-10">
                         {getBadge(tour.ratingAverage)}
                       </div>

@@ -265,8 +265,8 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  _request: NextRequest,
+export async function PATCH(
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -278,23 +278,118 @@ export async function DELETE(
       return NextResponse.json({ error: 'Tour not found' }, { status: 404 });
     }
 
+    const body = await request.json().catch(() => ({}));
+    const updateData: Record<string, unknown> = {};
+
+    if (body.status !== undefined) {
+      updateData.status = body.status;
+    }
+    if (body.category !== undefined) {
+      updateData.category = body.category;
+    }
+    if (body.originalPrice !== undefined) {
+      updateData.originalPrice = body.originalPrice;
+    }
+
+    const tour = await prisma.tour.update({
+      where: { id: params.id },
+      data: updateData,
+    });
+
+    return NextResponse.json({ tour, message: 'Tour updated successfully' });
+  } catch (error) {
+    console.error('Patch tour error:', error);
+    return NextResponse.json({ error: 'Failed to update tour' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const existing = await prisma.tour.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Tour not found' }, { status: 404 });
+    }
+
+    const url = new URL(request.url);
+    const action = url.searchParams.get('action');
+    const force = url.searchParams.get('force') === 'true';
+
+    // 1. Archive/Deactivate option
+    if (action === 'archive' || action === 'deactivate') {
+      const tour = await prisma.tour.update({
+        where: { id: params.id },
+        data: { status: 'INACTIVE' },
+      });
+      return NextResponse.json({
+        message: 'Tour deactivated successfully and hidden from public catalog',
+        status: 'INACTIVE',
+        tour,
+      });
+    }
+
     // Check if there are active bookings
     const bookingsCount = await prisma.booking.count({
       where: { tourId: params.id },
     });
 
-    if (bookingsCount > 0) {
+    // 2. If tour has bookings and not forced, ask user with options
+    if (bookingsCount > 0 && !force) {
       return NextResponse.json(
-        { error: 'Cannot delete tour because it has active bookings. Archive it instead.' },
+        {
+          error: `Cannot delete tour directly because it has ${bookingsCount} active booking(s). Archive it to hide from public or confirm force delete to remove all bookings.`,
+          bookingsCount,
+          hasBookings: true,
+        },
         { status: 400 }
       );
     }
 
-    await prisma.tour.delete({
-      where: { id: params.id },
+    // 3. Force cascade delete (or normal delete if no bookings)
+    await prisma.$transaction(async (tx) => {
+      if (bookingsCount > 0) {
+        // Delete related transactions
+        await tx.transaction.deleteMany({
+          where: { booking: { tourId: params.id } },
+        });
+        // Delete bookings
+        await tx.booking.deleteMany({
+          where: { tourId: params.id },
+        });
+      }
+
+      // Delete reviews
+      await tx.review.deleteMany({
+        where: { tourId: params.id },
+      });
+
+      // Delete time slots
+      await tx.tourTimeSlot.deleteMany({
+        where: { tourId: params.id },
+      });
+
+      // Delete media assets
+      await tx.mediaAsset.deleteMany({
+        where: { tourId: params.id },
+      });
+
+      // Delete the tour
+      await tx.tour.delete({
+        where: { id: params.id },
+      });
     });
 
-    return NextResponse.json({ message: 'Tour deleted successfully' });
+    return NextResponse.json({
+      message: bookingsCount > 0
+        ? `Tour and its ${bookingsCount} associated booking(s) deleted successfully`
+        : 'Tour deleted successfully',
+      deletedBookingsCount: bookingsCount,
+    });
   } catch (error) {
     console.error('Delete tour error:', error);
     return NextResponse.json({ error: 'Failed to delete tour' }, { status: 500 });

@@ -8,13 +8,16 @@ import { useLanguage } from '@/context/LanguageContext';
 
 // Map internal categories to display labels
 const categoryLabels: Record<string, string> = {
-  SNORKELING: 'Snorkeling',
-  DIVING: 'Diving',
-  BOAT_TRIP: 'Boat Trip',
-  SAFARI: 'Safari',
-  DESERT: 'Desert',
-  CITY: 'City',
-  ADVENTURE: 'Adventure',
+  SNORKELING:    'Snorkeling',
+  DIVING:        'Diving',
+  BOAT_TRIP:     'Boat Trip',
+  SAFARI:        'Safari',
+  DESERT:        'Desert',
+  CULTURAL:      'Cultural',
+  SPA:           'Spa & Wellness',
+  ENTERTAINMENT: 'Entertainment',
+  CITY:          'City',
+  ADVENTURE:     'Adventure',
 };
 
 interface TourSearchHeaderProps {

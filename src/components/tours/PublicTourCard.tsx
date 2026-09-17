@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Clock, MapPin, Star, Waves, Mountain } from 'lucide-react';
+import { ArrowRight, Clock, MapPin, Star, Waves, Mountain, Landmark, Sparkles, Ticket } from 'lucide-react';
 import CarouselImages from '@/components/ui/CarouselImages';
 
 import { useLanguage } from '@/context/LanguageContext';
 
-type TourCategory = 'sea' | 'snorkeling' | 'diving' | 'boat_trip' | 'safari' | 'desert' | 'adventure' | 'city';
+type TourCategory = 'sea' | 'snorkeling' | 'diving' | 'boat_trip' | 'safari' | 'desert' | 'adventure' | 'city' | 'cultural' | 'spa' | 'entertainment';
 
 interface TourData {
   id: string;
@@ -38,6 +38,9 @@ function normalizeCategory(cat: string | null): TourCategory {
   if (lower === 'diving')     return 'diving';
   if (lower === 'boat_trip')  return 'boat_trip';
   if (lower === 'adventure')  return 'adventure';
+  if (lower.includes('cultural') || lower.includes('histor')) return 'cultural';
+  if (lower.includes('spa') || lower.includes('wellness')) return 'spa';
+  if (lower.includes('entertainment') || lower.includes('dolphin')) return 'entertainment';
   if (lower === 'city')       return 'city';
   if (lower === 'desert')     return 'desert';
   if (lower.includes('safari') || lower.includes('desert')) return 'safari';
@@ -45,9 +48,27 @@ function normalizeCategory(cat: string | null): TourCategory {
 }
 
 function getGradient(category: TourCategory): string {
-  return (category === 'safari' || category === 'desert')
-    ? 'from-[#EAB308] via-[#92400E] to-[#070F1E]'
-    : 'from-[#0EA5E9] via-[#075985] to-[#070F1E]';
+  if (category === 'safari' || category === 'desert') return 'from-[#EAB308] via-[#92400E] to-[#070F1E]';
+  if (category === 'cultural') return 'from-[#A78BFA] via-[#6D28D9] to-[#070F1E]';
+  if (category === 'spa') return 'from-[#34D399] via-[#065F46] to-[#070F1E]';
+  if (category === 'entertainment') return 'from-[#F472B6] via-[#9D174D] to-[#070F1E]';
+  return 'from-[#0EA5E9] via-[#075985] to-[#070F1E]';
+}
+
+function getCategoryLabel(cat: TourCategory): string {
+  if (cat === 'safari' || cat === 'desert') return 'Safari';
+  if (cat === 'cultural') return 'Cultural';
+  if (cat === 'spa') return 'Spa & Wellness';
+  if (cat === 'entertainment') return 'Entertainment';
+  return 'Sea';
+}
+
+function getCategoryIcon(category: TourCategory) {
+  if (category === 'safari' || category === 'desert') return <Mountain className="h-4 w-4 text-[#EAB308]" />;
+  if (category === 'cultural') return <Landmark className="h-4 w-4 text-[#A78BFA]" />;
+  if (category === 'spa') return <Sparkles className="h-4 w-4 text-[#34D399]" />;
+  if (category === 'entertainment') return <Ticket className="h-4 w-4 text-[#F472B6]" />;
+  return <Waves className="h-4 w-4 text-[#06B6D4]" />;
 }
 
 function getBadge(rating: number): string {
@@ -105,12 +126,8 @@ export default function PublicTourCard({ tour }: { tour: TourData }) {
               <div className="flex h-full items-end p-6">
                 <div className="rounded-2xl border border-white/10 bg-[#070F1E]/55 px-4 py-3 backdrop-blur-md">
                   <div className="flex items-center gap-2 text-sm font-bold text-white">
-                    {(cat !== 'safari' && cat !== 'desert') ? (
-                      <Waves className="h-4 w-4 text-[#06B6D4]" />
-                    ) : (
-                      <Mountain className="h-4 w-4 text-[#EAB308]" />
-                    )}
-                    {(cat !== 'safari' && cat !== 'desert') ? 'Sea' : 'Safari'}
+                    {getCategoryIcon(cat)}
+                    {getCategoryLabel(cat)}
                   </div>
                 </div>
               </div>
@@ -119,12 +136,8 @@ export default function PublicTourCard({ tour }: { tour: TourData }) {
           {allImages.length > 0 && (
             <div className="absolute bottom-4 left-4 rounded-2xl border border-white/10 bg-[#070F1E]/55 px-4 py-3 backdrop-blur-md z-10">
               <div className="flex items-center gap-2 text-sm font-bold text-white">
-                {(cat !== 'safari' && cat !== 'desert') ? (
-                  <Waves className="h-4 w-4 text-[#06B6D4]" />
-                ) : (
-                  <Mountain className="h-4 w-4 text-[#EAB308]" />
-                )}
-                {(cat !== 'safari' && cat !== 'desert') ? 'Sea' : 'Safari'}
+                {getCategoryIcon(cat)}
+                {getCategoryLabel(cat)}
               </div>
             </div>
           )}

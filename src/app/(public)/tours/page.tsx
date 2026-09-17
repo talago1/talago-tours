@@ -20,13 +20,16 @@ type TourCategory = 'sea' | 'snorkeling' | 'diving' | 'boat_trip' | 'safari' | '
 // Legacy records use broad values: 'sea' or 'safari' (lowercase) or 'Sea'/'Safari' (capitalized).
 // Clicking a granular filter first tries the exact value, then the broad parent as fallback.
 const CATEGORY_FILTER_MAP: Record<string, string[]> = {
-  SNORKELING:  ['snorkeling', 'sea', 'Sea'],
-  DIVING:      ['diving',     'sea', 'Sea'],
-  BOAT_TRIP:   ['boat_trip',  'sea', 'Sea'],
-  ADVENTURE:   ['adventure',  'sea', 'Sea'],
-  CITY:        ['city',       'sea', 'Sea'],
-  SAFARI:      ['safari',           'Safari'],
-  DESERT:      ['desert',    'safari', 'Safari'],
+  SNORKELING:    ['snorkeling', 'sea', 'Sea'],
+  DIVING:        ['diving',     'sea', 'Sea'],
+  BOAT_TRIP:     ['boat_trip',  'sea', 'Sea'],
+  ADVENTURE:     ['adventure',  'sea', 'Sea'],
+  CITY:          ['city',       'sea', 'Sea'],
+  SAFARI:        ['safari',           'Safari'],
+  DESERT:        ['desert',    'safari', 'Safari'],
+  CULTURAL:      ['cultural', 'Cultural', 'Historical'],
+  SPA:           ['spa', 'Spa & Wellness', 'wellness'],
+  ENTERTAINMENT: ['entertainment', 'Entertainment'],
 };
 
 
@@ -51,7 +54,9 @@ interface CatalogPageProps {
 }
 
 async function CatalogContent({ searchParams: filters }: { searchParams: CatalogPageProps['searchParams'] }) {
-  const where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = {
+    status: 'ACTIVE',
+  };
 
   if (filters.destination) {
     where.destination = { slug: filters.destination };

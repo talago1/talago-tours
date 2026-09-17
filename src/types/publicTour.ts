@@ -4,6 +4,9 @@ export const TOUR_CATEGORIES = [
   'BOAT_TRIP',
   'SAFARI',
   'DESERT',
+  'CULTURAL',
+  'SPA',
+  'ENTERTAINMENT',
   'CITY',
   'ADVENTURE',
 ] as const;

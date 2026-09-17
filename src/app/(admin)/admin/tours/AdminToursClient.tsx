@@ -341,6 +341,7 @@ function GalleryAddButton({
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.webp'] },
+    multiple: true,
     maxSize: 10 * 1024 * 1024,
     disabled: uploading,
   });
@@ -953,16 +954,82 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
     }
   }
 
-  async function handleDelete(tourId: string) {
-    if (!confirm('Are you absolutely sure you want to delete this experience?')) return;
+  const [togglingStatusId, setTogglingStatusId] = useState<string | null>(null);
+
+  async function handleToggleStatus(tour: Tour) {
+    const newStatus = tour.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    setTogglingStatusId(tour.id);
+    try {
+      const res = await fetch(`/api/admin/tours/${tour.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update tour status');
+      }
+      setTours((prev) =>
+        prev.map((t) => (t.id === tour.id ? { ...t, status: newStatus } : t))
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update tour status');
+    } finally {
+      setTogglingStatusId(null);
+    }
+  }
+
+  async function handleDelete(tourId: string, tourTitle?: string) {
+    if (!confirm(`Are you sure you want to delete "${tourTitle || 'this experience'}"?`)) return;
 
     try {
       const response = await fetch(`/api/admin/tours/${tourId}`, {
         method: 'DELETE',
       });
 
+      const data = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        const data = await response.json();
+        if (data.hasBookings) {
+          const choice = confirm(
+            `⚠️ This tour has ${data.bookingsCount} active booking(s)!\n\n` +
+            `• Click [OK] to DEACTIVATE (Hide) the tour from public catalog while preserving booking records.\n` +
+            `• Click [Cancel] if you want to keep the tour as is, or Force Delete all records.`
+          );
+
+          if (choice) {
+            // Archive / Deactivate
+            const archiveRes = await fetch(`/api/admin/tours/${tourId}?action=archive`, {
+              method: 'DELETE',
+            });
+            if (archiveRes.ok) {
+              setTours((prev) =>
+                prev.map((t) => (t.id === tourId ? { ...t, status: 'INACTIVE' } : t))
+              );
+              alert('Tour has been deactivated and hidden from the public catalog.');
+              return;
+            }
+          } else {
+            const forceConfirm = prompt(
+              `⚠️ DANGER: Force deleting will PERMANENTLY ERASE this tour AND all ${data.bookingsCount} booking(s) and transactions!\n\n` +
+              `Type DELETE below to confirm:`
+            );
+            if (forceConfirm === 'DELETE') {
+              const forceRes = await fetch(`/api/admin/tours/${tourId}?force=true`, {
+                method: 'DELETE',
+              });
+              if (!forceRes.ok) {
+                const errData = await forceRes.json();
+                throw new Error(errData.error || 'Force delete failed');
+              }
+              setTours((prev) => prev.filter((t) => t.id !== tourId));
+              alert('Tour and its associated bookings were permanently deleted.');
+              return;
+            }
+          }
+          return;
+        }
+
         throw new Error(data.error || 'Failed to delete tour');
       }
 
@@ -1064,17 +1131,25 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
                     {tour.category || tour.type}
                   </div>
 
-                  {/* Status badge */}
-                  <div className="absolute right-4 top-4">
-                    <span
-                      className={`rounded-full px-3 py-1 text-[10px] font-black ${
+                  {/* Status badge with 1-click toggle */}
+                  <div className="absolute right-4 top-4 z-10">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleStatus(tour);
+                      }}
+                      title={tour.status === 'ACTIVE' ? 'Click to Deactivate / Hide from public' : 'Click to Activate / Publish'}
+                      disabled={togglingStatusId === tour.id}
+                      className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black tracking-wider transition-all duration-200 hover:scale-105 shadow-md ${
                         tour.status === 'ACTIVE'
-                          ? 'bg-emerald-400/10 text-emerald-300'
-                          : 'bg-[#EAB308]/10 text-[#EAB308]'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                          : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
                       }`}
                     >
-                      {tour.status}
-                    </span>
+                      <span className={`h-1.5 w-1.5 rounded-full ${tour.status === 'ACTIVE' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                      {togglingStatusId === tour.id ? 'Updating...' : tour.status}
+                    </button>
                   </div>
                 </div>
 
@@ -1127,8 +1202,9 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDelete(tour.id)}
+                      onClick={() => handleDelete(tour.id, getTourTitle(tour.translations))}
                       className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-slate-400 transition-all hover:border-red-400/30 hover:text-red-400"
+                      title="Delete or Archive Tour"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -1376,9 +1452,20 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
 
               {/* Multi-Image Gallery */}
               <div className="space-y-2">
-                <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                  Gallery Images ({galleryImages.length})
-                </span>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                    Gallery Images ({galleryImages.length})
+                  </span>
+                  {galleryImages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setGalleryImages([])}
+                      className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
                   {galleryImages.map((url, index) => (
                     <div key={index} className="group relative aspect-square overflow-hidden rounded-2xl border border-white/10">
@@ -1471,6 +1558,9 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
                     <option value="safari">🦁 Safari / Desert (All)</option>
                     <option value="desert">🏜️ Desert</option>
                     <option value="adventure">🧗 Adventure</option>
+                    <option value="cultural">🏛️ Cultural &amp; Historical</option>
+                    <option value="spa">💆 Spa &amp; Wellness</option>
+                    <option value="entertainment">🐬 Entertainment</option>
                     <option value="city">🏙️ City Tour</option>
                   </select>
                 </label>
