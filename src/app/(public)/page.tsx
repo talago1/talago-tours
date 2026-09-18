@@ -3,6 +3,7 @@ export const revalidate = 0;
 
 import { prisma } from '@/lib/prisma';
 import { parseSettingValue } from '@/lib/systemSettings';
+import { SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
 import Hero from '@/components/landing/Hero';
 import BentoGridUSPs from '@/components/landing/BentoGridUSPs';
 import TourCatalog from '@/components/landing/TourCatalog';
@@ -55,25 +56,40 @@ export default async function HomePage() {
   ]);
 
   const bannerData = bannerSetting
-    ? parseSettingValue<{
-        heroBackground?: string;
-        conciergePickImage?: string;
-        conciergePickTitle?: string;
-        conciergePickDescription?: string;
-      }>(bannerSetting.value, {})
-    : {};
-  const heroBackground = bannerData.heroBackground || '';
-  const conciergePickImage = bannerData.conciergePickImage || '';
-  const conciergePickTitle = bannerData.conciergePickTitle || '';
-  const conciergePickDescription = bannerData.conciergePickDescription || '';
+    ? parseSettingValue<SystemSettings['banners']>(bannerSetting.value, DEFAULT_SYSTEM_SETTINGS.banners)
+    : DEFAULT_SYSTEM_SETTINGS.banners;
 
   return (
     <div className="min-h-screen bg-[#070F1E]">
       <Hero
-        heroBackground={heroBackground}
-        conciergePickImage={conciergePickImage}
-        conciergePickTitle={conciergePickTitle}
-        conciergePickDescription={conciergePickDescription}
+        heroBackground={bannerData.heroBackground}
+        conciergePickImage={bannerData.conciergePickImage}
+        conciergePickTitle={bannerData.conciergePickTitle}
+        conciergePickDescription={bannerData.conciergePickDescription}
+        conciergePickBadge={bannerData.conciergePickBadge}
+        conciergePickPrice={bannerData.conciergePickPrice}
+        conciergePickLink={bannerData.conciergePickLink}
+        showConciergePick={bannerData.showConciergePick}
+        heroBadge={bannerData.heroBadge}
+        heroTitle={bannerData.heroTitle}
+        heroTagline={bannerData.heroTagline}
+        heroDescription={bannerData.heroDescription}
+        showHeroBadge={bannerData.showHeroBadge}
+        showHeroTagline={bannerData.showHeroTagline}
+        showHeroDescription={bannerData.showHeroDescription}
+        heroPrimaryBtnText={bannerData.heroPrimaryBtnText}
+        heroPrimaryBtnLink={bannerData.heroPrimaryBtnLink}
+        showPrimaryBtn={bannerData.showPrimaryBtn}
+        heroSecondaryBtnText={bannerData.heroSecondaryBtnText}
+        heroSecondaryBtnLink={bannerData.heroSecondaryBtnLink}
+        showSecondaryBtn={bannerData.showSecondaryBtn}
+        showHeroMetrics={bannerData.showHeroMetrics}
+        heroMetric1Value={bannerData.heroMetric1Value}
+        heroMetric1Label={bannerData.heroMetric1Label}
+        heroMetric2Value={bannerData.heroMetric2Value}
+        heroMetric2Label={bannerData.heroMetric2Label}
+        heroMetric3Value={bannerData.heroMetric3Value}
+        heroMetric3Label={bannerData.heroMetric3Label}
       />
       <BentoGridUSPs />
       <TourCatalog tours={tours} />

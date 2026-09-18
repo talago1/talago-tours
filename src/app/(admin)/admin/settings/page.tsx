@@ -30,7 +30,7 @@ const SECTIONS: { key: ActiveSection; label: string; icon: typeof Settings }[] =
   { key: 'contact', label: 'Contact Info', icon: Phone },
   { key: 'financial', label: 'Currency & Pricing', icon: DollarSign },
   { key: 'system', label: 'System Toggles', icon: ToggleLeft },
-  { key: 'banners', label: 'Banners & Assets', icon: ImageIcon },
+  { key: 'banners', label: 'Hero & Banners', icon: ImageIcon },
   { key: 'notifications', label: 'Notifications', icon: MessageSquare },
 ];
 
@@ -105,8 +105,27 @@ export default function AdminSettingsPage() {
     });
   }
 
+  const heroBgUploadRef = useRef<HTMLInputElement>(null);
   const conciergeUploadRef = useRef<HTMLInputElement>(null);
   const aboutUploadRef = useRef<HTMLInputElement>(null);
+
+  async function handleHeroBgUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('files', file);
+    try {
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      const url = data.uploaded?.[0]?.url;
+      if (url) {
+        setSettings((prev) => ({ ...prev, banners: { ...prev.banners, heroBackground: url } }));
+      }
+    } catch {
+      // silent
+    }
+    if (e.target) e.target.value = '';
+  }
 
   async function handleConciergeUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -384,106 +403,443 @@ export default function AdminSettingsPage() {
                 </div>
 
                 <div className="space-y-6">
-                  {/* Primary Banner URLs */}
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-                    <label className="block">
-                      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Hero Background</span>
-                      <input
-                        type="url"
-                        value={settings.banners.heroBackground}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            banners: { ...prev.banners, heroBackground: e.target.value },
-                          }))
-                        }
-                        placeholder="https://images.unsplash.com/..."
-                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Split Section Left</span>
-                      <input
-                        type="url"
-                        value={settings.banners.splitSectionLeft}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            banners: { ...prev.banners, splitSectionLeft: e.target.value },
-                          }))
-                        }
-                        placeholder="https://images.unsplash.com/..."
-                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Split Section Right</span>
-                      <input
-                        type="url"
-                        value={settings.banners.splitSectionRight}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            banners: { ...prev.banners, splitSectionRight: e.target.value },
-                          }))
-                        }
-                        placeholder="https://images.unsplash.com/..."
-                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Tours Catalog Background</span>
-                      <input
-                        type="url"
-                        value={settings.banners.toursCatalogBackground}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            banners: { ...prev.banners, toursCatalogBackground: e.target.value },
-                          }))
-                        }
-                        placeholder="https://images.unsplash.com/..."
-                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Destinations Showcase Background</span>
-                      <input
-                        type="url"
-                        value={settings.banners.destinationsBackground}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            banners: { ...prev.banners, destinationsBackground: e.target.value },
-                          }))
-                        }
-                        placeholder="https://images.unsplash.com/..."
-                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Booking Checkout Background</span>
-                      <input
-                        type="url"
-                        value={settings.banners.bookingCheckoutBackground}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            banners: { ...prev.banners, bookingCheckoutBackground: e.target.value },
-                          }))
-                        }
-                        placeholder="https://images.unsplash.com/..."
-                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
-                      />
-                    </label>
+                  {/* Hero Section Master Controls */}
+                  <div className="rounded-3xl border border-white/10 bg-[#070F1E] p-6 shadow-xl">
+                    <div className="mb-5 flex items-center justify-between border-b border-white/10 pb-4">
+                      <div>
+                        <h3 className="text-base font-black text-white flex items-center gap-2">
+                          <span className="flex h-2.5 w-2.5 rounded-full bg-[#FFD700]" />
+                          Hero Section & Background
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Control hero background scenery, headlines, brand slogan, CTAs, and performance metrics
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Hero Background Scenery */}
+                    <div className="mb-6 rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+                      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-[#FFD700]">
+                        Hero Background Scenery Image
+                      </span>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <input
+                          type="url"
+                          value={settings.banners.heroBackground}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, heroBackground: e.target.value },
+                            }))
+                          }
+                          placeholder="https://... or click Upload"
+                          className="flex-1 rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+                        <input
+                          ref={heroBgUploadRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleHeroBgUpload}
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => heroBgUploadRef.current?.click()}
+                          className="flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#FFD700] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] text-[#070F1E] transition-all hover:bg-[#FFE55C]"
+                        >
+                          <Upload className="h-4 w-4" />
+                          Upload Scenery
+                        </button>
+                        {settings.banners.heroBackground && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroBackground: '' },
+                              }))
+                            }
+                            className="flex shrink-0 items-center justify-center rounded-2xl border border-white/10 px-4 py-3.5 text-xs text-slate-400 hover:text-red-400"
+                            title="Reset to default background"
+                          >
+                            Reset
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Hero Text Fields & Toggles */}
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                      {/* Badge */}
+                      <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                            Hero Top Badge
+                          </span>
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={settings.banners.showHeroBadge !== false}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: { ...prev.banners, showHeroBadge: e.target.checked },
+                                }))
+                              }
+                              className="rounded border-white/20 bg-[#070F1E] text-[#FFD700] focus:ring-0"
+                            />
+                            Show Badge
+                          </label>
+                        </div>
+                        <input
+                          type="text"
+                          value={settings.banners.heroBadge || ''}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, heroBadge: e.target.value },
+                            }))
+                          }
+                          placeholder="Default: Private Red Sea escapes and golden desert expeditions"
+                          className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+                        <p className="mt-1 text-[11px] text-slate-500">Leave empty to use automatic multilingual translation.</p>
+                      </div>
+
+                      {/* Main Title */}
+                      <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                          Main Headline (Title)
+                        </span>
+                        <input
+                          type="text"
+                          value={settings.banners.heroTitle || ''}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, heroTitle: e.target.value },
+                            }))
+                          }
+                          placeholder="Default: Unveil Hurghada's Hidden Paradises"
+                          className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+                        <p className="mt-1 text-[11px] text-slate-500">Leave empty to use automatic multilingual translation.</p>
+                      </div>
+
+                      {/* Brand Tagline */}
+                      <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-[#FFD700]">
+                            Brand Slogan (Tagline)
+                          </span>
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={settings.banners.showHeroTagline !== false}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: { ...prev.banners, showHeroTagline: e.target.checked },
+                                }))
+                              }
+                              className="rounded border-white/20 bg-[#070F1E] text-[#FFD700] focus:ring-0"
+                            />
+                            Show Slogan
+                          </label>
+                        </div>
+                        <input
+                          type="text"
+                          value={settings.banners.heroTagline || ''}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, heroTagline: e.target.value },
+                            }))
+                          }
+                          placeholder="Default: Not a Tour. A Memory."
+                          className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2.5 text-sm font-semibold text-[#FFD700] outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+                        <p className="mt-1 text-[11px] text-slate-500">Displays prominently in luxury golden italics.</p>
+                      </div>
+
+                      {/* Description */}
+                      <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                            Hero Description
+                          </span>
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={settings.banners.showHeroDescription !== false}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: { ...prev.banners, showHeroDescription: e.target.checked },
+                                }))
+                              }
+                              className="rounded border-white/20 bg-[#070F1E] text-[#FFD700] focus:ring-0"
+                            />
+                            Show Description
+                          </label>
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={settings.banners.heroDescription || ''}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, heroDescription: e.target.value },
+                            }))
+                          }
+                          placeholder="Default: Tailored boat trips, secluded reef snorkels, and desert escapes..."
+                          className="w-full resize-none rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+                        <p className="mt-1 text-[11px] text-slate-500">Leave empty to use automatic multilingual translation.</p>
+                      </div>
+                    </div>
+
+                    {/* CTAs Configuration */}
+                    <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                      {/* Primary Button */}
+                      <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                            Primary CTA Button
+                          </span>
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={settings.banners.showPrimaryBtn !== false}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: { ...prev.banners, showPrimaryBtn: e.target.checked },
+                                }))
+                              }
+                              className="rounded border-white/20 bg-[#070F1E] text-[#FFD700] focus:ring-0"
+                            />
+                            Visible
+                          </label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={settings.banners.heroPrimaryBtnText || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroPrimaryBtnText: e.target.value },
+                              }))
+                            }
+                            placeholder="Text: Explore Tours"
+                            className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                          <input
+                            type="text"
+                            value={settings.banners.heroPrimaryBtnLink || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroPrimaryBtnLink: e.target.value },
+                              }))
+                            }
+                            placeholder="Link: /tours"
+                            className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Secondary Button */}
+                      <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                            Secondary CTA Button
+                          </span>
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={settings.banners.showSecondaryBtn !== false}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: { ...prev.banners, showSecondaryBtn: e.target.checked },
+                                }))
+                              }
+                              className="rounded border-white/20 bg-[#070F1E] text-[#FFD700] focus:ring-0"
+                            />
+                            Visible
+                          </label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={settings.banners.heroSecondaryBtnText || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroSecondaryBtnText: e.target.value },
+                              }))
+                            }
+                            placeholder="Text: Verified Reviews"
+                            className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                          <input
+                            type="text"
+                            value={settings.banners.heroSecondaryBtnLink || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroSecondaryBtnLink: e.target.value },
+                              }))
+                            }
+                            placeholder="Link: /#verified-reviews"
+                            className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Trust Proof Metrics */}
+                    <div className="mt-5 rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                          Hero Metrics & Trust Stats
+                        </span>
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={settings.banners.showHeroMetrics !== false}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, showHeroMetrics: e.target.checked },
+                              }))
+                            }
+                            className="rounded border-white/20 bg-[#070F1E] text-[#FFD700] focus:ring-0"
+                          />
+                          Show Metrics Row
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div className="space-y-1.5">
+                          <input
+                            type="text"
+                            value={settings.banners.heroMetric1Value || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroMetric1Value: e.target.value },
+                              }))
+                            }
+                            placeholder="Val 1: 4.98/5"
+                            className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#FFD700]"
+                          />
+                          <input
+                            type="text"
+                            value={settings.banners.heroMetric1Label || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroMetric1Label: e.target.value },
+                              }))
+                            }
+                            placeholder="Label 1: Verified Score"
+                            className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-1.5 text-[11px] text-slate-400 outline-none focus:border-[#FFD700]"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <input
+                            type="text"
+                            value={settings.banners.heroMetric2Value || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroMetric2Value: e.target.value },
+                              }))
+                            }
+                            placeholder="Val 2: 1,200+"
+                            className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#FFD700]"
+                          />
+                          <input
+                            type="text"
+                            value={settings.banners.heroMetric2Label || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroMetric2Label: e.target.value },
+                              }))
+                            }
+                            placeholder="Label 2: Expeditions Hosted"
+                            className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-1.5 text-[11px] text-slate-400 outline-none focus:border-[#FFD700]"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <input
+                            type="text"
+                            value={settings.banners.heroMetric3Value || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroMetric3Value: e.target.value },
+                              }))
+                            }
+                            placeholder="Val 3: 100%"
+                            className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#FFD700]"
+                          />
+                          <input
+                            type="text"
+                            value={settings.banners.heroMetric3Label || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroMetric3Label: e.target.value },
+                              }))
+                            }
+                            placeholder="Label 3: Private & Tailored"
+                            className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-1.5 text-[11px] text-slate-400 outline-none focus:border-[#FFD700]"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Concierge Pick */}
-                  <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5">
-                    <p className="mb-4 text-sm font-bold text-white">Concierge Pick Card</p>
+                  {/* Featured Tour / Concierge Card (Side Card on Hero) */}
+                  <div className="rounded-3xl border border-white/10 bg-[#070F1E] p-6 shadow-xl">
+                    <div className="mb-5 flex items-center justify-between border-b border-white/10 pb-4">
+                      <div>
+                        <h3 className="text-base font-black text-white flex items-center gap-2">
+                          <span className="flex h-2.5 w-2.5 rounded-full bg-[#00E5FF]" />
+                          Featured Hero Tour Card (Side Card)
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">
+                          The prominent floating card positioned on the right of the Hero. Fully customizable image, badges, title, description, price, and target booking link.
+                        </p>
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer rounded-full bg-[#0B1528] px-4 py-2 text-xs font-black text-white border border-white/10">
+                        <input
+                          type="checkbox"
+                          checked={settings.banners.showConciergePick !== false}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, showConciergePick: e.target.checked },
+                            }))
+                          }
+                          className="rounded border-white/20 bg-[#070F1E] text-[#00E5FF] focus:ring-0"
+                        />
+                        Show Card on Hero
+                      </label>
+                    </div>
+
                     <div className="space-y-4">
+                      {/* Card Image */}
                       <label className="block">
-                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Background Image</span>
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-[#00E5FF]">
+                          Card Cover Image
+                        </span>
                         <div className="flex gap-2">
                           <input
                             type="url"
@@ -494,8 +850,8 @@ export default function AdminSettingsPage() {
                                 banners: { ...prev.banners, conciergePickImage: e.target.value },
                               }))
                             }
-                            placeholder="https://images.unsplash.com/..."
-                            className="flex-1 rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                            placeholder="https://... or click Upload"
+                            className="flex-1 rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#00E5FF]"
                           />
                           <input
                             ref={conciergeUploadRef}
@@ -507,31 +863,95 @@ export default function AdminSettingsPage() {
                           <button
                             type="button"
                             onClick={() => conciergeUploadRef.current?.click()}
-                            className="flex shrink-0 items-center gap-2 rounded-2xl bg-[#FFD700]/10 px-4 py-3.5 text-xs font-black uppercase tracking-[0.12em] text-[#FFD700] transition-all hover:bg-[#FFD700]/20"
+                            className="flex shrink-0 items-center gap-2 rounded-2xl bg-[#00E5FF] px-4 py-3.5 text-xs font-black uppercase tracking-[0.12em] text-[#070F1E] transition-all hover:bg-[#5CF1FF]"
                           >
                             <Upload className="h-4 w-4" />
-                            Upload
+                            Upload Image
                           </button>
                         </div>
                       </label>
+
+                      {/* Card Badge & Price Tag */}
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                            Card Top Badge / Chip
+                          </span>
+                          <input
+                            type="text"
+                            value={settings.banners.conciergePickBadge || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, conciergePickBadge: e.target.value },
+                              }))
+                            }
+                            placeholder="Default: ⭐ CONCIERGE PICK"
+                            className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                            Price Tag / Subtitle
+                          </span>
+                          <input
+                            type="text"
+                            value={settings.banners.conciergePickPrice || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, conciergePickPrice: e.target.value },
+                              }))
+                            }
+                            placeholder="e.g. VIP All-Inclusive or From $120"
+                            className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                        </label>
+                      </div>
+
+                      {/* Card Title & Link */}
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                            Card Title
+                          </span>
+                          <input
+                            type="text"
+                            value={settings.banners.conciergePickTitle}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, conciergePickTitle: e.target.value },
+                              }))
+                            }
+                            placeholder="e.g. Private yacht sunrise to Giftun Island"
+                            className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                            Card Destination Link
+                          </span>
+                          <input
+                            type="text"
+                            value={settings.banners.conciergePickLink || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, conciergePickLink: e.target.value },
+                              }))
+                            }
+                            placeholder="e.g. /tours or /tours/orange-bay-luxury-catamaran-vip-day-cruise"
+                            className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                        </label>
+                      </div>
+
+                      {/* Card Description */}
                       <label className="block">
-                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Title</span>
-                        <input
-                          type="text"
-                          value={settings.banners.conciergePickTitle}
-                          onChange={(e) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              banners: { ...prev.banners, conciergePickTitle: e.target.value },
-                            }))
-                          }
-                          placeholder="Private yacht sunrise to Giftun Island"
-                          className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Description</span>
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                          Card Description
+                        </span>
                         <textarea
                           rows={2}
                           value={settings.banners.conciergePickDescription}
@@ -541,12 +961,93 @@ export default function AdminSettingsPage() {
                               banners: { ...prev.banners, conciergePickDescription: e.target.value },
                             }))
                           }
-                          placeholder="Champagne breakfast, reef snorkel guide, and flexible return timing."
+                          placeholder="e.g. Champagne breakfast, reef snorkel guide, and flexible return timing."
                           className="w-full resize-none rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                         />
                       </label>
                     </div>
                   </div>
+
+                  {/* Other Page Scenery Banners */}
+                  <div className="rounded-3xl border border-white/10 bg-[#070F1E] p-6">
+                    <p className="mb-4 text-sm font-bold text-white uppercase tracking-wider">Other Page Banners & Backgrounds</p>
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Split Section Left</span>
+                        <input
+                          type="url"
+                          value={settings.banners.splitSectionLeft}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, splitSectionLeft: e.target.value },
+                            }))
+                          }
+                          placeholder="https://images.unsplash.com/..."
+                          className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Split Section Right</span>
+                        <input
+                          type="url"
+                          value={settings.banners.splitSectionRight}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, splitSectionRight: e.target.value },
+                            }))
+                          }
+                          placeholder="https://images.unsplash.com/..."
+                          className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Tours Catalog Background</span>
+                        <input
+                          type="url"
+                          value={settings.banners.toursCatalogBackground}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, toursCatalogBackground: e.target.value },
+                            }))
+                          }
+                          placeholder="https://images.unsplash.com/..."
+                          className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Destinations Background</span>
+                        <input
+                          type="url"
+                          value={settings.banners.destinationsBackground}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, destinationsBackground: e.target.value },
+                            }))
+                          }
+                          placeholder="https://images.unsplash.com/..."
+                          className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">Booking Checkout Background</span>
+                        <input
+                          type="url"
+                          value={settings.banners.bookingCheckoutBackground}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, bookingCheckoutBackground: e.target.value },
+                            }))
+                          }
+                          placeholder="https://images.unsplash.com/..."
+                          className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+                      </label>
+                    </div>
                   </div>
 
                   {/* About Philosophy Image */}

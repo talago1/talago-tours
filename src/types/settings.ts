@@ -36,6 +36,34 @@ export interface SystemSettings {
     conciergePickImage: string;
     conciergePickTitle: string;
     conciergePickDescription: string;
+    conciergePickBadge?: string;
+    conciergePickPrice?: string;
+    conciergePickLink?: string;
+    showConciergePick?: boolean;
+
+    heroBadge?: string;
+    heroTitle?: string;
+    heroTagline?: string;
+    heroDescription?: string;
+    showHeroBadge?: boolean;
+    showHeroTagline?: boolean;
+    showHeroDescription?: boolean;
+
+    heroPrimaryBtnText?: string;
+    heroPrimaryBtnLink?: string;
+    showPrimaryBtn?: boolean;
+    heroSecondaryBtnText?: string;
+    heroSecondaryBtnLink?: string;
+    showSecondaryBtn?: boolean;
+
+    showHeroMetrics?: boolean;
+    heroMetric1Value?: string;
+    heroMetric1Label?: string;
+    heroMetric2Value?: string;
+    heroMetric2Label?: string;
+    heroMetric3Value?: string;
+    heroMetric3Label?: string;
+
     aboutPhilosophyImage: string;
     assets: SiteBanner[];
   };
@@ -79,6 +107,34 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
     conciergePickImage: '',
     conciergePickTitle: 'Private yacht sunrise to Giftun Island',
     conciergePickDescription: 'Champagne breakfast, reef snorkel guide, and flexible return timing.',
+    conciergePickBadge: 'CONCIERGE PICK',
+    conciergePickPrice: 'VIP All-Inclusive',
+    conciergePickLink: '/tours',
+    showConciergePick: true,
+
+    heroBadge: '',
+    heroTitle: '',
+    heroTagline: '',
+    heroDescription: '',
+    showHeroBadge: true,
+    showHeroTagline: true,
+    showHeroDescription: true,
+
+    heroPrimaryBtnText: '',
+    heroPrimaryBtnLink: '/tours',
+    showPrimaryBtn: true,
+    heroSecondaryBtnText: '',
+    heroSecondaryBtnLink: '/#verified-reviews',
+    showSecondaryBtn: true,
+
+    showHeroMetrics: true,
+    heroMetric1Value: '',
+    heroMetric1Label: '',
+    heroMetric2Value: '',
+    heroMetric2Label: '',
+    heroMetric3Value: '',
+    heroMetric3Label: '',
+
     aboutPhilosophyImage: '',
     assets: [],
   },
