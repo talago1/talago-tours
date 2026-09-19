@@ -66,7 +66,21 @@ export interface SystemSettings {
 
     aboutPhilosophyImage: string;
     assets: SiteBanner[];
+    heroTranslations?: Partial<Record<string, HeroLanguageTexts>>;
   };
+}
+
+export interface HeroLanguageTexts {
+  heroBadge?: string;
+  heroTitle?: string;
+  heroTagline?: string;
+  heroDescription?: string;
+  heroPrimaryBtnText?: string;
+  heroSecondaryBtnText?: string;
+  conciergePickBadge?: string;
+  conciergePickTitle?: string;
+  conciergePickDescription?: string;
+  conciergePickPrice?: string;
 }
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
@@ -137,5 +151,6 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
 
     aboutPhilosophyImage: '',
     assets: [],
+    heroTranslations: {},
   },
 };

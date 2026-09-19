@@ -41,11 +41,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   }));
 
-  // Fetch published tours dynamically
+  // Fetch active tours dynamically
   let tourEntries: MetadataRoute.Sitemap = [];
   try {
     const tours = await prisma.tour.findMany({
-      where: { status: 'PUBLISHED' },
+      where: {
+        OR: [{ status: 'ACTIVE' }, { status: 'PUBLISHED' }, { status: null }],
+      },
       select: { slug: true, updatedAt: true },
     });
 

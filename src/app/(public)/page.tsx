@@ -90,6 +90,7 @@ export default async function HomePage() {
         heroMetric2Label={bannerData.heroMetric2Label}
         heroMetric3Value={bannerData.heroMetric3Value}
         heroMetric3Label={bannerData.heroMetric3Label}
+        heroTranslations={bannerData.heroTranslations}
       />
       <BentoGridUSPs />
       <TourCatalog tours={tours} />

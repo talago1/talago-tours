@@ -18,13 +18,24 @@ import {
   Plus,
   MessageSquare,
   RefreshCw,
+  Languages,
 } from 'lucide-react';
-import type { SystemSettings, SiteBanner } from '@/types/settings';
+import type { SystemSettings, SiteBanner, HeroLanguageTexts } from '@/types/settings';
 import { DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
 import NotificationSettingsDashboard from '@/components/admin/NotificationSettingsDashboard';
 import GlobalAssetStudio from '@/components/admin/GlobalAssetStudio';
 
 type ActiveSection = 'contact' | 'financial' | 'system' | 'banners' | 'notifications';
+
+const HERO_LANGUAGES = [
+  { code: 'en', label: 'English', flag: '🇬🇧' },
+  { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
+  { code: 'ru', label: 'Русский', flag: '🇷🇺' },
+  { code: 'it', label: 'Italiano', flag: '🇮🇹' },
+  { code: 'fr', label: 'Français', flag: '🇫🇷' },
+  { code: 'pl', label: 'Polski', flag: '🇵🇱' },
+  { code: 'es', label: 'Español', flag: '🇪🇸' },
+] as const;
 
 const SECTIONS: { key: ActiveSection; label: string; icon: typeof Settings }[] = [
   { key: 'contact', label: 'Contact Info', icon: Phone },
@@ -41,6 +52,7 @@ export default function AdminSettingsPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<ActiveSection>('contact');
+  const [heroActiveLang, setHeroActiveLang] = useState<string>('en');
 
   useEffect(() => {
     async function loadSettings() {
@@ -161,6 +173,73 @@ export default function AdminSettingsPage() {
       // silent
     }
     if (e.target) e.target.value = '';
+  }
+
+  function getHeroField(field: keyof HeroLanguageTexts): string {
+    const langTrans = settings.banners.heroTranslations?.[heroActiveLang];
+    if (langTrans && langTrans[field] !== undefined) return langTrans[field] || '';
+    if (heroActiveLang === 'en') {
+      return ((settings.banners as Record<string, unknown>)[field] as string) || '';
+    }
+    return '';
+  }
+
+  function updateHeroField(field: keyof HeroLanguageTexts, value: string) {
+    setSettings((prev) => {
+      const currentTrans = prev.banners.heroTranslations || {};
+      const langTrans = currentTrans[heroActiveLang] || {};
+      return {
+        ...prev,
+        banners: {
+          ...prev.banners,
+          ...(heroActiveLang === 'en' ? { [field]: value } : {}),
+          heroTranslations: {
+            ...currentTrans,
+            [heroActiveLang]: {
+              ...langTrans,
+              [field]: value,
+            },
+          },
+        },
+      };
+    });
+  }
+
+  function handleCopyFromEnglish() {
+    if (heroActiveLang === 'en') return;
+    const enTrans = settings.banners.heroTranslations?.en || {};
+    const enBadge = enTrans.heroBadge || settings.banners.heroBadge || '';
+    const enTitle = enTrans.heroTitle || settings.banners.heroTitle || '';
+    const enTagline = enTrans.heroTagline || settings.banners.heroTagline || '';
+    const enDesc = enTrans.heroDescription || settings.banners.heroDescription || '';
+    const enPrimaryBtn = enTrans.heroPrimaryBtnText || settings.banners.heroPrimaryBtnText || '';
+    const enSecondaryBtn = enTrans.heroSecondaryBtnText || settings.banners.heroSecondaryBtnText || '';
+    const enCardBadge = enTrans.conciergePickBadge || settings.banners.conciergePickBadge || '';
+    const enCardTitle = enTrans.conciergePickTitle || settings.banners.conciergePickTitle || '';
+    const enCardDesc = enTrans.conciergePickDescription || settings.banners.conciergePickDescription || '';
+    const enCardPrice = enTrans.conciergePickPrice || settings.banners.conciergePickPrice || '';
+
+    setSettings((prev) => ({
+      ...prev,
+      banners: {
+        ...prev.banners,
+        heroTranslations: {
+          ...(prev.banners.heroTranslations || {}),
+          [heroActiveLang]: {
+            heroBadge: enBadge,
+            heroTitle: enTitle,
+            heroTagline: enTagline,
+            heroDescription: enDesc,
+            heroPrimaryBtnText: enPrimaryBtn,
+            heroSecondaryBtnText: enSecondaryBtn,
+            conciergePickBadge: enCardBadge,
+            conciergePickTitle: enCardTitle,
+            conciergePickDescription: enCardDesc,
+            conciergePickPrice: enCardPrice,
+          },
+        },
+      },
+    }));
   }
 
   function updateRate(currency: string, value: number) {
@@ -468,6 +547,55 @@ export default function AdminSettingsPage() {
                       </div>
                     </div>
 
+                    {/* Multilingual Selector Bar for Hero & Featured Card */}
+                    <div className="mb-6 rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/5 p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-2">
+                          <Languages className="h-4 w-4 text-[#00E5FF]" />
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-white">
+                            Active Editing Language for Hero & Featured Card
+                          </span>
+                        </div>
+                        {heroActiveLang !== 'en' && (
+                          <button
+                            type="button"
+                            onClick={handleCopyFromEnglish}
+                            className="text-xs font-bold text-[#FFD700] hover:underline"
+                          >
+                            Copy text from English
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {HERO_LANGUAGES.map((lang) => {
+                          const isActive = heroActiveLang === lang.code;
+                          const hasOverrides = !!settings.banners.heroTranslations?.[lang.code] &&
+                            Object.keys(settings.banners.heroTranslations[lang.code] || {}).length > 0;
+                          return (
+                            <button
+                              key={lang.code}
+                              type="button"
+                              onClick={() => setHeroActiveLang(lang.code)}
+                              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all ${
+                                isActive
+                                  ? 'bg-[#00E5FF] text-[#070F1E] shadow-lg shadow-[#00E5FF]/30 ring-2 ring-[#00E5FF]'
+                                  : 'bg-[#0B1528] text-slate-300 hover:bg-[#0F1E38] hover:text-white border border-white/10'
+                              }`}
+                            >
+                              <span>{lang.flag}</span>
+                              <span>{lang.label}</span>
+                              {hasOverrides && lang.code !== 'en' && (
+                                <span className="h-1.5 w-1.5 rounded-full bg-[#EAB308]" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="mt-2 text-[11px] text-slate-400">
+                        Editing for <strong className="text-[#00E5FF]">{HERO_LANGUAGES.find((l) => l.code === heroActiveLang)?.label}</strong>. When storefront visitors switch to this language, these custom texts will be shown automatically. If left empty, system default translations will be used.
+                      </p>
+                    </div>
+
                     {/* Hero Text Fields & Toggles */}
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                       {/* Badge */}
@@ -493,13 +621,8 @@ export default function AdminSettingsPage() {
                         </div>
                         <input
                           type="text"
-                          value={settings.banners.heroBadge || ''}
-                          onChange={(e) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              banners: { ...prev.banners, heroBadge: e.target.value },
-                            }))
-                          }
+                          value={getHeroField('heroBadge')}
+                          onChange={(e) => updateHeroField('heroBadge', e.target.value)}
                           placeholder="Default: Private Red Sea escapes and golden desert expeditions"
                           className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                         />
@@ -513,13 +636,8 @@ export default function AdminSettingsPage() {
                         </span>
                         <input
                           type="text"
-                          value={settings.banners.heroTitle || ''}
-                          onChange={(e) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              banners: { ...prev.banners, heroTitle: e.target.value },
-                            }))
-                          }
+                          value={getHeroField('heroTitle')}
+                          onChange={(e) => updateHeroField('heroTitle', e.target.value)}
                           placeholder="Default: Unveil Hurghada's Hidden Paradises"
                           className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                         />
@@ -549,13 +667,8 @@ export default function AdminSettingsPage() {
                         </div>
                         <input
                           type="text"
-                          value={settings.banners.heroTagline || ''}
-                          onChange={(e) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              banners: { ...prev.banners, heroTagline: e.target.value },
-                            }))
-                          }
+                          value={getHeroField('heroTagline')}
+                          onChange={(e) => updateHeroField('heroTagline', e.target.value)}
                           placeholder="Default: Not a Tour. A Memory."
                           className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2.5 text-sm font-semibold text-[#FFD700] outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                         />
@@ -585,13 +698,8 @@ export default function AdminSettingsPage() {
                         </div>
                         <textarea
                           rows={2}
-                          value={settings.banners.heroDescription || ''}
-                          onChange={(e) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              banners: { ...prev.banners, heroDescription: e.target.value },
-                            }))
-                          }
+                          value={getHeroField('heroDescription')}
+                          onChange={(e) => updateHeroField('heroDescription', e.target.value)}
                           placeholder="Default: Tailored boat trips, secluded reef snorkels, and desert escapes..."
                           className="w-full resize-none rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                         />
@@ -625,13 +733,8 @@ export default function AdminSettingsPage() {
                         <div className="grid grid-cols-2 gap-2">
                           <input
                             type="text"
-                            value={settings.banners.heroPrimaryBtnText || ''}
-                            onChange={(e) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                banners: { ...prev.banners, heroPrimaryBtnText: e.target.value },
-                              }))
-                            }
+                            value={getHeroField('heroPrimaryBtnText')}
+                            onChange={(e) => updateHeroField('heroPrimaryBtnText', e.target.value)}
                             placeholder="Text: Explore Tours"
                             className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                           />
@@ -674,13 +777,8 @@ export default function AdminSettingsPage() {
                         <div className="grid grid-cols-2 gap-2">
                           <input
                             type="text"
-                            value={settings.banners.heroSecondaryBtnText || ''}
-                            onChange={(e) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                banners: { ...prev.banners, heroSecondaryBtnText: e.target.value },
-                              }))
-                            }
+                            value={getHeroField('heroSecondaryBtnText')}
+                            onChange={(e) => updateHeroField('heroSecondaryBtnText', e.target.value)}
                             placeholder="Text: Verified Reviews"
                             className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                           />
@@ -879,13 +977,8 @@ export default function AdminSettingsPage() {
                           </span>
                           <input
                             type="text"
-                            value={settings.banners.conciergePickBadge || ''}
-                            onChange={(e) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                banners: { ...prev.banners, conciergePickBadge: e.target.value },
-                              }))
-                            }
+                            value={getHeroField('conciergePickBadge')}
+                            onChange={(e) => updateHeroField('conciergePickBadge', e.target.value)}
                             placeholder="Default: ⭐ CONCIERGE PICK"
                             className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                           />
@@ -896,13 +989,8 @@ export default function AdminSettingsPage() {
                           </span>
                           <input
                             type="text"
-                            value={settings.banners.conciergePickPrice || ''}
-                            onChange={(e) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                banners: { ...prev.banners, conciergePickPrice: e.target.value },
-                              }))
-                            }
+                            value={getHeroField('conciergePickPrice')}
+                            onChange={(e) => updateHeroField('conciergePickPrice', e.target.value)}
                             placeholder="e.g. VIP All-Inclusive or From $120"
                             className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                           />
@@ -917,13 +1005,8 @@ export default function AdminSettingsPage() {
                           </span>
                           <input
                             type="text"
-                            value={settings.banners.conciergePickTitle}
-                            onChange={(e) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                banners: { ...prev.banners, conciergePickTitle: e.target.value },
-                              }))
-                            }
+                            value={getHeroField('conciergePickTitle')}
+                            onChange={(e) => updateHeroField('conciergePickTitle', e.target.value)}
                             placeholder="e.g. Private yacht sunrise to Giftun Island"
                             className="w-full rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                           />
@@ -954,13 +1037,8 @@ export default function AdminSettingsPage() {
                         </span>
                         <textarea
                           rows={2}
-                          value={settings.banners.conciergePickDescription}
-                          onChange={(e) =>
-                            setSettings((prev) => ({
-                              ...prev,
-                              banners: { ...prev.banners, conciergePickDescription: e.target.value },
-                            }))
-                          }
+                          value={getHeroField('conciergePickDescription')}
+                          onChange={(e) => updateHeroField('conciergePickDescription', e.target.value)}
                           placeholder="e.g. Champagne breakfast, reef snorkel guide, and flexible return timing."
                           className="w-full resize-none rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                         />

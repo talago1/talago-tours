@@ -76,6 +76,7 @@ const DEFAULT_SETTINGS = {
 
     aboutPhilosophyImage: '',
     assets: [],
+    heroTranslations: {},
   },
 };
 

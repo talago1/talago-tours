@@ -1,160 +1,370 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { MessageSquareWarning, ArrowLeft, Star, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
-import Link from 'next/link';
 import {
-  listAdminReviews,
-  moderateAdminReview,
-  type AdminReview,
-} from './actions';
+  ArrowLeft,
+  Star,
+  ThumbsUp,
+  ThumbsDown,
+  Loader2,
+  Plus,
+  Edit2,
+  Trash2,
+  X,
+  CheckCircle2,
+  Filter,
+} from 'lucide-react';
+import Link from 'next/link';
 
 type ReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+interface TourOption {
+  id: string;
+  slug: string;
+  title: string;
+}
+
+interface AdminReviewItem {
+  id: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+  status: ReviewStatus;
+  createdAt: string;
+  tourId: string;
+  tourTitle: string;
+  tourSlug?: string;
+}
 
 const STATUS_TABS: (ReviewStatus | 'ALL')[] = ['ALL', 'PENDING', 'APPROVED', 'REJECTED'];
 
 export default function AdminReviewsPage() {
-  const [reviews, setReviews] = useState<AdminReview[]>([]);
+  const [reviews, setReviews] = useState<AdminReviewItem[]>([]);
+  const [tours, setTours] = useState<TourOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ReviewStatus | 'ALL'>('PENDING');
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Filters
+  const [activeTab, setActiveTab] = useState<ReviewStatus | 'ALL'>('ALL');
+  const [selectedTourId, setSelectedTourId] = useState<string>('ALL');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [moderating, setModerating] = useState<string | null>(null);
+  const [moderatingId, setModeratingId] = useState<string | null>(null);
+
+  // Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingReview, setEditingReview] = useState<AdminReviewItem | null>(null);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+
+  // Form State
+  const [formData, setFormData] = useState({
+    tourId: '',
+    customerName: '',
+    rating: 5,
+    comment: '',
+    status: 'APPROVED' as ReviewStatus,
+  });
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await listAdminReviews(activeTab, page);
-      setReviews(data.reviews);
-      setTotalPages(data.totalPages);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong');
+      const params = new URLSearchParams();
+      if (activeTab !== 'ALL') params.set('status', activeTab);
+      if (selectedTourId !== 'ALL') params.set('tourId', selectedTourId);
+      params.set('page', page.toString());
+      params.set('limit', '30');
+
+      const res = await fetch(`/api/admin/reviews?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to load reviews');
+      const data = await res.json();
+
+      setReviews(data.reviews || []);
+      setTotalPages(data.totalPages || 1);
+      if (data.tours && data.tours.length > 0) {
+        setTours(data.tours);
+      }
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong loading reviews');
     } finally {
       setLoading(false);
     }
-  }, [activeTab, page]);
+  }, [activeTab, selectedTourId, page]);
 
   useEffect(() => {
     fetchReviews();
   }, [fetchReviews]);
 
-  const handleModerate = useCallback(async (reviewId: string, status: 'APPROVED' | 'REJECTED') => {
-    setModerating(reviewId);
+  // Handle Quick Moderate (Approve/Reject)
+  const handleModerate = async (reviewId: string, status: 'APPROVED' | 'REJECTED') => {
+    setModeratingId(reviewId);
     try {
-      await moderateAdminReview(reviewId, status);
+      const res = await fetch('/api/admin/reviews', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: reviewId, status }),
+      });
+      if (!res.ok) throw new Error('Failed to moderate review');
 
       setReviews((prev) =>
-        prev.map((r) =>
-          r.id === reviewId ? { ...r, status } : r,
-        ),
+        prev.map((r) => (r.id === reviewId ? { ...r, status } : r))
       );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to moderate review');
+      setSuccessMsg(`Review marked as ${status}`);
+      setTimeout(() => setSuccessMsg(null), 3500);
+    } catch (e: any) {
+      setError(e.message || 'Failed to moderate review');
     } finally {
-      setModerating(null);
+      setModeratingId(null);
     }
-  }, []);
+  };
 
-  const handleTabChange = useCallback((tab: ReviewStatus | 'ALL') => {
-    setActiveTab(tab);
-    setPage(1);
-  }, []);
+  // Handle Delete Review
+  const handleDelete = async (reviewId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this review? Tour ratings will be automatically updated.')) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/reviews?id=${reviewId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete review');
+
+      setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+      setSuccessMsg('Review deleted and tour score updated');
+      setTimeout(() => setSuccessMsg(null), 3500);
+    } catch (e: any) {
+      setError(e.message || 'Failed to delete review');
+    }
+  };
+
+  // Open Add Modal
+  const openAddModal = () => {
+    setFormData({
+      tourId: selectedTourId !== 'ALL' ? selectedTourId : (tours[0]?.id || ''),
+      customerName: '',
+      rating: 5,
+      comment: '',
+      status: 'APPROVED',
+    });
+    setIsAddModalOpen(true);
+  };
+
+  // Open Edit Modal
+  const openEditModal = (review: AdminReviewItem) => {
+    setEditingReview(review);
+    setFormData({
+      tourId: review.tourId,
+      customerName: review.customerName,
+      rating: review.rating,
+      comment: review.comment,
+      status: review.status,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // Submit Add Form
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.tourId || !formData.customerName.trim() || !formData.comment.trim()) {
+      alert('Please fill out all required fields');
+      return;
+    }
+
+    setFormSubmitting(true);
+    try {
+      const res = await fetch('/api/admin/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create review');
+
+      setIsAddModalOpen(false);
+      setSuccessMsg('Review created successfully and tour rating recalculated!');
+      setTimeout(() => setSuccessMsg(null), 3500);
+      fetchReviews();
+    } catch (e: any) {
+      alert(e.message || 'Error creating review');
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
+  // Submit Edit Form
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReview) return;
+
+    setFormSubmitting(true);
+    try {
+      const res = await fetch('/api/admin/reviews', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingReview.id,
+          customerName: formData.customerName,
+          rating: formData.rating,
+          comment: formData.comment,
+          status: formData.status,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update review');
+
+      setIsEditModalOpen(false);
+      setEditingReview(null);
+      setSuccessMsg('Review updated successfully!');
+      setTimeout(() => setSuccessMsg(null), 3500);
+      fetchReviews();
+    } catch (e: any) {
+      alert(e.message || 'Error updating review');
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[#070F1E] px-6 py-8 text-[#F8FAFC] lg:px-10">
       <div className="mx-auto max-w-7xl">
         {/* Navigation Breadcrumb */}
-        <div className="mb-10">
+        <div className="mb-8">
           <nav className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-slate-500">
             <Link href="/admin" className="hover:text-[#06B6D4] transition-colors">
               Dashboard
             </Link>
             <span>/</span>
-            <span className="text-[#EAB308]">Reviews</span>
+            <span className="text-[#EAB308]">Reviews Moderation & Management</span>
           </nav>
 
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.28em] text-[#06B6D4]">Moderation Hub</p>
-              <h1 className="mt-3 text-4xl font-black tracking-tight text-white lg:text-6xl">
-                Guest Review Desk
+              <p className="text-sm font-black uppercase tracking-[0.28em] text-[#06B6D4]">
+                Customer Testimonial Desk
+              </p>
+              <h1 className="mt-3 text-3xl font-black tracking-tight text-white lg:text-5xl">
+                Verified Reviews Desk
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-400">
-                Audit incoming ratings, manage testimonial catalog presence, and trigger automated listing aggregate updates in real time.
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                Create authentic reviews, audit guest feedback, and manage tour star ratings. Approved reviews automatically calibrate the public rating average in real time.
               </p>
             </div>
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 px-5 py-3 text-sm font-black text-slate-200 transition-all duration-300 ease-in-out hover:scale-[1.02] hover:border-[#06B6D4]/40 hover:bg-[#06B6D4]/10"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Desk
-            </Link>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={openAddModal}
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#EAB308] px-5 py-3 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-xl shadow-[#EAB308]/20 transition-all hover:bg-[#FFE55C]"
+              >
+                <Plus className="h-4 w-4" />
+                Add Review
+              </button>
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-[#0B1528] px-5 py-3 text-sm font-black text-slate-200 transition-all hover:border-[#06B6D4]/40 hover:bg-[#06B6D4]/10"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Dashboard
+              </Link>
+            </div>
           </div>
         </div>
 
-        {/* Filters Tabs */}
-        <div className="mb-8 flex flex-wrap gap-2">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => handleTabChange(tab)}
-              className={`rounded-xl px-5 py-3 text-xs font-black uppercase tracking-wider transition-all duration-300 ${
-                activeTab === tab
-                  ? 'bg-[#EAB308] text-[#070F1E] shadow-xl shadow-[#EAB308]/20'
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              {tab === 'ALL' ? 'All Reviews' : tab}
-            </button>
-          ))}
-        </div>
-
+        {/* Notifications */}
+        {successMsg && (
+          <div className="mb-6 flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-300">
+            <CheckCircle2 className="h-5 w-5 shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
         {error && (
-          <div className="mb-8 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
+          <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
             {error}
           </div>
         )}
 
-        {/* Review list grid / list */}
-        <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20">
+        {/* Filters Bar: Status Tabs + Tour Selector */}
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-3xl border border-white/10 bg-[#0B1528] p-4">
+          <div className="flex flex-wrap gap-2">
+            {STATUS_TABS.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setPage(1);
+                }}
+                className={`rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${
+                  activeTab === tab
+                    ? 'bg-[#EAB308] text-[#070F1E] shadow-lg shadow-[#EAB308]/20'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {tab === 'ALL' ? 'All Statuses' : tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-[#00E5FF] shrink-0" />
+            <select
+              value={selectedTourId}
+              onChange={(e) => {
+                setSelectedTourId(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-xs font-bold text-white outline-none focus:border-[#00E5FF]"
+            >
+              <option value="ALL">All Tours ({tours.length})</option>
+              {tours.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Reviews Table */}
+        <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#0B1528] shadow-2xl shadow-black/20">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.18em] text-slate-500">
+              <thead className="border-b border-white/10 bg-[#070F1E] text-xs uppercase tracking-[0.18em] text-slate-400">
                 <tr>
-                  <th className="px-6 py-4">Guest Info</th>
+                  <th className="px-6 py-4">Guest</th>
                   <th className="px-6 py-4">Rating</th>
-                  <th className="px-6 py-4">Tour / Booking</th>
-                  <th className="px-6 py-4">Comment</th>
+                  <th className="px-6 py-4">Tour</th>
+                  <th className="px-6 py-4">Review Content</th>
                   <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Action</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/10">
+              <tbody className="divide-y divide-white/[0.06]">
                 {loading ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-16 text-center text-slate-500">
                       <div className="flex flex-col items-center justify-center gap-3">
-                        <Loader2 className="h-6 w-6 animate-spin text-[#06B6D4]" />
-                        <span>Fetching review inventory...</span>
+                        <Loader2 className="h-6 w-6 animate-spin text-[#00E5FF]" />
+                        <span>Fetching reviews and calculating tour scores...</span>
                       </div>
                     </td>
                   </tr>
                 ) : reviews.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-16 text-center text-slate-500">
-                      No reviews found matching standard criteria.
+                      No reviews found matching the selected filters.
                     </td>
                   </tr>
                 ) : (
                   reviews.map((review) => (
-                    <tr key={review.id} className="text-slate-300 transition-all duration-300 ease-in-out hover:bg-white/[0.03]">
-                      <td className="px-6 py-5">
+                    <tr
+                      key={review.id}
+                      className="text-slate-300 transition-colors hover:bg-white/[0.02]"
+                    >
+                      <td className="px-6 py-4">
                         <div>
-                          <p className="font-black text-white">{review.customerName}</p>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="font-bold text-white">{review.customerName}</p>
+                          <p className="text-[11px] text-slate-500">
                             {new Date(review.createdAt).toLocaleDateString('en-US', {
                               year: 'numeric',
                               month: 'short',
@@ -163,75 +373,101 @@ export default function AdminReviewsPage() {
                           </p>
                         </div>
                       </td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-0.5">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1">
+                          <span className="font-black text-[#FFD700] text-xs mr-1">{review.rating}.0</span>
                           {Array.from({ length: 5 }).map((_, index) => (
                             <Star
                               key={index}
-                              className={`h-4 w-4 ${
-                                index < review.rating ? 'fill-[#EAB308] text-[#EAB308]' : 'text-slate-700'
+                              className={`h-3.5 w-3.5 ${
+                                index < review.rating
+                                  ? 'fill-[#FFD700] text-[#FFD700]'
+                                  : 'text-slate-700'
                               }`}
                             />
                           ))}
                         </div>
                       </td>
-                      <td className="px-6 py-5">
-                        <div>
-                          <p className="font-bold text-white max-w-[200px] truncate">{review.tourTitle}</p>
-                          <p className="mt-1 text-xs text-[#06B6D4]">REF: {review.id.slice(0, 8).toUpperCase()}</p>
+                      <td className="px-6 py-4">
+                        <div className="max-w-[220px]">
+                          <p className="font-medium text-white truncate" title={review.tourTitle}>
+                            {review.tourTitle}
+                          </p>
+                          {review.tourSlug && (
+                            <Link
+                              href={`/tours/${review.tourSlug}`}
+                              target="_blank"
+                              className="text-[11px] text-[#00E5FF] hover:underline"
+                            >
+                              View Tour ↗
+                            </Link>
+                          )}
                         </div>
                       </td>
-                      <td className="px-6 py-5 max-w-md">
-                        <p className="line-clamp-2 text-sm leading-6 text-slate-400" title={review.comment}>
+                      <td className="px-6 py-4 max-w-md">
+                        <p className="line-clamp-2 text-xs leading-5 text-slate-300" title={review.comment}>
                           “{review.comment}”
                         </p>
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="px-6 py-4">
                         <span
-                          className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-wider ${
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wider ${
                             review.status === 'APPROVED'
-                              ? 'bg-emerald-400/10 text-emerald-300'
+                              ? 'bg-emerald-400/10 text-emerald-300 border border-emerald-400/20'
                               : review.status === 'REJECTED'
-                              ? 'bg-red-400/10 text-red-300'
-                              : 'bg-[#EAB308]/10 text-[#EAB308]'
+                              ? 'bg-red-400/10 text-red-300 border border-red-400/20'
+                              : 'bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/20'
                           }`}
                         >
                           {review.status}
                         </span>
                       </td>
-                      <td className="px-6 py-5">
-                        {review.status === 'PENDING' ? (
-                          <div className="flex items-center gap-2">
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Approve / Reject Buttons */}
+                          {review.status !== 'APPROVED' && (
                             <button
                               type="button"
                               onClick={() => handleModerate(review.id, 'APPROVED')}
-                              disabled={moderating === review.id}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500 hover:text-[#070F1E] hover:border-transparent transition-all duration-300 disabled:opacity-50"
-                              title="Approve Review"
+                              disabled={moderatingId === review.id}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500 hover:text-[#070F1E] transition-all"
+                              title="Approve"
                             >
-                              {moderating === review.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <ThumbsUp className="h-4 w-4" />
-                              )}
+                              <ThumbsUp className="h-3.5 w-3.5" />
                             </button>
+                          )}
+                          {review.status !== 'REJECTED' && (
                             <button
                               type="button"
                               onClick={() => handleModerate(review.id, 'REJECTED')}
-                              disabled={moderating === review.id}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-500/10 text-red-300 border border-red-500/20 hover:bg-red-500 hover:text-[#070F1E] hover:border-transparent transition-all duration-300 disabled:opacity-50"
-                              title="Reject Review"
+                              disabled={moderatingId === review.id}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500 hover:text-[#070F1E] transition-all"
+                              title="Reject"
                             >
-                              {moderating === review.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <ThumbsDown className="h-4 w-4" />
-                              )}
+                              <ThumbsDown className="h-3.5 w-3.5" />
                             </button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-500 font-bold">Processed</span>
-                        )}
+                          )}
+
+                          {/* Edit Button */}
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(review)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/40 transition-all"
+                            title="Edit Review"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+
+                          {/* Delete Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(review.id)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-red-400 hover:border-red-500/30 transition-all"
+                            title="Delete Review"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -247,23 +483,256 @@ export default function AdminReviewsPage() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-300 transition-all hover:bg-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              className="rounded-xl border border-white/10 bg-[#0B1528] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-300 transition-all hover:bg-white/10 disabled:opacity-40"
             >
               Prev
             </button>
-            <span className="text-xs font-black tracking-wider text-slate-400">
+            <span className="text-xs font-bold tracking-wider text-slate-400">
               Page {page} of {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-300 transition-all hover:bg-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              className="rounded-xl border border-white/10 bg-[#0B1528] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-300 transition-all hover:bg-white/10 disabled:opacity-40"
             >
               Next
             </button>
           </div>
         )}
       </div>
+
+      {/* Add Review Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-5">
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <Plus className="h-5 w-5 text-[#EAB308]" />
+                Add Verified Guest Review
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="rounded-full p-1 text-slate-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                  Select Tour *
+                </label>
+                <select
+                  value={formData.tourId}
+                  onChange={(e) => setFormData({ ...formData, tourId: e.target.value })}
+                  required
+                  className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#00E5FF]"
+                >
+                  <option value="">-- Choose a Tour --</option>
+                  {tours.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                  Customer / Guest Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.customerName}
+                  onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                  placeholder="e.g. Maximilian Weber, Sofia Rossi, Elena Petrova"
+                  className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#EAB308]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                    Rating *
+                  </label>
+                  <select
+                    value={formData.rating}
+                    onChange={(e) => setFormData({ ...formData, rating: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#EAB308]"
+                  >
+                    <option value={5}>⭐⭐⭐⭐⭐ 5 Stars (Excellent)</option>
+                    <option value={4}>⭐⭐⭐⭐ 4 Stars (Very Good)</option>
+                    <option value={3}>⭐⭐⭐ 3 Stars (Average)</option>
+                    <option value={2}>⭐⭐ 2 Stars (Poor)</option>
+                    <option value={1}>⭐ 1 Star (Terrible)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                    Initial Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as ReviewStatus })}
+                    className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#00E5FF]"
+                  >
+                    <option value="APPROVED">Approved (Visible on site)</option>
+                    <option value="PENDING">Pending (Draft)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                  Review Comment *
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={formData.comment}
+                  onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
+                  placeholder="Share the guest's authentic experience, highlights, snorkeling quality, guide service..."
+                  className="w-full resize-none rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#EAB308]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="rounded-xl px-5 py-2.5 text-xs font-bold text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={formSubmitting}
+                  className="rounded-xl bg-[#EAB308] px-6 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] hover:bg-[#FFE55C] disabled:opacity-50"
+                >
+                  {formSubmitting ? 'Creating...' : 'Save & Publish Review'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Review Modal */}
+      {isEditModalOpen && editingReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-5">
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <Edit2 className="h-5 w-5 text-[#00E5FF]" />
+                Edit Review
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingReview(null);
+                }}
+                className="rounded-full p-1 text-slate-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <span className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">
+                  Tour:
+                </span>
+                <p className="text-sm font-bold text-white">{editingReview.tourTitle}</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                  Customer Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.customerName}
+                  onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                  className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#00E5FF]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                    Rating *
+                  </label>
+                  <select
+                    value={formData.rating}
+                    onChange={(e) => setFormData({ ...formData, rating: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#EAB308]"
+                  >
+                    <option value={5}>⭐⭐⭐⭐⭐ 5 Stars</option>
+                    <option value={4}>⭐⭐⭐⭐ 4 Stars</option>
+                    <option value={3}>⭐⭐⭐ 3 Stars</option>
+                    <option value={2}>⭐⭐ 2 Stars</option>
+                    <option value={1}>⭐ 1 Star</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                    Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as ReviewStatus })}
+                    className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#00E5FF]"
+                  >
+                    <option value="APPROVED">Approved</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="REJECTED">Rejected</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                  Review Comment *
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={formData.comment}
+                  onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
+                  className="w-full resize-none rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none focus:border-[#00E5FF]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingReview(null);
+                  }}
+                  className="rounded-xl px-5 py-2.5 text-xs font-bold text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={formSubmitting}
+                  className="rounded-xl bg-[#00E5FF] px-6 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] hover:bg-[#5CF1FF] disabled:opacity-50"
+                >
+                  {formSubmitting ? 'Saving...' : 'Update Review'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

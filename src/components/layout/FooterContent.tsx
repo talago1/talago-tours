@@ -43,20 +43,18 @@ export default function FooterContent() {
       title: dict.footer.support || 'Support',
       icon: MessageCircle,
       links: [
-        { label: dict.footer.contactUs || 'Contact Us', href: '/support' },
-        { label: dict.footer.conciergeHelp || 'Concierge Help', href: '/concierge-help' },
-        { label: dict.footer.bookingTerms || 'Booking Terms', href: '/booking-terms' },
-        { label: dict.footer.safetyPolicies || 'Safety Policies', href: '/safety-policies' },
+        { label: dict.footer.contactUs || 'Contact Concierge', href: '/support' },
+        { label: dict.navbar.myBookings || 'My Bookings', href: '/my-bookings' },
+        { label: dict.navbar.signInRegister || 'Guest Portal', href: '/auth' },
       ],
     },
     {
       title: dict.footer.policies || 'Policies',
       icon: ShieldCheck,
       links: [
+        { label: dict.footer.bookingTerms || 'Booking Terms', href: '/booking-terms' },
         { label: dict.footer.cancellationPolicy || dict.cancellationPage?.badge || 'Cancellation Policy', href: '/cancellation' },
         { label: dict.footer.privacyPolicy || dict.privacyPage?.title || 'Privacy Policy', href: '/privacy' },
-        { label: dict.footer.flexibleProtection || dict.flexibleProtection?.badge || 'Flexible Protection', href: '/flexible-protection' },
-        { label: dict.navbar.signInRegister, href: '/auth' },
       ],
     },
   ];

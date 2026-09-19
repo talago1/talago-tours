@@ -72,6 +72,7 @@ const DEFAULT_SETTINGS = {
 
     aboutPhilosophyImage: '',
     assets: [] as { id: string; label: string; url: string; section: string }[],
+    heroTranslations: {} as Record<string, any>,
   },
 };
 

@@ -39,6 +39,8 @@ export interface HeroProps {
   heroMetric2Label?: string;
   heroMetric3Value?: string;
   heroMetric3Label?: string;
+
+  heroTranslations?: Record<string, any>;
 }
 
 export default function Hero({
@@ -73,9 +75,11 @@ export default function Hero({
   heroMetric2Label,
   heroMetric3Value,
   heroMetric3Label,
+
+  heroTranslations,
 }: HeroProps) {
   const router = useRouter();
-  const { dict } = useLanguage();
+  const { dict, language } = useLanguage();
   const [heroError, setHeroError] = useState(false);
   const [selectedType, setSelectedType] = useState('ALL');
   const [selectedDate, setSelectedDate] = useState('');
@@ -106,15 +110,71 @@ export default function Hero({
     router.push(`/tours${queryString ? `?${queryString}` : ''}`);
   };
 
-  const finalBadge = heroBadge || dict.hero.badge;
-  const finalTitle = heroTitle || dict.hero.title;
-  const finalTagline = heroTagline || dict.hero.tagline;
-  const finalDescription = heroDescription || dict.hero.description;
+  const currentTrans = heroTranslations?.[language] || {};
 
-  const cardBadge = conciergePickBadge || dict.hero.concierge?.pick || 'CONCIERGE PICK';
-  const cardTitle = conciergePickTitle || dict.hero.concierge?.title || 'Private yacht sunrise to Giftun Island';
-  const cardDesc = conciergePickDescription || dict.hero.concierge?.description || 'Champagne breakfast, reef snorkel guide, and flexible return timing.';
-  const cardPrice = conciergePickPrice || 'VIP All-Inclusive';
+  const finalBadge =
+    currentTrans.heroBadge ||
+    (language === 'en' ? heroBadge : undefined) ||
+    heroBadge ||
+    dict.hero.badge;
+
+  const finalTitle =
+    currentTrans.heroTitle ||
+    (language === 'en' ? heroTitle : undefined) ||
+    heroTitle ||
+    dict.hero.title;
+
+  const finalTagline =
+    currentTrans.heroTagline ||
+    (language === 'en' ? heroTagline : undefined) ||
+    heroTagline ||
+    dict.hero.tagline;
+
+  const finalDescription =
+    currentTrans.heroDescription ||
+    (language === 'en' ? heroDescription : undefined) ||
+    heroDescription ||
+    dict.hero.description;
+
+  const finalPrimaryBtn =
+    currentTrans.heroPrimaryBtnText ||
+    (language === 'en' ? heroPrimaryBtnText : undefined) ||
+    heroPrimaryBtnText ||
+    dict.hero.exploreButton;
+
+  const finalSecondaryBtn =
+    currentTrans.heroSecondaryBtnText ||
+    (language === 'en' ? heroSecondaryBtnText : undefined) ||
+    heroSecondaryBtnText ||
+    dict.hero.guestProofButton;
+
+  const cardBadge =
+    currentTrans.conciergePickBadge ||
+    (language === 'en' ? conciergePickBadge : undefined) ||
+    conciergePickBadge ||
+    dict.hero.concierge?.pick ||
+    'CONCIERGE PICK';
+
+  const cardTitle =
+    currentTrans.conciergePickTitle ||
+    (language === 'en' ? conciergePickTitle : undefined) ||
+    conciergePickTitle ||
+    dict.hero.concierge?.title ||
+    'Private yacht sunrise to Giftun Island';
+
+  const cardDesc =
+    currentTrans.conciergePickDescription ||
+    (language === 'en' ? conciergePickDescription : undefined) ||
+    conciergePickDescription ||
+    dict.hero.concierge?.description ||
+    'Champagne breakfast, reef snorkel guide, and flexible return timing.';
+
+  const cardPrice =
+    currentTrans.conciergePickPrice ||
+    (language === 'en' ? conciergePickPrice : undefined) ||
+    conciergePickPrice ||
+    'VIP All-Inclusive';
+
   const cardLink = conciergePickLink || '/tours';
 
   return (
