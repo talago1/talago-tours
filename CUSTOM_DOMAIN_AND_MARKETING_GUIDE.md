@@ -94,3 +94,39 @@ In `/admin/settings`:
   - CTA Button Texts
   - Featured Tour Card (Title, Price tag, Excerpt, Target link)
 - If left empty, the site automatically uses the hand-crafted localized defaults.
+
+---
+
+## 6. Payment Methods & Checkout Controls (`/admin/settings`)
+
+Under **Payment Methods & Checkout Visibility**, manage which payment options are accessible to visitors at checkout:
+
+- **Full Online Payment**: Enable or disable upfront credit card payment. When turned off, guests will not see the option to pay in full online.
+- **Pay at Location / Cash on Arrival**: Enable or disable the option for travelers to pay cash in person upon hotel pickup.
+- **Deposit Option & Deposit %**: Allow travelers to pay a partial deposit online (e.g. 15%, 20%) and settle the remainder in cash at pickup.
+- **Payment Link Dispatch**: Enable manual payment link sending workflows for custom concierge bookings.
+
+---
+
+## 7. Excursion Logistics Hub & WhatsApp Dispatch (`/admin/bookings`)
+
+Click any booking row in `/admin/bookings` to expand the excursion logistics desk:
+
+- **Hotel & Room Details**: Displays hotel name, room number, pickup instructions, and a 1-click **Open Map Search** link to locate the guest's hotel immediately.
+- **Pickup Schedule**: Highlights the scheduled pickup time in amber alongside the tour date and guest count breakdown (Adults, Children, Infants).
+- **Cash Due at Pickup**: Prominently highlights in amber the exact remaining cash amount due to be collected by your tour guides or drivers upon pickup.
+- **1-Click WhatsApp Button**: Click **"Chat on WhatsApp"** to immediately open WhatsApp with a pre-filled, localized message containing the guest's booking reference, tour date, and pickup time.
+
+---
+
+## 8. Tour Add-ons & Pickup Schedule Editor (`/admin/tours`)
+
+When creating or editing tours in `/admin/tours`:
+
+- **Tour Options & Extras**: Define optional add-ons (such as Photo Packages, Private Speedboat Upgrades, VIP Transfers). For each option, set:
+  - English Title & Russian Title
+  - USD Price
+  - Calculation Type: **Per Person** (multiplies by guest count) or **Flat Rate** (fixed per booking)
+  - Active Toggle (enable/disable without deleting)
+- **Pickup Times Schedule**: Add multiple daily departure/pickup times (e.g. `08:00 AM`, `01:30 PM`). These are displayed directly to guests during checkout and synced with driver pickup logs.
+
