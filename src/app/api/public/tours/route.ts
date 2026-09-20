@@ -38,6 +38,7 @@ const selectFields = {
   pickupDescription: true,
   hotelPickupIncluded: true,
   pickupTime: true,
+  pickupTimes: true,
   cancellationPolicy: true,
   tourOptions: true,
   destination: {

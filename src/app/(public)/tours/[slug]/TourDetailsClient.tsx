@@ -43,6 +43,7 @@ interface TourData {
   whatToBring: string;
   pickupDescription: string | null;
   pickupTime?: string | null;
+  pickupTimes?: string[];
   cancellationPolicy?: string | null;
   hotelPickupIncluded: boolean | null;
   images: string[];
@@ -53,6 +54,7 @@ interface TourData {
   allowDeposit: boolean;
   depositPercentage: number;
   allowPayAtLocation: boolean;
+  allowFullOnline?: boolean;
   translations: Record<string, { title?: string; description?: string }>;
 }
 
@@ -451,8 +453,9 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
   const [childrenCount, setChildrenCount] = useState(0);
   const [infantsCount, setInfantsCount] = useState(0);
   const [selectedPayment, setSelectedPayment] = useState<'full' | 'deposit' | 'arrival'>(
-    tour.allowPayAtLocation ? 'arrival' : tour.allowDeposit ? 'deposit' : 'full'
+    tour.allowPayAtLocation ? 'arrival' : (tour.allowFullOnline !== false ? 'full' : 'deposit')
   );
+  const [selectedTime, setSelectedTime] = useState<string>(tour.pickupTimes?.[0] || '');
 
   // Resolve localized translations from parent with fallback cascade
   const translations = tour.translations;
@@ -509,7 +512,7 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
     (effectiveInfantPrice ?? 0) * infantsCount;
   const depositAmount = Math.round(totalPrice * (tour.depositPercentage / 100) * 100) / 100;
   const dueOnArrival = Math.round((totalPrice - depositAmount) * 100) / 100;
-  const reserveHref = `/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}`;
+  const reserveHref = `/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}${selectedTime ? `&time=${encodeURIComponent(selectedTime)}` : ''}`;
 
   const whatToBringItems = localizedWhatToBringItems;
   const itineraryItems = localizedItineraryItems;
@@ -543,6 +546,15 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
                   <Clock className="h-4 w-4 text-[#FFD700]" />
                   {tour.duration}
                 </span>
+                {tour.pickupTimes && tour.pickupTimes.length > 0 && (
+                  <>
+                    <span className="text-slate-600">·</span>
+                    <span className="flex items-center gap-1.5 text-sm text-cyan-400 font-medium">
+                      <Clock className="h-4 w-4 text-[#00E5FF]" />
+                      Pickup: {tour.pickupTimes.join(', ')}
+                    </span>
+                  </>
+                )}
               </div>
               <h1 className="text-4xl font-black tracking-tight text-white lg:text-5xl">{localizedTitle}</h1>
               {localizedDesc && (
@@ -758,6 +770,33 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
                 </div>
               </div>
 
+              {/* Pickup Time Slot Selector */}
+              {tour.pickupTimes && tour.pickupTimes.length > 0 && (
+                <div className="mb-6">
+                  <p className="mb-2.5 flex items-center gap-2 text-sm font-bold text-slate-300">
+                    <Clock className="h-4 w-4 text-[#00E5FF]" />
+                    {dict.checkout?.pickupTime || 'Select Pickup Time'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {tour.pickupTimes.map((timeSlot) => (
+                      <button
+                        key={timeSlot}
+                        type="button"
+                        onClick={() => setSelectedTime(timeSlot)}
+                        className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 px-3 text-xs font-bold transition-all ${
+                          selectedTime === timeSlot
+                            ? 'border-[#00E5FF] bg-[#00E5FF]/15 text-[#00E5FF] shadow-sm shadow-[#00E5FF]/20'
+                            : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/20'
+                        }`}
+                      >
+                        <Clock className="h-3.5 w-3.5" />
+                        {timeSlot}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Guest Selector */}
               <div className="mb-6">
                 <p className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-300">
@@ -809,24 +848,26 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{dict.tourDetails.paymentMethod}</p>
 
                 {/* Full Online */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedPayment('full')}
-                  className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-all ${
-                    selectedPayment === 'full' ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-white/10 bg-white/[0.03] hover:border-white/20'
-                  }`}
-                >
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${selectedPayment === 'full' ? 'bg-emerald-500/20' : 'bg-white/5'}`}>
-                    <CreditCard className={`h-5 w-5 ${selectedPayment === 'full' ? 'text-emerald-400' : 'text-slate-500'}`} />
-                  </div>
-                  <div className="flex-1">
-                    <p className={`text-sm font-bold ${selectedPayment === 'full' ? 'text-emerald-300' : 'text-slate-300'}`}>{dict.tourDetails.fullOnlinePayment}</p>
-                    <p className="text-xs text-slate-500">{dict.tourDetails.fullOnlineDesc}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-white">${totalPrice.toFixed(0)}</p>
-                  </div>
-                </button>
+                {tour.allowFullOnline !== false && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPayment('full')}
+                    className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-all ${
+                      selectedPayment === 'full' ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-white/10 bg-white/[0.03] hover:border-white/20'
+                    }`}
+                  >
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${selectedPayment === 'full' ? 'bg-emerald-500/20' : 'bg-white/5'}`}>
+                      <CreditCard className={`h-5 w-5 ${selectedPayment === 'full' ? 'text-emerald-400' : 'text-slate-500'}`} />
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-bold ${selectedPayment === 'full' ? 'text-emerald-300' : 'text-slate-300'}`}>{dict.tourDetails.fullOnlinePayment}</p>
+                      <p className="text-xs text-slate-500">{dict.tourDetails.fullOnlineDesc}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-white">${totalPrice.toFixed(0)}</p>
+                    </div>
+                  </button>
+                )}
 
                 {/* Deposit */}
                 {tour.allowDeposit && (
@@ -937,7 +978,7 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
               <span className="text-xs font-normal text-slate-400">{dict.tourDetails.perPerson}</span>
             </div>
           </div>
-          <Link href={`/checkout/${tour.id}`}>
+          <Link href={reserveHref}>
             <Button variant="primary" size="md">{dict.tourDetails.bookNow}</Button>
           </Link>
         </div>

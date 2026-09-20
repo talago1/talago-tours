@@ -289,6 +289,8 @@ export default function CheckoutPage() {
     if (queryChildren) setChildrenCount(Math.max(0, parseInt(queryChildren, 10)));
     const queryInfants = searchParams.get('infants');
     if (queryInfants) setInfantsCount(Math.max(0, parseInt(queryInfants, 10)));
+    const queryTime = searchParams.get('time') || searchParams.get('pickupTime');
+    if (queryTime) setForm((prev) => ({ ...prev, pickupTime: queryTime }));
   }, [searchParams]);
 
   useEffect(() => {
@@ -320,13 +322,27 @@ export default function CheckoutPage() {
         }
 
         const pm = data.paymentMethods || {};
-        const allowPayAtLocation = pm.allowPayOnArrival !== false && Boolean(data.allowPayAtLocation !== false);
+        // Master payment controls from /admin/settings:
+        const allowPayAtLocation = pm.allowPayOnArrival !== false;
         const allowFullOnline = pm.allowFullOnline !== false;
         const allowDeposit = pm.allowDepositOnline !== false && (Boolean(data.allowDeposit) || Number(pm.defaultDepositPercentage ?? 0) > 0);
         const depositPercentage = Number(data.depositPercentage || pm.defaultDepositPercentage || 20);
 
         if (!allowPayAtLocation && scheme === PaymentScheme.PAY_ON_ARRIVAL) {
           setScheme(allowFullOnline ? PaymentScheme.FULL_ONLINE : PaymentScheme.DEPOSIT_ONLINE);
+        }
+
+        const loadedPickupTimes: string[] = Array.isArray(data.pickupTimes) && data.pickupTimes.length > 0
+          ? data.pickupTimes
+          : (data.pickupTime ? String(data.pickupTime).split('|').map((t: string) => t.trim()).filter(Boolean) : []);
+
+        if (loadedPickupTimes.length > 0) {
+          setForm((prev) => ({
+            ...prev,
+            pickupTime: prev.pickupTime && loadedPickupTimes.includes(prev.pickupTime)
+              ? prev.pickupTime
+              : loadedPickupTimes[0],
+          }));
         }
 
         setTour({
@@ -341,9 +357,7 @@ export default function CheckoutPage() {
           allowFullOnline,
           zoneTransferFee: Number(data.zone?.transferFee ?? 0),
           maxCapacity: data.maxCapacity ?? null,
-          pickupTimes: data.pickupTime
-            ? String(data.pickupTime).split('|').map((t: string) => t.trim()).filter(Boolean)
-            : [],
+          pickupTimes: loadedPickupTimes,
           tourOptions: Array.isArray(data.tourOptions)
             ? (data.tourOptions as TourAddonOption[]).filter((o) => o.enabled !== false)
             : [],

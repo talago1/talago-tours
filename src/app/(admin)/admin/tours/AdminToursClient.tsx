@@ -774,7 +774,7 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
     setGalleryImages([]);
     setItinerarySteps([]);
     setAllowDeposit(false);
-    setDepositPercentage(100);
+    setDepositPercentage(20);
     setAllowPayAtLocation(true);
     setPickupTime('');
     setPickupTimes([]);
@@ -808,12 +808,15 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
     setCoverImage(tour.coverImage || '');
     setGalleryImages(((tour as unknown as { galleryImages?: (string | null)[] }).galleryImages || []).filter(Boolean) as string[]);
     setAllowDeposit(tour.allowDeposit ?? false);
-    setDepositPercentage(tour.depositPercentage ?? 100);
+    setDepositPercentage(tour.depositPercentage ?? 20);
     setAllowPayAtLocation(tour.allowPayAtLocation ?? true);
 
     const logisticData = tour as unknown as { pickupTime?: string; pickupTimes?: string[]; pickupDescription?: string; whatToBring?: string; cancellationPolicy?: string; hotelPickupIncluded?: boolean; tourOptions?: unknown[] | null };
-    setPickupTime(logisticData.pickupTime || '');
-    setPickupTimes(Array.isArray(logisticData.pickupTimes) ? logisticData.pickupTimes : []);
+    const rawTimes: string[] = Array.isArray(logisticData.pickupTimes) && logisticData.pickupTimes.length > 0
+      ? logisticData.pickupTimes
+      : (logisticData.pickupTime ? String(logisticData.pickupTime).split('|').map((t) => t.trim()).filter(Boolean) : []);
+    setPickupTimes(rawTimes);
+    setPickupTime(rawTimes.join('|'));
     setHotelPickupIncluded(logisticData.hotelPickupIncluded ?? false);
     setDraftTime('');
     setTourOptions(Array.isArray(logisticData.tourOptions) ? (logisticData.tourOptions as TourAddonOption[]) : []);
@@ -1750,37 +1753,62 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
               {/* Logistics Section */}
               <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-5 space-y-4">
                 <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">
-                  Logistics & Pickup
+                  Logistics &amp; Pickup Times
                 </h3>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   <div>
                     <label className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
                       Available Pickup Times
-                      <span className="ml-1 text-xs font-normal text-slate-500">(customers will choose)</span>
+                      <span className="ml-1 text-xs font-normal text-slate-500">(travelers will choose at checkout)</span>
                     </label>
 
-                    {/* Tag list */}
-                    {pickupTime.split('|').map((t) => t.trim()).filter(Boolean).length > 0 && (
-                      <div className="mb-2 flex flex-wrap gap-2">
-                        {pickupTime.split('|').map((t) => t.trim()).filter(Boolean).map((slot) => (
+                    {/* Quick presets */}
+                    <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] uppercase font-bold text-slate-500 mr-1">Quick add:</span>
+                      {['08:00 AM', '09:00 AM', '10:30 AM', '01:30 PM', '03:00 PM'].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => {
+                            if (!pickupTimes.includes(preset)) {
+                              const updated = [...pickupTimes, preset];
+                              setPickupTimes(updated);
+                              setPickupTime(updated.join('|'));
+                            }
+                          }}
+                          className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-medium text-slate-300 hover:border-[#06B6D4]/40 hover:bg-[#06B6D4]/10 hover:text-[#06B6D4] transition-all"
+                        >
+                          +{preset}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Active slot chips */}
+                    {pickupTimes.length > 0 ? (
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {pickupTimes.map((slot) => (
                           <span
                             key={slot}
                             className="flex items-center gap-1.5 rounded-full bg-[#06B6D4]/10 border border-[#06B6D4]/30 px-3 py-1 text-sm font-semibold text-[#06B6D4]"
                           >
+                            <Clock className="h-3 w-3" />
                             {slot}
                             <button
                               type="button"
                               onClick={() => {
-                                const updated = pickupTime.split('|').map((t) => t.trim()).filter(Boolean).filter((s) => s !== slot).join('|');
-                                setPickupTime(updated);
+                                const updated = pickupTimes.filter((s) => s !== slot);
+                                setPickupTimes(updated);
+                                setPickupTime(updated.join('|'));
                               }}
-                              className="ml-0.5 text-slate-400 hover:text-red-400 transition-colors"
+                              className="ml-1 rounded-full text-slate-400 hover:text-red-400 transition-colors"
                             >
                               ×
                             </button>
                           </span>
                         ))}
                       </div>
+                    ) : (
+                      <p className="mb-2 text-xs text-amber-400/80">No pickup slots added yet. Add slots below or click a quick preset.</p>
                     )}
 
                     <div className="flex gap-2">
@@ -1792,40 +1820,40 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
                           if (e.key === 'Enter') {
                             e.preventDefault();
                             const val = draftTime.trim();
-                            if (val) {
-                              const slots = pickupTime.split('|').map((t) => t.trim()).filter(Boolean);
-                              if (!slots.includes(val)) {
-                                setPickupTime([...slots, val].join('|'));
-                              }
+                            if (val && !pickupTimes.includes(val)) {
+                              const updated = [...pickupTimes, val];
+                              setPickupTimes(updated);
+                              setPickupTime(updated.join('|'));
                               setDraftTime('');
                             }
                           }
                         }}
-                        placeholder="e.g. 07:00 AM"
+                        placeholder="e.g. 07:30 AM"
                         className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#06B6D4]"
                       />
                       <button
                         type="button"
                         onClick={() => {
                           const val = draftTime.trim();
-                          if (val) {
-                            const slots = pickupTime.split('|').map((t) => t.trim()).filter(Boolean);
-                            if (!slots.includes(val)) {
-                              setPickupTime([...slots, val].join('|'));
-                            }
+                          if (val && !pickupTimes.includes(val)) {
+                            const updated = [...pickupTimes, val];
+                            setPickupTimes(updated);
+                            setPickupTime(updated.join('|'));
                             setDraftTime('');
                           }
                         }}
                         className="rounded-2xl bg-[#06B6D4]/10 border border-[#06B6D4]/30 px-4 py-3 text-sm font-bold text-[#06B6D4] hover:bg-[#06B6D4]/20 transition-colors"
                       >
-                        Add
+                        Add Slot
                       </button>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">Add one slot at a time. Press Enter or click Add.</p>
                   </div>
 
-                  <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5">
-                    <span className="text-xs font-black uppercase tracking-[0.09em] text-slate-400">Hotel Pickup</span>
+                  <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5 h-fit self-center">
+                    <div>
+                      <span className="text-xs font-black uppercase tracking-[0.09em] text-slate-300 block">Hotel Pickup Included</span>
+                      <span className="text-[11px] text-slate-500">Free hotel transfer service for this tour</span>
+                    </div>
                     <label className="relative inline-flex cursor-pointer items-center">
                       <input
                         type="checkbox"
@@ -1834,12 +1862,72 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
                         className="sr-only peer"
                       />
                       <div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:bg-[#06B6D4] peer-checked:after:translate-x-5" />
-                      <span className="ml-3 text-sm text-slate-300">
-                        {hotelPickupIncluded ? 'Included' : 'Not included'}
-                      </span>
                     </label>
                   </div>
                 </div>
+              </div>
+
+              {/* Payment Methods & Policy for this Tour */}
+              <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-5 space-y-4">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">
+                    Payment Methods for this Tour
+                  </h3>
+                  <p className="mt-0.5 text-xs text-slate-500">Configure what payment options guests see when booking this specific experience</p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5">
+                    <div>
+                      <span className="text-xs font-black uppercase tracking-[0.09em] text-slate-300 block">Allow Cash on Arrival</span>
+                      <span className="text-[11px] text-slate-500">Guest pays driver/guide in cash at hotel pickup</span>
+                    </div>
+                    <label className="relative inline-flex cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        checked={allowPayAtLocation}
+                        onChange={(e) => setAllowPayAtLocation(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:bg-[#06B6D4] peer-checked:after:translate-x-5" />
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5">
+                    <div>
+                      <span className="text-xs font-black uppercase tracking-[0.09em] text-slate-300 block">Allow Deposit Online</span>
+                      <span className="text-[11px] text-slate-500">Guest pays partial deposit upfront, rest at pickup</span>
+                    </div>
+                    <label className="relative inline-flex cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        checked={allowDeposit}
+                        onChange={(e) => setAllowDeposit(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:bg-[#06B6D4] peer-checked:after:translate-x-5" />
+                    </label>
+                  </div>
+                </div>
+
+                {allowDeposit && (
+                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-center justify-between gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-amber-300">Required Deposit Percentage (%)</label>
+                      <span className="text-[11px] text-slate-400">Percentage charged online at booking (remainder collected at pickup)</span>
+                    </div>
+                    <div className="w-28">
+                      <input
+                        type="number"
+                        min="5"
+                        max="100"
+                        value={depositPercentage}
+                        onChange={(e) => setDepositPercentage(Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-center text-sm font-bold text-white outline-none focus:border-[#06B6D4]"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Tour Options & Extras / Add-ons */}

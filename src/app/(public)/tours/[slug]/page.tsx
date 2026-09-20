@@ -106,6 +106,7 @@ export default async function TourDetailPage({ params }: Props) {
       priceChild: true,
       infantPrice: true,
       pickupTime: true,
+      pickupTimes: true,
       cancellationPolicy: true,
       allowDeposit: true,
       depositPercentage: true,
@@ -228,6 +229,34 @@ export default async function TourDetailPage({ params }: Props) {
       : {}),
   };
 
+  // Global payment method master toggles from /admin/settings
+  const pmSetting = await prisma.systemSetting.findUnique({
+    where: { key: 'paymentMethods' },
+  });
+  let paymentMethods = {
+    allowPayOnArrival: true,
+    allowFullOnline: true,
+    allowDepositOnline: true,
+    defaultDepositPercentage: 20,
+    allowPaymentLink: true,
+  };
+  if (pmSetting?.value) {
+    try {
+      paymentMethods = { ...paymentMethods, ...JSON.parse(pmSetting.value) };
+    } catch {
+      // fallback to defaults
+    }
+  }
+
+  const effectiveAllowPayAtLocation = paymentMethods.allowPayOnArrival !== false;
+  const effectiveAllowFullOnline = paymentMethods.allowFullOnline !== false;
+  const effectiveAllowDeposit = paymentMethods.allowDepositOnline !== false && (tour.allowDeposit || (paymentMethods.defaultDepositPercentage ?? 0) > 0);
+  const effectiveDepositPercentage = Number(tour.depositPercentage || paymentMethods.defaultDepositPercentage || 20);
+
+  const effectivePickupTimes: string[] = Array.isArray(tour.pickupTimes) && tour.pickupTimes.length > 0
+    ? tour.pickupTimes
+    : (tour.pickupTime ? String(tour.pickupTime).split('|').map((t: string) => t.trim()).filter(Boolean) : []);
+
   return (
     <main className="min-h-screen bg-[#070F1E]">
       <script
@@ -259,10 +288,12 @@ export default async function TourDetailPage({ params }: Props) {
           childPrice: tour.priceChild ?? tour.childPrice ?? null,
           infantPrice: tour.infantPrice ?? null,
           pickupTime: tour.pickupTime,
+          pickupTimes: effectivePickupTimes,
           cancellationPolicy: tour.cancellationPolicy,
-          allowDeposit: tour.allowDeposit,
-          depositPercentage: tour.depositPercentage,
-          allowPayAtLocation: tour.allowPayAtLocation,
+          allowDeposit: effectiveAllowDeposit,
+          depositPercentage: effectiveDepositPercentage,
+          allowPayAtLocation: effectiveAllowPayAtLocation,
+          allowFullOnline: effectiveAllowFullOnline,
           translations: tour.translations as Record<string, { title?: string; description?: string }>,
         }}
         reviews={{ distribution, reviews, ratingAverage: tour.ratingAverage, ratingCount: tour.ratingCount }}
