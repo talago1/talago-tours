@@ -44,6 +44,8 @@ export default async function AdminToursPage() {
         reviews: true,
         ratingAverage: true,
         ratingCount: true,
+        tourOptions: true,
+        pickupTimes: true,
         destination: { select: { name: true } },
       },
     }),
@@ -87,6 +89,8 @@ export default async function AdminToursPage() {
     reviews: safeParseReviews(t.reviews),
     ratingAverage: t.ratingAverage ?? undefined,
     ratingCount: t.ratingCount ?? undefined,
+    tourOptions: Array.isArray(t.tourOptions) ? (t.tourOptions as unknown as any[]) : null,
+    pickupTimes: Array.isArray(t.pickupTimes) ? t.pickupTimes : [],
   }));
 
   return (

@@ -24,6 +24,7 @@ interface PriceSummarySidebarProps {
   onPromoApplied: (d: PromoDiscount | null) => void;
   allowDeposit: boolean;
   allowPayAtLocation: boolean;
+  allowFullOnline?: boolean;
 }
 
 export default function PriceSummarySidebar({
@@ -43,6 +44,7 @@ export default function PriceSummarySidebar({
   onPromoApplied,
   allowDeposit,
   allowPayAtLocation,
+  allowFullOnline = true,
 }: PriceSummarySidebarProps) {
   const { dict } = useLanguage();
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -240,26 +242,28 @@ export default function PriceSummarySidebar({
             )}
 
             {/* Full Online */}
-            <label
-              className={`relative flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-all duration-300 hover:border-white/20 ${
-                scheme === PaymentScheme.FULL_ONLINE
-                  ? 'border-[#06B6D4] bg-[#06B6D4]/5 shadow-[0_0_12px_rgba(6,182,212,0.1)]'
-                  : 'border-white/10 bg-white/[0.02]'
-              }`}
-            >
-              <input
-                type="radio"
-                name="paymentScheme"
-                value={PaymentScheme.FULL_ONLINE}
-                checked={scheme === PaymentScheme.FULL_ONLINE}
-                onChange={() => onSchemeChange(PaymentScheme.FULL_ONLINE)}
-                className="mt-1 h-4 w-4 border-slate-300 text-[#06B6D4] focus:ring-[#06B6D4]"
-              />
-              <div>
-                <p className="text-sm font-black text-white">{dict.checkout.payOnline}</p>
-                <p className="mt-1 text-xs text-slate-400">{dict.checkout.payOnlineDesc}</p>
-              </div>
-            </label>
+            {allowFullOnline !== false && (
+              <label
+                className={`relative flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-all duration-300 hover:border-white/20 ${
+                  scheme === PaymentScheme.FULL_ONLINE
+                    ? 'border-[#06B6D4] bg-[#06B6D4]/5 shadow-[0_0_12px_rgba(6,182,212,0.1)]'
+                    : 'border-white/10 bg-white/[0.02]'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentScheme"
+                  value={PaymentScheme.FULL_ONLINE}
+                  checked={scheme === PaymentScheme.FULL_ONLINE}
+                  onChange={() => onSchemeChange(PaymentScheme.FULL_ONLINE)}
+                  className="mt-1 h-4 w-4 border-slate-300 text-[#06B6D4] focus:ring-[#06B6D4]"
+                />
+                <div>
+                  <p className="text-sm font-black text-white">{dict.checkout.payOnline}</p>
+                  <p className="mt-1 text-xs text-slate-400">{dict.checkout.payOnlineDesc}</p>
+                </div>
+              </label>
+            )}
 
             {/* Deposit Online */}
             {allowDeposit && depositPercentage > 0 && (

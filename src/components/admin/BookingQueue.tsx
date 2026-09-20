@@ -11,8 +11,10 @@ import {
   MapPin,
   Users,
   Hash,
-  Plane,
-  Bed,
+  Clock,
+  DollarSign,
+  MessageCircle,
+  CreditCard,
   AlertCircle,
   Search,
   Filter,
@@ -56,38 +58,143 @@ function SkeletonRow() {
 }
 
 function ExpandedDetails({ booking }: { booking: ActiveQueueTicket }) {
+  const cleanPhone = (booking.customerPhone || '').replace(/[^0-9]/g, '');
+  const cashDue = booking.amountDueOnArrival ?? (booking.paymentScheme === 'FULL' ? 0 : Math.max(0, booking.totalPriceUSD - (booking.amountPaidOnline ?? 0)));
+  const paidOnline = booking.amountPaidOnline ?? (booking.paymentScheme === 'FULL' ? booking.totalPriceUSD : 0);
+
   return (
-    <div className="border-t border-white/5 bg-[#070F1E] px-6 py-4">
+    <div className="border-t border-white/5 bg-[#070F1E] px-6 py-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <MapPin className="h-3.5 w-3.5 text-[#00E5FF]" />
-            Pickup Directives
+        {/* Hotel & Room Logistics */}
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-1.5 font-medium">
+                <Hotel className="h-3.5 w-3.5 text-[#00E5FF]" />
+                Hotel & Room
+              </span>
+              {booking.roomNumber ? (
+                <span className="rounded bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-[#00E5FF] border border-[#00E5FF]/20">
+                  Room {booking.roomNumber}
+                </span>
+              ) : (
+                <span className="text-[11px] text-slate-500">No room #</span>
+              )}
+            </div>
+            <p className="mt-2 text-sm font-semibold text-white truncate" title={booking.hotelName || 'No hotel specified'}>
+              {booking.hotelName || 'Direct / No hotel specified'}
+            </p>
+            {booking.zoneName && (
+              <p className="mt-1 text-xs text-slate-400 flex items-center gap-1">
+                <MapPin className="h-3 w-3 text-slate-500" />
+                Zone: <span className="text-slate-300 font-medium">{booking.zoneName}</span>
+              </p>
+            )}
           </div>
-          <p className="mt-1 text-sm font-semibold text-white">{booking.pickupDirectives || 'Standard lobby pickup'}</p>
+          {booking.pickupDirectives && (
+            <p className="mt-2 text-[11px] text-slate-400 border-t border-white/5 pt-2">
+              Note: {booking.pickupDirectives}
+            </p>
+          )}
         </div>
-        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Plane className="h-3.5 w-3.5 text-emerald-400" />
-            Flight Numbers
+
+        {/* Excursion Pickup Time & Party */}
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-1.5 font-medium">
+                <Clock className="h-3.5 w-3.5 text-amber-400" />
+                Pickup Schedule
+              </span>
+              <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                <Users className="h-3 w-3" />
+                {booking.guestCount} {booking.guestCount === 1 ? 'Guest' : 'Guests'}
+              </span>
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-lg font-bold text-amber-400">
+                {booking.pickupTime || 'TBD'}
+              </span>
+              <span className="text-xs text-slate-400">
+                ({booking.travelDate ? new Date(booking.travelDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : 'Date TBD'})
+              </span>
+            </div>
           </div>
-          <p className="mt-1 text-sm font-semibold text-white">{booking.flightNumbers || '—'}</p>
+          <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-400 border-t border-white/5 pt-2">
+            <span>Adults: <strong className="text-white">{booking.adultsCount ?? booking.guestCount}</strong></span>
+            <span>Children: <strong className="text-white">{booking.childrenCount ?? 0}</strong></span>
+            {!!booking.infantsCount && <span>Infants: <strong className="text-white">{booking.infantsCount}</strong></span>}
+          </div>
         </div>
-        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Bed className="h-3.5 w-3.5 text-purple-400" />
-            Bed Configuration
+
+        {/* Financials & Cash to Collect on Arrival */}
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-1.5 font-medium">
+                <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+                Payment Breakdown
+              </span>
+              <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-white/5 text-slate-300 border border-white/10">
+                {booking.paymentScheme || 'ARRIVAL'}
+              </span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-xs text-slate-400">Total Price:</span>
+              <span className="text-sm font-semibold text-white">${booking.totalPriceUSD}</span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between text-xs">
+              <span className="text-slate-400">Paid Online:</span>
+              <span className="text-slate-300 font-medium">${paidOnline}</span>
+            </div>
           </div>
-          <p className="mt-1 text-sm font-semibold text-white">{booking.bedConfiguration || '—'}</p>
+          <div className="mt-2 rounded-lg bg-amber-500/10 border border-amber-500/30 p-2 flex items-center justify-between">
+            <span className="text-xs font-semibold text-amber-400">Cash Due at Pickup:</span>
+            <span className="text-base font-bold text-amber-300">${cashDue}</span>
+          </div>
         </div>
-        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <AlertCircle className="h-3.5 w-3.5 text-amber-400" />
-            Special Requirements
+
+        {/* Guest Contact & WhatsApp Quick Action */}
+        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-1.5 font-medium">
+                <MessageCircle className="h-3.5 w-3.5 text-emerald-400" />
+                Guest Direct Contact
+              </span>
+            </div>
+            <p className="mt-2 text-sm font-semibold text-white truncate">{booking.customerName}</p>
+            <p className="text-xs text-slate-400 font-mono mt-0.5">{booking.customerPhone}</p>
+            {booking.customerEmail && (
+              <p className="text-xs text-slate-500 truncate mt-0.5">{booking.customerEmail}</p>
+            )}
           </div>
-          <p className="mt-1 text-sm font-semibold text-white">{booking.specialRequirements || '—'}</p>
+          <div className="mt-3">
+            {cleanPhone ? (
+              <a
+                href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+                  `Hello ${booking.customerName}, regarding your booking ${booking.bookingReference} for ${booking.tourTitle} on ${booking.travelDate || ''}: Your pickup is scheduled for ${booking.pickupTime || 'lobby'}. Cash balance due: $${cashDue}.`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/30 transition-all shadow-sm"
+              >
+                <MessageCircle className="h-3.5 w-3.5 text-emerald-400" />
+                Chat on WhatsApp
+              </a>
+            ) : (
+              <span className="text-xs text-slate-500 italic">No phone provided</span>
+            )}
+          </div>
         </div>
       </div>
+
+      {booking.specialRequirements && (
+        <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.01] px-4 py-2 text-xs flex items-center gap-2 text-slate-300">
+          <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+          <span><strong className="text-white">Special Requirements:</strong> {booking.specialRequirements}</span>
+        </div>
+      )}
     </div>
   );
 }

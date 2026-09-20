@@ -72,7 +72,26 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      return NextResponse.json({ ...tour, availableZones });
+      // Fetch global payment method controls
+      const paymentSetting = await prisma.systemSetting.findUnique({
+        where: { key: 'paymentMethods' },
+      });
+      let paymentMethods = {
+        allowPayOnArrival: true,
+        allowFullOnline: true,
+        allowDepositOnline: true,
+        defaultDepositPercentage: 20,
+        allowPaymentLink: true,
+      };
+      if (paymentSetting?.value) {
+        try {
+          paymentMethods = { ...paymentMethods, ...JSON.parse(paymentSetting.value) };
+        } catch {
+          // fallback
+        }
+      }
+
+      return NextResponse.json({ ...tour, availableZones, paymentMethods });
     }
 
     const tours = await prisma.tour.findMany({

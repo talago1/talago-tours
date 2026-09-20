@@ -1,4 +1,4 @@
-export const SETTINGS_KEYS = ['contact', 'financial', 'system', 'banners'] as const;
+export const SETTINGS_KEYS = ['contact', 'financial', 'system', 'paymentMethods', 'banners'] as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[number];
 
@@ -31,6 +31,13 @@ const DEFAULT_SETTINGS = {
   system: {
     maintenanceMode: false,
     paymentGateways: { paymob: true, fawry: false },
+  },
+  paymentMethods: {
+    allowPayOnArrival: true,
+    allowFullOnline: true,
+    allowDepositOnline: true,
+    defaultDepositPercentage: 20,
+    allowPaymentLink: true,
   },
   banners: {
     heroBackground: '',

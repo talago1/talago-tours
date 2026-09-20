@@ -46,6 +46,14 @@ interface ItineraryStep {
   inclusions: string;
 }
 
+interface TourAddonOption {
+  id: string;
+  labels: Record<string, string>;
+  price: number;
+  priceType: 'per_person' | 'flat';
+  enabled: boolean;
+}
+
 interface Tour {
   id: string;
   slug: string;
@@ -65,6 +73,7 @@ interface Tour {
   depositPercentage?: number;
   allowPayAtLocation?: boolean;
   pickupTime?: string;
+  pickupTimes?: string[];
   pickupDescription?: string;
   whatToBring?: string;
   cancellationPolicy?: string;
@@ -82,6 +91,7 @@ interface Tour {
   reviews?: { customerName: string; rating: number; comment: string }[];
   ratingAverage?: number;
   ratingCount?: number;
+  tourOptions?: any[] | null;
 }
 
 interface AdminToursClientProps {
@@ -725,9 +735,11 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
   const [allowPayAtLocation, setAllowPayAtLocation] = useState(true);
 
   const [pickupTime, setPickupTime] = useState('');
+  const [pickupTimes, setPickupTimes] = useState<string[]>([]);
   const [hotelPickupIncluded, setHotelPickupIncluded] = useState(false);
   const [draftTime, setDraftTime] = useState('');
   const [showExcerptOnCard, setShowExcerptOnCard] = useState(true);
+  const [tourOptions, setTourOptions] = useState<TourAddonOption[]>([]);
 
   // Seeded reviews
   const [seededReviews, setSeededReviews] = useState<{ customerName: string; rating: number; comment: string }[]>([]);
@@ -765,9 +777,11 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
     setDepositPercentage(100);
     setAllowPayAtLocation(true);
     setPickupTime('');
+    setPickupTimes([]);
     setHotelPickupIncluded(false);
     setDraftTime('');
     setShowExcerptOnCard(true);
+    setTourOptions([]);
     setSeededReviews([]);
     setTranslations(createEmptyTranslations());
     setError(null);
@@ -797,10 +811,12 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
     setDepositPercentage(tour.depositPercentage ?? 100);
     setAllowPayAtLocation(tour.allowPayAtLocation ?? true);
 
-    const logisticData = tour as unknown as { pickupTime?: string; pickupDescription?: string; whatToBring?: string; cancellationPolicy?: string; hotelPickupIncluded?: boolean };
+    const logisticData = tour as unknown as { pickupTime?: string; pickupTimes?: string[]; pickupDescription?: string; whatToBring?: string; cancellationPolicy?: string; hotelPickupIncluded?: boolean; tourOptions?: unknown[] | null };
     setPickupTime(logisticData.pickupTime || '');
+    setPickupTimes(Array.isArray(logisticData.pickupTimes) ? logisticData.pickupTimes : []);
     setHotelPickupIncluded(logisticData.hotelPickupIncluded ?? false);
     setDraftTime('');
+    setTourOptions(Array.isArray(logisticData.tourOptions) ? (logisticData.tourOptions as TourAddonOption[]) : []);
 
     // Pricing
     const hasChild = tour.childPrice !== null && tour.childPrice !== undefined && tour.childPrice > 0;
@@ -906,7 +922,9 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
       depositPercentage,
       allowPayAtLocation,
       pickupTime: pickupTime || null,
+      pickupTimes,
       hotelPickupIncluded,
+      tourOptions: tourOptions.length > 0 ? tourOptions : null,
       highlights: translations.en.highlights?.length > 0 ? translations.en.highlights : undefined,
       inclusions: translations.en.inclusions?.length > 0 ? translations.en.inclusions : undefined,
       exclusions: translations.en.exclusions?.length > 0 ? translations.en.exclusions : undefined,
@@ -1821,6 +1839,131 @@ export default function AdminToursClient({ initialTours, destinations, zones }: 
                       </span>
                     </label>
                   </div>
+                </div>
+              </div>
+
+              {/* Tour Options & Extras / Add-ons */}
+              <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">
+                      Tour Options &amp; Extras
+                    </h3>
+                    <p className="mt-0.5 text-xs text-slate-500">Upgrades customers can add at checkout (e.g. VIP Seafood, Private Transfer, Banana Boat)</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTourOptions([...tourOptions, {
+                      id: crypto.randomUUID(),
+                      labels: { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '' },
+                      price: 0,
+                      priceType: 'per_person',
+                      enabled: true,
+                    }])}
+                    className="rounded-full border border-[#06B6D4]/30 bg-[#06B6D4]/10 px-4 py-2 text-xs font-black text-[#06B6D4] hover:bg-[#06B6D4]/20 transition-all"
+                  >
+                    + Add Option
+                  </button>
+                </div>
+
+                {tourOptions.length === 0 && (
+                  <p className="text-sm text-slate-500">No options added yet. Click &quot;Add Option&quot; to create tour add-ons.</p>
+                )}
+
+                <div className="space-y-3">
+                  {tourOptions.map((opt, idx) => (
+                    <div key={opt.id} className="rounded-2xl border border-white/5 bg-[#070F1E]/60 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black uppercase tracking-widest text-slate-400">Option #{idx + 1}</span>
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={opt.enabled}
+                              onChange={(e) => {
+                                const updated = [...tourOptions];
+                                updated[idx] = { ...updated[idx], enabled: e.target.checked };
+                                setTourOptions(updated);
+                              }}
+                              className="accent-[#06B6D4] h-4 w-4"
+                            />
+                            Enabled
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setTourOptions(tourOptions.filter((_, i) => i !== idx))}
+                            className="rounded-full p-1.5 text-slate-600 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <div>
+                          <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">English Label</span>
+                          <input
+                            type="text"
+                            placeholder="e.g. VIP Seafood Dinner"
+                            value={opt.labels.en || ''}
+                            onChange={(e) => {
+                              const updated = [...tourOptions];
+                              updated[idx] = { ...updated[idx], labels: { ...updated[idx].labels, en: e.target.value } };
+                              setTourOptions(updated);
+                            }}
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#06B6D4]"
+                          />
+                        </div>
+                        <div>
+                          <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Russian / Other Label</span>
+                          <input
+                            type="text"
+                            placeholder="e.g. VIP-ужин (optional)"
+                            value={opt.labels.ru || ''}
+                            onChange={(e) => {
+                              const updated = [...tourOptions];
+                              updated[idx] = { ...updated[idx], labels: { ...updated[idx].labels, ru: e.target.value } };
+                              setTourOptions(updated);
+                            }}
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#06B6D4]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Price (USD)</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={opt.price}
+                            onChange={(e) => {
+                              const updated = [...tourOptions];
+                              updated[idx] = { ...updated[idx], price: parseFloat(e.target.value) || 0 };
+                              setTourOptions(updated);
+                            }}
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#06B6D4]"
+                          />
+                        </div>
+                        <div>
+                          <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Price Type</span>
+                          <select
+                            value={opt.priceType}
+                            onChange={(e) => {
+                              const updated = [...tourOptions];
+                              updated[idx] = { ...updated[idx], priceType: e.target.value as 'per_person' | 'flat' };
+                              setTourOptions(updated);
+                            }}
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-[#06B6D4]"
+                          >
+                            <option value="per_person">Per Person</option>
+                            <option value="flat">Flat (one-time)</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

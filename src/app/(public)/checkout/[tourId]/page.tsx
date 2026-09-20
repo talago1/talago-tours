@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import PriceSummarySidebar from '@/components/checkout/PriceSummarySidebar';
 import Button from '@/components/ui/Button';
+import CountryCodeSelector from '@/components/checkout/CountryCodeSelector';
 import { PaymentScheme, type CheckoutFormData, type InitializeResponse } from '@/types/checkout';
 import type { PromoDiscount } from '@/utils/promo';
 import { useLanguage } from '@/context/LanguageContext';
@@ -147,6 +148,7 @@ interface TourDetails {
   depositPercentage: number;
   allowPayAtLocation: boolean;
   allowDeposit: boolean;
+  allowFullOnline: boolean;
   zoneTransferFee: number;
   maxCapacity: number | null;
   pickupTimes: string[];
@@ -174,8 +176,8 @@ function validateForm(data: CheckoutFormData, pickupTimes: string[], m: {
   }
   if (!data.phone.trim()) {
     errors.phone = m.phoneRequired;
-  } else if (!/^\+?[\d\s\-().]{7,20}$/.test(data.phone.replace(/[\s-]/g, ''))) {
-    errors.phone = m.phoneInvalid;
+  } else if (!/^\+[1-9]\d{6,14}$/.test(data.phone.replace(/[\s\-().]/g, ''))) {
+    errors.phone = 'Please provide a valid international number with country code (e.g. +49, +44, +20)';
   }
   if (!data.hotelName.trim()) errors.hotelName = m.hotelRequired;
   if (pickupTimes.length > 0 && !data.pickupTime) errors.pickupTime = m.pickupRequired;
@@ -317,15 +319,26 @@ export default function CheckoutPage() {
           setSelectedZoneFee(zonesList[0].transferFee);
         }
 
+        const pm = data.paymentMethods || {};
+        const allowPayAtLocation = pm.allowPayOnArrival !== false && Boolean(data.allowPayAtLocation !== false);
+        const allowFullOnline = pm.allowFullOnline !== false;
+        const allowDeposit = pm.allowDepositOnline !== false && (Boolean(data.allowDeposit) || Number(pm.defaultDepositPercentage ?? 0) > 0);
+        const depositPercentage = Number(data.depositPercentage || pm.defaultDepositPercentage || 20);
+
+        if (!allowPayAtLocation && scheme === PaymentScheme.PAY_ON_ARRIVAL) {
+          setScheme(allowFullOnline ? PaymentScheme.FULL_ONLINE : PaymentScheme.DEPOSIT_ONLINE);
+        }
+
         setTour({
           id: data.id,
           title,
           adultPrice: Number(data.priceAdult ?? data.adultPrice ?? data.basePrice ?? data.basePriceUSD ?? 0),
           childPrice: data.priceChild ?? data.childPrice ?? null,
           infantPrice: data.infantPrice ?? null,
-          depositPercentage: Number(data.depositPercentage ?? 0),
-          allowPayAtLocation: Boolean(data.allowPayAtLocation),
-          allowDeposit: Boolean(data.allowDeposit),
+          depositPercentage,
+          allowPayAtLocation,
+          allowDeposit,
+          allowFullOnline,
           zoneTransferFee: Number(data.zone?.transferFee ?? 0),
           maxCapacity: data.maxCapacity ?? null,
           pickupTimes: data.pickupTime
@@ -652,13 +665,9 @@ export default function CheckoutPage() {
                   </FormField>
 
                   <FormField label={dict.checkout.phone} required error={errors.phone}>
-                    <Input
-                      id="phone"
-                      type="tel"
+                    <CountryCodeSelector
                       value={form.phone}
-                      onChange={(e) => handleFieldChange('phone', e.target.value)}
-                      placeholder="+201234567890"
-                      icon={<Phone className="h-5 w-5" />}
+                      onChange={(val) => handleFieldChange('phone', val)}
                       error={errors.phone}
                     />
                   </FormField>
@@ -887,6 +896,7 @@ export default function CheckoutPage() {
               onPromoApplied={setPromoDiscount}
               allowDeposit={tour.allowDeposit}
               allowPayAtLocation={tour.allowPayAtLocation}
+              allowFullOnline={tour.allowFullOnline}
             />
           </div>
         </div>

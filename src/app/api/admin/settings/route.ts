@@ -36,6 +36,13 @@ const DEFAULT_SETTINGS = {
       fawry: false,
     },
   },
+  paymentMethods: {
+    allowPayOnArrival: true,
+    allowFullOnline: true,
+    allowDepositOnline: true,
+    defaultDepositPercentage: 20,
+    allowPaymentLink: true,
+  },
   banners: {
     heroBackground: '',
     splitSectionLeft: '',

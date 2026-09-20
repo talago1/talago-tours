@@ -76,6 +76,7 @@ export async function PUT(
       pickupDescription,
       hotelPickupIncluded,
       pickupTime,
+      pickupTimes,
       cancellationPolicy,
       reviews,
       tourOptions,
@@ -221,6 +222,7 @@ export async function PUT(
     if (pickupDescription !== undefined) updateData.pickupDescription = pickupDescription;
     if (hotelPickupIncluded !== undefined) updateData.hotelPickupIncluded = hotelPickupIncluded;
     if (pickupTime !== undefined) updateData.pickupTime = pickupTime;
+    if (pickupTimes !== undefined) updateData.pickupTimes = Array.isArray(pickupTimes) ? pickupTimes : [];
     if (cancellationPolicy !== undefined) updateData.cancellationPolicy = cancellationPolicy;
     if (tourOptions !== undefined) updateData.tourOptions = Array.isArray(tourOptions) ? tourOptions : null;
 

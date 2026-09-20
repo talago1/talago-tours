@@ -26,6 +26,13 @@ export interface SystemSettings {
       fawry: boolean;
     };
   };
+  paymentMethods: {
+    allowPayOnArrival: boolean;
+    allowFullOnline: boolean;
+    allowDepositOnline: boolean;
+    defaultDepositPercentage: number;
+    allowPaymentLink: boolean;
+  };
   banners: {
     heroBackground: string;
     splitSectionLeft: string;
@@ -110,6 +117,13 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
       paymob: true,
       fawry: false,
     },
+  },
+  paymentMethods: {
+    allowPayOnArrival: true,
+    allowFullOnline: true,
+    allowDepositOnline: true,
+    defaultDepositPercentage: 20,
+    allowPaymentLink: true,
   },
   banners: {
     heroBackground: '',

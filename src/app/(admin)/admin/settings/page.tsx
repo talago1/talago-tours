@@ -19,13 +19,14 @@ import {
   MessageSquare,
   RefreshCw,
   Languages,
+  CreditCard,
 } from 'lucide-react';
 import type { SystemSettings, SiteBanner, HeroLanguageTexts } from '@/types/settings';
 import { DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
 import NotificationSettingsDashboard from '@/components/admin/NotificationSettingsDashboard';
 import GlobalAssetStudio from '@/components/admin/GlobalAssetStudio';
 
-type ActiveSection = 'contact' | 'financial' | 'system' | 'banners' | 'notifications';
+type ActiveSection = 'contact' | 'financial' | 'paymentMethods' | 'system' | 'banners' | 'notifications';
 
 const HERO_LANGUAGES = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -40,6 +41,7 @@ const HERO_LANGUAGES = [
 const SECTIONS: { key: ActiveSection; label: string; icon: typeof Settings }[] = [
   { key: 'contact', label: 'Contact Info', icon: Phone },
   { key: 'financial', label: 'Currency & Pricing', icon: DollarSign },
+  { key: 'paymentMethods', label: 'Payment Methods', icon: CreditCard },
   { key: 'system', label: 'System Toggles', icon: ToggleLeft },
   { key: 'banners', label: 'Hero & Banners', icon: ImageIcon },
   { key: 'notifications', label: 'Notifications', icon: MessageSquare },
@@ -64,6 +66,7 @@ export default function AdminSettingsPage() {
             const merged: SystemSettings = {
               contact: { ...DEFAULT_SYSTEM_SETTINGS.contact, ...(data.settings.contact || {}) },
               financial: { ...DEFAULT_SYSTEM_SETTINGS.financial, ...(data.settings.financial || {}) },
+              paymentMethods: { ...DEFAULT_SYSTEM_SETTINGS.paymentMethods, ...(data.settings.paymentMethods || {}) },
               system: { ...DEFAULT_SYSTEM_SETTINGS.system, ...(data.settings.system || {}) },
               banners: { ...DEFAULT_SYSTEM_SETTINGS.banners, ...(data.settings.banners || {}) },
             };
@@ -463,6 +466,199 @@ export default function AdminSettingsPage() {
                         />
                       </label>
                     ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Methods Panel */}
+            {activeSection === 'paymentMethods' && (
+              <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#00E5FF]/10">
+                    <CreditCard className="h-5 w-5 text-[#00E5FF]" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-white">Payment Methods & Checkout Visibility</h2>
+                    <p className="text-xs text-slate-500">
+                      Enable or disable payment schemes shown to customers during checkout
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Cash on Arrival */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#070F1E] p-5">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white">Cash on Arrival (Zero Advance)</span>
+                        <span className="rounded-full bg-[#EAB308]/15 px-2 py-0.5 text-[10px] font-black uppercase text-[#EAB308]">
+                          High Conversion
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400 max-w-lg">
+                        Allows customers to reserve immediately without entering card details. The full amount is collected in cash on the tour day upon pickup.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSettings((prev) => ({
+                          ...prev,
+                          paymentMethods: {
+                            ...prev.paymentMethods,
+                            allowPayOnArrival: !prev.paymentMethods?.allowPayOnArrival,
+                          },
+                        }))
+                      }
+                      className={`relative h-7 w-12 shrink-0 rounded-full transition-all ${
+                        settings.paymentMethods?.allowPayOnArrival !== false ? 'bg-emerald-400' : 'bg-white/10'
+                      }`}
+                    >
+                      <span
+                        className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white transition-all duration-200 ${
+                          settings.paymentMethods?.allowPayOnArrival !== false ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Full Online Payment */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#070F1E] p-5">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white">Full Online Payment (100%)</span>
+                        <span className="rounded-full bg-[#00E5FF]/15 px-2 py-0.5 text-[10px] font-black uppercase text-[#00E5FF]">
+                          Credit Card / Gateway
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400 max-w-lg">
+                        Processes 100% of the total booking price online upfront via secure payment gateway. Zero balance due on tour day.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSettings((prev) => ({
+                          ...prev,
+                          paymentMethods: {
+                            ...prev.paymentMethods,
+                            allowFullOnline: !prev.paymentMethods?.allowFullOnline,
+                          },
+                        }))
+                      }
+                      className={`relative h-7 w-12 shrink-0 rounded-full transition-all ${
+                        settings.paymentMethods?.allowFullOnline !== false ? 'bg-[#00E5FF]' : 'bg-white/10'
+                      }`}
+                    >
+                      <span
+                        className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white transition-all duration-200 ${
+                          settings.paymentMethods?.allowFullOnline !== false ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Online Deposit */}
+                  <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white">Online Deposit (% Advance)</span>
+                          <span className="rounded-full bg-[#FFD700]/15 px-2 py-0.5 text-[10px] font-black uppercase text-[#FFD700]">
+                            Split Payment
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-400 max-w-lg">
+                          Customer pays a fixed percentage deposit online to lock in the booking, with the remaining balance collected in cash on arrival.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            paymentMethods: {
+                              ...prev.paymentMethods,
+                              allowDepositOnline: !prev.paymentMethods?.allowDepositOnline,
+                            },
+                          }))
+                        }
+                        className={`relative h-7 w-12 shrink-0 rounded-full transition-all ${
+                          settings.paymentMethods?.allowDepositOnline ? 'bg-[#FFD700]' : 'bg-white/10'
+                        }`}
+                      >
+                        <span
+                          className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white transition-all duration-200 ${
+                            settings.paymentMethods?.allowDepositOnline ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {settings.paymentMethods?.allowDepositOnline && (
+                      <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-3">
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-400">
+                          Default Deposit Percentage:
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="5"
+                            max="90"
+                            step="5"
+                            value={settings.paymentMethods?.defaultDepositPercentage || 20}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                paymentMethods: {
+                                  ...prev.paymentMethods,
+                                  defaultDepositPercentage: parseInt(e.target.value, 10) || 20,
+                                },
+                              }))
+                            }
+                            className="w-20 rounded-xl border border-white/10 bg-[#0B1528] px-3 py-1.5 text-sm font-bold text-white outline-none focus:border-[#FFD700]"
+                          />
+                          <span className="text-sm font-bold text-[#FFD700]">%</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Payment Link / Concierge Invoice */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#070F1E] p-5">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white">Payment Link / Concierge Invoice</span>
+                        <span className="rounded-full bg-violet-400/15 px-2 py-0.5 text-[10px] font-black uppercase text-violet-300">
+                          Direct WhatsApp Link
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400 max-w-lg">
+                        Enables generating and sending direct hosted payment links to guests via WhatsApp or Email from the Admin Bookings Desk.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSettings((prev) => ({
+                          ...prev,
+                          paymentMethods: {
+                            ...prev.paymentMethods,
+                            allowPaymentLink: !prev.paymentMethods?.allowPaymentLink,
+                          },
+                        }))
+                      }
+                      className={`relative h-7 w-12 shrink-0 rounded-full transition-all ${
+                        settings.paymentMethods?.allowPaymentLink !== false ? 'bg-violet-400' : 'bg-white/10'
+                      }`}
+                    >
+                      <span
+                        className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white transition-all duration-200 ${
+                          settings.paymentMethods?.allowPaymentLink !== false ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
                   </div>
                 </div>
               </div>
