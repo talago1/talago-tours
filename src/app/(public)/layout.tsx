@@ -67,7 +67,7 @@ export default function PublicRouteLayout({ children }: { children: React.ReactN
           {/* Bottom Bar */}
           <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-white/[0.06] pt-8 sm:flex-row">
             <p className="text-xs text-slate-500">
-              &copy; {new Date().getFullYear()} TALAGO. All rights reserved.
+              &copy; 2016 TALAGO. All rights reserved.
             </p>
             <div className="flex gap-6">
               <a href="#" className="text-xs text-slate-500 transition-colors hover:text-[#00E5FF]">Instagram</a>
