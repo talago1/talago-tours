@@ -112,7 +112,7 @@ export const pl: typeof en = {
     innerCircle: 'Dołącz do Inner Circle',
     newsletterDesc: 'Otrzymuj powiadomienia o prywatnych rejsach i dostęp do ekskluzywnych wycieczek.',
     emailPlaceholder: 'Adres e-mail',
-    copyright: '© 2026 TALAGO. Wszelkie prawa zastrzeżone.',
+    copyright: '© 2016 TALAGO. Wszelkie prawa zastrzeżone.',
     privacy: 'Polityka Prywatności',
     terms: 'Warunki Korzystania',
     safety: 'Standardy Bezpieczeństwa'

@@ -112,7 +112,7 @@ export const fr: typeof en = {
     innerCircle: 'Rejoignez l\'Inner Circle',
     newsletterDesc: 'Recevez des alertes de départs privés et un accès prioritaire aux expériences dans le désert.',
     emailPlaceholder: 'Adresse e-mail',
-    copyright: '© 2026 TALAGO. Tous droits réservés.',
+    copyright: '© 2016 TALAGO. Tous droits réservés.',
     privacy: 'Politique de Confidentialité',
     terms: 'Conditions d\'Utilisation',
     safety: 'Normes de Sécurité'

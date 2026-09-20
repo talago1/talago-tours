@@ -110,7 +110,7 @@ export const en = {
     innerCircle: 'Join The Inner Circle',
     newsletterDesc: 'Receive private departure alerts, seasonal yacht drops, and first access to limited desert experiences.',
     emailPlaceholder: 'Email address',
-    copyright: '© 2026 TALAGO. All rights reserved.',
+    copyright: '© 2016 TALAGO. All rights reserved.',
     privacy: 'Privacy Policy',
     terms: 'Terms of Service',
     safety: 'Safety Standards'

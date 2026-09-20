@@ -112,7 +112,7 @@ export const de: typeof en = {
     innerCircle: 'Inner Circle beitreten',
     newsletterDesc: 'Erhalten Sie private Abfahrtsbenachrichtigungen und ersten Zugang zu limitierten Wüstenerlebnissen.',
     emailPlaceholder: 'E-Mail-Adresse',
-    copyright: '© 2026 TALAGO. Alle Rechte vorbehalten.',
+    copyright: '© 2016 TALAGO. Alle Rechte vorbehalten.',
     privacy: 'Datenschutz-Bestimmungen',
     terms: 'Nutzungsbedingungen',
     safety: 'Sicherheitsstandards'

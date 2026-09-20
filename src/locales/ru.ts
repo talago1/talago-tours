@@ -112,7 +112,7 @@ export const ru: typeof en = {
     innerCircle: 'Присоединиться к Inner Circle',
     newsletterDesc: 'Получайте уведомления о частных рейсах и доступ к эксклюзивным экскурсиям.',
     emailPlaceholder: 'Адрес эл. почты',
-    copyright: '© 2026 TALAGO. Все права защищены.',
+    copyright: '© 2016 TALAGO. Все права защищены.',
     privacy: 'Политика Конфиденциальности',
     terms: 'Условия Обслуживания',
     safety: 'Стандарты Безопасности'
