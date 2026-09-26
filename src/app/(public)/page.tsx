@@ -15,8 +15,14 @@ import NewsletterBanner from '@/components/landing/NewsletterBanner';
 export default async function HomePage() {
   const [tours, destinations, bannerSetting] = await Promise.all([
     prisma.tour.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 6,
+      where: { status: 'ACTIVE' },
+      orderBy: [
+        { isBestSeller: 'desc' },
+        { ratingAverage: 'desc' },
+        { ratingCount: 'desc' },
+        { createdAt: 'desc' },
+      ],
+      take: 36,
       select: {
         id: true,
         slug: true,
@@ -36,8 +42,15 @@ export default async function HomePage() {
         priceAdult: true,
         adultPrice: true,
         originalPrice: true,
+        isBestSeller: true,
+        isFeatured: true,
+        isRecommended: true,
+        isVip: true,
+        isNew: true,
+        customBadge: true,
+        destinationId: true,
         destination: {
-          select: { name: true, slug: true },
+          select: { id: true, name: true, slug: true },
         },
       },
     }),
