@@ -105,8 +105,8 @@ export default async function HomePage() {
         heroMetric3Label={bannerData.heroMetric3Label}
         heroTranslations={bannerData.heroTranslations}
       />
-      <BentoGridUSPs />
       <TourCatalog tours={tours} />
+      <BentoGridUSPs />
       <PopularDestinations destinations={destinations} />
       <Testimonials />
       <FAQSection />

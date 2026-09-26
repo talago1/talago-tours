@@ -93,7 +93,7 @@ function RatingStars({ ratingAverage }: { ratingAverage: number }) {
 
 export default function PublicTourCard({ tour }: { tour: TourData }) {
   const [isHovered, setIsHovered] = useState(false);
-  const { language } = useLanguage();
+  const { language, dict } = useLanguage();
 
   const t = tour.translations as Record<string, { title?: string; description?: string }> | undefined;
   const title = t?.[language]?.title ?? t?.en?.title ?? 'Untitled Experience';
@@ -177,10 +177,10 @@ export default function PublicTourCard({ tour }: { tour: TourData }) {
             <RatingStars ratingAverage={tour.ratingAverage} />
             {tour.ratingCount > 0 ? (
               <span className="text-sm font-semibold text-slate-300">
-                {tour.ratingAverage.toFixed(1)} ({tour.ratingCount} reviews)
+                {tour.ratingAverage.toFixed(1)} ({tour.ratingCount} {dict.catalog.reviews})
               </span>
             ) : (
-              <span className="text-sm font-semibold text-slate-500">Unrated</span>
+              <span className="text-sm font-semibold text-slate-500">{dict.catalog.unrated}</span>
             )}
           </div>
 
@@ -189,7 +189,7 @@ export default function PublicTourCard({ tour }: { tour: TourData }) {
               {price != null && (
                 <>
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
-                    Starting at
+                    {dict.catalog.startingAt}
                   </p>
                   <div className="mt-1 flex items-baseline gap-2">
                     <p className="text-3xl font-black text-white">
@@ -205,7 +205,7 @@ export default function PublicTourCard({ tour }: { tour: TourData }) {
               )}
             </div>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white transition-all duration-300 ease-in-out hover:scale-[1.02] hover:border-[#EAB308]/40 hover:bg-[#EAB308] hover:text-[#070F1E]">
-              Reserve Spot
+              {dict.catalog.reserveSpot}
               <ArrowRight className="h-4 w-4" />
             </span>
           </div>
