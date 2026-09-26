@@ -22,6 +22,12 @@ export async function PUT(
         ...(body.description !== undefined && { description: body.description }),
         ...(body.imageUrl !== undefined && { imageUrl: body.imageUrl }),
         ...(body.translations !== undefined && { translations: body.translations }),
+        ...(body.countryCode !== undefined && { countryCode: body.countryCode }),
+        ...(body.region !== undefined && { region: body.region || null }),
+        ...(body.city !== undefined && { city: body.city || null }),
+        ...(body.latitude !== undefined && { latitude: typeof body.latitude === 'number' ? body.latitude : null }),
+        ...(body.longitude !== undefined && { longitude: typeof body.longitude === 'number' ? body.longitude : null }),
+        ...(body.timezone !== undefined && { timezone: body.timezone }),
       },
       include: {
         _count: { select: { tours: true } },

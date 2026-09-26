@@ -19,10 +19,13 @@ import {
   UserRound,
   Baby,
   Maximize2,
+  Sparkles,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
+import TourCard from '@/components/public/TourCard';
+import type { PublicTour } from '@/types/publicTour';
 
 interface TourData {
   id: string;
@@ -46,6 +49,15 @@ interface TourData {
   pickupTimes?: string[];
   cancellationPolicy?: string | null;
   hotelPickupIncluded: boolean | null;
+  pickupType?: string | null;
+  meetingPointName?: string | null;
+  meetingPointAddress?: string | null;
+  meetingPointLat?: number | null;
+  meetingPointLng?: number | null;
+  meetingPointLandmark?: string | null;
+  meetingPointInstructions?: string | null;
+  meetingPointMapUrl?: string | null;
+  meetingPointImageUrl?: string | null;
   images: string[];
   adultPrice: number;
   originalPrice?: number | null;
@@ -56,6 +68,23 @@ interface TourData {
   allowPayAtLocation: boolean;
   allowFullOnline?: boolean;
   translations: Record<string, { title?: string; description?: string }>;
+  requirements?: string | null;
+  accessibilityNotes?: string | null;
+  wheelchairAccessible?: boolean | null;
+  strollerAccessible?: boolean | null;
+  safetyGuidelines?: string[];
+  insuranceIncluded?: boolean | null;
+  faqItems?: Array<{ question: string; answer: string }>;
+  tourOptions?: Array<{
+    id: string;
+    title?: string;
+    name?: string;
+    description?: string;
+    price: number;
+    priceType?: string;
+    enabled?: boolean;
+  }>;
+  ageRestrictionsNotes?: string | null;
 }
 
 interface ReviewsData {
@@ -68,6 +97,7 @@ interface ReviewsData {
 interface Props {
   tour: TourData;
   reviews: ReviewsData;
+  relatedTours?: PublicTour[];
 }
 
 // ---------- Hero Slider ----------
@@ -447,7 +477,7 @@ function SidebarStepper({
   );
 }
 
-export default function TourDetailsClient({ tour, reviews }: Props) {
+export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: Props) {
   const { dict, language } = useLanguage();
   const [adultsCount, setAdultsCount] = useState(1);
   const [childrenCount, setChildrenCount] = useState(0);
@@ -500,6 +530,23 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
   })();
 
   const localizedPickupDescription = langTranslation.pickupDescription || enTranslation.pickupDescription || tour.pickupDescription;
+
+  const localizedRequirements = (langTranslation as any).requirements || (enTranslation as any).requirements || tour.requirements || null;
+  const localizedAccessibilityNotes = (langTranslation as any).accessibilityNotes || (enTranslation as any).accessibilityNotes || tour.accessibilityNotes || null;
+  const localizedSafetyGuidelines = (Array.isArray((langTranslation as any).safetyGuidelines) && (langTranslation as any).safetyGuidelines.length > 0)
+    ? (langTranslation as any).safetyGuidelines
+    : (Array.isArray((enTranslation as any).safetyGuidelines) && (enTranslation as any).safetyGuidelines.length > 0)
+    ? (enTranslation as any).safetyGuidelines
+    : (Array.isArray(tour.safetyGuidelines) && tour.safetyGuidelines.length > 0)
+    ? tour.safetyGuidelines
+    : [];
+  const localizedFaqItems = (Array.isArray((langTranslation as any).faqItems) && (langTranslation as any).faqItems.length > 0)
+    ? (langTranslation as any).faqItems
+    : (Array.isArray((enTranslation as any).faqItems) && (enTranslation as any).faqItems.length > 0)
+    ? (enTranslation as any).faqItems
+    : (Array.isArray(tour.faqItems) && tour.faqItems.length > 0)
+    ? tour.faqItems
+    : [];
 
   const pricePerAdult = tour.adultPrice ?? tour.basePrice;
   const effectiveChildPrice = tour.childPrice ?? null;
@@ -579,6 +626,43 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
               </div>
             )}
 
+            {/* Tour Add-ons / Upgrades (Phase 10) */}
+            {tour.tourOptions && tour.tourOptions.length > 0 && (
+              <div className="mb-10">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-xl font-black text-white flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-[#00E5FF]" />
+                    Available Add-ons & Upgrades
+                  </h2>
+                  <span className="text-xs text-slate-400">Selectable during checkout</span>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {tour.tourOptions.map((addon) => (
+                    <div
+                      key={addon.id}
+                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 flex flex-col justify-between hover:border-[#00E5FF]/30 transition"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="text-sm font-bold text-white">{addon.title || addon.name || 'Optional Upgrade'}</h4>
+                          <span className="rounded-full bg-[#00E5FF]/10 px-2.5 py-0.5 text-xs font-black text-[#00E5FF]">
+                            +${addon.price || 0}
+                          </span>
+                        </div>
+                        {addon.description && (
+                          <p className="mt-2 text-xs text-slate-400 leading-relaxed">{addon.description}</p>
+                        )}
+                      </div>
+                      <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 border-t border-white/5 pt-2">
+                        <span>{addon.priceType === 'per_booking' ? 'Per booking' : 'Per guest'}</span>
+                        <span className="text-[#00E5FF] font-semibold">Available</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Cancellation Policy Card — Gold-bordered */}
             <div className="mb-8 mt-6 rounded-[2rem] border border-[#FFD700]/20 bg-gradient-to-br from-[#FFD700]/5 to-transparent p-6 shadow-lg shadow-[#FFD700]/5 lg:p-8">
               <div className="flex items-start gap-4">
@@ -651,21 +735,162 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
                 </Accordion>
               )}
 
-              {/* Pickup Info */}
-              {(localizedPickupDescription || tour.hotelPickupIncluded) && (
-                <Accordion title={dict.tourDetails.pickupInfo}>
-                  <div className="rounded-xl border border-[#00E5FF]/10 bg-[#00E5FF]/5 p-5">
-                    <div className="flex items-start gap-3">
-                      <Info className="mt-0.5 h-5 w-5 shrink-0 text-[#00E5FF]" />
-                      <div>
-                        {tour.hotelPickupIncluded && (
-                          <p className="mb-2 text-sm font-bold text-emerald-400">{dict.tourDetails.hotelPickupIncluded}</p>
+              {/* Pickup & Meeting Point Info */}
+              {(localizedPickupDescription || tour.hotelPickupIncluded || tour.meetingPointName || tour.pickupType) && (
+                <Accordion title={dict.tourDetails.pickupInfo || 'Pickup & Meeting Point'}>
+                  <div className="space-y-4">
+                    {/* Hotel Pickup Included Badge */}
+                    {tour.hotelPickupIncluded && (
+                      <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-400">
+                        <Check className="h-4 w-4" />
+                        <span>{dict.tourDetails.hotelPickupIncluded}</span>
+                      </div>
+                    )}
+
+                    {/* Meeting Point Details */}
+                    {tour.meetingPointName && (
+                      <div className="rounded-xl border border-[#00E5FF]/20 bg-[#00E5FF]/5 p-5 space-y-3">
+                        <div className="flex items-start gap-3">
+                          <MapPin className="h-5 w-5 shrink-0 text-[#00E5FF] mt-0.5" />
+                          <div className="flex-1">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-[#00E5FF]">
+                              Designated Meeting Point
+                            </span>
+                            <h4 className="text-base font-bold text-white mt-0.5">{tour.meetingPointName}</h4>
+                            {tour.meetingPointAddress && (
+                              <p className="text-xs text-slate-300 mt-1">{tour.meetingPointAddress}</p>
+                            )}
+                            {tour.meetingPointLandmark && (
+                              <p className="text-xs text-amber-300/90 mt-1 flex items-center gap-1 font-medium">
+                                <span>📍 Landmark:</span>
+                                <span>{tour.meetingPointLandmark}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {tour.meetingPointInstructions && (
+                          <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 text-xs text-slate-300 leading-relaxed">
+                            <strong className="text-white block mb-0.5">Directions:</strong>
+                            {tour.meetingPointInstructions}
+                          </div>
                         )}
-                        {localizedPickupDescription && (
-                          <p className="text-sm leading-7 text-slate-300">{localizedPickupDescription}</p>
+
+                        {tour.meetingPointMapUrl && (
+                          <a
+                            href={tour.meetingPointMapUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00E5FF] hover:underline"
+                          >
+                            View location on Google Maps ↗
+                          </a>
                         )}
                       </div>
+                    )}
+
+                    {/* General Logistics / Pickup Description */}
+                    {localizedPickupDescription && (
+                      <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 flex items-start gap-3">
+                        <Info className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+                        <p className="text-sm leading-7 text-slate-300">{localizedPickupDescription}</p>
+                      </div>
+                    )}
+                  </div>
+                </Accordion>
+              )}
+
+              {/* Requirements & Fitness (Phase 10) */}
+              {(localizedRequirements || tour.ageRestrictionsNotes) && (
+                <Accordion title="Requirements & What to Expect">
+                  <div className="space-y-4">
+                    {localizedRequirements && (
+                      <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                        <p className="text-xs font-bold uppercase text-slate-400 mb-1">Participant Guidelines</p>
+                        <p className="text-sm leading-7 text-slate-300 whitespace-pre-line">{localizedRequirements}</p>
+                      </div>
+                    )}
+                    {tour.ageRestrictionsNotes && (
+                      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-start gap-3">
+                        <Info className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-bold uppercase text-amber-400">Age & Health Notice</p>
+                          <p className="text-xs text-slate-300 mt-1">{tour.ageRestrictionsNotes}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Accordion>
+              )}
+
+              {/* Accessibility & Accommodations (Phase 10) */}
+              {(localizedAccessibilityNotes || tour.wheelchairAccessible !== null || tour.strollerAccessible !== null) && (
+                <Accordion title="Accessibility & Special Accommodations">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className={`rounded-xl border p-4 flex items-center gap-3 ${tour.wheelchairAccessible ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-white/5 bg-white/[0.02] text-slate-400'}`}>
+                        {tour.wheelchairAccessible ? <Check className="h-5 w-5 text-emerald-400 shrink-0" /> : <X className="h-5 w-5 text-slate-500 shrink-0" />}
+                        <div>
+                          <p className="text-sm font-bold text-white">Wheelchair Accessible</p>
+                          <p className="text-xs text-slate-400">{tour.wheelchairAccessible ? 'Accessible routes and vehicles supported' : 'Not recommended for wheelchairs'}</p>
+                        </div>
+                      </div>
+                      <div className={`rounded-xl border p-4 flex items-center gap-3 ${tour.strollerAccessible ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-white/5 bg-white/[0.02] text-slate-400'}`}>
+                        {tour.strollerAccessible ? <Check className="h-5 w-5 text-emerald-400 shrink-0" /> : <X className="h-5 w-5 text-slate-500 shrink-0" />}
+                        <div>
+                          <p className="text-sm font-bold text-white">Stroller / Pram Accessible</p>
+                          <p className="text-xs text-slate-400">{tour.strollerAccessible ? 'Stroller-friendly tour surfaces' : 'Not suitable for strollers'}</p>
+                        </div>
+                      </div>
                     </div>
+                    {localizedAccessibilityNotes && (
+                      <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 text-xs text-slate-300 leading-relaxed">
+                        {localizedAccessibilityNotes}
+                      </div>
+                    )}
+                  </div>
+                </Accordion>
+              )}
+
+              {/* Safety Guidelines & Insurance (Phase 10) */}
+              {(localizedSafetyGuidelines.length > 0 || tour.insuranceIncluded !== null) && (
+                <Accordion title="Safety Guidelines & Insurance">
+                  <div className="space-y-4">
+                    {tour.insuranceIncluded !== false && (
+                      <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-400">
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Comprehensive Passenger & Activity Insurance Included</span>
+                      </div>
+                    )}
+                    {localizedSafetyGuidelines.length > 0 && (
+                      <div className="space-y-2">
+                        {localizedSafetyGuidelines.map((guideline: string, i: number) => (
+                          <div key={i} className="flex items-start gap-2.5 rounded-lg border border-white/5 bg-white/[0.02] p-3 text-xs text-slate-300">
+                            <Check className="h-4 w-4 text-[#00E5FF] shrink-0 mt-0.5" />
+                            <span>{guideline}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </Accordion>
+              )}
+
+              {/* FAQ (Phase 10) */}
+              {localizedFaqItems.length > 0 && (
+                <Accordion title="Frequently Asked Questions">
+                  <div className="space-y-3">
+                    {localizedFaqItems.map((item: any, i: number) => (
+                      <div key={i} className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                        <p className="text-sm font-bold text-white mb-1.5 flex items-center gap-2">
+                          <span className="text-[#00E5FF] font-black">Q:</span>
+                          {item.question}
+                        </p>
+                        <p className="text-xs text-slate-300 leading-relaxed pl-5">
+                          {item.answer}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </Accordion>
               )}
@@ -959,6 +1184,26 @@ export default function TourDetailsClient({ tour, reviews }: Props) {
             </div>
           </aside>
         </div>
+
+        {/* Related Tours Section (Phase 10) */}
+        {relatedTours && relatedTours.length > 0 && (
+          <section className="mt-16 border-t border-white/10 pt-12">
+            <div className="mb-8 flex items-end justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00E5FF]">Discover More</p>
+                <h2 className="text-2xl font-black text-white sm:text-3xl mt-1">You May Also Like</h2>
+              </div>
+              <Link href="/tours" className="text-xs font-bold text-[#00E5FF] hover:underline flex items-center gap-1">
+                View All Tours <span>→</span>
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {relatedTours.map((rTour) => (
+                <TourCard key={rTour.id} tour={rTour as any} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Mobile Sticky Bottom Booking Bar */}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema } from '@/utils/tourJsonSchemas';
+import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema, TourAddonSchema } from '@/utils/tourJsonSchemas';
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 const ALLOWED_TYPES = ['SHARED', 'PRIVATE'];
 
@@ -67,6 +67,8 @@ export async function PUT(
       category,
       allowDeposit,
       depositPercentage,
+      depositType,
+      depositAmount,
       allowPayAtLocation,
       itinerary,
       cardExcerpt,
@@ -77,9 +79,61 @@ export async function PUT(
       hotelPickupIncluded,
       pickupTime,
       pickupTimes,
+      pickupType,
+      meetingPointName,
+      meetingPointAddress,
+      meetingPointLat,
+      meetingPointLng,
+      meetingPointLandmark,
+      meetingPointInstructions,
+      meetingPointMapUrl,
+      meetingPointImageUrl,
       cancellationPolicy,
       reviews,
       tourOptions,
+      bookingQuestions,
+      countryCode,
+      region,
+      city,
+      latitude,
+      longitude,
+      timezone,
+      // New UnifiedTourEditor fields
+      isFeatured,
+      isBestSeller,
+      isRecommended,
+      isVip,
+      isFamilyFriendly,
+      isNew,
+      customBadge,
+      secondaryCategories,
+      tags,
+      vehicleType,
+      boatType,
+      airConditioned,
+      transferNotes,
+      fitnessLevel,
+      wheelchairAccessible,
+      strollerAccessible,
+      mobilityNotes,
+      accessibilityNotes,
+      safetyGuidelines,
+      insuranceIncluded,
+      emergencyContact,
+      freeCancellationHours,
+      instantConfirmation,
+      cutoffHours,
+      durationDisplay,
+      routeStops,
+      activityTypes,
+      operatorName,
+      operatorPhone,
+      operatorEmail,
+      internalNotes,
+      variants,
+      metaTitle,
+      metaDescription,
+      keywords,
     } = body;
 
     // Build update payload
@@ -177,14 +231,18 @@ export async function PUT(
         return NextResponse.json({ error: 'Adult price must be a positive number', field: 'adultPrice' }, { status: 400 });
       }
       updateData.adultPrice = numAdult;
-      updateData.basePrice = numAdult; // Catalog legacy sync
+      updateData.priceAdult = numAdult; // keep legacy alias in sync
+      updateData.basePrice = numAdult;  // catalog legacy sync
     }
 
     if (originalPrice !== undefined) {
       updateData.originalPrice = originalPrice !== null && Number(originalPrice) > 0 ? Number(originalPrice) : null;
     }
 
-    if (childPrice !== undefined) updateData.childPrice = childPrice !== null ? Number(childPrice) : null;
+    if (childPrice !== undefined) {
+      updateData.childPrice = childPrice !== null ? Number(childPrice) : null;
+      updateData.priceChild = childPrice !== null ? Number(childPrice) : null; // keep legacy alias in sync
+    }
     if (childMinAge !== undefined) updateData.childMinAge = childMinAge !== null ? Number(childMinAge) : null;
     if (childMaxAge !== undefined) updateData.childMaxAge = childMaxAge !== null ? Number(childMaxAge) : null;
     if (infantPrice !== undefined) updateData.infantPrice = infantPrice !== null ? Number(infantPrice) : null;
@@ -195,6 +253,8 @@ export async function PUT(
     if (category !== undefined) updateData.category = category;
     if (allowDeposit !== undefined) updateData.allowDeposit = allowDeposit;
     if (depositPercentage !== undefined) updateData.depositPercentage = depositPercentage !== null ? Number(depositPercentage) : 100;
+    if (depositType !== undefined) updateData.depositType = depositType === 'FIXED' ? 'FIXED' : 'PERCENTAGE';
+    if (depositAmount !== undefined) updateData.depositAmount = typeof depositAmount === 'number' && depositAmount > 0 ? depositAmount : null;
     if (allowPayAtLocation !== undefined) updateData.allowPayAtLocation = allowPayAtLocation;
 
     if (itinerary !== undefined) {
@@ -223,8 +283,96 @@ export async function PUT(
     if (hotelPickupIncluded !== undefined) updateData.hotelPickupIncluded = hotelPickupIncluded;
     if (pickupTime !== undefined) updateData.pickupTime = pickupTime;
     if (pickupTimes !== undefined) updateData.pickupTimes = Array.isArray(pickupTimes) ? pickupTimes : [];
+    if (pickupType !== undefined) updateData.pickupType = pickupType;
+    if (meetingPointName !== undefined) updateData.meetingPointName = meetingPointName || null;
+    if (meetingPointAddress !== undefined) updateData.meetingPointAddress = meetingPointAddress || null;
+    if (meetingPointLat !== undefined) updateData.meetingPointLat = typeof meetingPointLat === 'number' ? meetingPointLat : null;
+    if (meetingPointLng !== undefined) updateData.meetingPointLng = typeof meetingPointLng === 'number' ? meetingPointLng : null;
+    if (meetingPointLandmark !== undefined) updateData.meetingPointLandmark = meetingPointLandmark || null;
+    if (meetingPointInstructions !== undefined) updateData.meetingPointInstructions = meetingPointInstructions || null;
+    if (meetingPointMapUrl !== undefined) updateData.meetingPointMapUrl = meetingPointMapUrl || null;
+    if (meetingPointImageUrl !== undefined) updateData.meetingPointImageUrl = meetingPointImageUrl || null;
     if (cancellationPolicy !== undefined) updateData.cancellationPolicy = cancellationPolicy;
-    if (tourOptions !== undefined) updateData.tourOptions = Array.isArray(tourOptions) ? tourOptions : null;
+    if (tourOptions !== undefined) {
+      if (tourOptions === null || !Array.isArray(tourOptions)) {
+        updateData.tourOptions = null;
+      } else {
+        const parsedAddons = z.array(TourAddonSchema).safeParse(tourOptions);
+        if (!parsedAddons.success) {
+          console.error('TourOptions Zod Error:', JSON.stringify(parsedAddons.error.issues, null, 2));
+          return NextResponse.json({
+            error: 'Invalid tourOptions data structure',
+            field: 'tourOptions',
+            details: parsedAddons.error.issues,
+          }, { status: 400 });
+        }
+        updateData.tourOptions = tourOptions;
+      }
+    }
+
+    if (bookingQuestions !== undefined) {
+      updateData.bookingQuestions = Array.isArray(bookingQuestions) ? bookingQuestions : [];
+    }
+
+    if (countryCode !== undefined) updateData.countryCode = countryCode || null;
+    if (region !== undefined) updateData.region = region || null;
+    if (city !== undefined) updateData.city = city || null;
+    if (latitude !== undefined) updateData.latitude = typeof latitude === 'number' ? latitude : null;
+    if (longitude !== undefined) updateData.longitude = typeof longitude === 'number' ? longitude : null;
+    if (timezone !== undefined) updateData.timezone = timezone || null;
+
+    // Badges & Marketing
+    if (isFeatured !== undefined) updateData.isFeatured = Boolean(isFeatured);
+    if (isBestSeller !== undefined) updateData.isBestSeller = Boolean(isBestSeller);
+    if (isRecommended !== undefined) updateData.isRecommended = Boolean(isRecommended);
+    if (isVip !== undefined) updateData.isVip = Boolean(isVip);
+    if (isFamilyFriendly !== undefined) updateData.isFamilyFriendly = Boolean(isFamilyFriendly);
+    if (isNew !== undefined) updateData.isNew = Boolean(isNew);
+    if (customBadge !== undefined) updateData.customBadge = customBadge || null;
+    if (secondaryCategories !== undefined) updateData.secondaryCategories = Array.isArray(secondaryCategories) ? secondaryCategories : [];
+    if (tags !== undefined) updateData.tags = Array.isArray(tags) ? tags : [];
+
+    // Transport
+    if (vehicleType !== undefined) updateData.vehicleType = vehicleType || null;
+    if (boatType !== undefined) updateData.boatType = boatType || null;
+    if (airConditioned !== undefined) updateData.airConditioned = Boolean(airConditioned);
+    if (transferNotes !== undefined) updateData.transferNotes = transferNotes || null;
+
+    // Fitness & Accessibility
+    if (fitnessLevel !== undefined) updateData.fitnessLevel = fitnessLevel || null;
+    if (wheelchairAccessible !== undefined) updateData.wheelchairAccessible = Boolean(wheelchairAccessible);
+    if (strollerAccessible !== undefined) updateData.strollerAccessible = Boolean(strollerAccessible);
+    if (mobilityNotes !== undefined) updateData.mobilityNotes = mobilityNotes || null;
+    if (accessibilityNotes !== undefined) updateData.accessibilityNotes = accessibilityNotes || null;
+
+    // Safety
+    if (safetyGuidelines !== undefined) updateData.safetyGuidelines = Array.isArray(safetyGuidelines) ? safetyGuidelines : [];
+    if (insuranceIncluded !== undefined) updateData.insuranceIncluded = Boolean(insuranceIncluded);
+    if (emergencyContact !== undefined) updateData.emergencyContact = emergencyContact || null;
+    if (freeCancellationHours !== undefined) updateData.freeCancellationHours = Number(freeCancellationHours) || 24;
+
+    // Scheduling
+    if (instantConfirmation !== undefined) updateData.instantConfirmation = Boolean(instantConfirmation);
+    if (cutoffHours !== undefined) updateData.cutoffHours = Number(cutoffHours) || 12;
+    if (durationDisplay !== undefined) updateData.durationDisplay = durationDisplay || null;
+
+    // Route & Activities
+    if (routeStops !== undefined) updateData.routeStops = Array.isArray(routeStops) ? routeStops : null;
+    if (activityTypes !== undefined) updateData.activityTypes = Array.isArray(activityTypes) ? activityTypes : [];
+
+    // Operator
+    if (operatorName !== undefined) updateData.operatorName = operatorName || null;
+    if (operatorPhone !== undefined) updateData.operatorPhone = operatorPhone || null;
+    if (operatorEmail !== undefined) updateData.operatorEmail = operatorEmail || null;
+    if (internalNotes !== undefined) updateData.internalNotes = internalNotes || null;
+
+    // Variants
+    if (variants !== undefined) updateData.variants = Array.isArray(variants) ? variants : null;
+
+    // SEO
+    if (metaTitle !== undefined) updateData.metaTitle = metaTitle || null;
+    if (metaDescription !== undefined) updateData.metaDescription = metaDescription || null;
+    if (keywords !== undefined) updateData.keywords = Array.isArray(keywords) ? keywords : [];
 
     if (reviews !== undefined && reviews !== null) {
       if (Array.isArray(reviews)) {

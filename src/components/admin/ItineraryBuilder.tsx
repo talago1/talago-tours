@@ -1,10 +1,14 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
-import type { ItineraryMilestone, IconToken, LanguageCode } from '@/types/itinerary';
-import { ICON_MAP, ICON_TOKENS, ICON_LABELS, createEmptyMilestone } from '@/types/itinerary';
+import type { ItineraryMilestone, IconToken, LanguageCode, ItineraryPointType } from '@/types/itinerary';
+import {
+  ICON_MAP, ICON_TOKENS, ICON_LABELS,
+  POINT_TYPES, POINT_TYPE_LABELS, POINT_TYPE_ICONS,
+  createEmptyMilestone,
+} from '@/types/itinerary';
 import { LANGUAGE_CODES, LANGUAGE_LABELS } from '@/types/tourBuilder';
-import { ChevronUp, ChevronDown, Trash2, Plus, Clock, MapPin } from 'lucide-react';
+import { ChevronUp, ChevronDown, Trash2, Plus, Clock, MapPin, ChevronRight } from 'lucide-react';
 
 interface ItineraryBuilderProps {
   milestones: ItineraryMilestone[];
@@ -19,27 +23,45 @@ const LANG_FLAGS: Record<LanguageCode, string> = {
 
 export default function ItineraryBuilder({ milestones, activeLanguage, errors, onChange }: ItineraryBuilderProps) {
   const [currentLang, setCurrentLang] = useState<LanguageCode>(activeLanguage || 'en');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const add = () => {
-    onChange([...milestones, createEmptyMilestone()]);
+    const m = createEmptyMilestone();
+    onChange([...milestones, m]);
   };
 
   const update = (index: number, partial: Partial<ItineraryMilestone>) => {
-    const next = milestones.map((m, i) => (i === index ? { ...m, ...partial } : m));
-    onChange(next);
+    onChange(milestones.map((m, i) => (i === index ? { ...m, ...partial } : m)));
   };
 
   const updateTitle = (index: number, lang: LanguageCode, value: string) => {
-    const next = milestones.map((m, i) => {
-      if (i !== index) return m;
-      return { ...m, title: { ...m.title, [lang]: value } };
-    });
-    onChange(next);
+    onChange(
+      milestones.map((m, i) => {
+        if (i !== index) return m;
+        return { ...m, title: { ...m.title, [lang]: value } };
+      })
+    );
   };
 
-  const remove = (index: number) => {
-    onChange(milestones.filter((_, i) => i !== index));
+  const updateDescription = (index: number, lang: LanguageCode, value: string) => {
+    onChange(
+      milestones.map((m, i) => {
+        if (i !== index) return m;
+        return { ...m, description: { ...(m.description || {}), [lang]: value } };
+      })
+    );
   };
+
+  const remove = (index: number) => onChange(milestones.filter((_, i) => i !== index));
 
   const moveUp = (index: number) => {
     if (index <= 0) return;
@@ -80,7 +102,7 @@ export default function ItineraryBuilder({ milestones, activeLanguage, errors, o
         </button>
       </div>
 
-      {/* Language Selector for Milestone Titles */}
+      {/* Language Selector */}
       {milestones.length > 0 && (
         <div className="mb-4 flex gap-1.5 flex-wrap items-center">
           <span className="text-xs font-bold text-slate-400 mr-2">Editing Language:</span>
@@ -108,18 +130,21 @@ export default function ItineraryBuilder({ milestones, activeLanguage, errors, o
           const errKey = `itinerary.${i}.timeTag`;
           const hasError = !!errors[errKey];
           const currentTitle = milestone.title?.[currentLang] || milestone.title?.en || '';
+          const currentDesc = milestone.description?.[currentLang] || milestone.description?.en || '';
+          const isExpanded = expanded.has(milestone.id);
 
           return (
             <div
               key={milestone.id}
-              className={`rounded-2xl border transition-all p-4 ${
+              className={`rounded-2xl border transition-all ${
                 hasError
                   ? 'border-red-500/50 bg-red-500/5'
                   : 'border-white/10 bg-white/[0.03] hover:border-white/20'
               }`}
             >
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                {/* Milestone Number & Time */}
+              {/* Primary row */}
+              <div className="p-4 grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                {/* Step number + Time */}
                 <div className="md:col-span-3">
                   <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
                     Step #{i + 1} Time Tag
@@ -138,16 +163,34 @@ export default function ItineraryBuilder({ milestones, activeLanguage, errors, o
                   )}
                 </div>
 
-                {/* Icon Selector */}
-                <div className="md:col-span-3">
+                {/* Point Type */}
+                <div className="md:col-span-2">
                   <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
-                    Activity Icon
+                    Type
+                  </label>
+                  <select
+                    value={milestone.pointType || 'STOP'}
+                    onChange={(e) => update(i, { pointType: e.target.value as ItineraryPointType })}
+                    className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none focus:border-[#06B6D4] appearance-none"
+                  >
+                    {POINT_TYPES.map((pt) => (
+                      <option key={pt} value={pt}>
+                        {POINT_TYPE_ICONS[pt]} {POINT_TYPE_LABELS[pt]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Icon Selector */}
+                <div className="md:col-span-2">
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                    Icon
                   </label>
                   <div className="relative">
                     <select
                       value={milestone.iconToken}
                       onChange={(e) => update(i, { iconToken: e.target.value as IconToken })}
-                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] appearance-none pr-10"
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none focus:border-[#06B6D4] appearance-none pr-8"
                     >
                       {ICON_TOKENS.map((token) => (
                         <option key={token} value={token}>
@@ -155,14 +198,14 @@ export default function ItineraryBuilder({ milestones, activeLanguage, errors, o
                         </option>
                       ))}
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-[#06B6D4]">
-                      <Icon className="h-4 w-4" />
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-[#06B6D4]">
+                      <Icon className="h-3.5 w-3.5" />
                     </div>
                   </div>
                 </div>
 
                 {/* Localized Title */}
-                <div className="md:col-span-4">
+                <div className="md:col-span-3">
                   <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
                     Title ({LANG_FLAGS[currentLang]} {currentLang.toUpperCase()})
                   </label>
@@ -170,13 +213,25 @@ export default function ItineraryBuilder({ milestones, activeLanguage, errors, o
                     type="text"
                     value={currentTitle}
                     onChange={(e) => updateTitle(i, currentLang, e.target.value)}
-                    placeholder={`e.g. Hotel Departure in ${currentLang.toUpperCase()}`}
+                    placeholder={`Title in ${currentLang.toUpperCase()}`}
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600"
                   />
                 </div>
 
-                {/* Action buttons */}
+                {/* Actions */}
                 <div className="md:col-span-2 flex items-center gap-1 justify-end pt-2 md:pt-4">
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(milestone.id)}
+                    title={isExpanded ? 'Collapse details' : 'Expand details'}
+                    className={`rounded-xl p-2 text-xs font-bold transition ${
+                      isExpanded
+                        ? 'bg-[#06B6D4]/20 text-[#06B6D4]'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                  </button>
                   <button
                     type="button"
                     onClick={() => moveUp(i)}
@@ -205,6 +260,96 @@ export default function ItineraryBuilder({ milestones, activeLanguage, errors, o
                   </button>
                 </div>
               </div>
+
+              {/* Expanded detail panel — v2 fields */}
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-white/5 mt-0 pt-4 grid grid-cols-1 md:grid-cols-12 gap-3">
+                  {/* Location name */}
+                  <div className="md:col-span-4">
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                      📍 Location Name
+                    </label>
+                    <input
+                      type="text"
+                      value={milestone.location || ''}
+                      onChange={(e) => update(i, { location: e.target.value })}
+                      placeholder="e.g. Giftun Island"
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  {/* Duration */}
+                  <div className="md:col-span-2">
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                      ⏱ Duration (min)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={milestone.durationMinutes ?? ''}
+                      onChange={(e) =>
+                        update(i, {
+                          durationMinutes: e.target.value ? Number(e.target.value) : undefined,
+                        })
+                      }
+                      placeholder="30"
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  {/* Latitude */}
+                  <div className="md:col-span-3">
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                      🌐 Latitude
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={milestone.latitude ?? ''}
+                      onChange={(e) =>
+                        update(i, {
+                          latitude: e.target.value ? Number(e.target.value) : undefined,
+                        })
+                      }
+                      placeholder="27.2579"
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  {/* Longitude */}
+                  <div className="md:col-span-3">
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                      🌐 Longitude
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={milestone.longitude ?? ''}
+                      onChange={(e) =>
+                        update(i, {
+                          longitude: e.target.value ? Number(e.target.value) : undefined,
+                        })
+                      }
+                      placeholder="33.8116"
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  {/* Description (localized) */}
+                  <div className="md:col-span-12">
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                      📝 Description ({LANG_FLAGS[currentLang]} {currentLang.toUpperCase()})
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={currentDesc}
+                      onChange={(e) => updateDescription(i, currentLang, e.target.value)}
+                      placeholder={`Brief description of this stop in ${currentLang.toUpperCase()}...`}
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600 resize-y"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -220,4 +365,3 @@ export default function ItineraryBuilder({ milestones, activeLanguage, errors, o
     </section>
   );
 }
-

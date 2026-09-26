@@ -51,7 +51,14 @@ export interface PriceBreakdownInput {
   childPrice: number;
   infantPrice: number;
   zoneTransferFee: number;
+  /** Only used when depositType is 'PERCENTAGE' (default) */
   depositPercentage: number;
+  /** 'PERCENTAGE' (default) or 'FIXED' */
+  depositType?: 'PERCENTAGE' | 'FIXED';
+  /** Fixed deposit amount in USD — used when depositType is 'FIXED' */
+  depositAmount?: number | null;
+  /** Optional sum of selected tour add-ons */
+  addonsTotal?: number;
   scheme: PaymentScheme;
   promo: PromoInput | null;
 }
@@ -60,6 +67,7 @@ export interface PriceBreakdown {
   baseSubtotal: number;
   discountAmount: number;
   discountedSubtotal: number;
+  addonsTotal: number;
   grandTotal: number;
   amountPaidOnline: number;
   amountDueOnArrival: number;
@@ -88,7 +96,8 @@ export function computePriceBreakdown(input: PriceBreakdownInput): PriceBreakdow
   }
 
   const discountedSubtotal = baseSubtotal - discountAmount;
-  const grandTotal = Math.round((discountedSubtotal + zoneTransferFee) * 100) / 100;
+  const effectiveAddonsTotal = Math.max(0, input.addonsTotal ?? 0);
+  const grandTotal = Math.round((discountedSubtotal + zoneTransferFee + effectiveAddonsTotal) * 100) / 100;
 
   // Payment split
   let amountPaidOnline: number;
@@ -100,8 +109,15 @@ export function computePriceBreakdown(input: PriceBreakdownInput): PriceBreakdow
       amountDueOnArrival = grandTotal;
       break;
     case PaymentScheme.DEPOSIT_ONLINE: {
-      const calculatedDeposit = (discountedSubtotal * (depositPercentage / 100)) + zoneTransferFee;
-      amountPaidOnline = Math.round(calculatedDeposit * 100) / 100;
+      let depositDue: number;
+      if (input.depositType === 'FIXED' && input.depositAmount != null && input.depositAmount > 0) {
+        // Fixed-amount deposit: use depositAmount directly (capped at grandTotal)
+        depositDue = Math.min(input.depositAmount, grandTotal);
+      } else {
+        // Percentage deposit (default): apply to discountedSubtotal + zoneTransferFee + addonsTotal
+        depositDue = ((discountedSubtotal + effectiveAddonsTotal) * (input.depositPercentage / 100)) + zoneTransferFee;
+      }
+      amountPaidOnline = Math.round(depositDue * 100) / 100;
       amountDueOnArrival = Math.round((grandTotal - amountPaidOnline) * 100) / 100;
       break;
     }
@@ -116,6 +132,7 @@ export function computePriceBreakdown(input: PriceBreakdownInput): PriceBreakdow
     baseSubtotal,
     discountAmount,
     discountedSubtotal,
+    addonsTotal: effectiveAddonsTotal,
     grandTotal,
     amountPaidOnline,
     amountDueOnArrival,

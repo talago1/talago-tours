@@ -65,6 +65,12 @@ model Destination {
   description String?  @db.Text
   imageUrl    String?
   translations Json    @default("{}")
+  countryCode String   @default("EG")
+  region      String?
+  city        String?
+  latitude    Float?
+  longitude   Float?
+  timezone    String   @default("Africa/Cairo")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -75,12 +81,16 @@ model Destination {
 }
 
 model Zone {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  transferFee Float    @default(0)
+  id           String   @id @default(cuid())
+  name         String   @unique
+  transferFee  Float    @default(0)
   pickupOffset Float?
   destinationId String?
-  createdAt   DateTime @default(now())
+  location     String?
+  pickupWindow String?
+  instructions String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
 
   destination Destination? @relation(fields: [destinationId], references: [id])
   tours     Tour[]
@@ -100,6 +110,14 @@ model Tour {
   destinationId  String?
   translations   Json
 
+  // Global Location Overrides
+  countryCode String?
+  region      String?
+  city        String?
+  latitude    Float?
+  longitude   Float?
+  timezone    String?
+
   // Media
   coverImage    String?
   galleryImages String[]
@@ -112,6 +130,17 @@ model Tour {
   category   String?
   status     String?
 
+  // Marketing Badges
+  isFeatured      Boolean @default(false)
+  isBestSeller    Boolean @default(false)
+  isRecommended   Boolean @default(false)
+  isVip           Boolean @default(false)
+  isFamilyFriendly Boolean @default(false)
+  isNew           Boolean @default(false)
+  customBadge     String?
+  secondaryCategories String[] @default([])
+  tags            String[] @default([])
+
   // Ratings
   ratingAverage Float @default(0)
   ratingCount   Int   @default(0)
@@ -119,6 +148,8 @@ model Tour {
   // Payment Policy
   allowDeposit       Boolean @default(false)
   depositPercentage  Int     @default(0)
+  depositType        String  @default("PERCENTAGE") // 'PERCENTAGE' | 'FIXED'
+  depositAmount      Float?                           // fixed-amount deposit in USD (used when depositType = 'FIXED')
   allowPayAtLocation Boolean @default(false)
   // Catalog Display
   showExcerptOnCard Boolean @default(true)
@@ -126,13 +157,22 @@ model Tour {
   displayExcerpt    Boolean @default(false)
 
   // Logistics & Operations
-  itinerary           Json?
-  whatToBring         String?
-  pickupDescription   String?
-  hotelPickupIncluded Boolean  @default(false)
-  pickupTime          String?
-  pickupTimes         String[]
-  cancellationPolicy  String?
+  itinerary                 Json?
+  whatToBring               String?
+  pickupDescription         String?
+  hotelPickupIncluded       Boolean  @default(false)
+  pickupTime                String?
+  pickupTimes               String[]
+  pickupType                String   @default("hotel") // hotel, meeting_point, airport, port, station, private_address, none
+  meetingPointName          String?
+  meetingPointAddress       String?
+  meetingPointLat           Float?
+  meetingPointLng           Float?
+  meetingPointLandmark      String?
+  meetingPointInstructions  String?
+  meetingPointMapUrl        String?
+  meetingPointImageUrl      String?
+  cancellationPolicy        String?
 
   // Detailed Pricing Tiers
   adultPrice Float
@@ -151,11 +191,55 @@ model Tour {
 
   ageRestrictionsNotes String?
 
+  // Transport & Fleet
+  vehicleType         String?
+  boatType            String?
+  airConditioned      Boolean @default(false)
+  transferNotes       String?
+
+  // Fitness & Accessibility
+  fitnessLevel        String?
+  wheelchairAccessible Boolean @default(false)
+  strollerAccessible   Boolean @default(false)
+  mobilityNotes        String?
+  accessibilityNotes   String?
+
+  // Safety & Insurance
+  safetyGuidelines    String[] @default([])
+  insuranceIncluded    Boolean @default(true)
+  emergencyContact     String?
+  freeCancellationHours Int @default(24)
+
+  // Scheduling
+  instantConfirmation Boolean @default(true)
+  cutoffHours         Int @default(12)
+  durationDisplay     String?
+
+  // Route & Activities
+  routeStops    Json?
+  activityTypes String[] @default([])
+
+  // Operator & Internal
+  operatorName   String?
+  operatorPhone  String?
+  operatorEmail  String?
+  internalNotes  String?
+
+  // Tour Variants
+  variants    Json?
+
+  // SEO & Metadata
+  metaTitle       String?
+  metaDescription String?
+  keywords        String[] @default([])
+
   // Analytics & Reporting
   costPerPerson Decimal?
 
   // Tour Add-ons / Options (JSON array of { id, price, priceType, enabled, labels })
   tourOptions Json?
+  // Dynamic Booking Questions (Phase 8: JSON array of { id, question, type, required, options })
+  bookingQuestions Json?
 
   // Legacy
   images    String[]
@@ -198,12 +282,18 @@ model Booking {
 
   channel          BookingChannel @default(WEBSITE)
 
-  roomNumber       String?
-  pickupDirectives String?
-  flightNumbers    String?
+  roomNumber          String?
+  pickupDirectives    String?
+  pickupType          String?  // HOTEL, MEETING_POINT, AIRPORT, PORT, STATION, PRIVATE_ADDRESS, NONE
+  pickupLocationName  String?  // Hotel name, Airport terminal, Meeting point name, etc.
+  pickupAddress       String?
+  flightNumbers       String?
   bedConfiguration String?
   bedConfig        String?
   specialRequirements String?
+  // Phase 8: Add-ons & Booking Questions
+  selectedAddons      Json?    // [{ id, title, price, priceType, quantity }]
+  bookingAnswers      Json?    // { [questionId]: answer } or [{ questionId, question, answer }]
 
   promoCodeId      String?
   promoCode        PromoCode?    @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)

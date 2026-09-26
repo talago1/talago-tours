@@ -22,13 +22,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       priceAdult: true,
       adultPrice: true,
       basePrice: true,
+      metaTitle: true,
+      metaDescription: true,
+      keywords: true,
       destination: { select: { name: true } },
     },
   });
 
-  const t = tour?.translations as Record<string, { title?: string; description?: string }> | undefined;
-  const title = t?.en?.title ?? 'Luxury Tour';
-  const description = t?.en?.description ?? 'Curated VIP tour and excursion in Hurghada, Red Sea, Egypt.';
+  const t = tour?.translations as Record<string, { title?: string; description?: string; seoTitle?: string; seoDescription?: string }> | undefined;
+  const title = tour?.metaTitle || t?.en?.seoTitle || t?.en?.title || 'Luxury Tour';
+  const description = tour?.metaDescription || t?.en?.seoDescription || t?.en?.description || 'Curated VIP tour and excursion in Hurghada, Red Sea, Egypt.';
   const image = tour?.coverImage || `${baseUrl}/talago-hero-red-sea-desert.png`;
   const price = tour?.priceAdult ?? tour?.adultPrice ?? tour?.basePrice ?? 0;
   const pageUrl = `${baseUrl}/tours/${params.slug}`;
@@ -36,6 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${title} | TALAGO Tours`,
     description,
+    keywords: tour?.keywords && tour.keywords.length > 0 ? tour.keywords : undefined,
     alternates: {
       canonical: pageUrl,
       languages: {
@@ -107,6 +111,15 @@ export default async function TourDetailPage({ params }: Props) {
       infantPrice: true,
       pickupTime: true,
       pickupTimes: true,
+      pickupType: true,
+      meetingPointName: true,
+      meetingPointAddress: true,
+      meetingPointLat: true,
+      meetingPointLng: true,
+      meetingPointLandmark: true,
+      meetingPointInstructions: true,
+      meetingPointMapUrl: true,
+      meetingPointImageUrl: true,
       cancellationPolicy: true,
       allowDeposit: true,
       depositPercentage: true,
@@ -124,6 +137,9 @@ export default async function TourDetailPage({ params }: Props) {
         },
         orderBy: { createdAt: 'desc' },
       },
+      ageRestrictionsNotes: true,
+      destinationId: true,
+      tourOptions: true,
       destination: {
         select: { name: true, slug: true },
       },
@@ -134,9 +150,77 @@ export default async function TourDetailPage({ params }: Props) {
     notFound();
   }
 
+  // Fetch related active tours from the same destination (or general active tours)
+  const rawRelated = await prisma.tour.findMany({
+    where: {
+      status: 'ACTIVE',
+      id: { not: tour.id },
+      ...(tour.destinationId ? { destinationId: tour.destinationId } : {}),
+    },
+    take: 4,
+    orderBy: { ratingAverage: 'desc' },
+    select: {
+      id: true,
+      slug: true,
+      coverImage: true,
+      thumbnailUrl: true,
+      basePrice: true,
+      basePriceUSD: true,
+      adultPrice: true,
+      priceAdult: true,
+      duration: true,
+      durationHours: true,
+      ratingAverage: true,
+      category: true,
+      translations: true,
+      destination: {
+        select: { name: true, slug: true },
+      },
+    },
+  });
+
+  const relatedTours = rawRelated.map((rt) => {
+    const rTrans = rt.translations as Record<string, { title?: string }> | null;
+    const rTitle = rTrans?.en?.title || 'Tour Experience';
+    const effectivePrice = rt.priceAdult ?? rt.adultPrice ?? rt.basePrice ?? rt.basePriceUSD ?? 0;
+    return {
+      id: rt.id,
+      slug: rt.slug,
+      title: rTitle,
+      basePrice: effectivePrice,
+      duration: rt.duration || (rt.durationHours ? `${rt.durationHours}h` : null),
+      rating: rt.ratingAverage || 5,
+      thumbnailUrl: rt.thumbnailUrl || rt.coverImage || null,
+      category: (rt.category as any) || null,
+      destination: rt.destination || { name: 'Red Sea', slug: 'red-sea' },
+      translations: rt.translations,
+    };
+  });
+
   const translations = tour.translations as Record<string, { title?: string; description?: string }>;
   const title = translations?.en?.title ?? 'Tour';
   const description = translations?.en?.description ?? '';
+
+  const transObj = tour.translations as Record<string, any> | null;
+  const enObj = transObj?.en || {};
+  const requirements = enObj.requirements || null;
+  const accessibilityNotes = enObj.accessibilityNotes || null;
+  const wheelchairAccessible = enObj.wheelchairAccessible ?? null;
+  const strollerAccessible = enObj.strollerAccessible ?? null;
+  const safetyGuidelines = Array.isArray(enObj.safetyGuidelines) ? enObj.safetyGuidelines : [];
+  const faqItems = Array.isArray(enObj.faqItems) ? enObj.faqItems : [];
+  const rawTourOptions = Array.isArray(tour.tourOptions) ? (tour.tourOptions as any[]) : [];
+  const tourOptions = rawTourOptions
+    .filter((opt): opt is Record<string, any> => typeof opt === 'object' && opt !== null)
+    .map((opt) => ({
+      id: String(opt.id || ''),
+      title: opt.title ? String(opt.title) : undefined,
+      name: opt.name ? String(opt.name) : undefined,
+      description: opt.description ? String(opt.description) : undefined,
+      price: Number(opt.price || 0),
+      priceType: opt.priceType ? String(opt.priceType) : undefined,
+      enabled: opt.enabled !== false,
+    }));
 
   // Merge reviews from both sources: reviewEntries (relation) and reviews (JSON)
   const jsonReviews = safeParseReviews(tour.reviews);
@@ -283,6 +367,15 @@ export default async function TourDetailPage({ params }: Props) {
           whatToBring: String(tour.whatToBring ?? ''),
           pickupDescription: tour.pickupDescription,
           hotelPickupIncluded: tour.hotelPickupIncluded,
+          pickupType: tour.pickupType || 'hotel',
+          meetingPointName: tour.meetingPointName,
+          meetingPointAddress: tour.meetingPointAddress,
+          meetingPointLat: tour.meetingPointLat,
+          meetingPointLng: tour.meetingPointLng,
+          meetingPointLandmark: tour.meetingPointLandmark,
+          meetingPointInstructions: tour.meetingPointInstructions,
+          meetingPointMapUrl: tour.meetingPointMapUrl,
+          meetingPointImageUrl: tour.meetingPointImageUrl,
           images: allImages,
           adultPrice: tour.priceAdult ?? tour.adultPrice ?? basePrice,
           childPrice: tour.priceChild ?? tour.childPrice ?? null,
@@ -295,8 +388,17 @@ export default async function TourDetailPage({ params }: Props) {
           allowPayAtLocation: effectiveAllowPayAtLocation,
           allowFullOnline: effectiveAllowFullOnline,
           translations: tour.translations as Record<string, { title?: string; description?: string }>,
+          requirements,
+          accessibilityNotes,
+          wheelchairAccessible,
+          strollerAccessible,
+          safetyGuidelines,
+          faqItems,
+          tourOptions,
+          ageRestrictionsNotes: tour.ageRestrictionsNotes,
         }}
         reviews={{ distribution, reviews, ratingAverage: tour.ratingAverage, ratingCount: tour.ratingCount }}
+        relatedTours={relatedTours}
       />
     </main>
   );

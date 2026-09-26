@@ -4,6 +4,12 @@ export interface Destination {
   slug: string;
   description: string;
   imageUrl: string | null;
+  countryCode?: string;
+  region?: string | null;
+  city?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  timezone?: string;
   createdAt: string;
   updatedAt: string;
   _count?: { tours: number };

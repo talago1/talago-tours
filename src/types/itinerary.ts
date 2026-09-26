@@ -1,9 +1,18 @@
-import type { LucideIcon } from 'lucide-react';
+﻿import type { LucideIcon } from 'lucide-react';
 import { Ship, Compass, Waves, Utensils, Building, MapPin } from 'lucide-react';
 
 export type LanguageCode = 'en' | 'de' | 'ru' | 'fr' | 'it' | 'pl' | 'es';
 
 export type IconToken = 'boat' | 'safari' | 'swim' | 'food' | 'hotel' | 'generic';
+
+// v2 — Route point type enum (additive, optional on existing milestones)
+export type ItineraryPointType =
+  | 'DEPARTURE'
+  | 'STOP'
+  | 'ACTIVITY'
+  | 'MEAL'
+  | 'ARRIVAL'
+  | 'TRANSFER';
 
 export interface LocalizedMilestoneTitle {
   en: string;
@@ -15,11 +24,28 @@ export interface LocalizedMilestoneTitle {
   es: string;
 }
 
+// v2 milestone — all new fields are optional to preserve backward compatibility
 export interface ItineraryMilestone {
+  // --- v1 fields (preserved) ---
   id: string;
   timeTag: string;
   iconToken: IconToken;
   title: LocalizedMilestoneTitle;
+
+  // --- v2 additions ---
+  /** Localized descriptions (one per language, optional per milestone) */
+  description?: Partial<LocalizedMilestoneTitle>;
+  /** Duration of this stop/activity in minutes */
+  durationMinutes?: number;
+  /** Human-readable location name (e.g. "Giftun Island") */
+  location?: string;
+  /** GPS coordinates for map rendering */
+  latitude?: number;
+  longitude?: number;
+  /** Semantic role of this milestone in the route */
+  pointType?: ItineraryPointType;
+  /** Schema version marker — set to 2 on new milestones */
+  _v?: number;
 }
 
 export const ICON_MAP: Record<IconToken, LucideIcon> = {
@@ -42,12 +68,44 @@ export const ICON_LABELS: Record<IconToken, string> = {
   generic: 'General',
 };
 
+export const POINT_TYPES: ItineraryPointType[] = [
+  'DEPARTURE',
+  'STOP',
+  'ACTIVITY',
+  'MEAL',
+  'ARRIVAL',
+  'TRANSFER',
+];
+
+export const POINT_TYPE_LABELS: Record<ItineraryPointType, string> = {
+  DEPARTURE: 'Departure',
+  STOP: 'Stop / Visit',
+  ACTIVITY: 'Activity',
+  MEAL: 'Meal',
+  ARRIVAL: 'Arrival',
+  TRANSFER: 'Transfer',
+};
+
+export const POINT_TYPE_ICONS: Record<ItineraryPointType, string> = {
+  DEPARTURE: '🚀',
+  STOP: '📍',
+  ACTIVITY: '🎯',
+  MEAL: '🍽️',
+  ARRIVAL: '🏁',
+  TRANSFER: '🚐',
+};
+
 export function createEmptyMilestone(): ItineraryMilestone {
   return {
     id: crypto.randomUUID(),
     timeTag: '',
     iconToken: 'generic',
+    pointType: 'STOP',
     title: { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '' },
+    description: { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '' },
+    durationMinutes: undefined,
+    location: '',
+    _v: 2,
   };
 }
 

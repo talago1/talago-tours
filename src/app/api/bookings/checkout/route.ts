@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { validateCheckoutForm } from '@/utils/bookingValidation';
 import { generateBookingReference } from '@/utils/bookingReference';
 import { calculateTotalPrice, calculateTieredPrice } from '@/utils/priceCalculator';
+import { enforceCapacity, CapacityExceededError } from '@/utils/capacityEngine';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,6 +26,8 @@ export async function POST(request: NextRequest) {
       flightNumbers,
       bedConfiguration,
       specialRequirements,
+      selectedAddons,
+      bookingAnswers,
     } = body;
 
     const tour = await prisma.tour.findUnique({
@@ -98,6 +102,16 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = customerEmail.trim().toLowerCase();
 
     const result = await prisma.$transaction(async (tx) => {
+      // --- Atomic capacity check inside transaction ---
+      await enforceCapacity(
+        {
+          tourId,
+          date: new Date(travelDate + 'T00:00:00'),
+          requestedGuests: effectiveGuestCount,
+        },
+        tx,
+      );
+
       const existingProfile = await tx.customerProfile.findUnique({
         where: { email: normalizedEmail },
       });
@@ -143,6 +157,8 @@ export async function POST(request: NextRequest) {
           flightNumbers: flightNumbers?.trim() || null,
           bedConfiguration: bedConfiguration?.trim() || null,
           specialRequirements: specialRequirements?.trim() || null,
+          selectedAddons: selectedAddons || undefined,
+          bookingAnswers: bookingAnswers || undefined,
           language: 'en',
           status: 'PENDING',
           customerProfileId: profile.id,
@@ -150,6 +166,8 @@ export async function POST(request: NextRequest) {
       });
 
       return { booking, shouldInvite: !existingProfile || existingProfile.isShadow };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
     // Auto-invite new / shadow guest to Supabase
@@ -170,6 +188,22 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    if (error instanceof CapacityExceededError) {
+      return NextResponse.json(
+        { error: error.message, field: 'guestCount', code: 'CAPACITY_EXCEEDED' },
+        { status: 409 }
+      );
+    }
+    if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2034') {
+      return NextResponse.json(
+        {
+          error: 'This experience is experiencing high booking demand. Please try confirming again.',
+          field: 'guestCount',
+          code: 'CONCURRENCY_CONFLICT',
+        },
+        { status: 409 }
+      );
+    }
     console.error('Checkout error:', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred. Please try again.' },

@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { generateBookingReference } from './bookingReference';
 import { supabaseAdmin } from '../lib/supabase/server';
 import { dispatchBookingWhatsApp } from './whatsappNotifications';
+import { enforceCapacity, CapacityExceededError } from './capacityEngine';
 
 
 export interface GuestBookingPayload {
@@ -132,8 +133,21 @@ export async function createImplicitGuestBooking(
       throw new BookingEngineError('Tour not found.', 404, 'tourId');
     }
 
-    if (input.guestCount > tour.maxCapacity) {
-      throw new BookingEngineError('Guest count exceeds tour capacity.', 400, 'guestCount');
+    // Atomic aggregate capacity check
+    try {
+      await enforceCapacity(
+        {
+          tourId: input.tourId,
+          date: input.travelDate,
+          requestedGuests: input.guestCount,
+        },
+        tx,
+      );
+    } catch (capacityErr) {
+      if (capacityErr instanceof CapacityExceededError) {
+        throw new BookingEngineError(capacityErr.message, 409, 'guestCount');
+      }
+      throw capacityErr;
     }
 
     const zoneId = input.zoneId ?? tour.zoneId;
@@ -218,6 +232,8 @@ export async function createImplicitGuestBooking(
       status: booking.status,
       magicLinkInvite: createMagicLinkInvite(input.email),
     };
+  }, {
+    isolationLevel: 'Serializable',
   });
 
   // Fire-and-forget WhatsApp confirmation dispatch

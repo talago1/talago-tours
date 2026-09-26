@@ -39,13 +39,23 @@ const selectFields = {
   hotelPickupIncluded: true,
   pickupTime: true,
   pickupTimes: true,
+  pickupType: true,
+  meetingPointName: true,
+  meetingPointAddress: true,
+  meetingPointLat: true,
+  meetingPointLng: true,
+  meetingPointLandmark: true,
+  meetingPointInstructions: true,
+  meetingPointMapUrl: true,
+  meetingPointImageUrl: true,
   cancellationPolicy: true,
   tourOptions: true,
+  bookingQuestions: true,
   destination: {
     select: { id: true, name: true, slug: true },
   },
   zone: {
-    select: { id: true, name: true, transferFee: true },
+    select: { id: true, name: true, transferFee: true, pickupWindow: true, instructions: true, location: true },
   },
 };
 
@@ -64,11 +74,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Tour not found' }, { status: 404 });
       }
 
-      let availableZones: Array<{ id: string; name: string; transferFee: number }> = [];
+      let availableZones: Array<{ id: string; name: string; transferFee: number; pickupWindow?: string | null; instructions?: string | null; location?: string | null }> = [];
       if (tour.destinationId) {
         availableZones = await prisma.zone.findMany({
-          where: { destinationId: tour.destinationId },
-          select: { id: true, name: true, transferFee: true },
+          where: { destinationId: tour.destinationId, isActive: true },
+          select: { id: true, name: true, transferFee: true, pickupWindow: true, instructions: true, location: true },
           orderBy: { transferFee: 'asc' },
         });
       }

@@ -21,11 +21,13 @@ import {
   UserRound,
   MapPin,
   Sparkles,
+  HelpCircle,
 } from 'lucide-react';
 import PriceSummarySidebar from '@/components/checkout/PriceSummarySidebar';
 import Button from '@/components/ui/Button';
 import CountryCodeSelector from '@/components/checkout/CountryCodeSelector';
-import { PaymentScheme, type CheckoutFormData, type InitializeResponse } from '@/types/checkout';
+import { PaymentScheme, type CheckoutFormData, type InitializeResponse, type SelectedAddonPayload } from '@/types/checkout';
+import type { BookingQuestion } from '@/types/tourEditor';
 import type { PromoDiscount } from '@/utils/promo';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -33,6 +35,9 @@ interface ZoneOption {
   id: string;
   name: string;
   transferFee: number;
+  pickupWindow?: string | null;
+  instructions?: string | null;
+  location?: string | null;
 }
 
 // Stepper with +/- and direct text input
@@ -152,21 +157,37 @@ interface TourDetails {
   zoneTransferFee: number;
   maxCapacity: number | null;
   pickupTimes: string[];
+  pickupType?: string | null;
+  hotelPickupIncluded?: boolean;
+  meetingPointName?: string | null;
+  meetingPointAddress?: string | null;
+  meetingPointLat?: number | null;
+  meetingPointLng?: number | null;
+  meetingPointLandmark?: string | null;
+  meetingPointInstructions?: string | null;
+  meetingPointMapUrl?: string | null;
+  meetingPointImageUrl?: string | null;
   tourOptions: TourAddonOption[];
+  bookingQuestions?: BookingQuestion[];
 }
 
 type FormErrors = Partial<Record<keyof CheckoutFormData, string>>;
 type PageState = 'loading' | 'form' | 'submitting' | 'confirm' | 'error';
 
-function validateForm(data: CheckoutFormData, pickupTimes: string[], m: {
-  nameRequired: string;
-  emailRequired: string;
-  emailInvalid: string;
-  phoneRequired: string;
-  phoneInvalid: string;
-  hotelRequired: string;
-  pickupRequired: string;
-}): FormErrors {
+function validateForm(
+  data: CheckoutFormData,
+  pickupTimes: string[],
+  m: {
+    nameRequired: string;
+    emailRequired: string;
+    emailInvalid: string;
+    phoneRequired: string;
+    phoneInvalid: string;
+    hotelRequired: string;
+    pickupRequired: string;
+  },
+  tour?: TourDetails | null
+): FormErrors {
   const errors: FormErrors = {};
   if (!data.leadName.trim()) errors.leadName = m.nameRequired;
   if (!data.email.trim()) {
@@ -179,8 +200,26 @@ function validateForm(data: CheckoutFormData, pickupTimes: string[], m: {
   } else if (!/^\+[1-9]\d{6,14}$/.test(data.phone.replace(/[\s\-().]/g, ''))) {
     errors.phone = 'Please provide a valid international number with country code (e.g. +49, +44, +20)';
   }
-  if (!data.hotelName.trim()) errors.hotelName = m.hotelRequired;
+
+  const effectivePickupType = (data.pickupType || tour?.pickupType || 'hotel').toLowerCase();
+  const isNoPickup = effectivePickupType === 'meeting_point' || effectivePickupType === 'none';
+  if (!isNoPickup && (!data.hotelName || !data.hotelName.trim())) {
+    errors.hotelName = m.hotelRequired;
+  }
+
   if (pickupTimes.length > 0 && !data.pickupTime) errors.pickupTime = m.pickupRequired;
+
+  if (tour?.bookingQuestions && tour.bookingQuestions.length > 0) {
+    for (const q of tour.bookingQuestions) {
+      if (q.required) {
+        const ans = data.bookingAnswers?.[q.id];
+        if (ans === undefined || ans === null || (typeof ans === 'string' && ans.trim() === '')) {
+          (errors as Record<string, string>)[`question_${q.id}`] = 'This field is required';
+        }
+      }
+    }
+  }
+
   return errors;
 }
 
@@ -258,6 +297,7 @@ export default function CheckoutPage() {
   const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [selectedZoneFee, setSelectedZoneFee] = useState<number>(0);
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
+  const [bookingAnswers, setBookingAnswers] = useState<Record<string, any>>({});
 
   const totalPayingGuests = adultsCount + childrenCount;
   const addonsTotal = tour
@@ -345,6 +385,14 @@ export default function CheckoutPage() {
           }));
         }
 
+        if (data.pickupType) {
+          setForm((prev) => ({
+            ...prev,
+            pickupType: data.pickupType === 'meeting_point' ? 'MEETING_POINT' : data.pickupType === 'none' ? 'NONE' : (prev.pickupType || 'HOTEL'),
+            hotelName: data.pickupType === 'meeting_point' ? (data.meetingPointName || 'Meeting Point') : prev.hotelName,
+          }));
+        }
+
         setTour({
           id: data.id,
           title,
@@ -358,9 +406,20 @@ export default function CheckoutPage() {
           zoneTransferFee: Number(data.zone?.transferFee ?? 0),
           maxCapacity: data.maxCapacity ?? null,
           pickupTimes: loadedPickupTimes,
+          pickupType: data.pickupType || 'hotel',
+          hotelPickupIncluded: Boolean(data.hotelPickupIncluded),
+          meetingPointName: data.meetingPointName || null,
+          meetingPointAddress: data.meetingPointAddress || null,
+          meetingPointLat: data.meetingPointLat ?? null,
+          meetingPointLng: data.meetingPointLng ?? null,
+          meetingPointLandmark: data.meetingPointLandmark || null,
+          meetingPointInstructions: data.meetingPointInstructions || null,
+          meetingPointMapUrl: data.meetingPointMapUrl || null,
+          meetingPointImageUrl: data.meetingPointImageUrl || null,
           tourOptions: Array.isArray(data.tourOptions)
             ? (data.tourOptions as TourAddonOption[]).filter((o) => o.enabled !== false)
             : [],
+          bookingQuestions: Array.isArray(data.bookingQuestions) ? data.bookingQuestions : [],
         });
       } catch {
         setTour(null);
@@ -391,7 +450,11 @@ export default function CheckoutPage() {
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    const formErrors = validateForm(form, tour?.pickupTimes ?? [], {
+    const formWithAnswers: CheckoutFormData = {
+      ...form,
+      bookingAnswers,
+    };
+    const formErrors = validateForm(formWithAnswers, tour?.pickupTimes ?? [], {
       nameRequired: dict.checkout.nameRequired,
       emailRequired: dict.checkout.emailRequired,
       emailInvalid: dict.checkout.emailInvalid,
@@ -399,7 +462,7 @@ export default function CheckoutPage() {
       phoneInvalid: dict.checkout.phoneInvalid,
       hotelRequired: dict.checkout.hotelRequired,
       pickupRequired: dict.checkout.pickupRequired,
-    });
+    }, tour);
     setErrors(formErrors);
     if (Object.keys(formErrors).length > 0) return;
 
@@ -413,6 +476,21 @@ export default function CheckoutPage() {
     setErrorMessage('');
 
     try {
+      const selectedAddonsList: SelectedAddonPayload[] = (tour?.tourOptions || [])
+        .filter((opt) => selectedAddons[opt.id])
+        .map((opt) => {
+          const isPerPerson = opt.priceType === 'per_person';
+          const qty = isPerPerson ? totalPayingGuests : 1;
+          return {
+            id: opt.id,
+            title: opt.labels?.[language] || opt.labels?.['en'] || Object.values(opt.labels || {})[0] || 'Upgrade',
+            price: opt.price,
+            priceType: opt.priceType,
+            quantity: qty,
+            total: isPerPerson ? opt.price * qty : opt.price,
+          };
+        });
+
       const res = await fetch('/api/checkout/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -423,7 +501,13 @@ export default function CheckoutPage() {
           adultsCount,
           childrenCount,
           infantsCount,
-          formData: form,
+          formData: {
+            ...form,
+            selectedAddons: selectedAddonsList,
+            bookingAnswers,
+          },
+          selectedAddons: selectedAddonsList,
+          bookingAnswers,
           promoCode: promoDiscount?.code ?? null,
         }),
       });
@@ -686,27 +770,170 @@ export default function CheckoutPage() {
                     />
                   </FormField>
 
-                  <FormField label={dict.checkout.hotelName} required error={errors.hotelName}>
-                    <Input
-                      id="hotelName"
-                      type="text"
-                      value={form.hotelName}
-                      onChange={(e) => handleFieldChange('hotelName', e.target.value)}
-                      placeholder="e.g. Steigenberger Al Dau"
-                      icon={<Building className="h-5 w-5" />}
-                      error={errors.hotelName}
-                    />
-                  </FormField>
+                  {/* Adaptive Pickup / Meeting Point Section */}
+                  {(() => {
+                    const effectiveType = (form.pickupType || tour?.pickupType || 'hotel').toLowerCase();
+                    const isMeetingPointOnly = effectiveType === 'meeting_point';
+                    const isNoPickup = effectiveType === 'none';
+                    const isAirport = effectiveType === 'airport';
+                    const isBoth = tour?.pickupType === 'both';
 
-                  <FormField label={dict.checkout.roomNumber}>
-                    <Input
-                      id="roomNumber"
-                      type="text"
-                      value={form.roomNumber ?? ''}
-                      onChange={(e) => handleFieldChange('roomNumber', e.target.value)}
-                      placeholder="Optional"
-                    />
-                  </FormField>
+                    return (
+                      <div className="sm:col-span-2 space-y-4">
+                        {/* If tour offers both hotel pickup and meeting point, provide mode toggle */}
+                        {isBoth && (
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-3 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleFieldChange('pickupType', 'HOTEL');
+                                handleFieldChange('hotelName', '');
+                              }}
+                              className={`flex-1 rounded-xl py-2.5 px-3 text-xs font-bold transition flex items-center justify-center gap-2 ${
+                                form.pickupType !== 'MEETING_POINT'
+                                  ? 'bg-[#06B6D4] text-[#070F1E] shadow-md shadow-[#06B6D4]/20'
+                                  : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              <Building className="w-4 h-4" />
+                              Hotel Pickup
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleFieldChange('pickupType', 'MEETING_POINT');
+                                handleFieldChange('hotelName', tour?.meetingPointName || 'Meeting Point');
+                              }}
+                              className={`flex-1 rounded-xl py-2.5 px-3 text-xs font-bold transition flex items-center justify-center gap-2 ${
+                                form.pickupType === 'MEETING_POINT'
+                                  ? 'bg-[#06B6D4] text-[#070F1E] shadow-md shadow-[#06B6D4]/20'
+                                  : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              <MapPin className="w-4 h-4" />
+                              Direct Meeting Point
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Meeting Point Card (when meeting_point or selected MEETING_POINT) */}
+                        {(isMeetingPointOnly || (isBoth && form.pickupType === 'MEETING_POINT')) && (
+                          <div className="rounded-2xl border border-[#06B6D4]/30 bg-[#06B6D4]/5 p-5 space-y-3">
+                            <div className="flex items-start gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#06B6D4]/20 text-[#06B6D4]">
+                                <MapPin className="h-5 w-5" />
+                              </div>
+                              <div className="flex-1">
+                                <span className="text-xs font-black uppercase tracking-wider text-[#06B6D4]">
+                                  Designated Meeting Point
+                                </span>
+                                <h3 className="text-base font-bold text-white mt-0.5">
+                                  {tour?.meetingPointName || 'On-site Meeting Point'}
+                                </h3>
+                                {tour?.meetingPointAddress && (
+                                  <p className="text-xs text-slate-300 mt-1">{tour.meetingPointAddress}</p>
+                                )}
+                                {tour?.meetingPointLandmark && (
+                                  <p className="text-xs text-amber-300/90 mt-1 flex items-center gap-1.5 font-medium">
+                                    <span>📍 Landmark:</span>
+                                    <span>{tour.meetingPointLandmark}</span>
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {tour?.meetingPointInstructions && (
+                              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs text-slate-300 leading-relaxed">
+                                <strong className="text-white block mb-0.5">Directions:</strong>
+                                {tour.meetingPointInstructions}
+                              </div>
+                            )}
+
+                            {tour?.meetingPointMapUrl && (
+                              <a
+                                href={tour.meetingPointMapUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#06B6D4] hover:underline"
+                              >
+                                View on Google Maps ↗
+                              </a>
+                            )}
+                          </div>
+                        )}
+
+                        {/* No Pickup Self-Arrival Card */}
+                        {isNoPickup && (
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-slate-300">
+                              <Users className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-bold text-white">Direct Arrival — No Hotel Pickup Required</h3>
+                              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                                This experience begins on-site. Please arrive at the scheduled departure time. Details and entry tickets are sent directly to your email and WhatsApp.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Airport Pickup Inputs */}
+                        {isAirport && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <FormField label="Flight Number *" required error={errors.hotelName}>
+                              <Input
+                                id="flightNumbers"
+                                type="text"
+                                value={form.flightNumbers || ''}
+                                onChange={(e) => {
+                                  handleFieldChange('flightNumbers', e.target.value);
+                                  handleFieldChange('hotelName', `Flight ${e.target.value}`);
+                                }}
+                                placeholder="e.g. MS703 or LH2410"
+                                error={errors.hotelName}
+                              />
+                            </FormField>
+                            <FormField label="Drop-off Hotel / Resort">
+                              <Input
+                                id="pickupAddress"
+                                type="text"
+                                value={form.pickupAddress || ''}
+                                onChange={(e) => handleFieldChange('pickupAddress', e.target.value)}
+                                placeholder="e.g. Jaz Aquamarine Resort"
+                              />
+                            </FormField>
+                          </div>
+                        )}
+
+                        {/* Hotel Pickup Inputs (standard mode) */}
+                        {!isMeetingPointOnly && !isNoPickup && !isAirport && form.pickupType !== 'MEETING_POINT' && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <FormField label={dict.checkout.hotelName} required error={errors.hotelName}>
+                              <Input
+                                id="hotelName"
+                                type="text"
+                                value={form.hotelName}
+                                onChange={(e) => handleFieldChange('hotelName', e.target.value)}
+                                placeholder="e.g. Steigenberger Al Dau"
+                                icon={<Building className="h-5 w-5" />}
+                                error={errors.hotelName}
+                              />
+                            </FormField>
+
+                            <FormField label={dict.checkout.roomNumber}>
+                              <Input
+                                id="roomNumber"
+                                type="text"
+                                value={form.roomNumber ?? ''}
+                                onChange={(e) => handleFieldChange('roomNumber', e.target.value)}
+                                placeholder="Optional"
+                              />
+                            </FormField>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Pickup time: show slot picker if the tour has defined options */}
                   {tour && tour.pickupTimes.length > 0 && (
@@ -856,6 +1083,207 @@ export default function CheckoutPage() {
                               <p className="text-xs font-bold text-[#EAB308] mt-1.5">{priceDisplay}</p>
                             </div>
                           </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Dynamic Custom Questions per Tour (configured via Admin Tour Builder) */}
+                {tour && tour.bookingQuestions && tour.bookingQuestions.length > 0 && (
+                  <div className="border-t border-white/10 pt-6 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <HelpCircle className="h-4 w-4 text-[#06B6D4]" />
+                        Additional Experience Details
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Please provide details to ensure smooth tour preparation.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {tour.bookingQuestions.map((q) => {
+                        const qError = (errors as Record<string, string>)[`question_${q.id}`];
+                        const val = bookingAnswers[q.id] ?? '';
+
+                        return (
+                          <div
+                            key={q.id}
+                            className={`rounded-2xl border p-4 ${
+                              q.type === 'radio' || (q.options && q.options.length > 2)
+                                ? 'sm:col-span-2'
+                                : ''
+                            } ${
+                              qError
+                                ? 'border-red-500/50 bg-red-500/5'
+                                : 'border-white/10 bg-white/[0.03]'
+                            }`}
+                          >
+                            <label className="block text-xs font-bold uppercase text-slate-300 mb-1.5">
+                              {q.question}
+                              {q.required && <span className="text-[#FF5B00] ml-1">*</span>}
+                            </label>
+
+                            {q.helpText && (
+                              <p className="text-[11px] text-slate-400 mb-2">{q.helpText}</p>
+                            )}
+
+                            {q.type === 'text' && (
+                              <input
+                                type="text"
+                                value={val}
+                                placeholder={q.placeholder || ''}
+                                onChange={(e) => {
+                                  const newVal = e.target.value;
+                                  setBookingAnswers((prev) => ({ ...prev, [q.id]: newVal }));
+                                  setErrors((prev) => {
+                                    const next = { ...prev };
+                                    delete (next as any)[`question_${q.id}`];
+                                    return next;
+                                  });
+                                }}
+                                className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-[#06B6D4]/40"
+                              />
+                            )}
+
+                            {q.type === 'number' && (
+                              <input
+                                type="number"
+                                value={val}
+                                placeholder={q.placeholder || '0'}
+                                onChange={(e) => {
+                                  const newVal = e.target.value;
+                                  setBookingAnswers((prev) => ({ ...prev, [q.id]: newVal }));
+                                  setErrors((prev) => {
+                                    const next = { ...prev };
+                                    delete (next as any)[`question_${q.id}`];
+                                    return next;
+                                  });
+                                }}
+                                className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-[#06B6D4]/40"
+                              />
+                            )}
+
+                            {q.type === 'phone' && (
+                              <input
+                                type="tel"
+                                value={val}
+                                placeholder={q.placeholder || '+20...'}
+                                onChange={(e) => {
+                                  const newVal = e.target.value;
+                                  setBookingAnswers((prev) => ({ ...prev, [q.id]: newVal }));
+                                  setErrors((prev) => {
+                                    const next = { ...prev };
+                                    delete (next as any)[`question_${q.id}`];
+                                    return next;
+                                  });
+                                }}
+                                className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-[#06B6D4]/40"
+                              />
+                            )}
+
+                            {q.type === 'date' && (
+                              <input
+                                type="date"
+                                value={val}
+                                onChange={(e) => {
+                                  const newVal = e.target.value;
+                                  setBookingAnswers((prev) => ({ ...prev, [q.id]: newVal }));
+                                  setErrors((prev) => {
+                                    const next = { ...prev };
+                                    delete (next as any)[`question_${q.id}`];
+                                    return next;
+                                  });
+                                }}
+                                className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none focus:border-[#06B6D4]/40 [color-scheme:dark]"
+                              />
+                            )}
+
+                            {q.type === 'select' && (
+                              <select
+                                value={val}
+                                onChange={(e) => {
+                                  const newVal = e.target.value;
+                                  setBookingAnswers((prev) => ({ ...prev, [q.id]: newVal }));
+                                  setErrors((prev) => {
+                                    const next = { ...prev };
+                                    delete (next as any)[`question_${q.id}`];
+                                    return next;
+                                  });
+                                }}
+                                className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-2.5 text-sm text-white outline-none focus:border-[#06B6D4]/40"
+                              >
+                                <option value="">Select an option...</option>
+                                {(q.options || []).map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+
+                            {q.type === 'radio' && (
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {(q.options || []).map((opt) => (
+                                  <label
+                                    key={opt}
+                                    className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold cursor-pointer transition ${
+                                      val === opt
+                                        ? 'border-[#06B6D4] bg-[#06B6D4]/15 text-[#06B6D4]'
+                                        : 'border-white/10 bg-white/[0.02] text-slate-300 hover:border-white/20'
+                                    }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name={`question_${q.id}`}
+                                      value={opt}
+                                      checked={val === opt}
+                                      onChange={() => {
+                                        setBookingAnswers((prev) => ({ ...prev, [q.id]: opt }));
+                                        setErrors((prev) => {
+                                          const next = { ...prev };
+                                          delete (next as any)[`question_${q.id}`];
+                                          return next;
+                                        });
+                                      }}
+                                      className="sr-only"
+                                    />
+                                    {opt}
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+
+                            {q.type === 'checkbox' && (
+                              <label className="flex items-center gap-3 cursor-pointer mt-1">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(val)}
+                                  onChange={(e) => {
+                                    const newVal = e.target.checked;
+                                    setBookingAnswers((prev) => ({ ...prev, [q.id]: newVal }));
+                                    setErrors((prev) => {
+                                      const next = { ...prev };
+                                      delete (next as any)[`question_${q.id}`];
+                                      return next;
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-600 text-[#06B6D4] focus:ring-[#06B6D4]"
+                                />
+                                <span className="text-xs text-slate-300">
+                                  {q.placeholder || 'Yes, I confirm'}
+                                </span>
+                              </label>
+                            )}
+
+                            {qError && (
+                              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-red-400">
+                                <AlertCircle className="h-3 w-3" />
+                                {qError}
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>

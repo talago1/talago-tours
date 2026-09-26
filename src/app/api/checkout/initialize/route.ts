@@ -9,7 +9,7 @@ import { initiatePaymobSession } from '@/utils/paymob';
 import { validatePromoCode } from '@/utils/promo';
 import { computePriceBreakdown } from '@/utils/priceCalculator';
 import { PaymentScheme, type InitializeResponse } from '@/types/checkout';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, Prisma } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +39,9 @@ export async function POST(request: NextRequest) {
       email,
       phone,
       hotelName,
+      pickupType,
+      pickupLocationName,
+      pickupAddress,
       roomNumber,
       pickupTime,
       paymentScheme,
@@ -67,16 +70,21 @@ export async function POST(request: NextRequest) {
     const finalInfantsCount = infantsCount != null ? Number(infantsCount) : 0;
     const totalGuests = finalAdultsCount + finalChildrenCount + finalInfantsCount;
 
+    // Resolve effective pickup configuration
+    const effectivePickupType = (pickupType || tour.pickupType || 'hotel').toLowerCase();
+
     // Validate checkout fields
     const formErrors = validateCheckoutForm({
       tourId,
       zoneId: tour.zoneId,
-      hotelName: hotelName || '',
+      hotelName: hotelName || pickupLocationName || '',
       travelDate: departureDate,
       guestCount: totalGuests,
       customerName: leadName || '',
       customerEmail: email || '',
       customerPhone: phone || '',
+      pickupType: effectivePickupType,
+      requiresHotelPickup: tour.hotelPickupIncluded && effectivePickupType === 'hotel',
     });
 
     // Tier validation check
@@ -93,24 +101,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Enforce capacity check
-    try {
-      await enforceCapacity({
-        tourId,
-        date: new Date(departureDate + 'T00:00:00'),
-        requestedGuests: totalGuests,
-      });
-    } catch (capacityErr) {
-      if (capacityErr instanceof CapacityExceededError) {
-        return NextResponse.json(
-          { error: capacityErr.message, code: 'CAPACITY_EXCEEDED' },
-          { status: 409 }
-        );
+    const rawSelectedAddons = body.selectedAddons ?? formData.selectedAddons;
+    const rawBookingAnswers = body.bookingAnswers ?? formData.bookingAnswers;
+
+    // Verify dynamic tour addons against tour catalog
+    let verifiedAddonsTotal = 0;
+    const validatedSelectedAddons: any[] = [];
+    if (Array.isArray(rawSelectedAddons) && rawSelectedAddons.length > 0) {
+      const tourAddons = Array.isArray(tour.tourOptions) ? (tour.tourOptions as any[]) : [];
+      const totalPayingGuests = finalAdultsCount + finalChildrenCount;
+
+      for (const item of rawSelectedAddons) {
+        const addonDef = tourAddons.find((a) => a.id === item.id);
+        if (addonDef) {
+          const unitPrice = Number(addonDef.price) || 0;
+          const isPerPerson = addonDef.priceType === 'per_person';
+          const itemTotal = isPerPerson ? unitPrice * totalPayingGuests : unitPrice;
+          verifiedAddonsTotal += itemTotal;
+          validatedSelectedAddons.push({
+            id: addonDef.id,
+            title: addonDef.title || item.title || 'Addon',
+            price: unitPrice,
+            priceType: addonDef.priceType,
+            quantity: isPerPerson ? totalPayingGuests : 1,
+            total: itemTotal,
+          });
+        }
       }
-      throw capacityErr;
     }
 
-    // Resolve price tiers
+    // Validate custom booking questions
+    const tourQuestions = Array.isArray(tour.bookingQuestions) ? (tour.bookingQuestions as any[]) : [];
+    for (const q of tourQuestions) {
+      if (q && q.required) {
+        const val = rawBookingAnswers ? rawBookingAnswers[q.id] : undefined;
+        if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
+          return NextResponse.json(
+            {
+              error: `Please answer required question: "${q.question}"`,
+              code: 'VALIDATION_ERROR',
+              field: `question_${q.id}`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     const effectiveAdultPrice = tour.priceAdult ?? tour.adultPrice;
     const effectiveChildPrice = tour.priceChild ?? tour.childPrice ?? effectiveAdultPrice;
     const effectiveInfantPrice = tour.infantPrice ?? 0;
@@ -135,7 +172,10 @@ export async function POST(request: NextRequest) {
       childPrice: effectiveChildPrice,
       infantPrice: effectiveInfantPrice,
       zoneTransferFee,
+      addonsTotal: verifiedAddonsTotal,
       depositPercentage: tour.depositPercentage || 0,
+      depositType: (tour.depositType as 'PERCENTAGE' | 'FIXED') || 'PERCENTAGE',
+      depositAmount: tour.depositAmount ?? null,
       scheme: paymentScheme as PaymentScheme,
       promo: verifiedPromo
         ? { type: verifiedPromo.type, value: verifiedPromo.value, minBookingValue: verifiedPromo.minBookingValue }
@@ -146,9 +186,21 @@ export async function POST(request: NextRequest) {
 
     const bookingReference = generateBookingReference();
 
-    // Wrap record creation in database transaction
+    // Wrap all record creation in a Serializable transaction.
+    // enforceCapacity runs INSIDE the tx using the tx client so that the
+    // capacity read and booking insert are a single atomic unit — eliminating
+    // the check-then-act race condition.
     const result = await prisma.$transaction(async (tx) => {
-      // If valid promo code used, increment its count
+      // --- Atomic capacity check (uses tx client, not global prisma) ---
+      await enforceCapacity(
+        {
+          tourId,
+          date: new Date(departureDate + 'T00:00:00'),
+          requestedGuests: totalGuests,
+        },
+        tx,
+      );
+
       if (verifiedPromo && promoCodeId) {
         await tx.promoCode.update({
           where: { id: promoCodeId },
@@ -190,6 +242,9 @@ export async function POST(request: NextRequest) {
           tourId,
           zoneId: tour.zoneId,
           hotelName: hotelName?.trim() || null,
+          pickupType: effectivePickupType.toUpperCase(),
+          pickupLocationName: (pickupLocationName || hotelName || '').trim() || null,
+          pickupAddress: pickupAddress?.trim() || null,
           travelDate: new Date(departureDate + 'T00:00:00'),
           guestCount: totalGuests,
           adultsCount: finalAdultsCount,
@@ -206,6 +261,8 @@ export async function POST(request: NextRequest) {
           currency: currency || 'USD',
           bedConfiguration: bedConfiguration?.trim() || null,
           specialRequirements: specialRequirements?.trim() || null,
+          selectedAddons: validatedSelectedAddons.length > 0 ? validatedSelectedAddons : undefined,
+          bookingAnswers: rawBookingAnswers && typeof rawBookingAnswers === 'object' && Object.keys(rawBookingAnswers).length > 0 ? rawBookingAnswers : undefined,
           paymentScheme,
           amountPaidOnline,
           amountDueOnArrival,
@@ -230,6 +287,8 @@ export async function POST(request: NextRequest) {
       });
 
       return { booking, transaction, shouldInvite: !existingProfile || existingProfile.isShadow };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
     const responsePayload: InitializeResponse = {
@@ -289,6 +348,21 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(responsePayload, { status: 200 });
   } catch (error) {
+    if (error instanceof CapacityExceededError) {
+      return NextResponse.json(
+        { error: error.message, code: 'CAPACITY_EXCEEDED' },
+        { status: 409 }
+      );
+    }
+    if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2034') {
+      return NextResponse.json(
+        {
+          error: 'This experience is experiencing high booking demand. Please try confirming again.',
+          code: 'CONCURRENCY_CONFLICT',
+        },
+        { status: 409 }
+      );
+    }
     console.error('Checkout initialize API error:', error);
     return NextResponse.json(
       { error: 'An unexpected server error occurred. Please try again.', code: 'INTERNAL_ERROR' },

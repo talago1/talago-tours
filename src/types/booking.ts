@@ -32,6 +32,11 @@ export interface ActiveQueueTicket {
   destinationName?: string;
   category?: string | null;
   createdAt?: string;
+  pickupType?: string | null;
+  pickupLocationName?: string | null;
+  pickupAddress?: string | null;
+  selectedAddons?: any;
+  bookingAnswers?: any;
 }
 
 export interface CheckoutFormData {

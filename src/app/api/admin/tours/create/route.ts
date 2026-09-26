@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema } from '@/utils/tourJsonSchemas';
+import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema, TourAddonSchema } from '@/utils/tourJsonSchemas';
 
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 const ALLOWED_TYPES = ['SHARED', 'PRIVATE'];
@@ -25,6 +25,8 @@ export async function POST(request: NextRequest) {
       status,
       allowDeposit,
       depositPercentage,
+      depositType,
+      depositAmount,
       allowPayAtLocation,
       highlights,
       inclusions,
@@ -35,6 +37,15 @@ export async function POST(request: NextRequest) {
       hotelPickupIncluded,
       pickupTime,
       pickupTimes,
+      pickupType,
+      meetingPointName,
+      meetingPointAddress,
+      meetingPointLat,
+      meetingPointLng,
+      meetingPointLandmark,
+      meetingPointInstructions,
+      meetingPointMapUrl,
+      meetingPointImageUrl,
       cancellationPolicy,
       adultPrice,
       originalPrice,
@@ -55,52 +66,103 @@ export async function POST(request: NextRequest) {
       displayExcerpt,
       reviews,
       tourOptions,
+      bookingQuestions,
+      countryCode,
+      region,
+      city,
+      latitude,
+      longitude,
+      timezone,
+      // New UnifiedTourEditor fields
+      isFeatured,
+      isBestSeller,
+      isRecommended,
+      isVip,
+      isFamilyFriendly,
+      isNew,
+      customBadge,
+      secondaryCategories,
+      tags,
+      vehicleType,
+      boatType,
+      airConditioned,
+      transferNotes,
+      fitnessLevel,
+      wheelchairAccessible,
+      strollerAccessible,
+      mobilityNotes,
+      accessibilityNotes,
+      safetyGuidelines,
+      insuranceIncluded,
+      emergencyContact,
+      freeCancellationHours,
+      instantConfirmation,
+      cutoffHours,
+      durationDisplay,
+      routeStops,
+      activityTypes,
+      operatorName,
+      operatorPhone,
+      operatorEmail,
+      internalNotes,
+      variants,
+      metaTitle,
+      metaDescription,
+      keywords,
     } = body;
 
-    if (!slug || !type || basePriceUSD === undefined || durationHours === undefined || maxCapacity === undefined || !zoneId || !translations) {
-      return NextResponse.json(
-        { error: 'Missing required fields', field: '' },
-        { status: 400 }
-      );
+    const isDraft = status === 'DRAFT';
+
+    let resolvedSlug = slug;
+    if (!resolvedSlug || resolvedSlug.trim() === '') {
+      resolvedSlug = `draft-${Date.now()}`;
     }
 
-    if (!SLUG_REGEX.test(slug) || slug.length > 200) {
-      return NextResponse.json(
-        { error: 'Slug must be URL-safe (lowercase, numbers, hyphens) and under 200 characters', field: 'slug' },
-        { status: 400 }
-      );
+    if (!SLUG_REGEX.test(resolvedSlug) || resolvedSlug.length > 200) {
+      if (isDraft) {
+        resolvedSlug = `draft-${Date.now()}`;
+      } else {
+        return NextResponse.json(
+          { error: 'Slug must be URL-safe (lowercase, numbers, hyphens) and under 200 characters', field: 'slug' },
+          { status: 400 }
+        );
+      }
     }
 
-    if (!ALLOWED_TYPES.includes(type)) {
+    const resolvedType = ALLOWED_TYPES.includes(type) ? type : 'SHARED';
+    if (!isDraft && !ALLOWED_TYPES.includes(type)) {
       return NextResponse.json(
         { error: 'Tour type must be SHARED or PRIVATE', field: 'type' },
         { status: 400 }
       );
     }
 
-    if (typeof basePriceUSD !== 'number' || basePriceUSD <= 0) {
+    const resolvedBasePrice = typeof basePriceUSD === 'number' && basePriceUSD >= 0 ? basePriceUSD : (adultPrice || 0);
+    if (!isDraft && (typeof basePriceUSD !== 'number' || basePriceUSD <= 0)) {
       return NextResponse.json(
         { error: 'Base price must be a positive number', field: 'basePriceUSD' },
         { status: 400 }
       );
     }
 
-    if (!Number.isInteger(durationHours) || durationHours <= 0) {
+    const resolvedDuration = Number.isInteger(durationHours) && durationHours > 0 ? durationHours : 1;
+    if (!isDraft && (!Number.isInteger(durationHours) || durationHours <= 0)) {
       return NextResponse.json(
         { error: 'Duration must be a positive whole number', field: 'durationHours' },
         { status: 400 }
       );
     }
 
-    if (!Number.isInteger(maxCapacity) || maxCapacity <= 0) {
+    const resolvedCapacity = Number.isInteger(maxCapacity) && maxCapacity > 0 ? maxCapacity : 10;
+    if (!isDraft && (!Number.isInteger(maxCapacity) || maxCapacity <= 0)) {
       return NextResponse.json(
         { error: 'Max capacity must be a positive whole number', field: 'maxCapacity' },
         { status: 400 }
       );
     }
 
-    // Pricing validation
-    if (typeof adultPrice !== 'number' || adultPrice <= 0) {
+    const resolvedAdultPrice = typeof adultPrice === 'number' && adultPrice >= 0 ? adultPrice : (resolvedBasePrice || 0);
+    if (!isDraft && (typeof adultPrice !== 'number' || adultPrice <= 0)) {
       return NextResponse.json(
         { error: 'Adult price is required and must be greater than zero', field: 'adultPrice' },
         { status: 400 }
@@ -137,18 +199,38 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    let safeTranslations = translations;
+    if (!safeTranslations || typeof safeTranslations !== 'object') {
+      safeTranslations = {};
+    }
+
     for (const lang of REQUIRED_LANGUAGES) {
-      if (!translations[lang]) {
-        return NextResponse.json(
-          { error: `Missing translations for ${lang.toUpperCase()}`, field: 'translations' },
-          { status: 400 }
-        );
+      if (!safeTranslations[lang]) {
+        safeTranslations[lang] = {
+          title: lang === 'en' ? 'Untitled Experience (Draft)' : '',
+          description: lang === 'en' ? 'Draft experience description.' : '',
+          highlights: [],
+          inclusions: [],
+          exclusions: [],
+          cancellationPolicies: [],
+        };
       }
     }
 
-    if (translations) {
-      const parsedTranslations = TourTranslationsRecordSchema.safeParse(translations);
-      if (!parsedTranslations.success) {
+    if (!isDraft) {
+      for (const lang of REQUIRED_LANGUAGES) {
+        if (!safeTranslations[lang]) {
+          return NextResponse.json(
+            { error: `Missing translations for ${lang.toUpperCase()}`, field: 'translations' },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    if (safeTranslations) {
+      const parsedTranslations = TourTranslationsRecordSchema.safeParse(safeTranslations);
+      if (!parsedTranslations.success && !isDraft) {
         return NextResponse.json(
           { error: 'Invalid translations structure', field: 'translations' },
           { status: 400 }
@@ -158,7 +240,7 @@ export async function POST(request: NextRequest) {
 
     if (itinerary !== undefined) {
       const parsedItinerary = z.array(ItineraryStepSchema).safeParse(itinerary);
-      if (!parsedItinerary.success) {
+      if (!parsedItinerary.success && !isDraft) {
         return NextResponse.json(
           { error: 'Invalid itinerary data structure', field: 'itinerary' },
           { status: 400 }
@@ -168,7 +250,7 @@ export async function POST(request: NextRequest) {
 
     if (reviews !== undefined) {
       const parsedReviews = z.array(SeededReviewSchema).safeParse(reviews);
-      if (!parsedReviews.success) {
+      if (!parsedReviews.success && !isDraft) {
         return NextResponse.json(
           { error: 'Invalid reviews data structure', field: 'reviews' },
           { status: 400 }
@@ -176,64 +258,93 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!translations.en.title || translations.en.title.trim().length === 0) {
+    if (tourOptions !== undefined && Array.isArray(tourOptions)) {
+      const parsedAddons = z.array(TourAddonSchema).safeParse(tourOptions);
+      if (!parsedAddons.success && !isDraft) {
+        return NextResponse.json(
+          { error: 'Invalid tourOptions data structure', field: 'tourOptions' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (!isDraft && (!safeTranslations.en.title || safeTranslations.en.title.trim().length === 0)) {
       return NextResponse.json(
         { error: 'English title is required', field: 'translations.en.title' },
         { status: 400 }
       );
     }
 
-    if (!translations.en.description || translations.en.description.trim().length === 0) {
+    if (!isDraft && (!safeTranslations.en.description || safeTranslations.en.description.trim().length === 0)) {
       return NextResponse.json(
         { error: 'English description is required', field: 'translations.en.description' },
         { status: 400 }
       );
     }
 
-    const zoneExists = await prisma.zone.findUnique({ where: { id: zoneId } });
+    let resolvedZoneId = zoneId;
+    let zoneExists = resolvedZoneId ? await prisma.zone.findUnique({ where: { id: resolvedZoneId } }) : null;
     if (!zoneExists) {
-      return NextResponse.json(
-        { error: 'Selected zone does not exist', field: 'zoneId' },
-        { status: 400 }
-      );
+      const fallbackZone = await prisma.zone.findFirst({ orderBy: { name: 'asc' } });
+      if (fallbackZone) {
+        resolvedZoneId = fallbackZone.id;
+        zoneExists = fallbackZone;
+      } else {
+        return NextResponse.json(
+          { error: 'A zone is required before creating tours. Please create a zone first.', field: 'zoneId' },
+          { status: 400 }
+        );
+      }
     }
 
     const resolvedDestinationId = destinationId
       ?? zoneExists.destinationId
       ?? (await prisma.destination.findFirst({ select: { id: true }, orderBy: { name: 'asc' } }))?.id;
 
-    if (!resolvedDestinationId) {
+    if (!resolvedDestinationId && !isDraft) {
       return NextResponse.json(
         { error: 'A destination is required before creating tours', field: 'destinationId' },
         { status: 400 }
       );
     }
 
-    const existing = await prisma.tour.findUnique({ where: { slug } });
+    const existing = await prisma.tour.findUnique({ where: { slug: resolvedSlug } });
     if (existing) {
-      return NextResponse.json(
-        { error: 'A tour with this slug already exists', field: 'slug' },
-        { status: 409 }
-      );
+      if (isDraft) {
+        resolvedSlug = `${resolvedSlug}-${Math.random().toString(36).substring(2, 6)}`;
+      } else {
+        return NextResponse.json(
+          { error: 'A tour with this slug already exists', field: 'slug' },
+          { status: 409 }
+        );
+      }
     }
 
     const tour = await prisma.tour.create({
       data: {
-        slug,
-        type,
-        basePriceUSD,
-        durationHours,
-        maxCapacity,
-        destination: { connect: { id: resolvedDestinationId } },
-        zone: { connect: { id: zoneId } },
-        translations,
+        slug: resolvedSlug,
+        type: resolvedType,
+        basePriceUSD: resolvedBasePrice,
+        durationHours: resolvedDuration,
+        maxCapacity: resolvedCapacity,
+        destination: resolvedDestinationId ? { connect: { id: resolvedDestinationId } } : undefined,
+        zone: { connect: { id: resolvedZoneId } },
+        countryCode: countryCode || null,
+        region: region || null,
+        city: city || null,
+        latitude: typeof latitude === 'number' ? latitude : null,
+        longitude: typeof longitude === 'number' ? longitude : null,
+        timezone: timezone || null,
+        translations: safeTranslations,
         images: [],
         coverImage: coverImage || null,
         galleryImages: galleryImages || [],
         category: category || null,
-        status: status || 'INACTIVE',
+        status: status || (isDraft ? 'DRAFT' : 'INACTIVE'),
         allowDeposit: allowDeposit ?? false,
         depositPercentage: depositPercentage ?? 100,
+        depositType: depositType || 'PERCENTAGE',
+        depositAmount: typeof depositAmount === 'number' && depositAmount > 0 ? depositAmount : null,
         allowPayAtLocation: allowPayAtLocation ?? true,
         highlights: highlights || [],
         inclusions: inclusions || [],
@@ -244,10 +355,21 @@ export async function POST(request: NextRequest) {
         hotelPickupIncluded: hotelPickupIncluded ?? false,
         pickupTime: pickupTime || null,
         pickupTimes: Array.isArray(pickupTimes) ? pickupTimes : [],
+        pickupType: pickupType || 'hotel',
+        meetingPointName: meetingPointName || null,
+        meetingPointAddress: meetingPointAddress || null,
+        meetingPointLat: typeof meetingPointLat === 'number' ? meetingPointLat : null,
+        meetingPointLng: typeof meetingPointLng === 'number' ? meetingPointLng : null,
+        meetingPointLandmark: meetingPointLandmark || null,
+        meetingPointInstructions: meetingPointInstructions || null,
+        meetingPointMapUrl: meetingPointMapUrl || null,
+        meetingPointImageUrl: meetingPointImageUrl || null,
         cancellationPolicy: cancellationPolicy || null,
-        adultPrice,
+        adultPrice: resolvedAdultPrice,
+        priceAdult: resolvedAdultPrice,   // keep legacy alias in sync
         originalPrice: typeof originalPrice === 'number' && originalPrice > 0 ? originalPrice : null,
         childPrice: childEnabled ? childPrice : null,
+        priceChild: childEnabled ? (childPrice ?? null) : null, // keep legacy alias in sync
         childMinAge: childEnabled ? (childMinAge ?? 3) : null,
         childMaxAge: childEnabled ? (childMaxAge ?? 11) : null,
         infantPrice: infantEnabled ? infantPrice : null,
@@ -258,6 +380,7 @@ export async function POST(request: NextRequest) {
         showExcerptOnCard: showExcerptOnCard ?? true,
         displayExcerpt: displayExcerpt ?? showExcerptOnCard ?? false,
         tourOptions: Array.isArray(tourOptions) ? tourOptions : undefined,
+        bookingQuestions: Array.isArray(bookingQuestions) ? bookingQuestions : undefined,
         reviews: Array.isArray(reviews)
           ? reviews.map((review, index) => ({
               id: `seed-${Date.now()}-${index}`,
@@ -272,6 +395,50 @@ export async function POST(request: NextRequest) {
           ? reviews.reduce((sum, review) => sum + (Number(review.rating) || 5), 0) / reviews.length
           : undefined,
         ratingCount: Array.isArray(reviews) ? reviews.length : undefined,
+        // Badges & Marketing
+        isFeatured: isFeatured ?? false,
+        isBestSeller: isBestSeller ?? false,
+        isRecommended: isRecommended ?? false,
+        isVip: isVip ?? false,
+        isFamilyFriendly: isFamilyFriendly ?? false,
+        isNew: isNew ?? false,
+        customBadge: customBadge || null,
+        secondaryCategories: Array.isArray(secondaryCategories) ? secondaryCategories : [],
+        tags: Array.isArray(tags) ? tags : [],
+        // Transport
+        vehicleType: vehicleType || null,
+        boatType: boatType || null,
+        airConditioned: airConditioned ?? false,
+        transferNotes: transferNotes || null,
+        // Fitness & Accessibility
+        fitnessLevel: fitnessLevel || null,
+        wheelchairAccessible: wheelchairAccessible ?? false,
+        strollerAccessible: strollerAccessible ?? false,
+        mobilityNotes: mobilityNotes || null,
+        accessibilityNotes: accessibilityNotes || null,
+        // Safety
+        safetyGuidelines: Array.isArray(safetyGuidelines) ? safetyGuidelines : [],
+        insuranceIncluded: insuranceIncluded ?? true,
+        emergencyContact: emergencyContact || null,
+        freeCancellationHours: typeof freeCancellationHours === 'number' ? freeCancellationHours : 24,
+        // Scheduling
+        instantConfirmation: instantConfirmation ?? true,
+        cutoffHours: typeof cutoffHours === 'number' ? cutoffHours : 12,
+        durationDisplay: durationDisplay || null,
+        // Route & Activities
+        routeStops: Array.isArray(routeStops) ? routeStops : undefined,
+        activityTypes: Array.isArray(activityTypes) ? activityTypes : [],
+        // Operator
+        operatorName: operatorName || null,
+        operatorPhone: operatorPhone || null,
+        operatorEmail: operatorEmail || null,
+        internalNotes: internalNotes || null,
+        // Variants
+        variants: Array.isArray(variants) ? variants : undefined,
+        // SEO
+        metaTitle: metaTitle || null,
+        metaDescription: metaDescription || null,
+        keywords: Array.isArray(keywords) ? keywords : [],
       },
       select: {
         id: true,

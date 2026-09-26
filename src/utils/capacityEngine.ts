@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import type { Prisma, PrismaClient } from '@prisma/client';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,11 +32,15 @@ export class CapacityExceededError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// Availability Checker
+// Availability Checker — accepts an optional tx client so it can run inside
+// a transaction (preventing the read-then-write race condition).
 // ---------------------------------------------------------------------------
+
+export type TxClient = Prisma.TransactionClient | PrismaClient;
 
 export async function checkAvailability(
   params: AvailabilityCheckParams,
+  db: TxClient = prisma,
 ): Promise<AvailabilityResult> {
   const { tourId, date, timeSlotId, requestedGuests } = params;
 
@@ -47,7 +52,7 @@ export async function checkAvailability(
 
   // Slot-level capacity check
   if (timeSlotId) {
-    const slot = await prisma.tourTimeSlot.findUnique({
+    const slot = await db.tourTimeSlot.findUnique({
       where: { id: timeSlotId },
       select: {
         id: true,
@@ -67,7 +72,7 @@ export async function checkAvailability(
       };
     }
 
-    const confirmedInSlot = await prisma.booking.aggregate({
+    const confirmedInSlot = await db.booking.aggregate({
       where: {
         tourId,
         timeSlotId,
@@ -90,7 +95,7 @@ export async function checkAvailability(
   }
 
   // Tour-level daily capacity check
-  const tour = await prisma.tour.findUnique({
+  const tour = await db.tour.findUnique({
     where: { id: tourId },
     select: { maxCapacity: true },
   });
@@ -104,7 +109,7 @@ export async function checkAvailability(
     };
   }
 
-  const confirmedForDay = await prisma.booking.aggregate({
+  const confirmedForDay = await db.booking.aggregate({
     where: {
       tourId,
       travelDate: { gte: dayStart, lt: dayEnd },
@@ -125,13 +130,15 @@ export async function checkAvailability(
 }
 
 // ---------------------------------------------------------------------------
-// Enforcement — throws if capacity exceeded
+// Enforcement — throws CapacityExceededError if capacity is exceeded.
+// Pass `db` to run inside a transaction for atomic check-then-insert.
 // ---------------------------------------------------------------------------
 
 export async function enforceCapacity(
   params: AvailabilityCheckParams,
+  db: TxClient = prisma,
 ): Promise<AvailabilityResult> {
-  const result = await checkAvailability(params);
+  const result = await checkAvailability(params, db);
 
   if (!result.available) {
     const label = result.timeSlotLabel ? ` (${result.timeSlotLabel})` : '';

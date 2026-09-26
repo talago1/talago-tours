@@ -59,7 +59,8 @@ export default function PriceSummarySidebar({
     adultPrice,
     childPrice,
     infantPrice,
-    zoneTransferFee: zoneTransferFee + addonsTotal,
+    zoneTransferFee,
+    addonsTotal,
     depositPercentage,
     scheme,
     promo: promoDiscount

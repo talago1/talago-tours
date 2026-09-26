@@ -26,6 +26,8 @@ import {
   Calendar,
   X,
   ArrowUpDown,
+  Sparkles,
+  HelpCircle,
 } from 'lucide-react';
 
 interface AvailableTour {
@@ -81,9 +83,14 @@ function ExpandedDetails({ booking }: { booking: ActiveQueueTicket }) {
                 <span className="text-[11px] text-slate-500">No room #</span>
               )}
             </div>
-            <p className="mt-2 text-sm font-semibold text-white truncate" title={booking.hotelName || 'No hotel specified'}>
-              {booking.hotelName || 'Direct / No hotel specified'}
+            <p className="mt-2 text-sm font-semibold text-white truncate" title={booking.hotelName || booking.pickupLocationName || 'No hotel specified'}>
+              {booking.hotelName || booking.pickupLocationName || 'Direct / No hotel specified'}
             </p>
+            {booking.pickupType && booking.pickupType !== 'HOTEL' && (
+              <span className="mt-1 inline-block rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-300 border border-amber-500/20">
+                Mode: {booking.pickupType.replace('_', ' ')}
+              </span>
+            )}
             {booking.zoneName && (
               <p className="mt-1 text-xs text-slate-400 flex items-center gap-1">
                 <MapPin className="h-3 w-3 text-slate-500" />
@@ -193,6 +200,48 @@ function ExpandedDetails({ booking }: { booking: ActiveQueueTicket }) {
         <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.01] px-4 py-2 text-xs flex items-center gap-2 text-slate-300">
           <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
           <span><strong className="text-white">Special Requirements:</strong> {booking.specialRequirements}</span>
+        </div>
+      )}
+
+      {/* Dynamic Add-ons & Custom Booking Answers */}
+      {((Array.isArray(booking.selectedAddons) && booking.selectedAddons.length > 0) ||
+        (booking.bookingAnswers && typeof booking.bookingAnswers === 'object' && Object.keys(booking.bookingAnswers).length > 0)) && (
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-white/5 pt-3">
+          {Array.isArray(booking.selectedAddons) && booking.selectedAddons.length > 0 && (
+            <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5 mb-2">
+                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                Selected Add-ons & Upgrades
+              </span>
+              <div className="space-y-1.5">
+                {booking.selectedAddons.map((addon: any, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between text-xs text-slate-300 bg-white/[0.02] px-2.5 py-1.5 rounded-lg border border-white/5">
+                    <span className="font-medium text-white">
+                      {addon.title} {addon.quantity > 1 ? `(×${addon.quantity})` : ''}
+                    </span>
+                    <span className="font-bold text-amber-400">+${addon.total ?? addon.price}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {booking.bookingAnswers && typeof booking.bookingAnswers === 'object' && Object.keys(booking.bookingAnswers).length > 0 && (
+            <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5 mb-2">
+                <HelpCircle className="h-3.5 w-3.5 text-[#00E5FF]" />
+                Customer Question Answers
+              </span>
+              <div className="space-y-1.5">
+                {Object.entries(booking.bookingAnswers).map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between text-xs text-slate-300 bg-white/[0.02] px-2.5 py-1.5 rounded-lg border border-white/5">
+                    <span className="text-slate-400 capitalize">{k.replace(/^question_/, '').replace(/_/g, ' ')}:</span>
+                    <span className="font-semibold text-white">{typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

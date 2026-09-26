@@ -6,18 +6,34 @@ export enum PaymentScheme {
 
 export type PaymentSchemeType = `${PaymentScheme}`;
 
+export type PickupType = 'HOTEL' | 'MEETING_POINT' | 'AIRPORT' | 'PORT' | 'STATION' | 'PRIVATE_ADDRESS' | 'NONE';
+
+export interface SelectedAddonPayload {
+  id: string;
+  title: string;
+  price: number;
+  priceType: 'per_person' | 'flat';
+  quantity: number;
+  total: number;
+}
+
 export interface CheckoutFormData {
   leadName: string;
   email: string;
   phone: string;
-  hotelName: string;
+  pickupType?: PickupType | string;
+  hotelName?: string;
+  pickupLocationName?: string;
+  pickupAddress?: string;
   roomNumber?: string;
-  pickupTime: string;
+  pickupTime?: string;
   currency?: string;
   pickupDirectives?: string;
   flightNumbers?: string;
   bedConfiguration?: string;
   specialRequirements?: string;
+  selectedAddons?: SelectedAddonPayload[];
+  bookingAnswers?: Record<string, any>;
   paymentScheme: PaymentScheme;
 }
 
@@ -30,6 +46,8 @@ export interface InitializeRequest {
   infantsCount?: number;
   formData: CheckoutFormData;
   promoCode?: string | null;
+  selectedAddons?: SelectedAddonPayload[];
+  bookingAnswers?: Record<string, any>;
 }
 
 export interface InitializeResponse {

@@ -55,19 +55,20 @@ export function validateCustomerPhone(value: string): string | null {
 
 export function validateCheckoutForm(data: {
   tourId: string;
-  zoneId: string;
-  hotelName: string;
+  zoneId?: string | null;
+  hotelName?: string | null;
   travelDate: string;
   guestCount: number;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
   maxGuestCount?: number;
+  pickupType?: string | null;
+  requiresHotelPickup?: boolean;
 }): Record<string, string> {
   const errors: Record<string, string> = {};
 
   if (!data.tourId) errors.tourId = 'Tour ID is required';
-  if (!data.zoneId) errors.zoneId = 'Pickup zone is required';
 
   const dateErr = validateTravelDate(data.travelDate);
   if (dateErr) errors.travelDate = dateErr;
@@ -75,8 +76,20 @@ export function validateCheckoutForm(data: {
   const guestErr = validateGuestCount(data.guestCount, data.maxGuestCount);
   if (guestErr) errors.guestCount = guestErr;
 
-  const hotelErr = validateHotelName(data.hotelName);
-  if (hotelErr) errors.hotelName = hotelErr;
+  // Determine if hotel name is required
+  const isNoPickup =
+    data.requiresHotelPickup === false ||
+    data.pickupType === 'none' ||
+    data.pickupType === 'no_pickup' ||
+    data.pickupType === 'NONE' ||
+    data.pickupType === 'NO_PICKUP' ||
+    data.pickupType === 'meeting_point' ||
+    data.pickupType === 'MEETING_POINT';
+
+  if (!isNoPickup) {
+    const hotelErr = validateHotelName(data.hotelName || '');
+    if (hotelErr) errors.hotelName = hotelErr;
+  }
 
   const nameErr = validateCustomerName(data.customerName);
   if (nameErr) errors.customerName = nameErr;

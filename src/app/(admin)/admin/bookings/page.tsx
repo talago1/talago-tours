@@ -73,6 +73,11 @@ export default async function AdminBookingsPage() {
       amountDueOnArrival: b.amountDueOnArrival ? Number(b.amountDueOnArrival) : undefined,
       zoneName: b.tour.zone?.name ?? undefined,
       destinationName: b.tour.destination?.name ?? undefined,
+      pickupType: b.pickupType,
+      pickupLocationName: b.pickupLocationName,
+      pickupAddress: b.pickupAddress,
+      selectedAddons: b.selectedAddons,
+      bookingAnswers: b.bookingAnswers,
     };
   });
 

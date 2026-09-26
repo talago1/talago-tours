@@ -19,7 +19,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, slug, description, imageUrl, translations } = body;
+    const { name, slug, description, imageUrl, translations, countryCode, region, city, latitude, longitude, timezone } = body;
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -34,6 +34,12 @@ export async function POST(request: NextRequest) {
         description: description || '',
         imageUrl: imageUrl || null,
         translations: translations || '{}',
+        countryCode: countryCode || 'EG',
+        region: region || null,
+        city: city || null,
+        latitude: typeof latitude === 'number' ? latitude : null,
+        longitude: typeof longitude === 'number' ? longitude : null,
+        timezone: timezone || 'Africa/Cairo',
       },
       include: {
         _count: { select: { tours: true } },
