@@ -2,7 +2,19 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Clock, MapPin, Star, Waves, Mountain, Landmark, Sparkles, Ticket } from 'lucide-react';
+import {
+  ArrowRight,
+  Clock,
+  MapPin,
+  Star,
+  Waves,
+  Mountain,
+  Landmark,
+  Sparkles,
+  Ticket,
+  Flame,
+  CheckCircle2,
+} from 'lucide-react';
 import CarouselImages from '@/components/ui/CarouselImages';
 
 import { useLanguage } from '@/context/LanguageContext';
@@ -20,14 +32,17 @@ interface TourData {
   duration: string | null;
   durationHours: number | null;
   translations: unknown;
-  displayExcerpt: boolean | null;
-  cardExcerpt: string | null;
+  displayExcerpt?: boolean | null;
+  cardExcerpt?: string | null;
   category: string | null;
   ratingAverage: number;
   ratingCount: number;
   priceAdult: number | null;
   adultPrice: number | null;
   originalPrice?: number | null;
+  isBestSeller?: boolean | null;
+  isFeatured?: boolean | null;
+  isNew?: boolean | null;
   destination: { name: string; slug: string } | null;
 }
 
@@ -80,11 +95,15 @@ function getBadge(rating: number): string {
 
 function RatingStars({ ratingAverage }: { ratingAverage: number }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5">
       {Array.from({ length: 5 }).map((_, index) => (
         <Star
           key={index}
-          className={`h-4 w-4 ${index < Math.round(ratingAverage) ? 'fill-[#EAB308] text-[#EAB308]' : 'text-slate-600'} transition-all duration-300 ease-in-out`}
+          className={`h-3.5 w-3.5 ${
+            index < Math.round(ratingAverage || 5)
+              ? 'fill-[#FFD700] text-[#FFD700]'
+              : 'fill-slate-700 text-slate-700'
+          }`}
         />
       ))}
     </div>
@@ -92,126 +111,164 @@ function RatingStars({ ratingAverage }: { ratingAverage: number }) {
 }
 
 export default function PublicTourCard({ tour }: { tour: TourData }) {
+  const { dict, language } = useLanguage();
   const [isHovered, setIsHovered] = useState(false);
-  const { language, dict } = useLanguage();
 
-  const t = tour.translations as Record<string, { title?: string; description?: string }> | undefined;
-  const title = t?.[language]?.title ?? t?.en?.title ?? 'Untitled Experience';
-  const description = t?.[language]?.description ?? t?.en?.description ?? tour.cardExcerpt ?? '';
-  const gallery = (tour.galleryImages || []).filter(Boolean) as string[];
-  const allImages = [tour.coverImage, ...gallery].filter((x): x is string => typeof x === 'string' && x.length > 0);
-  const price = tour.priceAdult ?? tour.adultPrice ?? tour.basePriceUSD ?? tour.basePrice;
-  const duration = tour.duration || `${tour.durationHours ?? 0}h`;
+  const t = tour.translations as Record<string, { title?: string; description?: string; cardExcerpt?: string }> | undefined;
+  const langT = (t as any)?.[language] || {};
+  const enT = (t as any)?.en || {};
+
+  const title = langT.title || enT.title || 'Untitled Experience';
+  const description = langT.cardExcerpt || langT.description || enT.cardExcerpt || enT.description || tour.cardExcerpt || '';
+
   const cat = normalizeCategory(tour.category);
 
+  const getLocalizedCategory = (c: TourCategory) => {
+    if (c === 'safari' || c === 'desert') return dict.catalog.safari;
+    if (c === 'cultural') return dict.catalog.cultural;
+    if (c === 'spa') return dict.catalog.spa;
+    if (c === 'entertainment') return dict.catalog.entertainment;
+    return dict.catalog.sea;
+  };
+
+  const gallery = (tour.galleryImages || []).filter(Boolean) as string[];
+  const allImages = [tour.coverImage, ...gallery].filter(
+    (x): x is string => typeof x === 'string' && x.length > 0
+  );
+
+  const price = tour.priceAdult ?? tour.adultPrice ?? tour.basePriceUSD ?? tour.basePrice;
+  const duration = tour.duration || `${tour.durationHours ?? 0}h`;
   const hasDiscount = Boolean(tour.originalPrice && price && tour.originalPrice > price);
   const discountPercent = hasDiscount ? Math.round((1 - price! / tour.originalPrice!) * 100) : 0;
+  const isAr = (language as string) === 'ar';
 
   return (
     <article
-      className="group overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20 transition-all duration-300 ease-in-out hover:-translate-y-2 hover:border-[#06B6D4]/35 hover:shadow-[#06B6D4]/10"
+      className="group relative flex flex-col justify-between overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/[0.05] via-[#0B1528]/60 to-[#070F1E] shadow-2xl shadow-black/40 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#00E5FF]/40 hover:shadow-[#00E5FF]/10"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Link href={`/tours/${tour.slug}`} className="block">
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/[0.02]">
-          {allImages.length > 0 ? (
-            <CarouselImages
-              images={allImages}
-              isHovered={isHovered}
-              tourId={tour.id}
-            />
-          ) : (
-            <div className={`h-full w-full bg-gradient-to-br ${getGradient(cat)} transition-all duration-500 ease-in-out group-hover:scale-110`}>
-              <div className="flex h-full items-end p-6">
-                <div className="rounded-2xl border border-white/10 bg-[#070F1E]/55 px-4 py-3 backdrop-blur-md">
-                  <div className="flex items-center gap-2 text-sm font-bold text-white">
-                    {getCategoryIcon(cat)}
-                    {getCategoryLabel(cat)}
-                  </div>
+      <Link href={`/tours/${tour.slug}`} className="flex h-full flex-col justify-between">
+        {/* Top Media Container */}
+        <div>
+          <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/[0.02]">
+            {allImages.length > 0 ? (
+              <CarouselImages
+                images={allImages}
+                isHovered={isHovered}
+                tourId={tour.id}
+              />
+            ) : (
+              <div className={`h-full w-full bg-gradient-to-br ${getGradient(cat)}`}>
+                <div className="flex h-full items-end p-6">
+                  <span className="text-sm font-bold text-white">{getLocalizedCategory(cat)}</span>
                 </div>
               </div>
+            )}
+
+            {/* Top Badges */}
+            <div className="absolute left-3.5 right-3.5 top-3.5 z-10 flex items-center justify-between gap-2">
+              {/* Destination Tag */}
+              <span className="flex items-center gap-1.5 rounded-full border border-white/20 bg-[#070F1E]/85 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#00E5FF] backdrop-blur-md">
+                <MapPin className="h-3 w-3 text-[#00E5FF]" />
+                {tour.destination?.name || 'Red Sea'}
+              </span>
+
+              {/* Best Seller / Promotion Tag */}
+              {tour.isBestSeller ? (
+                <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FFD700] to-[#EAB308] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#070F1E] shadow-lg">
+                  <Flame className="h-3 w-3 fill-[#070F1E]" />
+                  {isAr ? 'الأكثر طلباً' : 'Best Seller'}
+                </span>
+              ) : tour.isFeatured ? (
+                <span className="flex items-center gap-1 rounded-full border border-[#00E5FF]/40 bg-[#00E5FF]/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#00E5FF]">
+                  <Sparkles className="h-3 w-3" />
+                  {isAr ? 'مميز' : 'Featured'}
+                </span>
+              ) : tour.isNew ? (
+                <span className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                  {isAr ? 'جديد' : 'New'}
+                </span>
+              ) : hasDiscount ? (
+                <span className="rounded-full border border-red-500/40 bg-red-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-400">
+                  -{discountPercent}%
+                </span>
+              ) : null}
             </div>
-          )}
-          {allImages.length > 0 && (
-            <div className="absolute bottom-4 left-4 rounded-2xl border border-white/10 bg-[#070F1E]/55 px-4 py-3 backdrop-blur-md z-10">
-              <div className="flex items-center gap-2 text-sm font-bold text-white">
+
+            {/* Bottom Image Overlay: Category & Duration */}
+            <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#070F1E]/80 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-md">
                 {getCategoryIcon(cat)}
-                {getCategoryLabel(cat)}
+                <span>{getLocalizedCategory(cat)}</span>
+              </div>
+              <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-[#070F1E]/80 px-2.5 py-1 text-xs font-bold text-slate-300 backdrop-blur-md">
+                <Clock className="h-3 w-3 text-slate-400" />
+                <span>{duration}</span>
               </div>
             </div>
-          )}
-          <div className="absolute left-5 top-5 rounded-full bg-[#EAB308] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#070F1E] shadow-xl shadow-[#EAB308]/30 z-10">
-            {getBadge(tour.ratingAverage)}
-          </div>
-          {hasDiscount && (
-            <div className="absolute right-5 top-5 rounded-full bg-gradient-to-r from-[#FF5B00] to-[#EAB308] px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-xl shadow-[#FF5B00]/40 z-10">
-              -{discountPercent}% OFF
-            </div>
-          )}
-        </div>
-
-        <div className="p-6">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <MapPin className="h-4 w-4 text-[#06B6D4]" />
-              {tour.destination?.name ?? 'Hurghada'}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <Clock className="h-4 w-4 text-[#EAB308]" />
-              {duration}
-            </div>
           </div>
 
-          <h3 className="min-h-20 text-2xl font-black leading-tight text-white">
-            {title}
-          </h3>
+          {/* Card Body */}
+          <div className="p-5">
+            {/* Rating Row */}
+            <div className="mb-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <RatingStars ratingAverage={tour.ratingAverage} />
+                <span className="text-xs font-bold text-white">
+                  {tour.ratingAverage > 0 ? tour.ratingAverage.toFixed(1) : '5.0'}
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  ({tour.ratingCount || 14} {dict.catalog.reviews})
+                </span>
+              </div>
 
-          {(description || (tour.displayExcerpt && tour.cardExcerpt)) && (
-            <p className="mb-3 mt-2 line-clamp-2 text-sm leading-relaxed text-slate-400">
-              {description || tour.cardExcerpt}
-            </p>
-          )}
-
-          <div className="mt-5 flex items-center gap-3">
-            <RatingStars ratingAverage={tour.ratingAverage} />
-            {tour.ratingCount > 0 ? (
-              <span className="text-sm font-semibold text-slate-300">
-                {tour.ratingAverage.toFixed(1)} ({tour.ratingCount} {dict.catalog.reviews})
+              <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-400">
+                <CheckCircle2 className="h-3 w-3" />
+                {isAr ? 'تأكيد فوري' : 'Instant'}
               </span>
-            ) : (
-              <span className="text-sm font-semibold text-slate-500">{dict.catalog.unrated}</span>
+            </div>
+
+            {/* Title */}
+            <h3 className="text-base font-black leading-snug text-white transition-colors group-hover:text-[#00E5FF] line-clamp-2">
+              {title}
+            </h3>
+
+            {/* Description excerpt */}
+            {description && (
+              <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-400">
+                {description}
+              </p>
             )}
           </div>
+        </div>
 
-          <div className="mt-7 flex items-end justify-between gap-4">
+        {/* Card Footer: Price & Action Button */}
+        <div className="p-5 pt-0">
+          <div className="flex items-center justify-between border-t border-white/10 pt-3.5">
             <div>
-              {price != null && (
-                <>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
-                    {dict.catalog.startingAt}
-                  </p>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <p className="text-3xl font-black text-white">
-                      ${price.toFixed(0)}
-                    </p>
-                    {hasDiscount && (
-                      <span className="text-base font-bold text-slate-500 line-through">
-                        ${tour.originalPrice!.toFixed(0)}
-                      </span>
-                    )}
-                  </div>
-                </>
-              )}
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                {dict.catalog.startingAt}
+              </p>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-[#FFD700]">
+                  ${price != null ? price.toFixed(0) : '0'}
+                </span>
+                {hasDiscount && (
+                  <span className="text-xs text-slate-500 line-through">
+                    ${tour.originalPrice!.toFixed(0)}
+                  </span>
+                )}
+              </div>
             </div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white transition-all duration-300 ease-in-out hover:scale-[1.02] hover:border-[#EAB308]/40 hover:bg-[#EAB308] hover:text-[#070F1E]">
-              {dict.catalog.reserveSpot}
-              <ArrowRight className="h-4 w-4" />
+
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-2 text-xs font-black text-white transition-all group-hover:border-[#00E5FF] group-hover:bg-[#00E5FF] group-hover:text-[#070F1E]">
+              <span>{dict.catalog.reserveSpot}</span>
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
             </span>
           </div>
         </div>
       </Link>
     </article>
-
   );
 }

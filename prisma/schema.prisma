@@ -546,3 +546,27 @@ model TripExpense {
   @@map("trip_expenses")
 }
 
+
+model BlogPost {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  title           String
+  excerpt         String?  @db.Text
+  content         String   @db.Text
+  coverImage      String?
+  category        String   @default("Travel Guide")
+  tags            String[] @default([])
+  authorName      String   @default("TALAGO Editorial")
+  authorAvatar    String?
+  readTimeMinutes Int      @default(5)
+  isPublished     Boolean  @default(true)
+  isFeatured      Boolean  @default(false)
+  viewsCount      Int      @default(0)
+  translations    Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([slug, isPublished])
+  @@index([category, isPublished])
+  @@map("blog_posts")
+}

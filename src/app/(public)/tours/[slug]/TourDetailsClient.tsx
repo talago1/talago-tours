@@ -319,16 +319,32 @@ function Accordion({ title, children, defaultOpen = false }: { title: string; ch
 }
 
 // ---------- Itinerary Timeline ----------
-function ItineraryTimeline({ itinerary }: { itinerary: any[] }) {
+function ItineraryTimeline({ itinerary, language = 'en' }: { itinerary: any[]; language?: string }) {
   if (!itinerary || itinerary.length === 0) return null;
 
   return (
     <div className="relative space-y-8 pl-8 before:absolute before:left-[11px] before:top-2 before:h-[calc(100%-16px)] before:w-[2px] before:bg-gradient-to-b before:from-[#00E5FF] before:to-[#00473F]">
       {itinerary.map((item: any, i: number) => {
-        const time = item.time || `Step ${i + 1}`;
-        const description = item.description || item.title || item.activity || '';
+        const time = item.timeTag || item.time || `Step ${i + 1}`;
+        
+        let title = '';
+        if (item.title && typeof item.title === 'object') {
+          title = item.title[language] || item.title.en || Object.values(item.title)[0] || '';
+        } else if (typeof item.title === 'string') {
+          title = item.title;
+        }
+
+        let description = '';
+        if (item.description && typeof item.description === 'object') {
+          description = item.description[language] || item.description.en || Object.values(item.description)[0] || '';
+        } else if (typeof item.description === 'string') {
+          description = item.description;
+        }
+
+        const displayText = description || title || item.activity || '';
         const checklist = Array.isArray(item.checklist) ? item.checklist : [];
-        const location = item.location || '';
+        const location = typeof item.location === 'object' ? (item.location[language] || item.location.en || '') : (item.location || '');
+
         return (
           <div key={i} className="relative">
             <div className="absolute -left-8 top-0 flex h-[24px] w-[24px] items-center justify-center rounded-full border-2 border-[#00E5FF] bg-[#070F1E]">
@@ -338,8 +354,11 @@ function ItineraryTimeline({ itinerary }: { itinerary: any[] }) {
               <Clock className="h-3 w-3 text-[#00E5FF]" />
               <span className="text-xs font-bold text-[#00E5FF]">{time}</span>
             </div>
+            {title && displayText !== title && (
+              <h4 className="text-base font-bold text-white mb-1">{title}</h4>
+            )}
             {location && (<p className="mb-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{location}</p>)}
-            <p className="text-sm leading-7 text-slate-300">{description}</p>
+            <p className="text-sm leading-7 text-slate-300">{displayText}</p>
             {checklist.length > 0 && (
               <div className="mt-2 space-y-1">
                 {checklist.map((ci: string, cj: number) => (
@@ -715,17 +734,17 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
               )}
 
               {/* Itinerary */}
-              {itineraryItems.length > 0 && (
+              {localizedItineraryItems.length > 0 && (
                 <Accordion title={dict.tourDetails.itinerary} defaultOpen>
-                  <ItineraryTimeline itinerary={itineraryItems} />
+                  <ItineraryTimeline itinerary={localizedItineraryItems} language={language} />
                 </Accordion>
               )}
 
               {/* What to Bring */}
-              {whatToBringItems.length > 0 && (
+              {localizedWhatToBringItems.length > 0 && (
                 <Accordion title={dict.tourDetails.whatToBring}>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {whatToBringItems.map((item, i) => (
+                    {localizedWhatToBringItems.map((item, i) => (
                       <div key={i} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-4">
                         <Check className="h-4 w-4 shrink-0 text-[#FFD700]" />
                         <span className="text-sm text-slate-300">{item}</span>

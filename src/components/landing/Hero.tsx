@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   CalendarDays,
-  Search,
   Sparkles,
   Users,
   Compass,
@@ -16,9 +15,6 @@ import {
   ShieldCheck,
   CheckCircle2,
   Globe2,
-  Waves,
-  Mountain,
-  Landmark,
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -182,25 +178,27 @@ export default function Hero({
   };
 
   const currentTrans = heroTranslations?.[language] || {};
-
-  // Global default copy if not overridden by admin
   const isAr = (language as string) === 'ar';
+  const heroDict = dict?.hero || ({} as any);
 
   const finalBadge =
     currentTrans.heroBadge ||
-    (language === 'en' ? heroBadge : undefined) ||
+    (language === 'en' && heroBadge ? heroBadge : undefined) ||
+    heroDict.badge ||
     heroBadge ||
     (isAr ? 'منصة التجارب السياحية العالمية الفاخرة' : 'GLOBAL LUXURY EXPERIENCE MARKETPLACE');
 
   const finalTitle =
     currentTrans.heroTitle ||
-    (language === 'en' ? heroTitle : undefined) ||
+    (language === 'en' && heroTitle ? heroTitle : undefined) ||
+    heroDict.title ||
     heroTitle ||
     (isAr ? 'اكتشف تجارب استثنائية حول العالم' : 'Discover Extraordinary World Experiences');
 
   const finalTagline =
     currentTrans.heroTagline ||
-    (language === 'en' ? heroTagline : undefined) ||
+    (language === 'en' && heroTagline ? heroTagline : undefined) ||
+    heroDict.tagline ||
     heroTagline ||
     (isAr
       ? 'رحلات يخوت خاصة، سفاري في قلب الصحراء، وكنوز أسطورية خالدة.'
@@ -208,11 +206,26 @@ export default function Hero({
 
   const finalDescription =
     currentTrans.heroDescription ||
-    (language === 'en' ? heroDescription : undefined) ||
+    (language === 'en' && heroDescription ? heroDescription : undefined) ||
+    heroDict.description ||
     heroDescription ||
     (isAr
       ? 'احجز أكثر من 40+ تجربة سياحية معتمدة بأعلى معايير الرفاهية والأمان والتأكيد الفوري.'
       : 'Curated 5-star experiences with vetted operators, guaranteed best rates, flexible cancellation, and VIP concierge.');
+
+  const finalPrimaryBtn =
+    currentTrans.heroPrimaryBtnText ||
+    (language === 'en' && heroPrimaryBtnText ? heroPrimaryBtnText : undefined) ||
+    heroDict.exploreButton ||
+    heroPrimaryBtnText ||
+    (isAr ? 'استكشف كافة التجارب' : 'Explore All Experiences');
+
+  const finalSecondaryBtn =
+    currentTrans.heroSecondaryBtnText ||
+    (language === 'en' && heroSecondaryBtnText ? heroSecondaryBtnText : undefined) ||
+    heroDict.guestProofButton ||
+    heroSecondaryBtnText ||
+    (isAr ? 'أفضل الوجهات' : 'Top Destinations');
 
   const currentShowcase = showcaseDestinations[destIndex];
 
@@ -297,7 +310,7 @@ export default function Hero({
                     href={heroPrimaryBtnLink || '/tours'}
                     className="group inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-7 py-3.5 text-xs font-black uppercase tracking-[0.16em] text-[#070F1E] shadow-xl shadow-[#00E5FF]/20 transition-all duration-300 hover:scale-[1.03] hover:shadow-[#00E5FF]/40"
                   >
-                    <span>{heroPrimaryBtnText || (isAr ? 'استكشف كافة التجارب' : 'Explore All Experiences')}</span>
+                    <span>{finalPrimaryBtn}</span>
                     <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                   </Link>
                 )}
@@ -307,7 +320,7 @@ export default function Hero({
                     href={heroSecondaryBtnLink || '/#explore-trips'}
                     className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-6 py-3.5 text-xs font-black uppercase tracking-[0.16em] text-white backdrop-blur-md transition-all duration-300 hover:border-[#FFD700]/40 hover:bg-white/10"
                   >
-                    <span>{heroSecondaryBtnText || (isAr ? 'أفضل الوجهات' : 'Top Destinations')}</span>
+                    <span>{finalSecondaryBtn}</span>
                   </Link>
                 )}
               </div>
