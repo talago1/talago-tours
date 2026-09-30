@@ -399,8 +399,7 @@ export default function Hero({
                   src={currentShowcase.image}
                   alt={currentShowcase.name}
                   fill
-                  priority
-unoptimized={isRemote(currentShowcase.image)}
+                  unoptimized={isRemote(currentShowcase.image)}
                   sizes="(max-width: 768px) 100vw, 500px"
                   className="object-cover transition-all duration-700 ease-out"
                 />

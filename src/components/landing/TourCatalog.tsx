@@ -228,8 +228,8 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-{displayedTours.map((tour, index) => (
-        <PublicTourCard key={tour.id} tour={tour} priority={index === 0} />
+{displayedTours.map((tour) => (
+        <PublicTourCard key={tour.id} tour={tour} />
             ))}
           </div>
         )}
