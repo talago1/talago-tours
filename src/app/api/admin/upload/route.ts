@@ -11,6 +11,83 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/avif',
 ]);
 
+const ALLOWED_EXTENSIONS: Record<string, ReadonlySet<string>> = {
+  'image/jpeg': new Set(['jpg', 'jpeg']),
+  'image/png': new Set(['png']),
+  'image/webp': new Set(['webp']),
+  'image/avif': new Set(['avif']),
+};
+
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+/**
+ * Content sniffing. The declared MIME type and the filename are both attacker
+ * controlled, so the bytes themselves are what decide whether a file is a raster
+ * image we are willing to store.
+ */
+function matchesSignature(buffer: Buffer, mimeType: string): boolean {
+  switch (mimeType) {
+    case 'image/jpeg':
+      return buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    case 'image/png':
+      return buffer.length > 8 && buffer.subarray(0, 8).equals(PNG_SIGNATURE);
+    case 'image/webp':
+      return (
+        buffer.length > 12 &&
+        buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+        buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+      );
+    case 'image/avif':
+      return (
+        buffer.length > 12 &&
+        buffer.subarray(4, 8).toString('ascii') === 'ftyp' &&
+        (buffer.subarray(8, 12).toString('ascii') === 'avif' ||
+          buffer.subarray(8, 12).toString('ascii') === 'avis')
+      );
+    default:
+      return false;
+  }
+}
+
+function extensionOf(filename: string): string {
+  return filename.split('.').pop()?.toLowerCase() ?? '';
+}
+
+function canonicalExtension(mimeType: string): string {
+  switch (mimeType) {
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    default:
+      return 'avif';
+  }
+}
+
+/**
+ * Returns a rejection reason, or null when the upload is a real raster image.
+ * Three independent checks: the declared type must be allowlisted, the filename
+ * extension must match it, and the bytes must carry that format's signature.
+ */
+function validateUpload(file: File, buffer: Buffer): string | null {
+  if (!ALLOWED_MIME_TYPES.has(file.type)) {
+    return `Unsupported type: ${file.type}. Allowed: JPEG, PNG, WebP, AVIF`;
+  }
+
+  const extension = extensionOf(file.name);
+  if (!ALLOWED_EXTENSIONS[file.type].has(extension)) {
+    return `Extension ".${extension}" does not match ${file.type}. Allowed: ${[...ALLOWED_EXTENSIONS[file.type]].join(', ')}`;
+  }
+
+  if (!matchesSignature(buffer, file.type)) {
+    return `File contents are not a valid ${file.type} image`;
+  }
+
+  return null;
+}
+
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_FILES_PER_REQUEST = 20;
 
@@ -34,21 +111,22 @@ interface MultiUploadResponse {
   settingsKey?: string | null;
 }
 
-function generateUniqueFilename(originalName: string): string {
+/**
+ * The stored extension is derived from the verified MIME type rather than from the
+ * client's filename, so a spoofed name can never change how the file is served.
+ */
+function generateUniqueFilename(originalName: string, mimeType: string): string {
   const timestamp = Date.now();
   const randomSuffix = Math.random().toString(36).substring(2, 10);
-  const extension = originalName.split('.').pop()?.toLowerCase() || 'jpg';
   const sanitizedBase = originalName
     .replace(/\.[^.]+$/, '')
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .substring(0, 40);
-  return `${timestamp}-${sanitizedBase}-${randomSuffix}.${extension}`;
+  return `${timestamp}-${sanitizedBase}-${randomSuffix}.${canonicalExtension(mimeType)}`;
 }
 
-async function uploadSingleFile(file: File): Promise<UploadedFileResult> {
-  const uniqueFilename = generateUniqueFilename(file.name);
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+async function uploadSingleFile(file: File, buffer: Buffer): Promise<UploadedFileResult> {
+  const uniqueFilename = generateUniqueFilename(file.name, file.type);
 
   // 1. Try Supabase Storage if credentials are configured
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -133,11 +211,12 @@ export async function POST(
     const settingsKey = formData.get('settingsKey');
 
     for (const file of files) {
-      if (!ALLOWED_MIME_TYPES.has(file.type)) {
-        errors.push({
-          filename: file.name,
-          error: `Unsupported type: ${file.type}. Allowed: JPEG, PNG, WebP, AVIF`,
-        });
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      const rejection = validateUpload(file, buffer);
+      if (rejection) {
+        errors.push({ filename: file.name, error: rejection });
         continue;
       }
 
@@ -150,7 +229,7 @@ export async function POST(
       }
 
       try {
-        const result = await uploadSingleFile(file);
+        const result = await uploadSingleFile(file, buffer);
         uploaded.push(result);
       } catch (err) {
         errors.push({
