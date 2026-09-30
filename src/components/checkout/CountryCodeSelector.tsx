@@ -72,8 +72,8 @@ export default function CountryCodeSelector({
     const clean = value.trim();
     if (clean.startsWith('+')) {
       const match = COUNTRIES.slice().sort((a, b) => b.dial.length - a.dial.length).find((c) => clean.startsWith(c.dial));
-      if (match && match.code !== selectedCountry.code) {
-        setSelectedCountry(match);
+      if (match) {
+        setSelectedCountry((prev) => (prev.code === match.code ? prev : match));
       }
     }
   }, [value]);

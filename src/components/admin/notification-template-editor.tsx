@@ -29,29 +29,7 @@ export default function NotificationTemplateEditor() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  useEffect(() => {
-    fetchTemplates();
-  }, []);
-
-  async function fetchTemplates() {
-    try {
-      const res = await fetch('/api/notifications/templates');
-      if (res.ok) {
-        const data = await res.json();
-
-        if (data.length === 0) {
-          await seedDefaultTemplates();
-          return;
-        }
-
-        setTemplates(data);
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Failed to load templates' });
-    }
-  }
-
-  async function seedDefaultTemplates() {
+  const seedDefaultTemplates = useCallback(async () => {
     try {
       await fetch('/api/notifications/templates', {
         method: 'POST',
@@ -70,11 +48,36 @@ export default function NotificationTemplateEditor() {
           ],
         }),
       });
-      fetchTemplates();
+      const res = await fetch('/api/notifications/templates');
+      if (res.ok) {
+        setTemplates(await res.json());
+      }
     } catch {
       setMessage({ type: 'error', text: 'Failed to seed default templates' });
     }
-  }
+  }, []);
+
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications/templates');
+      if (res.ok) {
+        const data = await res.json();
+
+        if (data.length === 0) {
+          await seedDefaultTemplates();
+          return;
+        }
+
+        setTemplates(data);
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to load templates' });
+    }
+  }, [seedDefaultTemplates]);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
 
   const startEdit = useCallback((t: Template) => {
     setEditingId(t.id);
@@ -113,13 +116,13 @@ export default function NotificationTemplateEditor() {
 
       setMessage({ type: 'success', text: 'Template saved successfully' });
       setEditingId(null);
-      fetchTemplates();
+      await fetchTemplates();
     } catch {
       setMessage({ type: 'error', text: 'Failed to save template' });
     } finally {
       setSaving(false);
     }
-  }, [editingId, editBody, editSubject]);
+  }, [editingId, editBody, editSubject, fetchTemplates]);
 
   const insertToken = useCallback((token: string) => {
     setEditBody((prev) => prev + token);

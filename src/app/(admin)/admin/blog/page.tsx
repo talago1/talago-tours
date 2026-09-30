@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { BookOpen, Plus, Search, Edit, Trash2, Eye } from 'lucide-react';
 
@@ -24,7 +24,7 @@ export default function AdminBlogListPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch(`/api/admin/blog?search=${encodeURIComponent(search)}`);
@@ -35,11 +35,11 @@ export default function AdminBlogListPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search]);
 
   useEffect(() => {
     fetchPosts();
-  }, [search]);
+  }, [fetchPosts]);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this article?')) return;
