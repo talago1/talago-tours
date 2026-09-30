@@ -60,6 +60,54 @@ const DESTINATION_COVERS: Record<string, string[]> = {
 
 const FALLBACK_COVER = 'https://images.unsplash.com/photo-1590510429865-63e7c80896c6?w=1200&q=80';
 
+// Several of the curated Unsplash ids above have since 404'd, and a destination
+// without an imageUrl falls through to the covers. Swap to the local branded
+// placeholder when the remote image fails so a dead id never renders as a
+// broken image. The placeholder is an SVG, which the optimizer rejects, hence
+// unoptimized on that branch only.
+const PLACEHOLDER_COVER = '/images/placeholder.svg';
+
+interface CoverImageProps {
+  src: string;
+  alt: string;
+  sizes: string;
+  className?: string;
+  loading?: 'lazy' | 'eager';
+  'aria-hidden'?: boolean;
+}
+
+function CoverImage({ src, alt, sizes, className, loading, ...rest }: CoverImageProps) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <Image
+        src={PLACEHOLDER_COVER}
+        alt={alt}
+        fill
+        unoptimized
+        sizes={sizes}
+        className={className}
+        loading={loading}
+        {...rest}
+      />
+    );
+  }
+
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      sizes={sizes}
+      className={className}
+      loading={loading}
+      onError={() => setFailed(true)}
+      {...rest}
+    />
+  );
+}
+
 function getLocalized(d: DestData, lang: string, field: 'name' | 'description'): string {
   if (d.translations && d.translations[lang] && d.translations[lang][field]) {
     return d.translations[lang][field]!;
@@ -155,20 +203,20 @@ export default function DestinationsClient({ destinations, banners }: Props) {
                     {/* Image area */}
                     <div className={`relative overflow-hidden ${index === 0 ? 'h-72 md:h-80' : 'h-56'}`}>
                       {/* Primary image */}
-                      <Image
+                      <CoverImage
+                        key={`primary-${covers[0]}`}
                         src={covers[0]}
                         alt={localizedName}
-                        fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover transition-all duration-700 group-hover:scale-110"
                       />
                       {/* Secondary overlay image on hover */}
                       {covers[1] && (
-                        <Image
+                        <CoverImage
+                          key={`secondary-${covers[1]}`}
                           src={covers[1]}
                           alt=""
                           aria-hidden
-                          fill
                           sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                           loading="lazy"
                           className="object-cover opacity-0 transition-all duration-700 group-hover:opacity-100"
