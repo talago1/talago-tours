@@ -90,6 +90,10 @@ function validateUpload(file: File, buffer: Buffer): string | null {
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_FILES_PER_REQUEST = 20;
+// Worst case a legitimate request can be, plus slack for multipart boundaries
+// and part headers. Checked against Content-Length so an oversized body is
+// rejected before it is buffered into memory by formData().
+const MAX_REQUEST_BYTES = MAX_FILE_SIZE_BYTES * MAX_FILES_PER_REQUEST + 1024 * 1024;
 
 interface UploadedFileResult {
   url: string;
@@ -183,6 +187,17 @@ export async function POST(
       );
     }
 
+    const declaredLength = Number(request.headers.get('content-length') ?? '0');
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_REQUEST_BYTES) {
+      return NextResponse.json(
+        {
+          error: `Request too large (${(declaredLength / 1024 / 1024).toFixed(1)}MB). Max ${(MAX_REQUEST_BYTES / 1024 / 1024).toFixed(0)}MB.`,
+          code: 'REQUEST_TOO_LARGE',
+        },
+        { status: 413 },
+      );
+    }
+
     const formData = await request.formData();
     const files: File[] = [];
 
@@ -211,20 +226,22 @@ export async function POST(
     const settingsKey = formData.get('settingsKey');
 
     for (const file of files) {
+      // Size is checked before reading the body: arrayBuffer() buffers the whole
+      // file in memory, and up to 20 files are accepted per request.
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        errors.push({
+          filename: file.name,
+          error: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max 10MB.`,
+        });
+        continue;
+      }
+
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
       const rejection = validateUpload(file, buffer);
       if (rejection) {
         errors.push({ filename: file.name, error: rejection });
-        continue;
-      }
-
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        errors.push({
-          filename: file.name,
-          error: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max 10MB.`,
-        });
         continue;
       }
 

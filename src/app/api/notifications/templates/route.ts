@@ -54,7 +54,20 @@ export async function POST(request: NextRequest) {
       updatedAt: now,
     }));
 
-    const merged = [...existing, ...newTemplates];
+    // Replace any existing template for the same channel instead of appending.
+    // The admin editor seeds defaults by POSTing whenever the list comes back
+    // empty, and that can run twice (React StrictMode double-invokes the effect,
+    // or two admins open the page before either seed lands). Blindly appending
+    // produced duplicate WHATSAPP/EMAIL templates.
+    const merged = [...existing];
+    for (const incomingTemplate of newTemplates) {
+      const index = merged.findIndex((t) => t.channel === incomingTemplate.channel);
+      if (index === -1) {
+        merged.push(incomingTemplate);
+      } else {
+        merged[index] = incomingTemplate;
+      }
+    }
 
     await prisma.systemSetting.upsert({
       where: { key: SETTINGS_KEY },
