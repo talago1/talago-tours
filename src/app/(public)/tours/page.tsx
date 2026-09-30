@@ -125,9 +125,14 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
 }
 
 export default async function ToursPage({ searchParams }: CatalogPageProps) {
-  const [totalCount, bannerSetting] = await Promise.all([
+  const [totalCount, bannerSetting, heroDestinations] = await Promise.all([
     prisma.tour.count({ where: { status: 'ACTIVE' } }),
     prisma.systemSetting.findUnique({ where: { key: 'banners' } }),
+    prisma.destination.findMany({
+      where: { tours: { some: { status: 'ACTIVE' } } },
+      orderBy: { name: 'asc' },
+      select: { name: true, slug: true },
+    }),
   ]);
 
   const bannerData = bannerSetting
@@ -136,7 +141,7 @@ export default async function ToursPage({ searchParams }: CatalogPageProps) {
 
   return (
     <main className="min-h-screen bg-[#070F1E] text-[#F8FAFC]">
-      <ToursHero totalCount={totalCount} banners={bannerData} />
+      <ToursHero totalCount={totalCount} banners={bannerData} destinations={heroDestinations} />
 
       <div className="mx-auto max-w-7xl px-5 pb-20 pt-10 sm:px-8 lg:px-10 lg:pb-28">
         <Suspense

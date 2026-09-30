@@ -12,12 +12,18 @@ const floatingIcons = [
   { Icon: Sparkles, color: 'text-[#34D399]', bg: 'bg-[#34D399]/10 border-[#34D399]/20', top: '65%', right: '9%', delay: '2s',    size: 'h-7  w-7'  },
 ];
 
+interface ToursHeroDestination {
+  name: string;
+  slug: string;
+}
+
 interface ToursHeroProps {
   totalCount: number;
   banners: SystemSettings['banners'];
+  destinations: ToursHeroDestination[];
 }
 
-export default function ToursHero({ totalCount, banners }: ToursHeroProps) {
+export default function ToursHero({ totalCount, banners, destinations }: ToursHeroProps) {
   const { dict } = useLanguage();
 
   // Admin overrides win; each one falls back to the translated default so an
@@ -29,6 +35,9 @@ export default function ToursHero({ totalCount, banners }: ToursHeroProps) {
   const buttonText = banners.toursHeroBtnText?.trim() || dict.catalog.browseAll;
   const ratingValue = banners.toursHeroRatingValue?.trim() || '4.9/5';
   const ratingLabel = banners.toursHeroRatingLabel?.trim() || dict.catalog.verifiedGuests;
+
+  // Cap the pill row so a large destination table cannot overwhelm the hero.
+  const pills = destinations.slice(0, 5);
 
   return (
     <div className="relative overflow-hidden bg-[#070F1E] pb-10 pt-24 lg:pb-14 lg:pt-32">
@@ -119,15 +128,17 @@ export default function ToursHero({ totalCount, banners }: ToursHeroProps) {
           </div>
         </div>
 
-        {/* Destination pills */}
+        {/* Destination pills — real filter links built from destinations that
+            actually have active tours, so they can never drift from the data. */}
         <div className="mt-8 flex flex-wrap gap-2">
-          {['🌊 Hurghada', '🐬 Sharm El Sheikh', '🦈 Marsa Alam'].map((d) => (
-            <span
-              key={d}
+          {pills.map((d) => (
+            <Link
+              key={d.slug}
+              href={`/tours?destination=${d.slug}`}
               className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:border-[#06B6D4]/30 hover:text-[#06B6D4]"
             >
-              {d}
-            </span>
+              {d.name}
+            </Link>
           ))}
         </div>
       </div>
