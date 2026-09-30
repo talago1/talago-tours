@@ -17,6 +17,7 @@ export const pl: typeof en = {
     title: 'Odkryj ukryte raje Hurghady',
     description: 'Tam, gdzie dziewicze głębiny Morza Czerwonego spotykają się z majestatycznymi złotymi wydmami. TALAGO organizuje luksusowe rejsy jachtami, prywatne dni na wyspach i filmowe safari na quadach z elitarną gościnnością.',
     exploreButton: 'Nasze wyjątkowe wycieczki',
+    activeExperiences: 'aktywnych doświadczeń w ofercie',
     guestProofButton: 'Opinie gości',
     metrics: {
       ratingValue: '4.9/5',

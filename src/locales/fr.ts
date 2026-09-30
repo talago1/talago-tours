@@ -17,6 +17,7 @@ export const fr: typeof en = {
     title: 'Dévoilez les paradis cachés de Hurghada',
     description: 'Là où les profondeurs cristallines de la mer Rouge rencontrent les majestueuses dunes dorées. TALAGO propose des excursions en yacht de luxe, des journées sur des îles privées et des safaris cinématographiques dans le désert avec une hospitalité d\'élite.',
     exploreButton: 'Découvrir nos excursions',
+    activeExperiences: 'expériences actives disponibles',
     guestProofButton: 'Avis des clients',
     metrics: {
       ratingValue: '4,9/5',

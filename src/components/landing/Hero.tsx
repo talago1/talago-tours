@@ -16,6 +16,16 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
+export interface HeroShowcaseDestination {
+  name: string;
+  subtitle: string;
+  image: string;
+  tag: string;
+  price: string;
+  rating: string;
+  link: string;
+}
+
 export interface HeroProps {
   heroBackground?: string;
   conciergePickImage?: string;
@@ -49,11 +59,23 @@ export interface HeroProps {
   heroMetric3Value?: string;
   heroMetric3Label?: string;
 
+  /** Destinations pulled from the database, shown in the rotating 3D card. */
+  showcaseDestinations?: HeroShowcaseDestination[];
+  /** Live count of bookable tours, rendered in the card footer. */
+  activeTourCount?: number;
+
   heroTranslations?: Record<string, any>;
 }
 
 export default function Hero({
   heroBackground,
+  conciergePickImage,
+  conciergePickTitle,
+  conciergePickDescription,
+  conciergePickBadge,
+  conciergePickPrice,
+  conciergePickLink,
+  showConciergePick = false,
   heroBadge,
   heroTitle,
   heroTagline,
@@ -67,13 +89,15 @@ export default function Hero({
   heroSecondaryBtnText,
   heroSecondaryBtnLink = '/#verified-reviews',
   showSecondaryBtn = true,
-  showHeroMetrics = true,
+  showHeroMetrics = false,
   heroMetric1Value,
   heroMetric1Label,
   heroMetric2Value,
   heroMetric2Label,
   heroMetric3Value,
   heroMetric3Label,
+  showcaseDestinations = [],
+  activeTourCount,
   heroTranslations,
 }: HeroProps) {
   const router = useRouter();
@@ -88,54 +112,25 @@ export default function Hero({
   const [rotateY, setRotateY] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
 
-  // Rotating showcase destination index for the 3D card
-  const showcaseDestinations = [
-    {
-      name: 'Hurghada & Giftun Islands',
-      subtitle: 'Luxury Yachts & Coral Reefs',
-      image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1000&q=80',
-      tag: 'Yacht Charters',
-      price: 'From $45',
-      rating: '4.98',
-      link: '/destinations/hurghada',
-    },
-    {
-      name: 'Sharm El Sheikh & Ras Mohamed',
-      subtitle: 'World-Class Diving & Mount Sinai',
-      image: 'https://images.unsplash.com/photo-1573843981267-be1999ff37cd?w=1000&q=80',
-      tag: 'Diving Sanctuary',
-      price: 'From $42',
-      rating: '4.96',
-      link: '/destinations/sharm-el-sheikh',
-    },
-    {
-      name: 'Marsa Alam & Sataya Reef',
-      subtitle: 'Dugongs, Sea Turtles & Wild Dolphins',
-      image: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=1000&q=80',
-      tag: 'Eco Paradise',
-      price: 'From $38',
-      rating: '5.0',
-      link: '/destinations/marsa-alam',
-    },
-    {
-      name: 'Luxor & Valley of the Kings',
-      subtitle: 'Pharaonic Wonders & Karnak Temples',
-      image: 'https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?w=1000&q=80',
-      tag: 'Historic Wonders',
-      price: 'From $95',
-      rating: '4.99',
-      link: '/tours?type=CULTURAL',
-    },
-  ];
-
   const [destIndex, setDestIndex] = useState(0);
 
+  // The admin's hand-picked experience takes over the card while enabled;
+  // otherwise it rotates through the destinations loaded from the database.
+  const conciergePickActive = showConciergePick && Boolean(conciergePickTitle || conciergePickImage);
+  const rotatingCount = conciergePickActive ? 0 : showcaseDestinations.length;
+
   useEffect(() => {
+    if (rotatingCount <= 1) return;
     const timer = setInterval(() => {
-      setDestIndex((prev) => (prev + 1) % showcaseDestinations.length);
+      setDestIndex((prev) => (prev + 1) % rotatingCount);
     }, 4500);
     return () => clearInterval(timer);
-  }, [showcaseDestinations.length]);
+  }, [rotatingCount]);
+
+  // Guard against the prop arriving after first paint or shrinking.
+  useEffect(() => {
+    setDestIndex((prev) => (rotatingCount > 0 && prev >= rotatingCount ? 0 : prev));
+  }, [rotatingCount]);
 
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
@@ -221,7 +216,38 @@ export default function Hero({
     heroSecondaryBtnText ||
     (isAr ? 'أفضل الوجهات' : 'Top Destinations');
 
-  const currentShowcase = showcaseDestinations[destIndex];
+  const conciergeTitle = currentTrans.conciergePickTitle || conciergePickTitle;
+  const conciergeDescription = currentTrans.conciergePickDescription || conciergePickDescription;
+  const conciergeBadge = currentTrans.conciergePickBadge || conciergePickBadge;
+  const conciergePrice = currentTrans.conciergePickPrice || conciergePickPrice;
+
+  const rotatingShowcase = rotatingCount > 0 ? showcaseDestinations[destIndex] : undefined;
+
+  const currentShowcase: HeroShowcaseDestination = conciergePickActive
+    ? {
+        name: conciergeTitle || heroDict.title || 'Signature Experience',
+        subtitle: conciergeDescription || heroDict.tagline || '',
+        image: conciergePickImage || heroBackground || '/talago-hero-red-sea-desert.png',
+        tag: conciergeBadge || heroDict.concierge?.pick || heroDict.badge || '',
+        price: conciergePrice || '',
+        rating: '',
+        link: conciergePickLink || heroPrimaryBtnLink || '/tours',
+      }
+    : rotatingShowcase || {
+        name: heroDict.title || 'TALAGO',
+        subtitle: heroDict.tagline || '',
+        image: heroBackground || '/talago-hero-red-sea-desert.png',
+        tag: heroDict.badge || '',
+        price: '',
+        rating: '',
+        link: '/tours',
+      };
+
+  const heroMetrics = [
+    { value: heroMetric1Value, label: heroMetric1Label },
+    { value: heroMetric2Value, label: heroMetric2Label },
+    { value: heroMetric3Value, label: heroMetric3Label },
+  ].filter((m) => Boolean(m.value && m.label));
 
   return (
     <section className="relative overflow-hidden bg-[#070F1E] text-[#F8FAFC]">
@@ -319,6 +345,22 @@ export default function Hero({
                 )}
               </div>
             )}
+
+            {/* Admin-configured headline metrics */}
+            {showHeroMetrics && heroMetrics.length > 0 && (
+              <dl className="mt-8 grid max-w-xl grid-cols-1 gap-4 border-t border-white/10 pt-6 sm:grid-cols-3">
+                {heroMetrics.map((metric) => (
+                  <div key={metric.label}>
+                    <dt className="text-2xl font-black tracking-tight text-[#00E5FF]">
+                      {metric.value}
+                    </dt>
+                    <dd className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                      {metric.label}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
           </div>
 
           {/* Right Column: 3D Interactive Moving Showcase Card */}
@@ -347,42 +389,57 @@ export default function Hero({
                   src={currentShowcase.image}
                   alt={currentShowcase.name}
                   fill
+                  priority
+                  unoptimized
                   sizes="(max-width: 768px) 100vw, 500px"
                   className="object-cover transition-all duration-700 ease-out"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#070F1E] via-[#070F1E]/30 to-transparent" />
 
                 {/* 3D Floating Top Badge */}
-                <div
-                  style={{ transform: 'translateZ(30px)' }}
-                  className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-white/20 bg-[#070F1E]/80 px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-[#FFD700] shadow-xl backdrop-blur-md"
-                >
-                  <Sparkles className="h-3 w-3 text-[#FFD700]" />
-                  <span>{currentShowcase.tag}</span>
-                </div>
+                {currentShowcase.tag && (
+                  <div
+                    style={{ transform: 'translateZ(30px)' }}
+                    className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-white/20 bg-[#070F1E]/80 px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-[#FFD700] shadow-xl backdrop-blur-md"
+                  >
+                    <Sparkles className="h-3 w-3 text-[#FFD700]" />
+                    <span>{currentShowcase.tag}</span>
+                  </div>
+                )}
 
                 {/* 3D Floating Price Pill */}
-                <div
-                  style={{ transform: 'translateZ(35px)' }}
-                  className="absolute right-4 top-4 rounded-full bg-gradient-to-r from-[#FFD700] to-[#EAB308] px-3 py-1.5 text-xs font-black text-[#070F1E] shadow-xl"
-                >
-                  {currentShowcase.price}
-                </div>
+                {currentShowcase.price && (
+                  <div
+                    style={{ transform: 'translateZ(35px)' }}
+                    className="absolute right-4 top-4 rounded-full bg-gradient-to-r from-[#FFD700] to-[#EAB308] px-3 py-1.5 text-xs font-black text-[#070F1E] shadow-xl"
+                  >
+                    {currentShowcase.price}
+                  </div>
+                )}
 
                 {/* Dynamic Destination Info Bar */}
                 <div
                   style={{ transform: 'translateZ(25px)' }}
                   className="absolute bottom-3 left-3 right-3 rounded-xl border border-white/10 bg-[#070F1E]/90 p-3.5 backdrop-blur-md"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h4 className="text-base font-black text-white">{currentShowcase.name}</h4>
-                      <p className="text-xs text-slate-300">{currentShowcase.subtitle}</p>
+                      <Link href={currentShowcase.link} className="group/title inline-flex items-center gap-1.5">
+                        <h4 className="text-base font-black text-white transition-colors group-hover/title:text-[#00E5FF]">
+                          {currentShowcase.name}
+                        </h4>
+                        <ArrowRight className="h-3.5 w-3.5 text-slate-400 transition-all group-hover/title:translate-x-0.5 group-hover/title:text-[#00E5FF]" />
+                      </Link>
+                      {currentShowcase.subtitle && (
+                        <p className="text-xs text-slate-300">{currentShowcase.subtitle}</p>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-xs font-bold text-[#FFD700]">
-                      <Star className="h-3 w-3 fill-[#FFD700]" />
-                      <span>{currentShowcase.rating}</span>
-                    </div>
+                    {currentShowcase.rating && (
+                      <div className="flex shrink-0 items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-xs font-bold text-[#FFD700]">
+                        <Star className="h-3 w-3 fill-[#FFD700]" />
+                        <span>{currentShowcase.rating}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -394,23 +451,29 @@ export default function Hero({
               >
                 <div className="flex items-center gap-2 text-xs text-slate-300">
                   <div className="flex h-2 w-2 rounded-full bg-[#00E5FF] animate-ping" />
-                  <span className="font-semibold">{isAr ? '43+ تجربة حية جاهزة للحجز' : '43+ Active Experiences Live'}</span>
+                  {typeof activeTourCount === 'number' && (
+                    <span className="font-semibold">
+                      {activeTourCount} {heroDict.activeExperiences || 'active experiences live'}
+                    </span>
+                  )}
                 </div>
 
                 {/* Interactive Slider Dots */}
-                <div className="flex items-center gap-1.5">
-                  {showcaseDestinations.map((_, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setDestIndex(idx)}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${
-                        idx === destIndex ? 'w-6 bg-[#00E5FF]' : 'w-2 bg-white/20 hover:bg-white/40'
-                      }`}
-                      aria-label={`Go to slide ${idx + 1}`}
-                    />
-                  ))}
-                </div>
+                {rotatingCount > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    {showcaseDestinations.slice(0, rotatingCount).map((dest, idx) => (
+                      <button
+                        key={dest.link + idx}
+                        type="button"
+                        onClick={() => setDestIndex(idx)}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          idx === destIndex ? 'w-6 bg-[#00E5FF]' : 'w-2 bg-white/20 hover:bg-white/40'
+                        }`}
+                        aria-label={`Go to slide ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -498,24 +561,15 @@ export default function Hero({
             <span className="font-bold text-slate-400">
               {isAr ? 'وجهات سريعة:' : 'Quick Explore:'}
             </span>
-            <Link
-              href="/destinations/hurghada"
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]"
-            >
-              Hurghada
-            </Link>
-            <Link
-              href="/destinations/sharm-el-sheikh"
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]"
-            >
-              Sharm El Sheikh
-            </Link>
-            <Link
-              href="/destinations/marsa-alam"
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#FFD700]/40 hover:bg-[#FFD700]/10 hover:text-[#FFD700]"
-            >
-              Marsa Alam
-            </Link>
+            {showcaseDestinations.map((dest) => (
+              <Link
+                key={dest.link}
+                href={dest.link}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]"
+              >
+                {dest.name}
+              </Link>
+            ))}
             <Link
               href="/tours?type=SAFARI"
               className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]"

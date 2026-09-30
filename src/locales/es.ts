@@ -17,6 +17,7 @@ export const es: typeof en = {
     title: 'Descubra los paraísos ocultos de Hurghada',
     description: 'Donde las profundidades cristalinas del mar Rojo se encuentran con las majestuosas dunas doradas. TALAGO organiza excursiones en yates de lujo, días en islas privadas y safaris cinematográficos en quad en el desierto con una hospitalidad de élite.',
     exploreButton: 'Explorar Tours Exclusivos',
+    activeExperiences: 'experiencias activas disponibles',
     guestProofButton: 'Opiniones de Huéspedes',
     metrics: {
       ratingValue: '4.9/5',

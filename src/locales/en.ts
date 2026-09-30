@@ -15,6 +15,7 @@ export const en = {
     title: "Unveil Hurghada's Hidden Paradises",
     description: 'Where the pristine depths of the Red Sea meet the majestic golden dunes. TALAGO curates yacht-level marine trips, private island days, and cinematic desert safaris with elite hospitality.',
     exploreButton: 'Explore Signature Trips',
+    activeExperiences: 'active experiences live',
     guestProofButton: 'View Guest Proof',
     metrics: {
       ratingValue: '4.9/5',

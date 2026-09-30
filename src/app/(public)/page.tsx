@@ -13,7 +13,7 @@ import FAQSection from '@/components/landing/FAQSection';
 import NewsletterBanner from '@/components/landing/NewsletterBanner';
 
 export default async function HomePage() {
-  const [tours, destinations, bannerSetting] = await Promise.all([
+  const [tours, destinations, bannerSetting, activeTourCount] = await Promise.all([
     prisma.tour.findMany({
       where: { status: 'ACTIVE' },
       orderBy: [
@@ -62,15 +62,33 @@ export default async function HomePage() {
         slug: true,
         description: true,
         imageUrl: true,
+        region: true,
+        city: true,
         _count: { select: { tours: true } },
       },
     }),
     prisma.systemSetting.findUnique({ where: { key: 'banners' } }),
+    prisma.tour.count({ where: { status: 'ACTIVE' } }),
   ]);
 
   const bannerData = bannerSetting
     ? parseSettingValue<SystemSettings['banners']>(bannerSetting.value, DEFAULT_SYSTEM_SETTINGS.banners)
     : DEFAULT_SYSTEM_SETTINGS.banners;
+
+  // The hero's rotating card is built from real destinations rather than a
+  // hardcoded list, so a destination added in the admin shows up here.
+  const showcaseDestinations = destinations
+    .filter((d) => d.imageUrl && d._count.tours > 0)
+    .slice(0, 4)
+    .map((d) => ({
+      name: d.name,
+      subtitle: d.description || '',
+      image: d.imageUrl as string,
+      tag: d.region || d.city || '',
+      price: '',
+      rating: '',
+      link: `/tours?destination=${d.slug}`,
+    }));
 
   return (
     <div className="min-h-screen bg-[#070F1E]">
@@ -103,6 +121,8 @@ export default async function HomePage() {
         heroMetric2Label={bannerData.heroMetric2Label}
         heroMetric3Value={bannerData.heroMetric3Value}
         heroMetric3Label={bannerData.heroMetric3Label}
+        showcaseDestinations={showcaseDestinations}
+        activeTourCount={activeTourCount}
         heroTranslations={bannerData.heroTranslations}
       />
       <TourCatalog tours={tours} />

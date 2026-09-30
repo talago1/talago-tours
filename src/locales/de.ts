@@ -17,6 +17,7 @@ export const de: typeof en = {
     title: 'Enthüllen Sie Hurghadas verborgene Paradiese',
     description: 'Wo die unberührten Tiefen des Roten Meeres auf die majestätischen goldenen Dünen treffen. TALAGO organisiert erstklassige Yachtausflüge, private Inseltage und filmreife Wüstensafaris mit exzellenter Gastfreundschaft.',
     exploreButton: 'Erkunden Sie unsere Touren',
+    activeExperiences: 'aktive Erlebnisse verfügbar',
     guestProofButton: 'Bewertungen ansehen',
     metrics: {
       ratingValue: '4,9/5',

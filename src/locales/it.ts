@@ -17,6 +17,7 @@ export const it: typeof en = {
     title: 'Svela i paradisi nascosti di Hurghada',
     description: 'Dove le profondità incontaminate del Mar Rosso incontrano le maestose dune dorate. TALAGO cura uscite in yacht di altissimo livello, giornate su isole private e safari cinematografici nel deserto con un ospitalità d’élite.',
     exploreButton: 'Esplora i Tour Esclusivi',
+    activeExperiences: 'esperienze attive disponibili',
     guestProofButton: 'Recensioni degli Ospiti',
     metrics: {
       ratingValue: '4.9/5',
