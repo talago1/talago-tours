@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
+import { resolveCategoryFilter } from '@/utils/tourCategory';
 import TourSearchHeaderWrapper from '@/components/public/TourSearchHeaderWrapper';
 import PublicTourCard from '@/components/tours/PublicTourCard';
 import ToursHero from './ToursHero';
@@ -12,20 +13,6 @@ export const metadata: Metadata = {
   title: 'Tours & Journeys — TALAGO',
   description:
     'Explore our hand-curated portfolio of luxury yachts, private island charters, snorkeling, diving, desert safaris and more across Hurghada, Sharm El Sheikh and Marsa Alam.',
-};
-
-// Maps the public filter button value (uppercase) → one or more possible DB category values.
-const CATEGORY_FILTER_MAP: Record<string, string[]> = {
-  SNORKELING:    ['snorkeling', 'sea', 'Sea'],
-  DIVING:        ['diving',     'sea', 'Sea'],
-  BOAT_TRIP:     ['boat_trip',  'sea', 'Sea'],
-  ADVENTURE:     ['adventure',  'sea', 'Sea'],
-  CITY:          ['city',       'sea', 'Sea'],
-  SAFARI:        ['safari',           'Safari'],
-  DESERT:        ['desert',    'safari', 'Safari'],
-  CULTURAL:      ['cultural', 'Cultural', 'Historical'],
-  SPA:           ['spa', 'Spa & Wellness', 'wellness'],
-  ENTERTAINMENT: ['entertainment', 'Entertainment'],
 };
 
 function buildSort(orderBy: string | undefined): Record<string, 'asc' | 'desc'> {
@@ -42,6 +29,8 @@ interface CatalogPageProps {
   searchParams: {
     destination?: string;
     type?: string;
+    /** Legacy alias — the homepage hero and quick pills used to emit this. */
+    category?: string;
     search?: string;
     sort?: string;
   };
@@ -54,11 +43,10 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
     where.destination = { slug: filters.destination };
   }
 
-  if (filters.type) {
-    const dbCategories = CATEGORY_FILTER_MAP[filters.type.toUpperCase()];
-    if (dbCategories && dbCategories.length > 0) {
-      where.category = { in: dbCategories };
-    }
+  // `type` is canonical; `category` is accepted so older shared links keep working.
+  const dbCategories = resolveCategoryFilter(filters.type ?? filters.category);
+  if (dbCategories && dbCategories.length > 0) {
+    where.category = { in: dbCategories };
   }
 
   const [totalCount, allTours, destinations] = await Promise.all([

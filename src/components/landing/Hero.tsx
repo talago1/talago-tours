@@ -6,9 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
-  CalendarDays,
   Sparkles,
-  Users,
   Compass,
   MapPin,
   Star,
@@ -83,8 +81,6 @@ export default function Hero({
   const [heroError, setHeroError] = useState(false);
   const [selectedDestination, setSelectedDestination] = useState('ALL');
   const [selectedType, setSelectedType] = useState('ALL');
-  const [selectedDate, setSelectedDate] = useState('');
-  const [selectedGuests, setSelectedGuests] = useState('2');
 
   // 3D Card Interactive Tilt State
   const cardRef = useRef<HTMLDivElement>(null);
@@ -128,7 +124,7 @@ export default function Hero({
       tag: 'Historic Wonders',
       price: 'From $95',
       rating: '4.99',
-      link: '/tours?category=cultural',
+      link: '/tours?type=CULTURAL',
     },
   ];
 
@@ -170,9 +166,7 @@ export default function Hero({
     e.preventDefault();
     const params = new URLSearchParams();
     if (selectedDestination && selectedDestination !== 'ALL') params.set('destination', selectedDestination);
-    if (selectedType && selectedType !== 'ALL') params.set('category', selectedType);
-    if (selectedDate) params.set('date', selectedDate);
-    if (selectedGuests) params.set('guests', selectedGuests);
+    if (selectedType && selectedType !== 'ALL') params.set('type', selectedType);
     const queryString = params.toString();
     router.push(`/tours${queryString ? `?${queryString}` : ''}`);
   };
@@ -426,7 +420,7 @@ export default function Hero({
         <div className="mt-10 sm:mt-12">
           <form
             onSubmit={handleSearchSubmit}
-            className="grid gap-3 rounded-[2rem] border border-white/15 bg-[#0B1528]/95 p-4 shadow-2xl shadow-black/80 backdrop-blur-2xl md:grid-cols-[1.2fr_1.1fr_0.9fr_0.8fr_auto] md:items-center md:gap-4 md:p-5"
+            className="grid gap-3 rounded-[2rem] border border-white/15 bg-[#0B1528]/95 p-4 shadow-2xl shadow-black/80 backdrop-blur-2xl md:grid-cols-[1.2fr_1.1fr_auto] md:items-center md:gap-4 md:p-5"
           >
             {/* 1. Destination Selector */}
             <label className="group block rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-all duration-300 hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/5">
@@ -474,51 +468,18 @@ export default function Hero({
                 <option value="ALL" className="bg-[#0B1528] text-white">
                   {isAr ? 'كافة التجارب' : 'All Experiences'}
                 </option>
-                <option value="Sea" className="bg-[#0B1528] text-white">
+                <option value="SEA" className="bg-[#0B1528] text-white">
                   {isAr ? 'رحلات بحرية ويخوت' : 'Yachts, Islands & Reefs'}
                 </option>
-                <option value="Safari" className="bg-[#0B1528] text-white">
+                <option value="SAFARI" className="bg-[#0B1528] text-white">
                   {isAr ? 'سفاري صحراوي وكواد' : 'Desert Quad Safari & Bedouin'}
                 </option>
-                <option value="Cultural" className="bg-[#0B1528] text-white">
+                <option value="CULTURAL" className="bg-[#0B1528] text-white">
                   {isAr ? 'معالم أثرية وتاريخية' : 'Historic Wonders & Temples'}
                 </option>
-                <option value="Diving" className="bg-[#0B1528] text-white">
+                <option value="DIVING" className="bg-[#0B1528] text-white">
                   {isAr ? 'غوص محترفين ومبتدئين' : 'Scuba Diving Expeditions'}
                 </option>
-              </select>
-            </label>
-
-            {/* 3. Preferred Date */}
-            <label className="group block rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-all duration-300 hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/5">
-              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                <CalendarDays className="h-3.5 w-3.5 text-[#00E5FF]" />
-                {isAr ? 'التاريخ' : 'Date'}
-              </span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="mt-1.5 w-full cursor-pointer bg-transparent text-sm font-bold text-white outline-none [color-scheme:dark]"
-              />
-            </label>
-
-            {/* 4. Guests */}
-            <label className="group block rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-all duration-300 hover:border-[#FFD700]/40 hover:bg-[#FFD700]/5">
-              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                <Users className="h-3.5 w-3.5 text-[#FFD700]" />
-                {isAr ? 'الضيوف' : 'Guests'}
-              </span>
-              <select
-                value={selectedGuests}
-                onChange={(e) => setSelectedGuests(e.target.value)}
-                className="mt-1.5 w-full cursor-pointer bg-transparent text-sm font-bold text-white outline-none"
-              >
-                <option value="1" className="bg-[#0B1528] text-white">1 Guest</option>
-                <option value="2" className="bg-[#0B1528] text-white">2 Guests</option>
-                <option value="3" className="bg-[#0B1528] text-white">3 Guests</option>
-                <option value="4" className="bg-[#0B1528] text-white">4 Guests</option>
-                <option value="5" className="bg-[#0B1528] text-white">5+ Guests</option>
               </select>
             </label>
 
@@ -556,13 +517,13 @@ export default function Hero({
               Marsa Alam
             </Link>
             <Link
-              href="/tours?category=Safari"
+              href="/tours?type=SAFARI"
               className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]"
             >
               Desert Safari
             </Link>
             <Link
-              href="/tours?category=Sea"
+              href="/tours?type=SNORKELING"
               className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]"
             >
               Yachts & Islands
