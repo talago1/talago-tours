@@ -263,6 +263,7 @@ export default function Hero({
           fill
           priority
           unoptimized={!!heroBackground}
+          sizes="100vw"
           className="scale-105 object-cover object-center transition-transform duration-1000 ease-out"
           onError={() => setHeroError(true)}
         />

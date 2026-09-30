@@ -71,7 +71,7 @@ function RatingStars({ ratingAverage }: { ratingAverage: number }) {
   );
 }
 
-export default function PublicTourCard({ tour }: { tour: PublicTourCardData }) {
+export default function PublicTourCard({ tour, priority = false }: { tour: PublicTourCardData; priority?: boolean }) {
   const { dict, language } = useLanguage();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -123,6 +123,7 @@ export default function PublicTourCard({ tour }: { tour: PublicTourCardData }) {
                 images={allImages}
                 isHovered={isHovered}
                 tourId={tour.id}
+                priority={priority}
               />
             ) : (
               <div className={`h-full w-full bg-gradient-to-br ${getCategoryGradient(cat)}`}>
