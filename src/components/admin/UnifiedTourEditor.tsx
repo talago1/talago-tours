@@ -1710,7 +1710,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     onChange={(e) => {
                       const lines = e.target.value.split('\n').filter(Boolean);
                       updateLocalized({ highlights: lines });
-                      updateData({ highlights: lines });
+                      // The flat columns hold the English copy; editing another
+                      // language must never overwrite them.
+                      if (activeLang === 'en') updateData({ highlights: lines });
                     }}
                     placeholder="Swim with wild dolphins at Dolphin House\nEnjoy fresh open-buffet seafood lunch on board\nAll high-grade snorkeling gear provided"
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
@@ -1727,11 +1729,13 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 <textarea
                   rows={6}
                   value={(currentLocale.inclusions || data.inclusions || []).join('\n')}
-                  onChange={(e) => {
-                    const lines = e.target.value.split('\n').filter(Boolean);
-                    updateLocalized({ inclusions: lines });
-                    updateData({ inclusions: lines });
-                  }}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n').filter(Boolean);
+                      updateLocalized({ inclusions: lines });
+                      // The flat columns hold the English copy; editing another
+                      // language must never overwrite them.
+                      if (activeLang === 'en') updateData({ inclusions: lines });
+                    }}
                   placeholder="Hotel pickup and drop-off\nProfessional multilingual snorkel guide\nLife jackets & snorkeling masks\nLunch buffet and soft drinks"
                   className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                 />
@@ -1746,11 +1750,13 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 <textarea
                   rows={5}
                   value={(currentLocale.exclusions || data.exclusions || []).join('\n')}
-                  onChange={(e) => {
-                    const lines = e.target.value.split('\n').filter(Boolean);
-                    updateLocalized({ exclusions: lines });
-                    updateData({ exclusions: lines });
-                  }}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n').filter(Boolean);
+                      updateLocalized({ exclusions: lines });
+                      // The flat columns hold the English copy; editing another
+                      // language must never overwrite them.
+                      if (activeLang === 'en') updateData({ exclusions: lines });
+                    }}
                   placeholder="National park entrance fee ($5 per person)\nProfessional photo and video session\nPersonal expenses and tips"
                   className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                 />
@@ -1767,7 +1773,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   value={currentLocale.whatToBring || data.whatToBring || ''}
                   onChange={(e) => {
                     updateLocalized({ whatToBring: e.target.value });
-                    updateData({ whatToBring: e.target.value });
+                    // The flat columns hold the English copy; editing another
+                    // language must never overwrite them.
+                    if (activeLang === 'en') updateData({ whatToBring: e.target.value });
                   }}
                   placeholder="Swimwear, beach towels, sunglasses, sun cream, camera or waterproof phone case."
                   className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
@@ -1817,7 +1825,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     value={currentLocale.requirements || data.requirements || ''}
                     onChange={(e) => {
                       updateLocalized({ requirements: e.target.value });
-                      updateData({ requirements: e.target.value });
+                      // The flat columns hold the English copy; editing another
+                      // language must never overwrite them.
+                      if (activeLang === 'en') updateData({ requirements: e.target.value });
                     }}
                     placeholder="Basic swimming capability recommended for marine activities. All divers must present a valid C-card. Quad bike drivers must be at least 16 years old."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
@@ -1914,7 +1924,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     onChange={(e) => {
                       const lines = e.target.value.split('\n').filter(Boolean);
                       updateLocalized({ safetyGuidelines: lines });
-                      updateData({ safetyGuidelines: lines });
+                      // The flat columns hold the English copy; editing another
+                      // language must never overwrite them.
+                      if (activeLang === 'en') updateData({ safetyGuidelines: lines });
                     }}
                     placeholder="Certified marine rescue diver on duty during all water sessions\nLife jackets mandatory in open water\nFirst aid kit and oxygen tank onboard\nFollow guides instructions at all times"
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
@@ -1949,7 +1961,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     value={currentLocale.cancellationPolicy || data.cancellationPolicy || ''}
                     onChange={(e) => {
                       updateLocalized({ cancellationPolicy: e.target.value });
-                      updateData({ cancellationPolicy: e.target.value });
+                      // The flat columns hold the English copy; editing another
+                      // language must never overwrite them.
+                      if (activeLang === 'en') updateData({ cancellationPolicy: e.target.value });
                     }}
                     placeholder="Full refund if cancelled at least 24 hours prior to scheduled departure. No refund for no-shows."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
