@@ -13,6 +13,7 @@ interface DestData {
   name: string;
   description: string;
   imageUrl: string | null;
+  ownedCover: string | null;
   translations: Record<string, { name?: string; description?: string }> | null;
   tourCount: number;
 }
@@ -188,7 +189,15 @@ export default function DestinationsClient({ destinations, banners }: Props) {
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filtered.map((dest, index) => {
-                const covers = dest.imageUrl ? [dest.imageUrl] : (DESTINATION_COVERS[dest.slug] ?? [FALLBACK_COVER]);
+                // Resolution order: the destination's own image, then a tour
+                // photo the site owns for that destination, then the curated
+                // Unsplash cover, and finally the local placeholder via the
+                // CoverImage error handler below.
+                const covers = dest.imageUrl
+                  ? [dest.imageUrl]
+                  : dest.ownedCover
+                    ? [dest.ownedCover]
+                    : (DESTINATION_COVERS[dest.slug] ?? [FALLBACK_COVER]);
                 const localizedName = getLocalized(dest, language, 'name');
                 const localizedDesc = getLocalized(dest, language, 'description');
 
