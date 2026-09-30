@@ -19,12 +19,14 @@ interface BlogPostData {
 }
 
 export default function BlogClient({ initialPosts }: { initialPosts: BlogPostData[] }) {
-  const { language } = useLanguage();
-  const isAr = (language as string) === 'ar';
+  const { dict, language } = useLanguage();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('ALL');
 
+  // Category values are stored in the database, so they stay untranslated;
+  // only the synthetic "all" tab is localized.
   const categories = ['ALL', 'Travel Guide', 'Tips & Advice', 'Diving & Marine', 'Desert Safari'];
+  const categoryLabels: Record<string, string> = { ALL: dict.blog.allCategories };
 
   const filtered = initialPosts.filter((post) => {
     if (category !== 'ALL' && post.category !== category) return false;
@@ -43,20 +45,18 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
         <div className="max-w-3xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#00E5FF]/20 bg-[#00E5FF]/5 px-4 py-1 text-xs font-black uppercase text-[#00E5FF]">
             <BookOpen className="h-3.5 w-3.5" />
-            <span>{isAr ? 'دليل السفر والمدونة' : 'Editorial Guides'}</span>
+            <span>{dict.blog.badge}</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-black text-white">
-            {isAr ? 'أدلة وقصص السفر في مصر' : 'Curated Egypt Travel Guides'}
+            {dict.blog.title}
           </h1>
-          <p className="text-sm text-slate-300">
-            {isAr ? 'نصائح حصرية لرحلات الغردقة وشرم واليخوت والسفاري.' : 'Insider tips for Red Sea diving, yacht charters, and desert safaris.'}
-          </p>
+          <p className="text-sm text-slate-300">{dict.blog.description}</p>
 
           <div className="max-w-md mx-auto relative pt-3">
             <Search className="absolute left-4 top-6 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder={isAr ? 'ابحث في المقالات...' : 'Search articles...'}
+              placeholder={dict.blog.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white outline-none focus:border-[#00E5FF]"
@@ -73,7 +73,7 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
                   category === cat ? 'bg-[#00E5FF] text-black' : 'bg-white/5 text-slate-300'
                 }`}
               >
-                {cat}
+                {categoryLabels[cat] || cat}
               </button>
             ))}
           </div>
@@ -82,7 +82,7 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
 
       <section className="max-w-7xl mx-auto px-5 py-12">
         {filtered.length === 0 ? (
-          <div className="py-20 text-center text-slate-400">No articles found.</div>
+          <div className="py-20 text-center text-slate-400">{dict.blog.noResults}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((post) => {
@@ -103,9 +103,9 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
                     <div className="p-5">
                       <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
                         <Clock className="h-3 w-3 text-[#00E5FF]" />
-                        <span>{post.readTimeMinutes} min read</span>
+                        <span>{dict.blog.minRead.replace('{minutes}', String(post.readTimeMinutes))}</span>
                         <span>•</span>
-                        <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                        <span>{new Date(post.createdAt).toLocaleDateString(language)}</span>
                       </div>
 
                       <h3 className="text-lg font-black text-white group-hover:text-[#00E5FF] transition line-clamp-2">
@@ -117,7 +117,7 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
                       <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
                         <span className="text-xs text-slate-400">{post.authorName}</span>
                         <span className="flex items-center gap-1 text-xs font-black text-[#00E5FF]">
-                          <span>Read</span>
+                          <span>{dict.blog.readMore}</span>
                           <ArrowRight className="h-3 w-3" />
                         </span>
                       </div>

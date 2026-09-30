@@ -101,7 +101,6 @@ export default function PublicTourCard({ tour }: { tour: PublicTourCardData }) {
   const duration = tour.duration || `${tour.durationHours ?? 0}h`;
   const hasDiscount = Boolean(tour.originalPrice && price && tour.originalPrice > price);
   const discountPercent = hasDiscount ? Math.round((1 - price! / tour.originalPrice!) * 100) : 0;
-  const isAr = (language as string) === 'ar';
 
   return (
     <article
@@ -139,16 +138,16 @@ export default function PublicTourCard({ tour }: { tour: PublicTourCardData }) {
               {tour.isBestSeller ? (
                 <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FFD700] to-[#EAB308] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#070F1E] shadow-lg">
                   <Flame className="h-3 w-3 fill-[#070F1E]" />
-                  {isAr ? 'الأكثر طلباً' : 'Best Seller'}
+                  {dict.catalog.bestSeller}
                 </span>
               ) : tour.isFeatured ? (
                 <span className="flex items-center gap-1 rounded-full border border-[#00E5FF]/40 bg-[#00E5FF]/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#00E5FF]">
                   <Sparkles className="h-3 w-3" />
-                  {isAr ? 'مميز' : 'Featured'}
+                  {dict.catalog.featured}
                 </span>
               ) : tour.isNew ? (
                 <span className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-400">
-                  {isAr ? 'جديد' : 'New'}
+                  {dict.catalog.isNew}
                 </span>
               ) : hasDiscount ? (
                 <span className="rounded-full border border-red-500/40 bg-red-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-400">
@@ -186,7 +185,7 @@ export default function PublicTourCard({ tour }: { tour: PublicTourCardData }) {
 
               <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-400">
                 <CheckCircle2 className="h-3 w-3" />
-                {isAr ? 'تأكيد فوري' : 'Instant'}
+                {dict.catalog.instant}
               </span>
             </div>
 

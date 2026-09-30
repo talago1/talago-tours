@@ -26,6 +26,12 @@ export interface HeroShowcaseDestination {
   link: string;
 }
 
+export interface HeroSearchDestination {
+  slug: string;
+  name: string;
+  description?: string;
+}
+
 export interface HeroProps {
   heroBackground?: string;
   conciergePickImage?: string;
@@ -61,6 +67,8 @@ export interface HeroProps {
 
   /** Destinations pulled from the database, shown in the rotating 3D card. */
   showcaseDestinations?: HeroShowcaseDestination[];
+  /** All destinations pulled from the database, used by the search dropdown. */
+  searchDestinations?: HeroSearchDestination[];
   /** Live count of bookable tours, rendered in the card footer. */
   activeTourCount?: number;
 
@@ -97,6 +105,7 @@ export default function Hero({
   heroMetric3Value,
   heroMetric3Label,
   showcaseDestinations = [],
+  searchDestinations = [],
   activeTourCount,
   heroTranslations,
 }: HeroProps) {
@@ -167,7 +176,6 @@ export default function Hero({
   };
 
   const currentTrans = heroTranslations?.[language] || {};
-  const isAr = (language as string) === 'ar';
   const heroDict = dict?.hero || ({} as any);
 
   const finalBadge =
@@ -175,46 +183,42 @@ export default function Hero({
     (language === 'en' && heroBadge ? heroBadge : undefined) ||
     heroDict.badge ||
     heroBadge ||
-    (isAr ? 'منصة التجارب السياحية العالمية الفاخرة' : 'GLOBAL LUXURY EXPERIENCE MARKETPLACE');
+    'GLOBAL LUXURY EXPERIENCE MARKETPLACE';
 
   const finalTitle =
     currentTrans.heroTitle ||
     (language === 'en' && heroTitle ? heroTitle : undefined) ||
     heroDict.title ||
     heroTitle ||
-    (isAr ? 'اكتشف تجارب استثنائية حول العالم' : 'Discover Extraordinary World Experiences');
+    'Discover Extraordinary World Experiences';
 
   const finalTagline =
     currentTrans.heroTagline ||
     (language === 'en' && heroTagline ? heroTagline : undefined) ||
     heroDict.tagline ||
     heroTagline ||
-    (isAr
-      ? 'رحلات يخوت خاصة، سفاري في قلب الصحراء، وكنوز أسطورية خالدة.'
-      : 'Handcrafted luxury yacht charters, virgin coral reefs, desert safaris & historic wonders.');
+    'Handcrafted luxury yacht charters, virgin coral reefs, desert safaris & historic wonders.';
 
   const finalDescription =
     currentTrans.heroDescription ||
     (language === 'en' && heroDescription ? heroDescription : undefined) ||
     heroDict.description ||
     heroDescription ||
-    (isAr
-      ? 'احجز أكثر من 40+ تجربة سياحية معتمدة بأعلى معايير الرفاهية والأمان والتأكيد الفوري.'
-      : 'Curated 5-star experiences with vetted operators, guaranteed best rates, flexible cancellation, and VIP concierge.');
+    'Curated 5-star experiences with vetted operators, guaranteed best rates, flexible cancellation, and VIP concierge.';
 
   const finalPrimaryBtn =
     currentTrans.heroPrimaryBtnText ||
     (language === 'en' && heroPrimaryBtnText ? heroPrimaryBtnText : undefined) ||
     heroDict.exploreButton ||
     heroPrimaryBtnText ||
-    (isAr ? 'استكشف كافة التجارب' : 'Explore All Experiences');
+    'Explore All Experiences';
 
   const finalSecondaryBtn =
     currentTrans.heroSecondaryBtnText ||
     (language === 'en' && heroSecondaryBtnText ? heroSecondaryBtnText : undefined) ||
     heroDict.guestProofButton ||
     heroSecondaryBtnText ||
-    (isAr ? 'أفضل الوجهات' : 'Top Destinations');
+    'Top Destinations';
 
   const conciergeTitle = currentTrans.conciergePickTitle || conciergePickTitle;
   const conciergeDescription = currentTrans.conciergePickDescription || conciergePickDescription;
@@ -310,15 +314,15 @@ export default function Hero({
             <div className="mt-6 flex flex-wrap items-center gap-y-2 gap-x-5 text-xs font-semibold text-slate-300">
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-[#10B981]" />
-                {isAr ? 'تأكيد فوري للحجز' : 'Instant Confirmation'}
+                {dict.hero.trust.instantConfirmation}
               </span>
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-[#00E5FF]" />
-                {isAr ? 'إلغاء مجاني حتى 24 ساعة' : 'Free Cancellation'}
+                {dict.hero.trust.freeCancellation}
               </span>
               <span className="flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4 text-[#FFD700]" />
-                {isAr ? 'أفضل الأسعار المباشرة' : 'Direct Best Rates'}
+                {dict.hero.trust.directRates}
               </span>
             </div>
 
@@ -489,7 +493,7 @@ export default function Hero({
             <label className="group block rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-all duration-300 hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/5">
               <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                 <MapPin className="h-3.5 w-3.5 text-[#00E5FF]" />
-                {isAr ? 'الوجهة' : 'Destination'}
+                {dict.hero.search.destination}
               </span>
               <select
                 value={selectedDestination}
@@ -497,23 +501,13 @@ export default function Hero({
                 className="mt-1.5 w-full cursor-pointer bg-transparent text-sm font-bold text-white outline-none"
               >
                 <option value="ALL" className="bg-[#0B1528] text-white">
-                  {isAr ? 'جميع الوجهات (مصر والبحر الأحمر)' : 'All Destinations (Red Sea & Egypt)'}
+                  {dict.hero.search.allDestinations}
                 </option>
-                <option value="hurghada" className="bg-[#0B1528] text-white">
-                  {isAr ? 'الغردقة وجزر الجفتون' : 'Hurghada & Giftun Islands'}
-                </option>
-                <option value="sharm-el-sheikh" className="bg-[#0B1528] text-white">
-                  {isAr ? 'شرم الشيخ ورأس محمد' : 'Sharm El Sheikh & Ras Mohamed'}
-                </option>
-                <option value="marsa-alam" className="bg-[#0B1528] text-white">
-                  {isAr ? 'مرسى علم وشعاب سطايح' : 'Marsa Alam & Sataya Reef'}
-                </option>
-                <option value="luxor" className="bg-[#0B1528] text-white">
-                  {isAr ? 'الأقصر ومعابد النيل' : 'Luxor & Ancient Thebes'}
-                </option>
-                <option value="cairo" className="bg-[#0B1528] text-white">
-                  {isAr ? 'القاهرة والأهرامات' : 'Cairo & Pyramids'}
-                </option>
+                {searchDestinations.map((dest) => (
+                  <option key={dest.slug} value={dest.slug} className="bg-[#0B1528] text-white">
+                    {dest.description || dest.name}
+                  </option>
+                ))}
               </select>
             </label>
 
@@ -521,7 +515,7 @@ export default function Hero({
             <label className="group block rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-all duration-300 hover:border-[#FFD700]/40 hover:bg-[#FFD700]/5">
               <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                 <Compass className="h-3.5 w-3.5 text-[#FFD700]" />
-                {isAr ? 'نوع التجربة' : 'Experience Type'}
+                {dict.hero.search.adventureType}
               </span>
               <select
                 value={selectedType}
@@ -529,19 +523,19 @@ export default function Hero({
                 className="mt-1.5 w-full cursor-pointer bg-transparent text-sm font-bold text-white outline-none"
               >
                 <option value="ALL" className="bg-[#0B1528] text-white">
-                  {isAr ? 'كافة التجارب' : 'All Experiences'}
+                  {dict.hero.search.allExperiences}
                 </option>
                 <option value="SEA" className="bg-[#0B1528] text-white">
-                  {isAr ? 'رحلات بحرية ويخوت' : 'Yachts, Islands & Reefs'}
+                  {dict.hero.search.luxuryCruise}
                 </option>
                 <option value="SAFARI" className="bg-[#0B1528] text-white">
-                  {isAr ? 'سفاري صحراوي وكواد' : 'Desert Quad Safari & Bedouin'}
+                  {dict.hero.search.quadSafari}
                 </option>
                 <option value="CULTURAL" className="bg-[#0B1528] text-white">
-                  {isAr ? 'معالم أثرية وتاريخية' : 'Historic Wonders & Temples'}
+                  {dict.hero.search.cultural}
                 </option>
                 <option value="DIVING" className="bg-[#0B1528] text-white">
-                  {isAr ? 'غوص محترفين ومبتدئين' : 'Scuba Diving Expeditions'}
+                  {dict.hero.search.deepSea}
                 </option>
               </select>
             </label>
@@ -551,16 +545,14 @@ export default function Hero({
               type="submit"
               className="group inline-flex h-full min-h-[52px] items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-6 py-3.5 text-xs font-black uppercase tracking-[0.18em] text-[#070F1E] shadow-xl shadow-[#00E5FF]/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[#00E5FF]/40 md:min-h-[58px]"
             >
-              <span>{isAr ? 'بحث' : 'Search'}</span>
+              <span>{dict.hero.search.searchButton}</span>
               <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </button>
           </form>
 
           {/* Quick Destination Pills */}
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-bold text-slate-400">
-              {isAr ? 'وجهات سريعة:' : 'Quick Explore:'}
-            </span>
+            <span className="font-bold text-slate-400">{dict.hero.search.quickExplore}</span>
             {showcaseDestinations.map((dest) => (
               <Link
                 key={dest.link}

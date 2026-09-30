@@ -31,8 +31,7 @@ interface Props {
 }
 
 export default function BlogPostClient({ post, relatedPosts }: Props) {
-  const { language } = useLanguage();
-  const isAr = (language as string) === 'ar';
+  const { dict, language } = useLanguage();
   const [copied, setCopied] = useState(false);
 
   const t = post.translations as Record<string, { title?: string; excerpt?: string; content?: string }> | undefined;
@@ -56,7 +55,7 @@ export default function BlogPostClient({ post, relatedPosts }: Props) {
         <div className="mx-auto max-w-4xl">
           <Link href="/blog" className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-[#00E5FF] mb-6">
             <ArrowLeft className="h-4 w-4" />
-            <span>{isAr ? 'العودة للمدونة' : 'Back to Blog'}</span>
+            <span>{dict.blog.backToBlog}</span>
           </Link>
 
           <div className="flex items-center gap-3 mb-3">
@@ -76,10 +75,10 @@ export default function BlogPostClient({ post, relatedPosts }: Props) {
           {excerpt && <p className="mt-4 text-base text-slate-300 leading-relaxed">{excerpt}</p>}
 
           <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
-            <span className="text-xs text-slate-400">{post.authorName} • {new Date(post.createdAt).toLocaleDateString()}</span>
+            <span className="text-xs text-slate-400">{post.authorName} • {new Date(post.createdAt).toLocaleDateString(language)}</span>
             <button onClick={handleShare} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold hover:bg-white/10">
               {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Share2 className="h-3 w-3" />}
-              <span>{copied ? 'Copied' : 'Share'}</span>
+              <span>{copied ? dict.blog.copied : dict.blog.share}</span>
             </button>
           </div>
         </div>
@@ -101,17 +100,17 @@ export default function BlogPostClient({ post, relatedPosts }: Props) {
 
         <div className="my-10 rounded-2xl border border-[#00E5FF]/20 bg-gradient-to-r from-[#00E5FF]/10 to-[#0B1528] p-6 sm:flex sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-lg font-black text-white">{isAr ? 'احجز تجربتك القادمة في مصر' : 'Book Your Next Adventure'}</h3>
-            <p className="text-xs text-slate-400">{isAr ? 'رحلات يخوت وسفاري بأفضل الأسعار.' : 'Curated luxury yacht and desert safaris.'}</p>
+            <h3 className="text-lg font-black text-white">{dict.blog.ctaTitle}</h3>
+            <p className="text-xs text-slate-400">{dict.blog.ctaDesc}</p>
           </div>
           <Link href="/tours" className="mt-4 sm:mt-0 inline-block rounded-full bg-[#00E5FF] px-6 py-2 text-xs font-black uppercase text-[#070F1E]">
-            {isAr ? 'استعراض الرحلات' : 'Explore Tours'}
+            {dict.blog.ctaButton}
           </Link>
         </div>
 
         {relatedPosts.length > 0 && (
           <div className="pt-6 border-t border-white/10">
-            <h3 className="text-base font-black text-white mb-4">Related Guides</h3>
+            <h3 className="text-base font-black text-white mb-4">{dict.blog.relatedGuides}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {relatedPosts.map((r) => (
                 <Link key={r.id} href={`/blog/${r.slug}`} className="group block">

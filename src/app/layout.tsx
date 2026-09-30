@@ -10,13 +10,13 @@ const metaPixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'TravelAgency',
-  name: 'تالا جو | TALAGO Tours',
+  name: 'TALAGO Tours',
   alternateName: 'TALAGO Tours Egypt',
   url: baseUrl,
   logo: `${baseUrl}/talago-hero-red-sea-desert.png`,
   image: `${baseUrl}/talago-hero-red-sea-desert.png`,
   description:
-    'تالا جو TALAGO Tours — منصة حجز الرحلات والتجارب السياحية الفاخرة في مصر (الغردقة، شرم الشيخ، مرسى علم، الأقصر والقاهرة). Handcrafted luxury yacht charters, private island escapes, desert safaris, and historical Nile tours.',
+    'TALAGO Tours — luxury yacht charters, private island escapes, desert safaris, and historical Nile tours in Egypt (Hurghada, Sharm El Sheikh, Marsa Alam, Luxor and Cairo). Handcrafted luxury yacht charters, private island escapes, desert safaris, and historical Nile tours.',
   priceRange: '$$',
   currenciesAccepted: 'USD, EUR, GBP, RUB, PLN, EGP',
   paymentAccepted: 'Credit Card, Cash on Arrival, Paymob',
@@ -50,23 +50,18 @@ const jsonLd = {
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    template: '%s | تالا جو TALAGO Tours',
-    default: 'تالا جو | TALAGO Tours — منصة التجارب السياحية الفاخرة والرحلات البحرية في مصر',
+    template: '%s | TALAGO Tours',
+    default: 'TALAGO Tours — Luxury Yacht Charters, Desert Safaris & Egypt Excursions',
   },
   description:
-    'تالا جو TALAGO Tours — احجز أفضل رحلات اليخوت الخاصة، سفاري الصحراء، جزيرة جفتون، رحلات الغوص وكنوز الأقصر والقاهرة بأعلى معايير الرفاهية والأمان والتأكيد الفوري 24/7.',
+    'Book handcrafted luxury yacht charters, private island days, desert quad safaris, diving expeditions and historic Nile tours across Hurghada, Sharm El Sheikh, Marsa Alam, Luxor and Cairo — vetted operators, best rates, instant confirmation.',
   keywords: [
-    'تالا جو',
-    'رحلات الغردقة',
-    'رحلات شرم الشيخ',
-    'رحلات مرسى علم',
     'TALAGO Tours',
     'Hurghada tours',
     'Sharm El Sheikh tours',
     'Marsa Alam tours',
-    'Luxor tours',
-    'Cairo Pyramids tour',
-    'Red Sea private yacht',
+    'Luxury yacht charter',
+    'Red Sea excursions',
     'Hurghada desert quad safari',
     'Giftun Island private tour',
     'Ras Mohamed luxury cruise',
@@ -74,7 +69,7 @@ export const metadata: Metadata = {
     'Hurghada Ausflüge',
     'Экскурсии в Хургаде',
   ],
-  authors: [{ name: 'TALAGO Tours | تالا جو' }],
+  authors: [{ name: 'TALAGO Tours' }],
   creator: 'TALAGO Tours',
   publisher: 'TALAGO Tours',
   formatDetection: {
@@ -83,26 +78,26 @@ export const metadata: Metadata = {
     telephone: false,
   },
   openGraph: {
-    title: 'تالا جو | TALAGO Tours — Luxury Red Sea Cruises & Egypt Excursions',
+    title: 'TALAGO Tours — Luxury Red Sea Cruises & Egypt Excursions',
     description:
-      'اكتشف واحجز رحلات بحرية فاخرة، سفاري بيتش باجي، وجولات أثرية نيلية مع تالا جو TALAGO Tours بتأكيد فوري وضمان أفضل الأسعار.',
+      'Discover and book luxury yacht charters, private desert safaris and historic Nile tours with TALAGO Tours — instant confirmation and guaranteed best rates.',
     url: baseUrl,
-    siteName: 'تالا جو | TALAGO Tours',
+    siteName: 'TALAGO Tours',
     locale: 'en_US',
-    alternateLocale: ['ar_EG', 'de_DE', 'ru_RU', 'fr_FR', 'it_IT', 'pl_PL', 'es_ES'],
+    alternateLocale: ['de_DE', 'ru_RU', 'fr_FR', 'it_IT', 'pl_PL', 'es_ES'],
     type: 'website',
     images: [
       {
         url: `${baseUrl}/talago-hero-red-sea-desert.png`,
         width: 1200,
         height: 630,
-        alt: 'تالا جو | TALAGO Tours Luxury Red Sea & Desert Experiences',
+        alt: 'TALAGO Tours — luxury Red Sea & desert experiences',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'تالا جو | TALAGO Tours — Global Luxury Experiences',
+    title: 'TALAGO Tours — Global Luxury Experiences',
     description:
       'Handcrafted luxury yacht charters, desert safaris, and Nile wonders in Egypt.',
     images: [`${baseUrl}/talago-hero-red-sea-desert.png`],

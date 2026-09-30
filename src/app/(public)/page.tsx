@@ -90,6 +90,12 @@ export default async function HomePage() {
       link: `/tours?destination=${d.slug}`,
     }));
 
+  // Every destination that has at least one published tour, for the hero's
+  // search dropdown (which previously listed two hardcoded, unused slugs).
+  const searchDestinations = destinations
+    .filter((d) => d._count.tours > 0)
+    .map((d) => ({ slug: d.slug, name: d.name, description: d.description || undefined }));
+
   return (
     <div className="min-h-screen bg-[#070F1E]">
       <Hero
@@ -122,6 +128,7 @@ export default async function HomePage() {
         heroMetric3Value={bannerData.heroMetric3Value}
         heroMetric3Label={bannerData.heroMetric3Label}
         showcaseDestinations={showcaseDestinations}
+        searchDestinations={searchDestinations}
         activeTourCount={activeTourCount}
         heroTranslations={bannerData.heroTranslations}
       />

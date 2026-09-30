@@ -12,14 +12,12 @@ const NAV_LINKS = [
 ];
 
 export default function NavLinks() {
-  const { dict, language } = useLanguage();
-  const isAr = (language as string) === 'ar';
+  const { dict } = useLanguage();
 
   return (
     <>
       {NAV_LINKS.map((link) => {
-        let label = (dict?.navbar as any)?.[link.key] || link.fallback;
-        if (link.key === 'blog' && isAr) label = 'دليل السفر والمدونة';
+        const label = (dict?.navbar as any)?.[link.key] || link.fallback;
 
         return (
           <Link

@@ -17,8 +17,7 @@ interface TourCatalogProps {
 }
 
 export default function TourCatalog({ tours }: TourCatalogProps) {
-  const { dict, language } = useLanguage();
-  const isAr = (language as string) === 'ar';
+  const { dict } = useLanguage();
 
   const [activeDestination, setActiveDestination] = useState<string>('ALL');
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
@@ -87,13 +86,20 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
     }
   };
 
-  // Destination options
-  const destinationTabs = [
-    { id: 'ALL', label: isAr ? 'كافة الوجهات' : 'All Destinations' },
-    { id: 'hurghada', label: isAr ? 'الغردقة' : 'Hurghada' },
-    { id: 'sharm-el-sheikh', label: isAr ? 'شرم الشيخ' : 'Sharm El Sheikh' },
-    { id: 'marsa-alam', label: isAr ? 'مرسى علم' : 'Marsa Alam' },
-  ];
+  // Destination options, derived from the tours actually present so a
+  // destination added in the admin appears without a code change.
+  const destinationTabs = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const tour of tours) {
+      const slug = tour.destination?.slug?.toLowerCase();
+      const name = tour.destination?.name;
+      if (slug && name && !seen.has(slug)) seen.set(slug, name);
+    }
+    return [
+      { id: 'ALL', label: dict.catalog.allDestinations },
+      ...Array.from(seen, ([id, label]) => ({ id, label })),
+    ];
+  }, [tours, dict.catalog.allDestinations]);
 
   // Category options
   const categoryTabs = [
@@ -141,10 +147,10 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
           <div className="max-w-2xl">
             <p className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.25em] text-[#00E5FF]">
               <Sparkles className="h-3.5 w-3.5 text-[#00E5FF]" />
-              {isAr ? 'أفضل التجارب والرحلات المختارة' : 'Curated World Experiences'}
+              {dict.catalog.homeBadge}
             </p>
             <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
-              {isAr ? 'الأكثر حجزاً وإقبالاً حول العالم' : 'Best Selling & Top Rated Experiences'}
+              {dict.catalog.homeHeading}
             </h2>
           </div>
 
@@ -172,16 +178,14 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/10 px-4 py-3 text-xs text-[#00E5FF] backdrop-blur-md">
             <span className="flex items-center gap-2 font-bold">
               <MapPin className="h-4 w-4 shrink-0 text-[#00E5FF]" />
-              {isAr
-                ? `نعرض لك التجارب الأكثر طلباً في ${detectedLocation.name} الأقرب لموقعك الحالي`
-                : `Showing experiences closest to your current location in ${detectedLocation.name}`}
+              {dict.catalog.nearYou.replace('{name}', detectedLocation.name)}
             </span>
             <button
               type="button"
               onClick={() => handleDestinationSelect('ALL')}
               className="font-black underline transition-colors hover:text-white"
             >
-              {isAr ? 'استعراض كافة الوجهات' : 'Explore All Destinations'}
+              {dict.catalog.exploreAllDestinations}
             </button>
           </div>
         )}
@@ -190,7 +194,7 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
         <div className="mb-8 flex flex-wrap items-center gap-2 border-b border-white/10 pb-5">
           <span className="flex items-center gap-1.5 text-xs font-bold text-slate-400 mr-2">
             <SlidersHorizontal className="h-3 w-3 text-slate-400" />
-            {isAr ? 'التصنيف:' : 'Category:'}
+            {dict.catalog.categoryLabel}
           </span>
           {categoryTabs.map((cat) => (
             <button
@@ -209,8 +213,8 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
               {cat.label}
             </button>
           ))}
-          <span className="text-xs text-slate-500 ml-auto font-medium">
-            {filteredTours.length} {isAr ? 'تجربة متاحة' : 'experiences available'}
+          <span className="ml-auto text-xs font-medium text-slate-500">
+            {dict.catalog.xAvailable.replace('{total}', String(filteredTours.length))}
           </span>
         </div>
 
@@ -218,11 +222,9 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
         {filteredTours.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] py-20 text-center">
             <p className="text-base font-bold text-slate-300">
-              {isAr ? 'لا توجد تجارب في هذا التصنيف حالياً' : 'No experiences found for this selection'}
+              {dict.catalog.noResultsFilterTitle}
             </p>
-            <p className="mt-2 text-xs text-slate-500">
-              {isAr ? 'جرب اختيار تصنيف آخر أو كافة الوجهات' : 'Try selecting All Destinations or another category to view more.'}
-            </p>
+            <p className="mt-2 text-xs text-slate-500">{dict.catalog.noResultsFilterDesc}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -240,7 +242,7 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
               onClick={() => setVisibleCount((prev) => prev + 9)}
               className="inline-flex items-center gap-2.5 rounded-2xl border border-white/15 bg-white/5 px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur-md transition-all duration-300 hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF] hover:scale-105"
             >
-              <span>{isAr ? 'عرض المزيد من التجارب' : 'Show More Experiences'}</span>
+              <span>{dict.catalog.showMore}</span>
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
@@ -252,7 +254,7 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
             href="/tours"
             className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 transition-colors hover:text-[#00E5FF]"
           >
-            <span>{isAr ? 'استعراض كافة الرحلات المتاحة في الدليل الشامل' : 'Browse full experience directory & search filters'}</span>
+            <span>{dict.catalog.browseAllTours}</span>
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
