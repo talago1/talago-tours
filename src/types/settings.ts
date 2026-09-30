@@ -63,6 +63,15 @@ export interface SystemSettings {
     heroSecondaryBtnLink?: string;
     showSecondaryBtn?: boolean;
 
+    /* ── /tours page hero ── */
+    toursHeroBackground?: string;
+    toursHeroBadge?: string;
+    toursHeroTitle?: string;
+    toursHeroDescription?: string;
+    toursHeroBtnText?: string;
+    toursHeroRatingValue?: string;
+    toursHeroRatingLabel?: string;
+
     showHeroMetrics?: boolean;
     heroMetric1Value?: string;
     heroMetric1Label?: string;
@@ -154,6 +163,14 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
     heroSecondaryBtnText: '',
     heroSecondaryBtnLink: '/#verified-reviews',
     showSecondaryBtn: true,
+
+    toursHeroBackground: '',
+    toursHeroBadge: '',
+    toursHeroTitle: '',
+    toursHeroDescription: '',
+    toursHeroBtnText: '',
+    toursHeroRatingValue: '',
+    toursHeroRatingLabel: '',
 
     showHeroMetrics: true,
     heroMetric1Value: '',

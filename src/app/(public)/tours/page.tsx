@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
+import { parseSettingValue } from '@/lib/systemSettings';
+import { SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
 import { resolveCategoryFilter } from '@/utils/tourCategory';
 import TourSearchHeaderWrapper from '@/components/public/TourSearchHeaderWrapper';
 import ToursGrid from './ToursGrid';
@@ -123,11 +125,18 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
 }
 
 export default async function ToursPage({ searchParams }: CatalogPageProps) {
-  const totalCount = await prisma.tour.count({ where: { status: 'ACTIVE' } });
+  const [totalCount, bannerSetting] = await Promise.all([
+    prisma.tour.count({ where: { status: 'ACTIVE' } }),
+    prisma.systemSetting.findUnique({ where: { key: 'banners' } }),
+  ]);
+
+  const bannerData = bannerSetting
+    ? parseSettingValue<SystemSettings['banners']>(bannerSetting.value, DEFAULT_SYSTEM_SETTINGS.banners)
+    : DEFAULT_SYSTEM_SETTINGS.banners;
 
   return (
     <main className="min-h-screen bg-[#070F1E] text-[#F8FAFC]">
-      <ToursHero totalCount={totalCount} />
+      <ToursHero totalCount={totalCount} banners={bannerData} />
 
       <div className="mx-auto max-w-7xl px-5 pb-20 pt-10 sm:px-8 lg:px-10 lg:pb-28">
         <Suspense

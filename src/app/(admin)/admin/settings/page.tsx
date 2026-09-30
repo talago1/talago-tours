@@ -994,6 +994,153 @@ export default function AdminSettingsPage() {
                       </div>
                     </div>
 
+                    {/* ── /tours Page Hero ── */}
+                    <div className="mt-5 rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                          Tours Page Hero
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          Leave blank to keep the current gradient background
+                        </span>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <div>
+                          <label className="mb-1 block text-[11px] font-semibold text-slate-400">
+                            Background Image
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={settings.banners.toursHeroBackground || ''}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: { ...prev.banners, toursHeroBackground: e.target.value },
+                                }))
+                              }
+                              placeholder="Leave empty for the animated gradient"
+                              className="flex-1 rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/*';
+                                input.onchange = async () => {
+                                  const file = input.files?.[0];
+                                  if (!file) return;
+                                  const formData = new FormData();
+                                  formData.append('file', file);
+                                  try {
+                                    const res = await fetch('/api/admin/media', {
+                                      method: 'POST',
+                                      body: formData,
+                                    });
+                                    const data = await res.json();
+                                    const url = data.uploaded?.[0]?.url;
+                                    if (url) {
+                                      setSettings((prev) => ({
+                                        ...prev,
+                                        banners: { ...prev.banners, toursHeroBackground: url },
+                                      }));
+                                    }
+                                  } catch {
+                                    // silent
+                                  }
+                                };
+                                input.click();
+                              }}
+                              className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white hover:border-[#FFD700]"
+                            >
+                              Upload
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <input
+                            type="text"
+                            value={settings.banners.toursHeroBadge || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, toursHeroBadge: e.target.value },
+                              }))
+                            }
+                            placeholder="Badge: Featured Experiences"
+                            className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                          <input
+                            type="text"
+                            value={settings.banners.toursHeroTitle || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, toursHeroTitle: e.target.value },
+                              }))
+                            }
+                            placeholder="Title: Tours & Journeys (leave blank for default)"
+                            className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                        </div>
+
+                        <textarea
+                          value={settings.banners.toursHeroDescription || ''}
+                          onChange={(e) =>
+                            setSettings((prev) => ({
+                              ...prev,
+                              banners: { ...prev.banners, toursHeroDescription: e.target.value },
+                            }))
+                          }
+                          rows={2}
+                          placeholder="Description (leave blank for the translated default)"
+                          className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                        />
+
+                        <div className="grid gap-2 sm:grid-cols-3">
+                          <input
+                            type="text"
+                            value={settings.banners.toursHeroBtnText || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, toursHeroBtnText: e.target.value },
+                              }))
+                            }
+                            placeholder="Button: Browse All"
+                            className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                          <input
+                            type="text"
+                            value={settings.banners.toursHeroRatingValue || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, toursHeroRatingValue: e.target.value },
+                              }))
+                            }
+                            placeholder="Rating: 4.9/5"
+                            className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                          <input
+                            type="text"
+                            value={settings.banners.toursHeroRatingLabel || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, toursHeroRatingLabel: e.target.value },
+                              }))
+                            }
+                            placeholder="Rating label: 300+ verified guests"
+                            className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Trust Proof Metrics */}
                     <div className="mt-5 rounded-2xl border border-white/10 bg-[#0B1528] p-4">
                       <div className="mb-3 flex items-center justify-between">

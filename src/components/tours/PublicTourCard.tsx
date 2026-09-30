@@ -108,7 +108,13 @@ export default function PublicTourCard({ tour }: { tour: PublicTourCardData }) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Link href={`/tours/${tour.slug}`} className="flex h-full flex-col justify-between">
+      {/* The whole card is one link: clicking the image, title, price or the
+          action row all navigate to the tour, so there is no separate target to
+          aim for. */}
+      <Link
+        href={`/tours/${tour.slug}`}
+        className="flex h-full cursor-pointer flex-col justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00E5FF]"
+      >
         {/* Top Media Container */}
         <div>
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/[0.02]">
@@ -203,9 +209,10 @@ export default function PublicTourCard({ tour }: { tour: PublicTourCardData }) {
           </div>
         </div>
 
-        {/* Card Footer: Price & Action Button */}
-        <div className="p-5 pt-0">
-          <div className="flex items-center justify-between border-t border-white/10 pt-3.5">
+        {/* Card Footer: Price & Action. No divider and no button — the entire card is
+            the link, so this row is purely informational. */}
+        <div className="p-5 pt-2">
+          <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {dict.catalog.startingAt}
@@ -222,9 +229,9 @@ export default function PublicTourCard({ tour }: { tour: PublicTourCardData }) {
               </div>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-2 text-xs font-black text-white transition-all group-hover:border-[#00E5FF] group-hover:bg-[#00E5FF] group-hover:text-[#070F1E]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3.5 py-2 text-xs font-black text-white transition-colors duration-300 group-hover:bg-[#00E5FF] group-hover:text-[#070F1E]">
               <span>{dict.catalog.reserveSpot}</span>
-              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
             </span>
           </div>
         </div>

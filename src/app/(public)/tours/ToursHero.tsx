@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Waves, Mountain, Compass, Sparkles, Star, ArrowDown } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import type { SystemSettings } from '@/types/settings';
 
 const floatingIcons = [
   { Icon: Waves,    color: 'text-[#06B6D4]', bg: 'bg-[#06B6D4]/10 border-[#06B6D4]/20', top: '18%', left: '8%',  delay: '0s',    size: 'h-10 w-10' },
@@ -13,15 +14,36 @@ const floatingIcons = [
 
 interface ToursHeroProps {
   totalCount: number;
+  banners: SystemSettings['banners'];
 }
 
-export default function ToursHero({ totalCount }: ToursHeroProps) {
+export default function ToursHero({ totalCount, banners }: ToursHeroProps) {
   const { dict } = useLanguage();
+
+  // Admin overrides win; each one falls back to the translated default so an
+  // empty setting never blanks out the hero.
+  const background = banners.toursHeroBackground?.trim();
+  const badge = banners.toursHeroBadge?.trim() || dict.catalog.pageBadge;
+  const title = banners.toursHeroTitle?.trim() || dict.catalog.pageTitle;
+  const description = banners.toursHeroDescription?.trim() || dict.catalog.pageDesc;
+  const buttonText = banners.toursHeroBtnText?.trim() || dict.catalog.browseAll;
+  const ratingValue = banners.toursHeroRatingValue?.trim() || '4.9/5';
+  const ratingLabel = banners.toursHeroRatingLabel?.trim() || dict.catalog.verifiedGuests;
 
   return (
     <div className="relative overflow-hidden bg-[#070F1E] pb-10 pt-24 lg:pb-14 lg:pt-32">
-      {/* Animated gradient background */}
+      {/* Admin-uploaded background, if set */}
+      {background && (
+        <div
+          className="pointer-events-none absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${background})` }}
+        />
+      )}
+
+      {/* Animated gradient background — doubles as the scrim when a photo is
+          set above, so headline text keeps its contrast either way. */}
       <div className="pointer-events-none absolute inset-0">
+        {background && <div className="absolute inset-0 bg-[#070F1E]/70" />}
         <div className="absolute -left-40 -top-40 h-[600px] w-[600px] rounded-full bg-[#06B6D4]/[0.07] blur-[120px] animate-pulse" />
         <div className="absolute -bottom-40 -right-32 h-[500px] w-[500px] rounded-full bg-[#EAB308]/[0.06] blur-[100px] animate-pulse" style={{ animationDelay: '1.5s' }} />
         <div className="absolute left-1/2 top-1/3 h-[300px] w-[300px] -translate-x-1/2 rounded-full bg-[#A78BFA]/[0.04] blur-[80px] animate-pulse" style={{ animationDelay: '3s' }} />
@@ -57,21 +79,21 @@ export default function ToursHero({ totalCount }: ToursHeroProps) {
         <div className="mb-6 flex items-center gap-3">
           <span className="inline-flex items-center gap-2 rounded-full border border-[#06B6D4]/25 bg-[#06B6D4]/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.28em] text-[#06B6D4]">
             <Star className="h-3.5 w-3.5 fill-[#06B6D4]" />
-            {dict.catalog.pageBadge}
+            {badge}
           </span>
           {totalCount > 0 && (
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-400">
-              {totalCount} {dict.catalog.xAvailable.replace('{total}', '').trim() || 'experiences available'}
+              {dict.catalog.xAvailable.replace('{total}', String(totalCount))}
             </span>
           )}
         </div>
 
         {/* Headline */}
         <h1 className="max-w-3xl text-5xl font-black leading-[1.05] tracking-tight text-white lg:text-7xl">
-          {dict.catalog.pageTitle}
+          {title}
         </h1>
         <p className="mt-5 max-w-2xl text-base leading-7 text-slate-400 lg:text-lg">
-          {dict.catalog.pageDesc}
+          {description}
         </p>
 
         {/* CTA row */}
@@ -80,7 +102,7 @@ export default function ToursHero({ totalCount }: ToursHeroProps) {
             href="#catalog"
             className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#06B6D4] to-[#0891B2] px-7 py-3.5 text-sm font-black text-white shadow-lg shadow-[#06B6D4]/25 transition-all duration-300 hover:scale-[1.03] hover:shadow-[#06B6D4]/40"
           >
-            Browse All Experiences
+            {buttonText}
             <ArrowDown className="h-4 w-4 transition-transform duration-300 group-hover:translate-y-1" />
           </Link>
           <div className="flex items-center gap-3 text-sm text-slate-400">
@@ -92,7 +114,7 @@ export default function ToursHero({ totalCount }: ToursHeroProps) {
               ))}
             </div>
             <span>
-              <strong className="font-black text-white">4.9/5</strong> · 300+ verified guests
+              <strong className="font-black text-white">{ratingValue}</strong> · {ratingLabel}
             </span>
           </div>
         </div>

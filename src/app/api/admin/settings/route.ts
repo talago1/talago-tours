@@ -73,6 +73,14 @@ const DEFAULT_SETTINGS = {
     heroSecondaryBtnLink: '/#verified-reviews',
     showSecondaryBtn: true,
 
+    toursHeroBackground: '',
+    toursHeroBadge: '',
+    toursHeroTitle: '',
+    toursHeroDescription: '',
+    toursHeroBtnText: '',
+    toursHeroRatingValue: '',
+    toursHeroRatingLabel: '',
+
     showHeroMetrics: true,
     heroMetric1Value: '',
     heroMetric1Label: '',

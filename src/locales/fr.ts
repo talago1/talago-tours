@@ -81,6 +81,8 @@ export const fr: typeof en = {
     pageBadge: 'Voyages Signature',
     pageTitle: 'Bibliothèque d\'expériences',
     pageDesc: 'Parcourez nos charters maritimes et circuits en quad dans le désert, conçus pour un accueil haut de gamme.',
+browseAll: 'Voir toutes les expériences',
+    verifiedGuests: '300+ clients vérifiés',
     all: 'Tout',
     sea: 'Mer',
     safari: 'Safari',
