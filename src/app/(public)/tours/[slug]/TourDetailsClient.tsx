@@ -260,10 +260,12 @@ function HeroSlider({ images, title, destinationName, category }: { images: stri
 
           {/* Lightbox Main Uncropped Image Container */}
           <div className="relative flex max-h-[75vh] w-full flex-1 items-center justify-center py-2" onClick={(e) => e.stopPropagation()}>
-            <img
+            <Image
               src={images[lightboxIndex]}
               alt={`${title} full size ${lightboxIndex + 1}`}
-              className="max-h-[75vh] max-w-[95vw] rounded-lg object-contain shadow-2xl transition-all duration-300"
+              fill
+              sizes="95vw"
+              className="rounded-lg object-contain shadow-2xl transition-all duration-300"
             />
 
             {images.length > 1 && (

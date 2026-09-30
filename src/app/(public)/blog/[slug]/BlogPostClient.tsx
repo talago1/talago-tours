@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Clock, Share2, Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -86,8 +87,15 @@ export default function BlogPostClient({ post, relatedPosts }: Props) {
 
       {post.coverImage && (
         <div className="mx-auto max-w-4xl px-5 -mt-4 mb-8">
-          <div className="aspect-[21/9] w-full overflow-hidden rounded-2xl border border-white/10 shadow-2xl">
-            <img src={post.coverImage} alt={title} className="h-full w-full object-cover" />
+          <div className="relative aspect-[21/9] w-full overflow-hidden rounded-2xl border border-white/10 shadow-2xl">
+            <Image
+              src={post.coverImage}
+              alt={title}
+              fill
+              priority
+              sizes="(max-width: 896px) calc(100vw - 40px), 896px"
+              className="object-cover"
+            />
           </div>
         </div>
       )}
@@ -114,8 +122,16 @@ export default function BlogPostClient({ post, relatedPosts }: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {relatedPosts.map((r) => (
                 <Link key={r.id} href={`/blog/${r.slug}`} className="group block">
-                  <div className="aspect-video w-full overflow-hidden rounded-xl bg-slate-800 mb-2">
-                    {r.coverImage && <img src={r.coverImage} alt={r.title} className="h-full w-full object-cover group-hover:scale-105 transition" />}
+                  <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-800 mb-2">
+                    {r.coverImage && (
+                      <Image
+                        src={r.coverImage}
+                        alt={r.title}
+                        fill
+                        sizes="(max-width: 640px) calc(100vw - 40px), 232px"
+                        className="object-cover transition group-hover:scale-105"
+                      />
+                    )}
                   </div>
                   <h4 className="text-xs font-bold text-white group-hover:text-[#00E5FF] line-clamp-2">{r.title}</h4>
                 </Link>

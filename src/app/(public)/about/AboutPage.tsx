@@ -51,12 +51,16 @@ export default function AboutPage({ aboutPhilosophyImage }: AboutPageProps) {
             </div>
             <div className="relative aspect-[4/3] overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-[#0EA5E9]/20 via-[#070F1E] to-[#EAB308]/20 p-2 shadow-2xl shadow-[#020617]/50">
               {aboutPhilosophyImage && !imageError ? (
-                <img
-                  src={aboutPhilosophyImage}
-                  alt=""
-                  className="h-full w-full rounded-[2rem] object-cover"
-                  onError={() => setImageError(true)}
-                />
+                <div className="relative h-full w-full">
+                  <Image
+                    src={aboutPhilosophyImage}
+                    alt=""
+                    fill
+                    sizes="(max-width: 1024px) calc(100vw - 40px), 432px"
+                    className="rounded-[2rem] object-cover"
+                    onError={() => setImageError(true)}
+                  />
+                </div>
               ) : (
                 <div className="h-full w-full rounded-[2rem] bg-[radial-gradient(circle_at_30%_20%,rgba(248,250,252,0.1),transparent_40%),linear-gradient(135deg,rgba(14,165,233,0.3),rgba(7,15,30,0.5)_60%,rgba(234,179,8,0.2)_100%)] flex items-center justify-center">
                 <Ship className="h-20 w-20 text-[#06B6D4]/30" />

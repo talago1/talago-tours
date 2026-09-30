@@ -128,6 +128,11 @@ export default function Hero({
   const conciergePickActive = showConciergePick && Boolean(conciergePickTitle || conciergePickImage);
   const rotatingCount = conciergePickActive ? 0 : showcaseDestinations.length;
 
+  // Local/relative assets (notably /uploads/* from the media uploader) are served
+  // same-origin, so the optimizer can resize them safely. Absolute remote URLs are
+  // left unoptimized in case the host rejects server-side fetches.
+  const isRemote = (url?: string) => Boolean(url && /^https?:\/\//i.test(url));
+
   useEffect(() => {
     if (rotatingCount <= 1) return;
     const timer = setInterval(() => {
@@ -262,7 +267,7 @@ export default function Hero({
           alt="Global luxury experiences and coastal landscapes"
           fill
           priority
-          unoptimized={!!heroBackground}
+          unoptimized={isRemote(heroBackground)}
           sizes="100vw"
           className="scale-105 object-cover object-center transition-transform duration-1000 ease-out"
           onError={() => setHeroError(true)}
@@ -395,7 +400,7 @@ export default function Hero({
                   alt={currentShowcase.name}
                   fill
                   priority
-                  unoptimized
+unoptimized={isRemote(currentShowcase.image)}
                   sizes="(max-width: 768px) 100vw, 500px"
                   className="object-cover transition-all duration-700 ease-out"
                 />
