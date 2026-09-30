@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// The handler reads `request.url` for filtering/pagination, so it can never be
+// prerendered — without this Next attempts static generation and logs a
+// DynamicServerError on every build.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
