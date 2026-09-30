@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import { useLanguage } from '@/context/LanguageContext';
 import Link from 'next/link';
 import { MapPin, Compass, ChevronRight, Star, Search } from 'lucide-react';
+import type { SystemSettings } from '@/types/settings';
 
 interface DestData {
   id: string;
@@ -18,6 +19,7 @@ interface DestData {
 
 interface Props {
   destinations: DestData[];
+  banners: SystemSettings['banners'];
 }
 
 const DESTINATION_COVERS: Record<string, string[]> = {
@@ -68,21 +70,9 @@ function getLocalized(d: DestData, lang: string, field: 'name' | 'description'):
   return field === 'name' ? d.name : d.description;
 }
 
-export default function DestinationsClient({ destinations }: Props) {
+export default function DestinationsClient({ destinations, banners }: Props) {
   const { dict, language } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
-  const [banners, setBanners] = useState<any>(null);
-
-  useEffect(() => {
-    fetch('/api/admin/settings')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.settings?.banners) {
-          setBanners(data.settings.banners);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const filtered = destinations.filter(
     (d) =>
@@ -95,7 +85,7 @@ export default function DestinationsClient({ destinations }: Props) {
       {/* Hero Banner */}
       <section 
         className="relative overflow-hidden bg-gradient-to-b from-[#0B1528] to-[#070F1E] pb-16 pt-24 lg:pb-24 lg:pt-32 bg-cover bg-center"
-        style={banners?.destinationsBackground ? { backgroundImage: `linear-gradient(rgba(7, 15, 30, 0.85), rgba(7, 15, 30, 0.95)), url(${banners.destinationsBackground})` } : undefined}
+        style={banners.destinationsBackground ? { backgroundImage: `linear-gradient(rgba(7, 15, 30, 0.85), rgba(7, 15, 30, 0.95)), url(${banners.destinationsBackground})` } : undefined}
       >
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-[#00E5FF]/5 blur-[120px]" />
