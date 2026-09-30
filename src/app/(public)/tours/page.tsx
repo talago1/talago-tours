@@ -45,7 +45,11 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
   // `type` is canonical; `category` is accepted so older shared links keep working.
   const dbCategories = resolveCategoryFilter(filters.type ?? filters.category);
   if (dbCategories && dbCategories.length > 0) {
-    where.category = { in: dbCategories };
+    // `Tour.category` is a free-form string and the database already holds
+    // inconsistent casing ("Cultural" vs "cultural") plus stray whitespace
+    // ("Cultural "), so the lookup has to be case-insensitive or whole groups
+    // of tours silently vanish from their filter.
+    where.category = { in: dbCategories, mode: 'insensitive' };
   }
 
   const [totalCount, allTours, destinations] = await Promise.all([

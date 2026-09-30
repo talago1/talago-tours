@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: `${baseUrl}/talago-hero-red-sea-desert.png`,
+        url: `${baseUrl}/og/default.png`,
         width: 1200,
         height: 630,
         alt: 'TALAGO Tours travel guides for Egypt and the Red Sea',
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Egypt Travel Blog & Guides | TALAGO Tours',
     description: BLOG_DESCRIPTION,
-    images: [`${baseUrl}/talago-hero-red-sea-desert.png`],
+    images: [`${baseUrl}/og/default.png`],
   },
 };
 

@@ -37,6 +37,24 @@ export const metadata: Metadata = {
     siteName: 'TALAGO Tours',
     locale: 'en_US',
     type: 'website',
+    // Declared explicitly because this layout's openGraph replaces the root
+    // layout's rather than merging with it, so an inherited image is not
+    // guaranteed here.
+    images: [
+      {
+        url: `${baseUrl}/og/default.png`,
+        width: 1200,
+        height: 630,
+        alt: 'TALAGO Tours — luxury yacht charters and desert safaris in Hurghada',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'TALAGO — Luxury Tours & Experiences in Hurghada',
+    description:
+      'Hand-curated luxury yacht charters, private island escapes, and premium desert quad safaris in Hurghada, Egypt.',
+    images: [`${baseUrl}/og/default.png`],
   },
 };
 

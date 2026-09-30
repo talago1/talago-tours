@@ -14,7 +14,7 @@ const jsonLd = {
   alternateName: 'TALAGO Tours Egypt',
   url: baseUrl,
   logo: `${baseUrl}/talago-hero-red-sea-desert.png`,
-  image: `${baseUrl}/talago-hero-red-sea-desert.png`,
+  image: `${baseUrl}/og/default.png`,
   description:
     'TALAGO Tours — luxury yacht charters, private island escapes, desert safaris, and historical Nile tours in Egypt (Hurghada, Sharm El Sheikh, Marsa Alam, Luxor and Cairo). Handcrafted luxury yacht charters, private island escapes, desert safaris, and historical Nile tours.',
   priceRange: '$$',
@@ -88,7 +88,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: `${baseUrl}/talago-hero-red-sea-desert.png`,
+        url: `${baseUrl}/og/default.png`,
         width: 1200,
         height: 630,
         alt: 'TALAGO Tours — luxury Red Sea & desert experiences',
@@ -100,7 +100,7 @@ export const metadata: Metadata = {
     title: 'TALAGO Tours — Global Luxury Experiences',
     description:
       'Handcrafted luxury yacht charters, desert safaris, and Nile wonders in Egypt.',
-    images: [`${baseUrl}/talago-hero-red-sea-desert.png`],
+    images: [`${baseUrl}/og/default.png`],
   },
   robots: {
     index: true,

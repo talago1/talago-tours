@@ -10,7 +10,7 @@ interface Props {
 }
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
-const FALLBACK_OG = `${baseUrl}/talago-hero-red-sea-desert.png`;
+const FALLBACK_OG = `${baseUrl}/og/default.png`;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Must respect isPublished, otherwise a draft's title and excerpt leak into

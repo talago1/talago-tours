@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = tour?.translations as Record<string, { title?: string; description?: string; seoTitle?: string; seoDescription?: string }> | undefined;
   const title = tour?.metaTitle || t?.en?.seoTitle || t?.en?.title || 'Luxury Tour';
   const description = tour?.metaDescription || t?.en?.seoDescription || t?.en?.description || 'Curated VIP tour and excursion in Hurghada, Red Sea, Egypt.';
-  const image = tour?.coverImage || `${baseUrl}/talago-hero-red-sea-desert.png`;
+  const image = tour?.coverImage || `${baseUrl}/og/default.png`;
   const price = tour?.priceAdult ?? tour?.adultPrice ?? tour?.basePrice ?? 0;
   const pageUrl = `${baseUrl}/tours/${params.slug}`;
 
