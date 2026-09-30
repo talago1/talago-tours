@@ -87,6 +87,7 @@ export const en = {
     sortDurationAsc: 'Duration: Shortest',
     sortDurationDesc: 'Duration: Longest',
     clearAll: 'Clear all filters',
+    showMore: 'Show more',
     showingXofY: 'Showing {count} of {total} experiences',
     xAvailable: '{total} experiences available'
   },

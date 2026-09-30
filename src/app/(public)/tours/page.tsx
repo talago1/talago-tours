@@ -5,9 +5,8 @@ import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { resolveCategoryFilter } from '@/utils/tourCategory';
 import TourSearchHeaderWrapper from '@/components/public/TourSearchHeaderWrapper';
-import PublicTourCard from '@/components/tours/PublicTourCard';
+import ToursGrid from './ToursGrid';
 import ToursHero from './ToursHero';
-import ToursEmptyState from './ToursEmptyState';
 
 export const metadata: Metadata = {
   title: 'Tours & Journeys — TALAGO',
@@ -113,12 +112,7 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
         filteredCount={filteredCount}
       />
       <div className="mt-8">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-          {tours.map((tour) => (
-            <PublicTourCard key={tour.id} tour={tour} />
-          ))}
-          {tours.length === 0 && <ToursEmptyState />}
-        </div>
+        <ToursGrid tours={tours} />
       </div>
     </div>
   );

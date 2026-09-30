@@ -72,3 +72,14 @@ export function normalizeCategory(cat: string | null | undefined): TourCategoryG
 export function categoryMatchesGroup(cat: string | null | undefined, group: string): boolean {
   return normalizeCategory(cat) === group;
 }
+
+/** Tailwind gradient used as the card placeholder when a tour has no imagery. */
+export function getCategoryGradient(group: TourCategoryGroup): string {
+  switch (group) {
+    case 'Safari':       return 'from-[#EAB308] via-[#92400E] to-[#070F1E]';
+    case 'Cultural':     return 'from-[#A78BFA] via-[#6D28D9] to-[#070F1E]';
+    case 'Spa':          return 'from-[#34D399] via-[#065F46] to-[#070F1E]';
+    case 'Entertainment': return 'from-[#F472B6] via-[#9D174D] to-[#070F1E]';
+    default:             return 'from-[#0EA5E9] via-[#075985] to-[#070F1E]';
+  }
+}

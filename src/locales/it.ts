@@ -89,6 +89,7 @@ export const it: typeof en = {
     sortDurationAsc: 'Durata: più breve',
     sortDurationDesc: 'Durata: più lunga',
     clearAll: 'Cancella filtri',
+    showMore: 'Mostra altro',
     showingXofY: '{count} di {total} esperienze',
     xAvailable: '{total} esperienze disponibili'
   },

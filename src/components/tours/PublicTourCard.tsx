@@ -18,10 +18,9 @@ import {
 import CarouselImages from '@/components/ui/CarouselImages';
 
 import { useLanguage } from '@/context/LanguageContext';
+import { getCategoryGradient, normalizeCategory } from '@/utils/tourCategory';
 
-type TourCategory = 'sea' | 'snorkeling' | 'diving' | 'boat_trip' | 'safari' | 'desert' | 'adventure' | 'city' | 'cultural' | 'spa' | 'entertainment';
-
-interface TourData {
+export interface PublicTourCardData {
   id: string;
   slug: string;
   coverImage: string | null;
@@ -43,54 +42,16 @@ interface TourData {
   isBestSeller?: boolean | null;
   isFeatured?: boolean | null;
   isNew?: boolean | null;
+  customBadge?: string | null;
   destination: { name: string; slug: string } | null;
 }
 
-function normalizeCategory(cat: string | null): TourCategory {
-  if (!cat) return 'sea';
-  const lower = cat.toLowerCase();
-  if (lower === 'snorkeling') return 'snorkeling';
-  if (lower === 'diving')     return 'diving';
-  if (lower === 'boat_trip')  return 'boat_trip';
-  if (lower === 'adventure')  return 'adventure';
-  if (lower.includes('cultural') || lower.includes('histor')) return 'cultural';
-  if (lower.includes('spa') || lower.includes('wellness')) return 'spa';
-  if (lower.includes('entertainment') || lower.includes('dolphin')) return 'entertainment';
-  if (lower === 'city')       return 'city';
-  if (lower === 'desert')     return 'desert';
-  if (lower.includes('safari') || lower.includes('desert')) return 'safari';
-  return 'sea';
-}
-
-function getGradient(category: TourCategory): string {
-  if (category === 'safari' || category === 'desert') return 'from-[#EAB308] via-[#92400E] to-[#070F1E]';
-  if (category === 'cultural') return 'from-[#A78BFA] via-[#6D28D9] to-[#070F1E]';
-  if (category === 'spa') return 'from-[#34D399] via-[#065F46] to-[#070F1E]';
-  if (category === 'entertainment') return 'from-[#F472B6] via-[#9D174D] to-[#070F1E]';
-  return 'from-[#0EA5E9] via-[#075985] to-[#070F1E]';
-}
-
-function getCategoryLabel(cat: TourCategory): string {
-  if (cat === 'safari' || cat === 'desert') return 'Safari';
-  if (cat === 'cultural') return 'Cultural';
-  if (cat === 'spa') return 'Spa & Wellness';
-  if (cat === 'entertainment') return 'Entertainment';
-  return 'Sea';
-}
-
-function getCategoryIcon(category: TourCategory) {
-  if (category === 'safari' || category === 'desert') return <Mountain className="h-4 w-4 text-[#EAB308]" />;
-  if (category === 'cultural') return <Landmark className="h-4 w-4 text-[#A78BFA]" />;
-  if (category === 'spa') return <Sparkles className="h-4 w-4 text-[#34D399]" />;
-  if (category === 'entertainment') return <Ticket className="h-4 w-4 text-[#F472B6]" />;
+function getCategoryIcon(category: ReturnType<typeof normalizeCategory>) {
+  if (category === 'Safari') return <Mountain className="h-4 w-4 text-[#EAB308]" />;
+  if (category === 'Cultural') return <Landmark className="h-4 w-4 text-[#A78BFA]" />;
+  if (category === 'Spa') return <Sparkles className="h-4 w-4 text-[#34D399]" />;
+  if (category === 'Entertainment') return <Ticket className="h-4 w-4 text-[#F472B6]" />;
   return <Waves className="h-4 w-4 text-[#06B6D4]" />;
-}
-
-function getBadge(rating: number): string {
-  if (rating >= 4.9) return 'Exceptional';
-  if (rating >= 4.7) return 'Best Seller';
-  if (rating >= 4.5) return 'Trending';
-  return 'Featured';
 }
 
 function RatingStars({ ratingAverage }: { ratingAverage: number }) {
@@ -110,7 +71,7 @@ function RatingStars({ ratingAverage }: { ratingAverage: number }) {
   );
 }
 
-export default function PublicTourCard({ tour }: { tour: TourData }) {
+export default function PublicTourCard({ tour }: { tour: PublicTourCardData }) {
   const { dict, language } = useLanguage();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -123,11 +84,11 @@ export default function PublicTourCard({ tour }: { tour: TourData }) {
 
   const cat = normalizeCategory(tour.category);
 
-  const getLocalizedCategory = (c: TourCategory) => {
-    if (c === 'safari' || c === 'desert') return dict.catalog.safari;
-    if (c === 'cultural') return dict.catalog.cultural;
-    if (c === 'spa') return dict.catalog.spa;
-    if (c === 'entertainment') return dict.catalog.entertainment;
+  const getLocalizedCategory = (c: ReturnType<typeof normalizeCategory>) => {
+    if (c === 'Safari') return dict.catalog.safari;
+    if (c === 'Cultural') return dict.catalog.cultural;
+    if (c === 'Spa') return dict.catalog.spa;
+    if (c === 'Entertainment') return dict.catalog.entertainment;
     return dict.catalog.sea;
   };
 
@@ -159,7 +120,7 @@ export default function PublicTourCard({ tour }: { tour: TourData }) {
                 tourId={tour.id}
               />
             ) : (
-              <div className={`h-full w-full bg-gradient-to-br ${getGradient(cat)}`}>
+              <div className={`h-full w-full bg-gradient-to-br ${getCategoryGradient(cat)}`}>
                 <div className="flex h-full items-end p-6">
                   <span className="text-sm font-bold text-white">{getLocalizedCategory(cat)}</span>
                 </div>

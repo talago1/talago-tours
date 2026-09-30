@@ -89,6 +89,7 @@ export const ru: typeof en = {
     sortDurationAsc: 'Длительность: сначала короткие',
     sortDurationDesc: 'Длительность: сначала длинные',
     clearAll: 'Сбросить фильтры',
+    showMore: 'Показать ещё',
     showingXofY: 'Показано {count} из {total} туров',
     xAvailable: '{total} туров доступно'
   },

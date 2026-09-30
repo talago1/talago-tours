@@ -89,6 +89,7 @@ export const fr: typeof en = {
     sortDurationAsc: 'Durée : la plus courte',
     sortDurationDesc: 'Durée : la plus longue',
     clearAll: 'Effacer tous les filtres',
+    showMore: 'Voir plus',
     showingXofY: '{count} sur {total} expériences',
     xAvailable: '{total} expériences disponibles'
   },
