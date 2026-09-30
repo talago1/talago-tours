@@ -24,7 +24,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const uniqueKey = `tours/${crypto.randomUUID()}.webp`;
+    // Key MUST use the validated extension. Hardcoding '.webp' here made the
+    // allowlist above decorative: any bytes could be stored at a key whose
+    // extension did not reflect the content that was actually allowed.
+    const uniqueKey = `tours/${crypto.randomUUID()}.${ext}`;
 
     const { data, error } = await supabaseAdmin.storage
       .from(BUCKET)

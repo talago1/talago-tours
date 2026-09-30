@@ -4,7 +4,13 @@ import { ADMIN_SESSION_COOKIE, getAdminToken } from '@/utils/adminAuth';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAdminPage = pathname.startsWith('/admin');
-  const isAdminApi  = pathname.startsWith('/api/admin');
+  // These prefixes are admin-only too: notifications expose/rewrite the
+  // customer-facing templates + delivery logs (PII), and media/sign-upload
+  // mints service-role signed upload URLs. They live outside /api/admin, so
+  // they must be named here explicitly or they fall through unprotected.
+  const isAdminApi  = pathname.startsWith('/api/admin')
+    || pathname.startsWith('/api/notifications')
+    || pathname.startsWith('/api/media');
 
   if (!isAdminPage && !isAdminApi) {
     return NextResponse.next();
@@ -38,5 +44,11 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path((?!login).*)', '/admin', '/api/admin/:path*'],
+  matcher: [
+    '/admin/:path((?!login).*)',
+    '/admin',
+    '/api/admin/:path*',
+    '/api/notifications/:path*',
+    '/api/media/:path*',
+  ],
 };
