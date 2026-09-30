@@ -11,7 +11,7 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
-  title: { template: '%s — TALAGO', default: 'TALAGO — Luxury Tours & Experiences in Hurghada' },
+  title: { template: '%s — TALAGO', default: 'TALAGO — Luxury Tours & Experiences ' },
   description: 'Hand-curated luxury yacht charters, private island escapes, and premium desert quad safaris in Hurghada, Red Sea, Egypt.',
   keywords: [
     'Hurghada tours', 'Red Sea excursions', 'Luxury yacht charter', 'Desert safari Hurghada',
