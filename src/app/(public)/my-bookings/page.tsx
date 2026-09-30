@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { supabaseClient } from '@/lib/supabase/client';
 import {
   CalendarDays,
@@ -71,10 +72,12 @@ function BookingCard({ booking }: { booking: BookingItem }) {
         {/* Tour cover image */}
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-white/10">
           {booking.tour?.coverImage ? (
-            <img
+            <Image
               src={booking.tour.coverImage}
               alt={tourTitle}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+              fill
+              sizes="64px"
+              className="object-cover transition-transform duration-500 group-hover:scale-110"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-[#0B1528]">

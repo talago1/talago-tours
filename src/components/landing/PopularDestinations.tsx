@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, MapPin } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -53,7 +54,7 @@ export default function PopularDestinations({ destinations }: PopularDestination
             href="/tours"
             className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white transition-all duration-300 hover:scale-[1.02] hover:border-[#EAB308]/40 hover:bg-[#EAB308]/10 hover:text-[#EAB308]"
           >
-            View all destinations
+            {dict.catalog.viewAllDestinations}
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -67,10 +68,12 @@ export default function PopularDestinations({ destinations }: PopularDestination
             >
               <div className={`aspect-[4/5] bg-gradient-to-br ${getGradient(index)} p-6 flex flex-col justify-end`}>
                 {dest.imageUrl && (
-                  <img
+                  <Image
                     src={dest.imageUrl}
                     alt={dest.name}
-                    className="absolute inset-0 h-full w-full object-cover opacity-60"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    className="object-cover opacity-60"
                   />
                 )}
                 <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full border-[20px] border-white/5" />

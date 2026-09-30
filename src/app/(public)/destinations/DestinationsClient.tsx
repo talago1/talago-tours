@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useLanguage } from '@/context/LanguageContext';
 import Link from 'next/link';
 import { MapPin, Compass, ChevronRight, Star, Search } from 'lucide-react';
@@ -164,18 +165,23 @@ export default function DestinationsClient({ destinations }: Props) {
                     {/* Image area */}
                     <div className={`relative overflow-hidden ${index === 0 ? 'h-72 md:h-80' : 'h-56'}`}>
                       {/* Primary image */}
-                      <img
+                      <Image
                         src={covers[0]}
                         alt={localizedName}
-                        className="h-full w-full object-cover transition-all duration-700 group-hover:scale-110"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover transition-all duration-700 group-hover:scale-110"
                       />
                       {/* Secondary overlay image on hover */}
                       {covers[1] && (
-                        <img
+                        <Image
                           src={covers[1]}
                           alt=""
                           aria-hidden
-                          className="absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-700 group-hover:opacity-100"
+                          fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          loading="lazy"
+                          className="object-cover opacity-0 transition-all duration-700 group-hover:opacity-100"
                         />
                       )}
                       {/* Gradient overlays */}

@@ -368,9 +368,20 @@ export default function CheckoutPage() {
         const allowDeposit = pm.allowDepositOnline !== false && (Boolean(data.allowDeposit) || Number(pm.defaultDepositPercentage ?? 0) > 0);
         const depositPercentage = Number(data.depositPercentage || pm.defaultDepositPercentage || 20);
 
-        if (!allowPayAtLocation && scheme === PaymentScheme.PAY_ON_ARRIVAL) {
-          setScheme(allowFullOnline ? PaymentScheme.FULL_ONLINE : PaymentScheme.DEPOSIT_ONLINE);
-        }
+// Payment on arrival may have been switched off in the admin settings after
+        // this page mounted, so fall back to an enabled scheme. Read the current
+        // value through the functional updater rather than the captured
+        // `scheme` (this effect only depends on `tourId`), and keep
+        // `form.paymentScheme` in sync — updating only the local state would
+        // leave the submitted payload on the disabled scheme.
+        setScheme((current) => {
+          if (allowPayAtLocation || current !== PaymentScheme.PAY_ON_ARRIVAL) {
+            return current;
+          }
+          const fallback = allowFullOnline ? PaymentScheme.FULL_ONLINE : PaymentScheme.DEPOSIT_ONLINE;
+          setForm((prev) => ({ ...prev, paymentScheme: fallback }));
+          return fallback;
+        });
 
         const loadedPickupTimes: string[] = Array.isArray(data.pickupTimes) && data.pickupTimes.length > 0
           ? data.pickupTimes
@@ -545,7 +556,11 @@ export default function CheckoutPage() {
       setErrorMessage(dict.checkout.errorMessage);
       setPageState('error');
     }
-  }, [form, tour, departureDate, adultsCount, childrenCount, infantsCount, promoDiscount]);
+  // `validateRequiredFields` closes over the answer map, selected addons, the
+  // guest totals and the active language, so all of them have to be listed
+  // here — omitting them submits stale validation state when the guest
+  // changes an answer, a pickup addon or the interface language.
+  }, [form, tour, departureDate, adultsCount, childrenCount, infantsCount, promoDiscount, bookingAnswers, selectedAddons, totalPayingGuests, language, dict]);
 
   const handleResume = useCallback(() => {
     if (resumeBookingId) {

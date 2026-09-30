@@ -115,6 +115,7 @@ browseAll: 'Alle Erlebnisse',
     categoryLabel: 'Kategorie:',
     nearYou: 'Wir zeigen Erlebnisse in {name}, die Ihrer aktuellen Position am nächsten liegen',
     exploreAllDestinations: 'Alle Reiseziele entdecken',
+    viewAllDestinations: 'Ansicht aller Reiseziele',
     noResultsFilterTitle: 'Keine Erlebnisse für diese Auswahl gefunden',
     noResultsFilterDesc: 'Wählen Sie Alle Reiseziele oder eine andere Kategorie.',
     browseAllTours: 'Gesamten Erlebniskatalog mit Filtern durchsuchen',
@@ -572,3 +573,5 @@ browseAll: 'Alle Erlebnisse',
     ctaButton: 'Touren entdecken',
   },
 };
+
+

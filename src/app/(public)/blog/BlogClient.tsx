@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { BookOpen, Clock, Search, ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -94,7 +95,15 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
                 <article key={post.id} className="group flex flex-col justify-between rounded-[2rem] border border-white/10 bg-white/[0.03] overflow-hidden hover:border-[#00E5FF]/40 transition">
                   <Link href={`/blog/${post.slug}`}>
                     <div className="relative aspect-video w-full overflow-hidden bg-slate-800">
-                      {post.coverImage && <img src={post.coverImage} alt={title} className="h-full w-full object-cover group-hover:scale-105 transition duration-500" />}
+                      {post.coverImage && (
+                        <Image
+                          src={post.coverImage}
+                          alt={title}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                          className="object-cover transition duration-500 group-hover:scale-105"
+                        />
+                      )}
                       <span className="absolute top-3 left-3 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-black uppercase text-[#00E5FF]">
                         {post.category}
                       </span>

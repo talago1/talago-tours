@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { ImageIcon } from 'lucide-react';
 
@@ -39,11 +40,17 @@ export default function CarouselImages({
   return (
     <div className="relative h-full w-full">
       {images.map((url, i) => (
-        <img
+        <Image
           key={i}
           src={url}
           alt=""
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          // Only the visible slide needs loading; the rest are preloaded lazily
+          // by the carousel and faded in with opacity.
+          priority={i === 0}
+          loading={i === 0 ? undefined : 'lazy'}
+          className={`object-cover transition-opacity duration-500 ${
             i === index ? 'opacity-100' : 'opacity-0'
           }`}
         />

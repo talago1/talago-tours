@@ -115,6 +115,7 @@ browseAll: 'Vedi tutte le esperienze',
     categoryLabel: 'Categoria:',
     nearYou: 'Mostriamo le esperienze più vicine alla tua posizione attuale a {name}',
     exploreAllDestinations: 'Esplora tutte le destinazioni',
+    viewAllDestinations: 'Vedi tutte le destinazioni',
     noResultsFilterTitle: 'Nessuna esperienza per questa selezione',
     noResultsFilterDesc: 'Prova a scegliere Tutte le destinazioni o un’altra categoria.',
     browseAllTours: 'Sfoglia l’intero elenco esperienze e i filtri',
@@ -572,3 +573,5 @@ browseAll: 'Vedi tutte le esperienze',
     ctaButton: 'Esplora i tour',
   },
 };
+
+

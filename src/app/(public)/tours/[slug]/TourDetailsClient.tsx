@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useLanguage } from '@/context/LanguageContext';
 import TourCard from '@/components/public/TourCard';
 import type { PublicTour } from '@/types/publicTour';
@@ -125,10 +126,12 @@ function HeroSlider({ images, title, destinationName, category }: { images: stri
     if (intervalRef.current) clearInterval(intervalRef.current);
   };
 
-  const closeLightbox = () => {
+  const closeLightbox = useCallback(() => {
+    // The autoplay interval is (re)started by the effect above, which reacts to
+    // `startInterval`'s identity changing as `lightboxOpen` flips. Calling it
+    // directly here would read the stale `lightboxOpen === true` and bail out.
     setLightboxOpen(false);
-    startInterval();
-  };
+  }, []);
 
   // Keyboard navigation for lightbox
   useEffect(() => {
@@ -144,7 +147,7 @@ function HeroSlider({ images, title, destinationName, category }: { images: stri
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'auto';
     };
-  }, [lightboxOpen, images.length]);
+  }, [lightboxOpen, images.length, closeLightbox]);
 
   const goTo = (i: number) => { setCurrent(i); startInterval(); };
   const goPrev = () => goTo((current - 1 + images.length) % images.length);
@@ -162,7 +165,15 @@ function HeroSlider({ images, title, destinationName, category }: { images: stri
               i === current ? 'scale-100 opacity-100' : 'scale-105 opacity-0'
             }`}
           >
-            <img src={img} alt={`${title} ${i + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <Image
+              src={img}
+              alt={`${title} ${i + 1}`}
+              fill
+              sizes="100vw"
+              priority={i === 0}
+              loading={i === 0 ? undefined : 'lazy'}
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+            />
           </div>
         ))}
         <div className="absolute inset-0 bg-gradient-to-t from-[#070F1E] via-[#070F1E]/20 to-transparent" />
@@ -287,7 +298,7 @@ function HeroSlider({ images, title, destinationName, category }: { images: stri
                     idx === lightboxIndex ? 'border-[#00E5FF] scale-105 opacity-100 shadow-lg' : 'border-transparent opacity-50 hover:opacity-100'
                   }`}
                 >
-                  <img src={img} alt={`Thumbnail ${idx + 1}`} className="h-full w-full object-cover" />
+                  <Image src={img} alt={`Thumbnail ${idx + 1}`} fill sizes="80px" className="object-cover" />
                 </button>
               ))}
             </div>
