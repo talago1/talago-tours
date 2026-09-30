@@ -22,9 +22,21 @@ export function middleware(request: NextRequest) {
   }
 
   const configuredToken = getAdminToken();
-  const sessionToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
+  const cookieToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
 
-  if (configuredToken && sessionToken === configuredToken) {
+  // Non-browser callers (CI, scripts, service-to-service) cannot hold an
+  // httpOnly session cookie, so a Bearer header is accepted as well. This is
+  // additive: the cookie path is unchanged, and both compare against the same
+  // configured token. Fails closed when ADMIN_API_TOKEN is unset.
+  const authorization = request.headers.get('authorization');
+  const bearerToken = authorization?.startsWith('Bearer ')
+    ? authorization.slice('Bearer '.length).trim()
+    : null;
+
+  if (
+    configuredToken &&
+    (cookieToken === configuredToken || bearerToken === configuredToken)
+  ) {
     return NextResponse.next();
   }
 

@@ -7,14 +7,15 @@ export function getAdminToken(): string | null {
 }
 
 /**
- * Handler-level admin check for routes that are NOT under /api/admin (the
- * middleware matcher only covers /admin and /api/admin, so it is the sole
- * protection for those admin APIs that live outside that prefix).
+ * Handler-level admin check, for routes that are NOT covered by the middleware
+ * matcher (/admin and /api/admin). Prefer keeping admin APIs under those
+ * prefixes so the middleware enforces them; use this only when a route has to
+ * live outside them.
  *
- * Note the asymmetry: this accepts a Bearer token, but src/middleware.ts is
- * cookie-only. No route currently calls this helper, so Bearer auth does not
- * work for any middleware-protected route today. Do not assume otherwise when
- * adding endpoints.
+ * Accepts either the session cookie or an Authorization: Bearer header, which
+ * is what non-browser callers (CI, scripts, service-to-service) must use. The
+ * middleware now honours the same two mechanisms, so behaviour is consistent
+ * between handler-level and middleware-level checks.
  */
 export function isAdminRequest(request: NextRequest): boolean {
   const configuredToken = getAdminToken();
