@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 
 export const dynamic = 'force-dynamic';
+
+// This endpoint returns PII (name, email, phone, hotel, room, travel date) and
+// is reachable with only a bookingReference, whose random part is 4 characters
+// out of a 32-symbol alphabet (2^20). Without a limit the whole keyspace is
+// walkable in hours. Widen the reference alphabet and require a high-entropy
+// access token before this returns anything; until then this is the brake.
+const LIMIT = 30;
+const WINDOW_MS = 10 * 60 * 1000;
+
+const NO_STORE = { 'cache-control': 'no-store, private' };
 
 /**
  * GET /api/public/bookings?id=<uuid>
@@ -16,8 +27,13 @@ export async function GET(request: NextRequest) {
   if (!id && !ref) {
     return NextResponse.json(
       { error: 'Missing id or ref parameter' },
-      { status: 400 },
+      { status: 400, headers: NO_STORE },
     );
+  }
+
+  const limit = rateLimit(clientKey(request, 'bookings-lookup'), LIMIT, WINDOW_MS);
+  if (!limit.allowed) {
+    return tooManyRequests(limit.retryAfterSeconds);
   }
 
   try {
@@ -73,7 +89,7 @@ export async function GET(request: NextRequest) {
     if (!booking) {
       return NextResponse.json(
         { error: 'Booking not found' },
-        { status: 404 },
+        { status: 404, headers: NO_STORE },
       );
     }
 
@@ -82,12 +98,15 @@ export async function GET(request: NextRequest) {
       (booking.amountDueOnArrival ?? 0) > 0 &&
       booking.status !== 'CANCELLED';
 
-    return NextResponse.json({ ...booking, collectionDue });
+    return NextResponse.json(
+      { ...booking, collectionDue },
+      { headers: NO_STORE },
+    );
   } catch (error) {
     console.error('[api/public/bookings] GET error:', error);
     return NextResponse.json(
       { error: 'Failed to load booking' },
-      { status: 500 },
+      { status: 500, headers: NO_STORE },
     );
   }
 }

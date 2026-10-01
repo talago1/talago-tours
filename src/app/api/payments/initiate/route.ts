@@ -2,9 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyPaymobEnv } from '@/lib/env';
 import { initiatePaymobSession } from '@/utils/paymob';
+import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 import type { PaymentInitiationRequest, PaymentInitiationResponse } from '@/types/payment';
 
+// Takes a bookingReference with no proof of ownership and writes
+// paymentStatus = PROCESSING to whoever's booking that is. Rate limit the
+// guessing of those references.
+const LIMIT = 10;
+const WINDOW_MS = 10 * 60 * 1000;
+
 export async function POST(request: NextRequest) {
+  const limit = rateLimit(clientKey(request, 'payments-initiate'), LIMIT, WINDOW_MS);
+  if (!limit.allowed) {
+    return tooManyRequests(limit.retryAfterSeconds);
+  }
+
   try {
     verifyPaymobEnv();
   } catch {
