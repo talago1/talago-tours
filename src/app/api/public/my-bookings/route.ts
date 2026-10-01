@@ -4,6 +4,9 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+// This response carries customer PII and each booking's access token.
+const NO_STORE = { 'cache-control': 'no-store, private' };
+
 /**
  * GET /api/public/my-bookings
  * Returns all bookings for the authenticated customer.
@@ -16,14 +19,14 @@ export async function GET(request: NextRequest) {
     const token = authHeader?.replace('Bearer ', '');
 
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE });
     }
 
     // Verify the token with Supabase and get the user
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
     if (authError || !user?.email) {
-      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401, headers: NO_STORE });
     }
 
     const bookings = await prisma.booking.findMany({
@@ -61,9 +64,9 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ bookings, email: user.email });
+    return NextResponse.json({ bookings, email: user.email }, { headers: NO_STORE });
   } catch (error) {
     console.error('[api/public/my-bookings] GET error:', error);
-    return NextResponse.json({ error: 'Failed to load bookings' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to load bookings' }, { status: 500, headers: NO_STORE });
   }
 }

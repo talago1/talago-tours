@@ -12,9 +12,9 @@ function computeHmac(obj: Record<string, unknown>, secret: string): string {
 }
 
 function constantTimeCompare(a: string, b: string): boolean {
-  const bufA = Buffer.from(a, 'utf8');
-  const bufB = Buffer.from(b, 'utf8');
   try {
+    const bufA = Buffer.from(a, 'utf8');
+    const bufB = Buffer.from(b, 'utf8');
     return timingSafeEqual(bufA, bufB) && a.length === b.length;
   } catch {
     return false;
