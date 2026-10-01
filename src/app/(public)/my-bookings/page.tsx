@@ -20,6 +20,7 @@ import {
 interface BookingItem {
   id: string;
   bookingReference: string;
+  accessToken: string;
   status: string;
   travelDate: string;
   guestCount: number;
@@ -65,7 +66,7 @@ function BookingCard({ booking }: { booking: BookingItem }) {
 
   return (
     <Link
-      href={`/booking/${booking.id}`}
+      href={`/booking/${booking.accessToken}`}
       className="group block rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 transition-all duration-300 hover:border-[#00E5FF]/30 hover:bg-white/[0.06] hover:shadow-lg hover:shadow-[#00E5FF]/5"
     >
       <div className="flex items-start gap-4">

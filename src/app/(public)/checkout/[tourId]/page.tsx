@@ -290,7 +290,7 @@ export default function CheckoutPage() {
   const [departureDate, setDepartureDate] = useState('');
   const [confirmData, setConfirmData] = useState<InitializeResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
-  const [resumeBookingId, setResumeBookingId] = useState<string | null>(null);
+  const [resumeAccessToken, setResumeBookingId] = useState<string | null>(null);
   const [promoDiscount, setPromoDiscount] = useState<PromoDiscount | null>(null);
 
   const [availableZones, setAvailableZones] = useState<ZoneOption[]>([]);
@@ -440,7 +440,7 @@ export default function CheckoutPage() {
     }
     loadTour();
 
-    const pending = sessionStorage.getItem('pendingBookingId');
+    const pending = sessionStorage.getItem('pendingBookingAccessToken');
     if (pending) {
       setResumeBookingId(pending);
     }
@@ -549,7 +549,7 @@ export default function CheckoutPage() {
       if (responseData.scheme === PaymentScheme.PAY_ON_ARRIVAL) {
         setPageState('confirm');
       } else if (responseData.gatewayIframeUrl) {
-        sessionStorage.setItem('pendingBookingId', responseData.bookingId);
+        sessionStorage.setItem('pendingBookingAccessToken', responseData.accessToken);
         window.location.href = responseData.gatewayIframeUrl;
       }
     } catch {
@@ -563,10 +563,10 @@ export default function CheckoutPage() {
   }, [form, tour, departureDate, adultsCount, childrenCount, infantsCount, promoDiscount, bookingAnswers, selectedAddons, totalPayingGuests, language, dict]);
 
   const handleResume = useCallback(() => {
-    if (resumeBookingId) {
-      router.push(`/booking/${resumeBookingId}`);
+    if (resumeAccessToken) {
+      router.push(`/booking/${resumeAccessToken}`);
     }
-  }, [resumeBookingId, router]);
+  }, [resumeAccessToken, router]);
 
   if (pageState === 'loading') {
     return (
@@ -626,7 +626,7 @@ export default function CheckoutPage() {
             variant="primary"
             size="lg"
             className="mt-8"
-            onClick={() => router.push(`/booking/${confirmData.bookingId}`)}
+            onClick={() => router.push(`/booking/${confirmData.accessToken}`)}
           >
             {dict.checkout.viewDetails}
             <ArrowRight className="h-4 w-4" />
@@ -659,7 +659,7 @@ export default function CheckoutPage() {
           </p>
         </div>
 
-        {resumeBookingId && (
+        {resumeAccessToken && (
           <div className="mb-8 rounded-2xl border border-[#06B6D4]/20 bg-[#06B6D4]/5 p-5">
             <div className="flex items-center gap-3">
               <AlertCircle className="h-5 w-5 shrink-0 text-[#06B6D4]" />

@@ -31,6 +31,10 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         bookingReference: true,
+        // The caller is already authenticated via Supabase and scoped to their
+        // own email, so handing them their own access token is what lets the
+        // detail page stay token-gated instead of falling back to the id.
+        accessToken: true,
         status: true,
         travelDate: true,
         guestCount: true,

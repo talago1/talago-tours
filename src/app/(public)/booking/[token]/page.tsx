@@ -58,7 +58,7 @@ export default function BookingConfirmationPage() {
         setPageState('found');
 
         if (data.status === 'CONFIRMED') {
-          sessionStorage.removeItem('pendingBookingId');
+          sessionStorage.removeItem('pendingBookingAccessToken');
         }
       } catch {
         setPageState('error');
