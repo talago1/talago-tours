@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBookingByAccessToken, isPlausibleAccessToken } from '@/utils/bookingToken';
+import { prisma } from '@/lib/prisma';
+import { isPlausibleAccessToken } from '@/utils/bookingToken';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 
 export const dynamic = 'force-dynamic';
@@ -37,24 +38,63 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const booking = await getBookingByAccessToken(token);
+    // Explicit allowlist, not "the whole row minus the sensitive bits". A
+    // denylist silently starts leaking the moment a column is added to Booking
+    // (admin notes, cancellation reason, ...), and this response is customer PII.
+    // accessToken is therefore not selected at all, so it cannot be echoed back.
+    const booking = await prisma.booking.findUnique({
+      where: { accessToken: token },
+      select: {
+        id: true,
+        bookingReference: true,
+        status: true,
+        customerName: true,
+        customerEmail: true,
+        customerPhone: true,
+        hotelName: true,
+        roomNumber: true,
+        travelDate: true,
+        guestCount: true,
+        adultsCount: true,
+        childrenCount: true,
+        infantsCount: true,
+        totalPriceUSD: true,
+        currency: true,
+        paymentScheme: true,
+        amountPaidOnline: true,
+        amountDueOnArrival: true,
+        pickupDirectives: true,
+        selectedPickupTime: true,
+        specialRequirements: true,
+        createdAt: true,
+        tour: {
+          select: {
+            id: true,
+            slug: true,
+            translations: true,
+            coverImage: true,
+          },
+        },
+        transaction: {
+          select: {
+            id: true,
+            status: true,
+            provider: true,
+            gatewayReference: true,
+            amountPaidOnline: true,
+            amountDueOnArrival: true,
+            scheme: true,
+          },
+        },
+      },
+    });
+
     if (!booking) {
       return NextResponse.json(
         { error: 'Booking not found' },
         { status: 404, headers: NO_STORE },
       );
     }
-        // Explicit field list: accessToken must never be echoed back, and anything
-    // added to Booking later is opt-in rather than leaked by default.
-    const {
-      accessToken: _omitted,
-      promoCodeId: _omittedPromo,
-      customerProfileId: _omittedProfile,
-      checkInLog: _omittedCheckIn,
-      paymentGatewayLogs: _omittedLogs,
-      ...safe
-    } = booking;
-    void _omitted; void _omittedPromo; void _omittedProfile; void _omittedCheckIn; void _omittedLogs;
 
     // Derive a simple collectionDue flag for the frontend
     const collectionDue =
@@ -62,7 +102,7 @@ export async function GET(request: NextRequest) {
       booking.status !== 'CANCELLED';
 
     return NextResponse.json(
-      { ...safe, collectionDue },
+      { ...booking, collectionDue },
       { headers: NO_STORE },
     );
   } catch (error) {
