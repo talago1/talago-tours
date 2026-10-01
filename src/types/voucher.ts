@@ -22,8 +22,8 @@ export interface CheckInLogEntry {
 }
 
 export type VerifyResponse =
-  | { success: true; checkedInAt: string; message: string }
-  | { success: false; checkedInAt?: string; error: string };
+  | { success: true; checkedInAt: string; message: string; isCheckedIn?: boolean }
+  | { success: false; checkedInAt?: string; error: string; isCheckedIn?: boolean };
 
 export interface QRTokenPayload {
   bookingId: string;

@@ -38,7 +38,9 @@ export default function BookingConfirmationPage() {
   const params = useParams();
   const router = useRouter();
   const { dict } = useLanguage();
-  const token = params.id as string;
+  // The route segment is [token], so useParams() keys it as "token", not "id".
+  // Reading params.id here yields undefined and every lookup 401s.
+  const token = params.token as string;
 
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [pageState, setPageState] = useState<PageState>('loading');

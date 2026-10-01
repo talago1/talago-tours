@@ -52,20 +52,35 @@ export async function POST(
         throw new Error('BOOKING_NOT_CONFIRMED');
       }
 
-      if (booking.isCheckedIn) {
+      // Claim the check-in atomically. Reading isCheckedIn and then updating
+      // leaves a window where two simultaneous scans both pass the check and
+      // check the same passenger in twice.
+      const claim = await tx.booking.updateMany({
+        where: { id: payload.bookingId, isCheckedIn: false },
+        data: { isCheckedIn: true, checkedInAt: new Date() },
+      });
+      if (claim.count === 0) {
         throw new Error('ALREADY_CHECKED_IN');
       }
 
       const logEntry = createCheckInLogEntry();
+
+      // `checkInLog` is a scalar Json column, not a Json list. Prisma does not
+      // provide a JSON push for it, so `{ push: entry }` would store the literal
+      // object {"push": entry} rather than appending to the array, and
+      // hasExistingCheckIn() would then reject it via Array.isArray().
+      const existing = await tx.booking.findUnique({
+        where: { id: payload.bookingId },
+        select: { checkInLog: true },
+      });
+      const logs = Array.isArray(existing?.checkInLog) ? existing.checkInLog : [];
 
       const updated = await tx.booking.update({
         where: { id: payload.bookingId },
         data: {
           isCheckedIn: true,
           checkedInAt: new Date(logEntry.timestamp),
-          checkInLog: {
-            push: logEntry as unknown as Prisma.InputJsonValue,
-          },
+          checkInLog: [...logs, logEntry] as unknown as Prisma.InputJsonValue,
         },
         include: { tour: true },
       });
