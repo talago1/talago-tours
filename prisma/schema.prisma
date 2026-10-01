@@ -259,6 +259,10 @@ model Tour {
 model Booking {
   id               String        @id @default(uuid())
   bookingReference String        @unique
+  // Secret capability for customer-facing booking access. 256-bit CSPRNG value,
+  // independent of bookingReference. bookingReference is human-readable and is
+  // NOT a credential; this is.
+  accessToken      String        @unique
   tourId           String
   zoneId           String
   hotelName        String?

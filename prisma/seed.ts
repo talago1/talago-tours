@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { randomBytes } from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -39,6 +40,7 @@ async function main() {
     const bookings = [
       {
         bookingReference: 'TLG-20260530-0001',
+        accessToken: randomBytes(32).toString('base64url'),
         tourId: tour.id,
         zoneId: zone.id,
         hotelName: 'Steigenberger Al Dau Beach Hotel',
@@ -53,6 +55,7 @@ async function main() {
       },
       {
         bookingReference: 'TLG-20260530-0002',
+        accessToken: randomBytes(32).toString('base64url'),
         tourId: tour.id,
         zoneId: zone.id,
         hotelName: 'Mövenpick Resort El Gouna',
@@ -67,6 +70,7 @@ async function main() {
       },
       {
         bookingReference: 'TLG-20260530-0003',
+        accessToken: randomBytes(32).toString('base64url'),
         tourId: tour.id,
         zoneId: zone.id,
         hotelName: 'Iberotel Makadi Beach',
@@ -81,6 +85,7 @@ async function main() {
       },
       {
         bookingReference: 'TLG-20260530-0004',
+        accessToken: randomBytes(32).toString('base64url'),
         tourId: tour.id,
         zoneId: zone.id,
         hotelName: 'Pickalbatros Jungle Aqua Park',
@@ -95,6 +100,7 @@ async function main() {
       },
       {
         bookingReference: 'TLG-20260530-0005',
+        accessToken: randomBytes(32).toString('base64url'),
         tourId: tour.id,
         zoneId: zone.id,
         hotelName: 'Titanic Palace',

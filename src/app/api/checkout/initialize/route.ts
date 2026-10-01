@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validateCheckoutForm, validateGuestTiers } from '@/utils/bookingValidation';
 import { generateBookingReference } from '@/utils/bookingReference';
+import { generateAccessToken } from '@/utils/bookingToken';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 import { enforceCapacity, CapacityExceededError } from '@/utils/capacityEngine';
@@ -239,6 +240,7 @@ export async function POST(request: NextRequest) {
       const booking = await tx.booking.create({
         data: {
           bookingReference,
+          accessToken: generateAccessToken(),
           tourId,
           zoneId: tour.zoneId,
           hotelName: hotelName?.trim() || null,
@@ -293,11 +295,14 @@ export async function POST(request: NextRequest) {
 
     const responsePayload: InitializeResponse = {
       bookingId: result.booking.id,
+      accessToken: result.booking.accessToken,
       transactionId: result.transaction.id,
       amountPaidOnline,
       amountDueOnArrival,
       scheme: paymentScheme,
-      confirmationUrl: `/booking/${result.booking.id}`,
+      // The confirmation page is reached with the access token, not the id and
+      // not the human-readable bookingReference.
+      confirmationUrl: `/booking/${result.booking.accessToken}`,
     };
 
     // Trigger Supabase invitation email for new/shadow profile

@@ -4,6 +4,7 @@ import CheckoutSuccessContent from './CheckoutSuccessContent';
 export const metadata: Metadata = {
   title: 'Booking Confirmed | Talago Tours',
   description: 'Your tour booking has been confirmed. Our team will contact you via WhatsApp shortly.',
+  robots: { index: false, follow: false },
   openGraph: {
     title: 'Booking Confirmed | Talago Tours',
     description: 'Your tour booking has been confirmed.',
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 export default function CheckoutSuccessPage({
   searchParams,
 }: {
-  searchParams: { ref?: string };
+  searchParams: { token?: string };
 }) {
-  return <CheckoutSuccessContent ref={searchParams.ref || ''} />;
+  return <CheckoutSuccessContent token={searchParams.token || ''} />;
 }

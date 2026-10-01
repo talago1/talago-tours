@@ -7,6 +7,8 @@ import { prisma } from '@/lib/prisma';
 interface BookingNotificationData {
   bookingId: string;
   bookingReference: string;
+  /** Capability used to build the customer's voucher link. Never the reference. */
+  accessToken: string;
   customerName: string;
   customerPhone: string;
   customerEmail: string;
@@ -205,6 +207,11 @@ function buildMessage(data: BookingNotificationData): string {
   const statusLabel = STATUS_LABELS[lang]?.[data.status] ?? data.status;
   const baseUrl = getBaseUrl();
   const magicLink = `${baseUrl}/auth?email=${encodeURIComponent(data.customerEmail)}`;
+  // The voucher is token-gated, so the link carries the access token rather than
+  // the booking reference.
+  const voucherUrl = data.accessToken
+    ? `${baseUrl}/tours/voucher/${encodeURIComponent(data.accessToken)}`
+    : '';
   const pickupLine = data.pickupTime ? `\n🚐 *Pickup:* ${data.pickupTime}` : '';
 
   return template
@@ -217,6 +224,7 @@ function buildMessage(data: BookingNotificationData): string {
     .replace('{hotelName}', data.hotelName)
     .replace('{pickupLine}', pickupLine)
     .replace('{totalPrice}', `$${data.totalPriceUSD.toFixed(2)}`)
+    .replace('{voucherUrl}', voucherUrl)
     .replace('{magicLink}', magicLink);
 }
 
@@ -330,6 +338,7 @@ export async function dispatchBookingWhatsApp(bookingId: string): Promise<void> 
     await sendBookingConfirmation({
       bookingId: booking.id,
       bookingReference: booking.bookingReference,
+      accessToken: booking.accessToken,
       customerName: booking.customerName,
       customerPhone: booking.customerPhone,
       customerEmail: booking.customerEmail,

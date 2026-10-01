@@ -1,8 +1,12 @@
+import { isPlausibleAccessToken } from '@/utils/bookingToken';
 import { prisma } from '@/lib/prisma';
 import { hasExistingCheckIn, getExistingCheckInTimestamp } from '@/utils/voucherLogManager';
 import type { TicketVoucherProps } from '@/types/voucher';
 import { notFound } from 'next/navigation';
 import VoucherContent from '../VoucherContent';
+
+// A voucher is customer-specific and behind a secret; keep it out of indexes.
+export const metadata = { robots: { index: false, follow: false } };
 
 function getTourTitle(translations: unknown, lang: string): string {
   if (typeof translations === 'object' && translations !== null) {
@@ -15,12 +19,15 @@ function getTourTitle(translations: unknown, lang: string): string {
   return 'Tour';
 }
 
-async function getBooking(ref: string) {
-  const booking = await prisma.booking.findUnique({
-    where: { bookingReference: ref },
+// The voucher carries the customer's name, hotel and travel date, so it is
+// reachable with the 256-bit accessToken only. A bookingReference is not enough:
+// it is a display identifier with 4 random characters.
+async function getBooking(token: string) {
+  if (!isPlausibleAccessToken(token)) return null;
+  return prisma.booking.findFirst({
+    where: { accessToken: token },
     include: { tour: true },
   });
-  return booking;
 }
 
 function formatDate(date: Date): string {
@@ -32,12 +39,14 @@ function formatDate(date: Date): string {
   });
 }
 
-export default async function VoucherPage({ params }: TicketVoucherProps) {
-  const booking = await getBooking(params.ref);
+export default async function VoucherPage({ params }: { params: { token: string } }) {
+  const booking = await getBooking(params.token);
   if (!booking || !booking.tour) notFound();
 
   const tourTitle = getTourTitle(booking.tour.translations, booking.language);
-  const verifyUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://talago.com'}/admin/bookings/verify/${params.ref}`;
+  // Admin-only verification endpoint, so the display reference is correct here.
+  // The access token must never be placed in a URL the guest might share.
+  const verifyUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://talago.com'}/admin/bookings/verify/${booking.bookingReference}`;
   const isCheckedIn = hasExistingCheckIn(booking.checkInLog);
   const checkedInAt = isCheckedIn ? getExistingCheckInTimestamp(booking.checkInLog) : null;
 

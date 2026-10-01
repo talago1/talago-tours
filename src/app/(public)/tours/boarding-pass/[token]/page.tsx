@@ -1,9 +1,14 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
+import { isPlausibleAccessToken } from '@/utils/bookingToken';
 import { encodeQr, qrMatrixToSvg } from '@/utils/qrEncoder';
 import { generateToken } from '@/utils/qrTokenCrypto';
 import { hasExistingCheckIn, getExistingCheckInTimestamp } from '@/utils/voucherLogManager';
 import BoardingPassContent from '../BoardingPassContent';
+
+// A boarding pass shows the customer's name, hotel, room number and travel
+// date. It must require the 256-bit accessToken, not the internal id.
+export const metadata = { robots: { index: false, follow: false } };
 
 function getTourTitle(translations: unknown, lang: string): string {
   if (typeof translations === 'object' && translations !== null) {
@@ -25,9 +30,12 @@ function formatDate(date: Date): string {
   });
 }
 
-export default async function BoardingPassPage({ params }: { params: { id: string } }) {
-  const booking = await prisma.booking.findUnique({
-    where: { id: params.id },
+export default async function BoardingPassPage({ params }: { params: { token: string } }) {
+  const accessToken = params.token;
+  if (!isPlausibleAccessToken(accessToken)) return notFound();
+
+  const booking = await prisma.booking.findFirst({
+    where: { accessToken },
     include: { tour: true },
   });
 

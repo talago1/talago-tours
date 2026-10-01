@@ -1,6 +1,7 @@
 import type { BookingStatus, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { generateBookingReference } from './bookingReference';
+import { generateAccessToken } from './bookingToken';
 import { supabaseAdmin } from '../lib/supabase/server';
 import { dispatchBookingWhatsApp } from './whatsappNotifications';
 import { enforceCapacity, CapacityExceededError } from './capacityEngine';
@@ -202,6 +203,7 @@ export async function createImplicitGuestBooking(
     const booking = await tx.booking.create({
       data: {
         bookingReference,
+        accessToken: generateAccessToken(),
         customerProfileId: profile.id,
         tourId: tour.id,
         zoneId: zone.id,
@@ -220,6 +222,7 @@ export async function createImplicitGuestBooking(
       select: {
         id: true,
         bookingReference: true,
+        accessToken: true,
         status: true,
       },
     });
@@ -227,6 +230,7 @@ export async function createImplicitGuestBooking(
     return {
       bookingId: booking.id,
       bookingReference: booking.bookingReference,
+      accessToken: booking.accessToken,
       customerProfileId: profile.id,
       customerWasCreated: !existingProfile,
       status: booking.status,

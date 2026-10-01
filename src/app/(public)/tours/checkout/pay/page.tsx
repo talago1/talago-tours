@@ -11,15 +11,15 @@ type PageState = 'loading' | 'redirecting' | 'error';
 function PaymentFlow() {
   const searchParams = useSearchParams();
   const { dict } = useLanguage();
-  const bookingReference = searchParams.get('reference');
+  const accessToken = searchParams.get('token');
   const [state, setState] = useState<PageState>('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [redirectUrl, setRedirectUrl] = useState('');
 
   const initiatePayment = useCallback(async () => {
-    if (!bookingReference) {
+    if (!accessToken) {
       setState('error');
-      setErrorMessage('Missing booking reference');
+      setErrorMessage('Missing booking access token');
       return;
     }
 
@@ -29,7 +29,7 @@ function PaymentFlow() {
       const res = await fetch('/api/payments/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingReference }),
+        body: JSON.stringify({ accessToken }),
       });
 
       if (!res.ok) {
@@ -47,7 +47,7 @@ function PaymentFlow() {
       setState('error');
       setErrorMessage('Network error. Please try again.');
     }
-  }, [bookingReference]);
+  }, [accessToken]);
 
   useEffect(() => {
     initiatePayment();

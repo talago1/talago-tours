@@ -38,7 +38,7 @@ export default function BookingConfirmationPage() {
   const params = useParams();
   const router = useRouter();
   const { dict } = useLanguage();
-  const id = params.id as string;
+  const token = params.id as string;
 
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [pageState, setPageState] = useState<PageState>('loading');
@@ -47,8 +47,8 @@ export default function BookingConfirmationPage() {
   useEffect(() => {
     async function loadBooking() {
       try {
-        const res = await fetch(`/api/public/bookings?id=${id}`);
-        if (res.status === 404) {
+        const res = await fetch(`/api/public/bookings?token=${encodeURIComponent(token)}`);
+        if (res.status === 404 || res.status === 401) {
           setPageState('notfound');
           return;
         }
@@ -65,26 +65,19 @@ export default function BookingConfirmationPage() {
       }
     }
     loadBooking();
-  }, [id]);
+  }, [token]);
 
+  // Retry re-enters the payment flow. It deliberately no longer POSTs to
+  // /api/checkout/initialize with the id: that endpoint creates a booking, so
+  // a retry would create a duplicate, and the id is not a credential.
   const handleRetry = useCallback(async () => {
     setRetrying(true);
     try {
-      const res = await fetch('/api/checkout/initialize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId: id }),
-      });
-      const data = await res.json();
-      if (data.gatewayIframeUrl) {
-        window.location.href = data.gatewayIframeUrl;
-      } else {
-        setRetrying(false);
-      }
+      window.location.href = `/tours/checkout/pay?token=${encodeURIComponent(token)}`;
     } catch {
       setRetrying(false);
     }
-  }, [id]);
+  }, [token]);
 
   if (pageState === 'loading') {
     return (

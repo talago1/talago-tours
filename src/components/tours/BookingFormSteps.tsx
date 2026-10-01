@@ -254,7 +254,7 @@ export default function BookingFormSteps({
       }
 
       const data: CheckoutResponse = await res.json();
-      window.location.href = `/tours/checkout/success?ref=${data.bookingReference}`;
+      window.location.href = `/tours/checkout/success?token=${encodeURIComponent(data.accessToken)}`;
     } catch {
       setSubmitError('Network error. Please check your connection and try again.');
       setIsSubmitting(false);

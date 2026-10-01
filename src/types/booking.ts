@@ -75,6 +75,7 @@ export interface ZoneOption {
 
 export interface CheckoutResponse {
   bookingReference: string;
+  accessToken: string;
 }
 
 export interface CheckoutError {

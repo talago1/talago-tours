@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { validateCheckoutForm } from '@/utils/bookingValidation';
 import { generateBookingReference } from '@/utils/bookingReference';
+import { generateAccessToken } from '@/utils/bookingToken';
 import { calculateTotalPrice, calculateTieredPrice } from '@/utils/priceCalculator';
 import { enforceCapacity, CapacityExceededError } from '@/utils/capacityEngine';
 
@@ -140,6 +141,7 @@ export async function POST(request: NextRequest) {
       const booking = await tx.booking.create({
         data: {
           bookingReference,
+          accessToken: generateAccessToken(),
           tourId,
           zoneId,
           hotelName: hotelName?.trim() ?? '',
@@ -184,8 +186,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { bookingReference: result.booking.bookingReference },
-      { status: 200 }
+      { bookingReference: result.booking.bookingReference, accessToken: result.booking.accessToken },
+      { status: 200, headers: { 'cache-control': 'no-store, private' } }
     );
   } catch (error) {
     if (error instanceof CapacityExceededError) {

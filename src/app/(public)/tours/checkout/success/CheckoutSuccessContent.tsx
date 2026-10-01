@@ -1,9 +1,23 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 
-export default function CheckoutSuccessContent({ ref }: { ref: string }) {
+export default function CheckoutSuccessContent({ token }: { token: string }) {
   const { dict } = useLanguage();
+  // The reference is display-only and no longer travels in the URL, so it is
+  // read back through the token-authenticated endpoint.
+  const [bookingReference, setBookingReference] = useState('');
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetch(`/api/public/bookings?token=${encodeURIComponent(token)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d?.bookingReference) setBookingReference(d.bookingReference); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [token]);
 
   return (
     <main className="min-h-screen bg-[#070F1E] flex items-center justify-center px-4 py-12">
@@ -20,11 +34,13 @@ export default function CheckoutSuccessContent({ ref }: { ref: string }) {
           {dict.checkoutSuccessPage.bookingRefLabel}
         </p>
 
-        <div className="inline-block bg-[#00E5FF]/5 border border-[#00E5FF]/20 rounded-xl px-6 py-3 mb-6">
-          <span className="text-xl font-bold text-[#00E5FF] tracking-wider">
-            {ref}
-          </span>
-        </div>
+        {bookingReference && (
+          <div className="inline-block bg-[#00E5FF]/5 border border-[#00E5FF]/20 rounded-xl px-6 py-3 mb-6">
+            <span className="text-xl font-bold text-[#00E5FF] tracking-wider">
+              {bookingReference}
+            </span>
+          </div>
+        )}
 
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 mb-6 text-sm text-amber-300">
           <p>
@@ -39,10 +55,10 @@ export default function CheckoutSuccessContent({ ref }: { ref: string }) {
           {dict.checkoutSuccessPage.backToHome}
         </a>
 
-        {ref && (
+        {token && (
           <div className="mt-6 border-t border-white/10 pt-6">
             <a
-              href={`/tours/voucher/${ref}`}
+              href={`/tours/voucher/${token}`}
               className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-6 py-3 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
