@@ -4,6 +4,8 @@ export const revalidate = 0;
 import { prisma } from '@/lib/prisma';
 import { parseSettingValue } from '@/lib/systemSettings';
 import { SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
+import { resolveServerLanguage } from '@/lib/i18n.server';
+import type { Metadata } from 'next';
 import Hero from '@/components/landing/Hero';
 import BentoGridUSPs from '@/components/landing/BentoGridUSPs';
 import TourCatalog from '@/components/landing/TourCatalog';
@@ -11,6 +13,35 @@ import PopularDestinations from '@/components/landing/PopularDestinations';
 import Testimonials from '@/components/landing/Testimonials';
 import FAQSection from '@/components/landing/FAQSection';
 import NewsletterBanner from '@/components/landing/NewsletterBanner';
+
+const homeBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}): Promise<Metadata> {
+  const lang = resolveServerLanguage(searchParams);
+  return {
+    title: { absolute: 'TALAGO | Egypt Tours & Experiences' },
+    description:
+      'Book vetted Egypt tours and experiences across the Red Sea, Nile and desert — Hurghada, Sharm El Sheikh, Marsa Alam, Cairo and Luxor. Instant confirmation and local support.',
+    alternates: {
+      canonical: homeBaseUrl,
+      languages: {
+        en: `${homeBaseUrl}?lang=en`,
+        de: `${homeBaseUrl}?lang=de`,
+        ru: `${homeBaseUrl}?lang=ru`,
+        it: `${homeBaseUrl}?lang=it`,
+        fr: `${homeBaseUrl}?lang=fr`,
+        pl: `${homeBaseUrl}?lang=pl`,
+        es: `${homeBaseUrl}?lang=es`,
+        'x-default': homeBaseUrl,
+      },
+    },
+    openGraph: { locale: lang, siteName: 'TALAGO' },
+  };
+}
 
 export default async function HomePage() {
   const [tours, destinations, bannerSetting, activeTourCount] = await Promise.all([
@@ -64,6 +95,7 @@ export default async function HomePage() {
         imageUrl: true,
         region: true,
         city: true,
+        translations: true,
         _count: { select: { tours: true } },
       },
     }),
@@ -100,6 +132,9 @@ export default async function HomePage() {
     <div className="min-h-screen bg-[#070F1E]">
       <Hero
         heroBackground={bannerData.heroBackground}
+        heroBackgroundMobile={bannerData.heroBackgroundMobile}
+        heroOverlayOpacity={bannerData.heroOverlayOpacity}
+        showHero={bannerData.showHero}
         conciergePickImage={bannerData.conciergePickImage}
         conciergePickTitle={bannerData.conciergePickTitle}
         conciergePickDescription={bannerData.conciergePickDescription}

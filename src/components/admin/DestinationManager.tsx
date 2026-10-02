@@ -22,6 +22,9 @@ interface FormState {
   slug: string;
   description: string;
   imageUrl: string;
+  countryCode: string;
+  region: string;
+  city: string;
   translations: Record<string, DestinationTranslation>;
 }
 
@@ -40,6 +43,9 @@ const emptyForm: FormState = {
   slug: '',
   description: '',
   imageUrl: '',
+  countryCode: 'EG',
+  region: '',
+  city: '',
   translations: emptyTranslations(),
 };
 
@@ -400,6 +406,9 @@ export default function DestinationManager() {
       slug: destination.slug,
       description: destination.description,
       imageUrl: destination.imageUrl ?? '',
+      countryCode: destination.countryCode ?? 'EG',
+      region: destination.region ?? '',
+      city: destination.city ?? '',
       translations: parsedTranslations,
     });
     setServerError(null);
@@ -432,6 +441,9 @@ export default function DestinationManager() {
             slug: form.slug || undefined,
             description: primaryDescription,
             imageUrl: form.imageUrl || null,
+            countryCode: form.countryCode || 'EG',
+            region: form.region,
+            city: form.city,
             translations: form.translations,
           }),
         },
@@ -621,6 +633,52 @@ export default function DestinationManager() {
                   Preview: /{form.slug || createSlugPreview(form.name)}
                 </span>
               </label>
+
+              <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+                <span className="mb-1 block text-sm font-bold text-slate-300">Location Hierarchy</span>
+                <span className="mb-3 block text-xs text-slate-500">
+                  Country → Region → City. Renders the destination hub under the correct area so global
+                  locations (Sharm El Sheikh, Marsa Alam, Cairo, Luxor…) stay organized.
+                </span>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Country Code
+                    </span>
+                    <input
+                      value={form.countryCode}
+                      onChange={(event) =>
+                        setForm((current) => ({ ...current, countryCode: event.target.value.toUpperCase().slice(0, 2) }))
+                      }
+                      maxLength={2}
+                      placeholder="EG"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm uppercase text-white outline-none transition-all focus:border-[#06B6D4]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Region
+                    </span>
+                    <input
+                      value={form.region}
+                      onChange={(event) => setForm((current) => ({ ...current, region: event.target.value }))}
+                      placeholder="Red Sea"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none transition-all focus:border-[#06B6D4]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                      City
+                    </span>
+                    <input
+                      value={form.city}
+                      onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))}
+                      placeholder="Hurghada"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none transition-all focus:border-[#06B6D4]"
+                    />
+                  </label>
+                </div>
+              </div>
 
               <DestinationImageDropzone
                 currentUrl={form.imageUrl}

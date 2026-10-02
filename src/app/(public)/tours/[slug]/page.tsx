@@ -7,13 +7,16 @@ import TourDetailsClient from './TourDetailsClient';
 import type { ReviewDistribution, ApprovedReview } from '@/types/review';
 import type { Metadata } from 'next';
 import { safeParseItinerary, safeParseReviews } from '@/utils/tourJsonSchemas';
+import { resolveServerLanguage } from '@/lib/i18n.server';
 
 interface Props {
   params: { slug: string };
+  searchParams?: Record<string, string | string[] | undefined>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
+  const lang = resolveServerLanguage(searchParams);
   const tour = await prisma.tour.findUnique({
     where: { slug: params.slug },
     select: {
@@ -30,14 +33,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 
   const t = tour?.translations as Record<string, { title?: string; description?: string; seoTitle?: string; seoDescription?: string }> | undefined;
-  const title = tour?.metaTitle || t?.en?.seoTitle || t?.en?.title || 'Luxury Tour';
-  const description = tour?.metaDescription || t?.en?.seoDescription || t?.en?.description || 'Curated VIP tour and excursion in Hurghada, Red Sea, Egypt.';
-  const image = tour?.coverImage || `${baseUrl}/og/default.png`;
-  const price = tour?.priceAdult ?? tour?.adultPrice ?? tour?.basePrice ?? 0;
+  const localized = t?.[lang];
+  const english = t?.en;
+  const title =
+    (localized?.seoTitle || localized?.title) ||
+    tour?.metaTitle ||
+    english?.seoTitle ||
+    english?.title ||
+    'Egypt Tour';
+  const description =
+    (localized?.seoDescription || localized?.description) ||
+    tour?.metaDescription ||
+    english?.seoDescription ||
+    english?.description ||
+    'Curated tour and experience in Egypt.';
+  const image = tour?.coverImage || `${baseUrl}/opengraph-image`;
   const pageUrl = `${baseUrl}/tours/${params.slug}`;
 
   return {
-    title: `${title} | TALAGO Tours`,
+    title,
     description,
     keywords: tour?.keywords && tour.keywords.length > 0 ? tour.keywords : undefined,
     alternates: {
@@ -54,10 +68,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
     },
     openGraph: {
-      title: `${title} — TALAGO Tours`,
+      title,
       description,
       url: pageUrl,
-      siteName: 'TALAGO Tours',
+      siteName: 'TALAGO',
       images: [
         {
           url: image,
@@ -70,7 +84,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${title} — TALAGO Tours`,
+      title,
       description,
       images: [image],
     },

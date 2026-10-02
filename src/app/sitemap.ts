@@ -20,6 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '',
     '/tours',
     '/destinations',
+    '/blog',
     '/about',
     '/support',
     '/faq',
@@ -34,7 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries: MetadataRoute.Sitemap = staticRoutes.map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: new Date(),
-    changeFrequency: route === '' || route === '/tours' ? 'daily' : 'weekly',
+    changeFrequency: route === '' || route === '/tours' || route === '/blog' ? 'daily' : 'weekly',
     priority: route === '' ? 1.0 : route === '/tours' ? 0.9 : 0.7,
     alternates: {
       languages: buildAlternates(route),
@@ -72,17 +73,38 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
 
     destinationEntries = destinations.map((d) => ({
-      url: `${baseUrl}/destinations#${d.slug}`,
+      url: `${baseUrl}/destinations/${d.slug}`,
       lastModified: d.updatedAt,
-      changeFrequency: 'monthly',
-      priority: 0.75,
+      changeFrequency: 'weekly',
+      priority: 0.8,
       alternates: {
-        languages: buildAlternates(`/destinations#${d.slug}`),
+        languages: buildAlternates(`/destinations/${d.slug}`),
       },
     }));
   } catch (err) {
     console.warn('Failed to query destinations for sitemap:', err);
   }
 
-  return [...staticEntries, ...tourEntries, ...destinationEntries];
+  // Fetch published blog posts dynamically
+  let blogEntries: MetadataRoute.Sitemap = [];
+  try {
+    const posts = await prisma.blogPost.findMany({
+      where: { isPublished: true },
+      select: { slug: true, updatedAt: true },
+    });
+
+    blogEntries = posts.map((b) => ({
+      url: `${baseUrl}/blog/${b.slug}`,
+      lastModified: b.updatedAt,
+      changeFrequency: 'weekly',
+      priority: 0.75,
+      alternates: {
+        languages: buildAlternates(`/blog/${b.slug}`),
+      },
+    }));
+  } catch (err) {
+    console.warn('Failed to query blog posts for sitemap:', err);
+  }
+
+  return [...staticEntries, ...tourEntries, ...destinationEntries, ...blogEntries];
 }

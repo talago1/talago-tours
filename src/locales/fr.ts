@@ -2,6 +2,7 @@ import type { en } from './en';
 
 export const fr: typeof en = {
   navbar: {
+    home: 'Accueil',
     destinations: 'Destinations',
     tours: 'Tours',
     aboutUs: 'À Propos',
@@ -12,10 +13,10 @@ export const fr: typeof en = {
     guest: 'Invité'
   },
   hero: {
-    badge: 'Escapades privées en mer Rouge et expéditions dorées dans le désert',
+    badge: 'Voyages d\'exception en Égypte, mer Rouge & expéditions sur le Nil',
     tagline: 'Pas un circuit. Un souvenir.',
-    title: 'Dévoilez les paradis cachés de Hurghada',
-    description: 'Là où les profondeurs cristallines de la mer Rouge rencontrent les majestueuses dunes dorées. TALAGO propose des excursions en yacht de luxe, des journées sur des îles privées et des safaris cinématographiques dans le désert avec une hospitalité d\'élite.',
+    title: 'Découvrez les merveilles extraordinaires et les paradis cachés d\'Égypte',
+    description: 'Là où les profondeurs cristallines de la mer Rouge rencontrent les majestueuses dunes dorées et les temples légendaires du Nil. TALAGO organise des journées en yacht de luxe, des escapades sur des îles privées, des safaris dans le désert et des découvertes culturelles avec une hospitalité d\'élite.',
     exploreButton: 'Découvrir nos excursions',
     activeExperiences: 'expériences actives disponibles',
     guestProofButton: 'Avis des clients',
@@ -116,6 +117,8 @@ browseAll: 'Voir toutes les expériences',
     nearYou: 'Nous affichons les expériences les plus proches de votre position actuelle à {name}',
     exploreAllDestinations: 'Explorer toutes les destinations',
     viewAllDestinations: 'Voir toutes les destinations',
+    popularDestinations: 'Destinations Populaires',
+    popularDestinationsSubtitle: 'Explorez les régions emblématiques d’Égypte entre la mer Rouge, la vallée du Nil et les oasis du désert.',
     noResultsFilterTitle: 'Aucune expérience pour cette sélection',
     noResultsFilterDesc: 'Essayez Toutes les destinations ou une autre catégorie.',
     browseAllTours: 'Parcourir le répertoire complet et les filtres',
@@ -126,7 +129,7 @@ browseAll: 'Voir toutes les expériences',
     verified: 'Réservation vérifiée'
   },
   footer: {
-    tagline: 'Excursions en mer Rouge et safaris en quad de luxe à Hurghada.',
+    tagline: 'Circuits d’exception dans toute l’Égypte, excursions en yacht de luxe sur la mer Rouge et safaris dans le désert.',
     experiences: 'Expériences',
     support: 'Assistance',
     policies: 'Politiques',

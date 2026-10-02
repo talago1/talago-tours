@@ -230,9 +230,11 @@ export default function PublicTourCard({ tour, priority = false }: { tour: Publi
               </div>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3.5 py-2 text-xs font-black text-white transition-colors duration-300 group-hover:bg-[#00E5FF] group-hover:text-[#070F1E]">
-              <span>{dict.catalog.reserveSpot}</span>
-              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+            <span
+              aria-hidden
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-slate-300 transition-colors duration-300 group-hover:border-[#00E5FF]/50 group-hover:text-[#00E5FF]"
+            >
+              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
             </span>
           </div>
         </div>

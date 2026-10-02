@@ -34,6 +34,9 @@ export interface HeroSearchDestination {
 
 export interface HeroProps {
   heroBackground?: string;
+  heroBackgroundMobile?: string;
+  heroOverlayOpacity?: number;
+  showHero?: boolean;
   conciergePickImage?: string;
   conciergePickTitle?: string;
   conciergePickDescription?: string;
@@ -77,6 +80,9 @@ export interface HeroProps {
 
 export default function Hero({
   heroBackground,
+  heroBackgroundMobile,
+  heroOverlayOpacity = 40,
+  showHero = true,
   conciergePickImage,
   conciergePickTitle,
   conciergePickDescription,
@@ -258,9 +264,22 @@ export default function Hero({
     { value: heroMetric3Value, label: heroMetric3Label },
   ].filter((m) => Boolean(m.value && m.label));
 
+  if (!showHero) return null;
+
   return (
     <section className="relative overflow-hidden bg-[#070F1E] text-[#F8FAFC]">
       {/* Background Image / Ambient Backdrop */}
+      {!heroError && heroBackgroundMobile && (
+        <Image
+          src={heroBackgroundMobile}
+          alt="Global luxury experiences and coastal landscapes"
+          fill
+          priority
+          unoptimized={isRemote(heroBackgroundMobile)}
+          sizes="100vw"
+          className="scale-105 object-cover object-center md:hidden"
+        />
+      )}
       {!heroError && (
         <Image
           src={heroBackground || '/talago-hero-red-sea-desert.png'}
@@ -269,10 +288,16 @@ export default function Hero({
           priority
           unoptimized={isRemote(heroBackground)}
           sizes="100vw"
-          className="scale-105 object-cover object-center transition-transform duration-1000 ease-out"
+          className={`scale-105 object-cover object-center ${heroBackgroundMobile ? 'hidden md:block' : ''}`}
           onError={() => setHeroError(true)}
         />
       )}
+
+      {/* Adjustable Scrim (admin-controlled overlay) */}
+      <div
+        className="absolute inset-0 bg-[#070F1E]"
+        style={{ opacity: Math.min(Math.max(heroOverlayOpacity, 0), 95) / 100 }}
+      />
 
       {/* Cinematic Dark & Ambient Overlays */}
       <div className="absolute inset-0 bg-gradient-to-r from-[#070F1E] via-[#070F1E]/90 to-[#070F1E]/75" />

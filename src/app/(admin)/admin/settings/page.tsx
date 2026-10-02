@@ -20,13 +20,14 @@ import {
   RefreshCw,
   Languages,
   CreditCard,
+  Package,
 } from 'lucide-react';
 import type { SystemSettings, SiteBanner, HeroLanguageTexts } from '@/types/settings';
 import { DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
 import NotificationSettingsDashboard from '@/components/admin/NotificationSettingsDashboard';
 import GlobalAssetStudio from '@/components/admin/GlobalAssetStudio';
 
-type ActiveSection = 'contact' | 'financial' | 'paymentMethods' | 'system' | 'banners' | 'notifications';
+type ActiveSection = 'contact' | 'financial' | 'paymentMethods' | 'system' | 'banners' | 'notifications' | 'modules';
 
 const HERO_LANGUAGES = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -45,6 +46,7 @@ const SECTIONS: { key: ActiveSection; label: string; icon: typeof Settings }[] =
   { key: 'system', label: 'System Toggles', icon: ToggleLeft },
   { key: 'banners', label: 'Hero & Banners', icon: ImageIcon },
   { key: 'notifications', label: 'Notifications', icon: MessageSquare },
+  { key: 'modules', label: 'Advanced Modules', icon: Package },
 ];
 
 export default function AdminSettingsPage() {
@@ -69,6 +71,7 @@ export default function AdminSettingsPage() {
               paymentMethods: { ...DEFAULT_SYSTEM_SETTINGS.paymentMethods, ...(data.settings.paymentMethods || {}) },
               system: { ...DEFAULT_SYSTEM_SETTINGS.system, ...(data.settings.system || {}) },
               banners: { ...DEFAULT_SYSTEM_SETTINGS.banners, ...(data.settings.banners || {}) },
+              modules: { ...DEFAULT_SYSTEM_SETTINGS.modules, ...(data.settings.modules || {}) },
             };
             setSettings(merged);
           }
@@ -121,6 +124,7 @@ export default function AdminSettingsPage() {
   }
 
   const heroBgUploadRef = useRef<HTMLInputElement>(null);
+  const heroBgMobileUploadRef = useRef<HTMLInputElement>(null);
   const conciergeUploadRef = useRef<HTMLInputElement>(null);
   const aboutUploadRef = useRef<HTMLInputElement>(null);
 
@@ -135,6 +139,27 @@ export default function AdminSettingsPage() {
       const url = data.uploaded?.[0]?.url;
       if (url) {
         setSettings((prev) => ({ ...prev, banners: { ...prev.banners, heroBackground: url } }));
+      }
+    } catch {
+      // silent
+    }
+    if (e.target) e.target.value = '';
+  }
+
+  async function handleHeroBgMobileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('files', file);
+    try {
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      const url = data.uploaded?.[0]?.url;
+      if (url) {
+        setSettings((prev) => ({
+          ...prev,
+          banners: { ...prev.banners, heroBackgroundMobile: url },
+        }));
       }
     } catch {
       // silent
@@ -740,6 +765,103 @@ export default function AdminSettingsPage() {
                             Reset
                           </button>
                         )}
+                      </div>
+                    </div>
+
+                    {/* Hero Mobile Background + Overlay + Visibility */}
+                    <div className="mb-6 grid gap-4 rounded-2xl border border-white/10 bg-[#0B1528] p-4 lg:grid-cols-2">
+                      <div>
+                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-[#FFD700]">
+                          Hero Mobile Background (optional)
+                        </span>
+                        <p className="mb-2 text-xs text-slate-500">
+                          Portrait image shown on phones. Falls back to the desktop image when empty.
+                        </p>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <input
+                            type="url"
+                            value={settings.banners.heroBackgroundMobile || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroBackgroundMobile: e.target.value },
+                              }))
+                            }
+                            placeholder="https://... or click Upload"
+                            className="flex-1 rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
+                          />
+                          <input
+                            ref={heroBgMobileUploadRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleHeroBgMobileUpload}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => heroBgMobileUploadRef.current?.click()}
+                            className="flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#FFD700] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] text-[#070F1E] transition-all hover:bg-[#FFE55C]"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Upload
+                          </button>
+                          {settings.banners.heroBackgroundMobile && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: { ...prev.banners, heroBackgroundMobile: '' },
+                                }))
+                              }
+                              className="flex shrink-0 items-center justify-center rounded-2xl border border-white/10 px-4 py-3.5 text-xs text-slate-400 hover:text-red-400"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="mb-2 flex items-center justify-between text-xs font-black uppercase tracking-[0.18em] text-[#FFD700]">
+                            <span>Overlay Darkness</span>
+                            <span className="text-white">{settings.banners.heroOverlayOpacity ?? 40}%</span>
+                          </label>
+                          <input
+                            type="range"
+                            min={0}
+                            max={95}
+                            step={5}
+                            value={settings.banners.heroOverlayOpacity ?? 40}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, heroOverlayOpacity: Number(e.target.value) },
+                              }))
+                            }
+                            className="w-full accent-[#FFD700]"
+                          />
+                          <p className="mt-1 text-xs text-slate-500">
+                            Darkens the hero image so headline text stays readable.
+                          </p>
+                        </div>
+                        <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={settings.banners.showHero !== false}
+                            onChange={(e) =>
+                              setSettings((prev) => ({
+                                ...prev,
+                                banners: { ...prev.banners, showHero: e.target.checked },
+                              }))
+                            }
+                            className="h-4 w-4 accent-[#FFD700]"
+                          />
+                          <span className="text-xs font-bold text-white">
+                            Show hero section on the homepage
+                          </span>
+                        </label>
                       </div>
                     </div>
 
@@ -1748,6 +1870,71 @@ export default function AdminSettingsPage() {
             {activeSection === 'notifications' && (
               <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
                 <NotificationSettingsDashboard />
+              </div>
+            )}
+
+            {activeSection === 'modules' && (
+              <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
+                <div className="mb-6">
+                  <h2 className="text-lg font-black text-white">Advanced Modules</h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Optional marketplace features. All are disabled by default — enable only when the
+                    operational workflows behind them are ready.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {(
+                    [
+                      {
+                        key: 'partners',
+                        label: 'Partners',
+                        description: 'Public partner directory and co-branded listings.',
+                      },
+                      {
+                        key: 'supplierPortal',
+                        label: 'Supplier Portal',
+                        description: 'Third-party suppliers manage their own tours and availability.',
+                      },
+                      {
+                        key: 'affiliates',
+                        label: 'Affiliates',
+                        description: 'Affiliate tracking links, referrals and commission payouts.',
+                      },
+                      {
+                        key: 'applications',
+                        label: 'Applications',
+                        description: 'Accept and review partner/supplier onboarding applications.',
+                      },
+                      {
+                        key: 'additionalCountries',
+                        label: 'Additional Countries',
+                        description: 'Expand the catalog beyond Egypt to other countries.',
+                      },
+                    ] as const
+                  ).map((mod) => (
+                    <label
+                      key={mod.key}
+                      className="flex items-start gap-4 rounded-2xl border border-white/10 bg-[#070F1E] p-4"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={settings.modules?.[mod.key] === true}
+                        onChange={(e) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            modules: { ...prev.modules, [mod.key]: e.target.checked },
+                          }))
+                        }
+                        className="mt-0.5 h-4 w-4 accent-[#00E5FF]"
+                      />
+                      <span>
+                        <span className="block text-sm font-bold text-white">{mod.label}</span>
+                        <span className="block text-xs text-slate-400">{mod.description}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
           </div>

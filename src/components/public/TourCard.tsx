@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
-import { Star, Clock, MapPin } from 'lucide-react';
+import { Star, Clock, MapPin, ArrowRight } from 'lucide-react';
 import type { PublicTour } from '@/types/publicTour';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -106,8 +106,11 @@ export default function TourCard({ tour, priority }: TourCardProps) {
                 <span className="text-sm font-bold text-slate-400 block">Contact us</span>
               )}
             </div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-black text-white transition-all duration-300 ease-in-out hover:scale-[1.02] hover:border-[#EAB308]/40 hover:bg-[#EAB308] hover:text-[#070F1E]">
-              {dict.catalog.reserveSpot}
+            <span
+              aria-hidden
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-slate-300 transition-colors duration-300 group-hover:border-[#EAB308]/50 group-hover:text-[#EAB308]"
+            >
+              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
             </span>
           </div>
         </div>

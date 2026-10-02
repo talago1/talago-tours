@@ -11,6 +11,7 @@ interface DestinationData {
   slug: string;
   description: string | null;
   imageUrl: string | null;
+  translations?: unknown;
   _count: { tours: number };
 }
 
@@ -31,7 +32,7 @@ function getGradient(index: number): string {
 }
 
 export default function PopularDestinations({ destinations }: PopularDestinationsProps) {
-  const { dict } = useLanguage();
+  const { dict, language } = useLanguage();
 
   if (destinations.length === 0) return null;
 
@@ -44,10 +45,11 @@ export default function PopularDestinations({ destinations }: PopularDestination
               {dict.navbar.destinations}
             </p>
             <h2 className="text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Popular Destinations
+              {(dict.catalog as any).popularDestinations || 'Popular Destinations'}
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-400">
-              Explore the most sought-after locations along the Red Sea coast.
+              {(dict.catalog as any).popularDestinationsSubtitle ||
+                'Explore Egypt’s most iconic regions across the Red Sea, Nile Valley, and desert oases.'}
             </p>
           </div>
           <Link
@@ -60,47 +62,56 @@ export default function PopularDestinations({ destinations }: PopularDestination
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {destinations.map((dest, index) => (
-            <Link
-              key={dest.id}
-              href={`/tours?destination=${dest.slug}`}
-              className="group relative overflow-hidden rounded-[2rem] shadow-2xl shadow-black/20 transition-all duration-300 hover:-translate-y-2 hover:shadow-[#06B6D4]/10"
-            >
-              <div className={`aspect-[4/5] bg-gradient-to-br ${getGradient(index)} p-6 flex flex-col justify-end`}>
-                {dest.imageUrl && (
-                  <Image
-                    src={dest.imageUrl}
-                    alt={dest.name}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    className="object-cover opacity-60"
-                  />
-                )}
-                <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full border-[20px] border-white/5" />
-                <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full border-[20px] border-white/5" />
+          {destinations.map((dest, index) => {
+            const t = dest.translations as
+              | Record<string, { name?: string; description?: string }>
+              | null
+              | undefined;
+            const localizedName = t?.[language]?.name || t?.en?.name || dest.name;
+            const localizedDesc = t?.[language]?.description || t?.en?.description || dest.description;
 
-                <div className="relative z-10">
-                  <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-sm">
-                    <MapPin className="h-3 w-3" />
-                    {dest.name}
-                  </div>
-                  {dest.description && (
-                    <p className="mb-4 text-sm leading-6 text-white/80">
-                      {dest.description}
-                    </p>
+            return (
+              <Link
+                key={dest.id}
+                href={`/destinations/${dest.slug}`}
+                className="group relative overflow-hidden rounded-[2rem] shadow-2xl shadow-black/20 transition-all duration-300 hover:-translate-y-2 hover:shadow-[#06B6D4]/10"
+              >
+                <div className={`aspect-[4/5] bg-gradient-to-br ${getGradient(index)} p-6 flex flex-col justify-end`}>
+                  {dest.imageUrl && (
+                    <Image
+                      src={dest.imageUrl}
+                      alt={localizedName}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      className="object-cover opacity-60"
+                    />
                   )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white/60">
-                      {dest._count.tours} tour{dest._count.tours !== 1 ? 's' : ''}
-                    </span>
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-300 group-hover:bg-white/20 group-hover:scale-110">
-                      <ArrowRight className="h-4 w-4" />
-                    </span>
+                  <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full border-[20px] border-white/5" />
+                  <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full border-[20px] border-white/5" />
+
+                  <div className="relative z-10">
+                    <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-sm">
+                      <MapPin className="h-3 w-3" />
+                      {localizedName}
+                    </div>
+                    {localizedDesc && (
+                      <p className="mb-4 text-sm leading-6 text-white/80 line-clamp-2">
+                        {localizedDesc}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white/60">
+                        {dest._count.tours} {dest._count.tours === 1 ? 'tour' : 'tours'}
+                      </span>
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-300 group-hover:bg-white/20 group-hover:scale-110">
+                        <ArrowRight className="h-4 w-4" />
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>

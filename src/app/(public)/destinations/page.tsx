@@ -1,9 +1,40 @@
 import { prisma } from '@/lib/prisma';
 import { parseSettingValue } from '@/lib/systemSettings';
 import { SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
+import { resolveServerLanguage } from '@/lib/i18n.server';
+import type { Metadata } from 'next';
 import DestinationsClient from './DestinationsClient';
 
 export const dynamic = 'force-dynamic';
+
+const destinationsBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}): Promise<Metadata> {
+  const lang = resolveServerLanguage(searchParams);
+  return {
+    title: 'Egypt Destinations',
+    description:
+      'Explore Egypt by destination — Hurghada, Sharm El Sheikh, Marsa Alam, El Gouna, Cairo, Luxor, Aswan and more. Discover and book tours with TALAGO.',
+    alternates: {
+      canonical: `${destinationsBaseUrl}/destinations`,
+      languages: {
+        en: `${destinationsBaseUrl}/destinations?lang=en`,
+        de: `${destinationsBaseUrl}/destinations?lang=de`,
+        ru: `${destinationsBaseUrl}/destinations?lang=ru`,
+        it: `${destinationsBaseUrl}/destinations?lang=it`,
+        fr: `${destinationsBaseUrl}/destinations?lang=fr`,
+        pl: `${destinationsBaseUrl}/destinations?lang=pl`,
+        es: `${destinationsBaseUrl}/destinations?lang=es`,
+        'x-default': `${destinationsBaseUrl}/destinations`,
+      },
+    },
+    openGraph: { locale: lang, siteName: 'TALAGO' },
+  };
+}
 
 export default async function DestinationsPage() {
   const [destinations, bannerSetting] = await Promise.all([

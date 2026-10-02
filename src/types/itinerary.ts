@@ -44,6 +44,22 @@ export interface ItineraryMilestone {
   longitude?: number;
   /** Semantic role of this milestone in the route */
   pointType?: ItineraryPointType;
+  /** Unstructured free time at this stop, in minutes */
+  freeTimeMinutes?: number;
+  /** Entrance / admission fee note (e.g. "€5 per person, paid on site") */
+  entranceFee?: string;
+  /** Local guide accompanying this stop */
+  guideIncluded?: boolean;
+  /** Whether this stop is covered by the tour price (defaults to true) */
+  included?: boolean;
+  /** Transport mode used to reach this stop (e.g. "Air-conditioned van") */
+  transport?: string;
+  /** Meal provided at this stop (e.g. "Lunch included") */
+  meal?: string;
+  /** Optional add-on activity available at this stop */
+  optionalActivity?: string;
+  /** Free-form notes / instructions for this stop */
+  notes?: string;
   /** Schema version marker — set to 2 on new milestones */
   _v?: number;
 }

@@ -204,7 +204,7 @@ export default function DestinationsClient({ destinations, banners }: Props) {
                 return (
                   <Link
                     key={dest.id}
-                    href={`/tours?destination=${dest.slug}`}
+                    href={`/destinations/${dest.slug}`}
                     className={`group relative overflow-hidden rounded-[2rem] border border-white/[0.06] bg-[#0B1528] transition-all duration-500 hover:border-[#00E5FF]/20 hover:shadow-2xl hover:shadow-[#00E5FF]/5 ${
                       index === 0 ? 'md:col-span-2 md:row-span-2' : ''
                     }`}

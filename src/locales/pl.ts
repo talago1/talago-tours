@@ -2,6 +2,7 @@ import type { en } from './en';
 
 export const pl: typeof en = {
   navbar: {
+    home: 'Strona główna',
     destinations: 'Kierunki',
     tours: 'Wycieczki',
     aboutUs: 'O nas',
@@ -12,10 +13,10 @@ export const pl: typeof en = {
     guest: 'Gość'
   },
   hero: {
-    badge: 'Prywatne rejsy po Morzu Czerwonym i ekskluzywne wyprawy na pustynię',
+    badge: 'Luksusowe wycieczki po Egipcie, Morze Czerwone i wyprawy nad Nil',
     tagline: 'Nie wycieczka. Wspomnienie.',
-    title: 'Odkryj ukryte raje Hurghady',
-    description: 'Tam, gdzie dziewicze głębiny Morza Czerwonego spotykają się z majestatycznymi złotymi wydmami. TALAGO organizuje luksusowe rejsy jachtami, prywatne dni na wyspach i filmowe safari na quadach z elitarną gościnnością.',
+    title: 'Odkryj niezwykłe cuda i ukryte raje Egiptu',
+    description: 'Tam, gdzie lazurowe głębiny Morza Czerwonego spotykają się ze złotymi wydmami i ponadczasowymi świątyniami Nilu. TALAGO tworzy ekskluzywne rejsy jachtami, prywatne dni na wyspach, safari pustynne i wyprawy kulturowe z elitarną gościnnością.',
     exploreButton: 'Nasze wyjątkowe wycieczki',
     activeExperiences: 'aktywnych doświadczeń w ofercie',
     guestProofButton: 'Opinie gości',
@@ -116,6 +117,8 @@ browseAll: 'Zobacz wszystkie doświadczenia',
     nearYou: 'Pokazujemy doświadczenia w {name}, najbliższe Twojej obecnej lokalizacji',
     exploreAllDestinations: 'Zobacz wszystkie kierunki',
     viewAllDestinations: 'Zobacz wszystkie kierunki',
+    popularDestinations: 'Popularne Kierunki',
+    popularDestinationsSubtitle: 'Odkryj najbardziej znane regiony Egiptu: Morze Czerwone, Dolinę Nilu i oazy pustynne.',
     noResultsFilterTitle: 'Brak doświadczeń dla tego wyboru',
     noResultsFilterDesc: 'Spróbuj wybrać Wszystkie kierunki lub inną kategorię.',
     browseAllTours: 'Przeglądaj pełny katalog doświadczeń i filtry',

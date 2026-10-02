@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import BlogClient from './BlogClient';
 import type { Metadata } from 'next';
+import { resolveServerLanguage } from '@/lib/i18n.server';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,33 +9,44 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
 const BLOG_DESCRIPTION =
   'Expert Egypt travel guides, secret snorkeling spots, yacht charter guides, quad safari tips, and Luxor & Cairo cultural itineraries.';
 
-export const metadata: Metadata = {
-  title: 'Travel Blog & Red Sea Excursion Guides | TALAGO Tours',
-  description: BLOG_DESCRIPTION,
-  alternates: { canonical: `${baseUrl}/blog` },
-  openGraph: {
-    title: 'Egypt Travel Blog & Guides | TALAGO Tours',
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}): Promise<Metadata> {
+  const lang = resolveServerLanguage(searchParams);
+  const title = 'Egypt Travel Blog & Guides';
+  return {
+    title,
     description: BLOG_DESCRIPTION,
-    url: `${baseUrl}/blog`,
-    siteName: 'TALAGO Tours',
-    locale: 'en_US',
-    type: 'website',
-    images: [
-      {
-        url: `${baseUrl}/og/default.png`,
-        width: 1200,
-        height: 630,
-        alt: 'TALAGO Tours travel guides for Egypt and the Red Sea',
+    alternates: {
+      canonical: `${baseUrl}/blog`,
+      languages: {
+        en: `${baseUrl}/blog?lang=en`,
+        de: `${baseUrl}/blog?lang=de`,
+        ru: `${baseUrl}/blog?lang=ru`,
+        it: `${baseUrl}/blog?lang=it`,
+        fr: `${baseUrl}/blog?lang=fr`,
+        pl: `${baseUrl}/blog?lang=pl`,
+        es: `${baseUrl}/blog?lang=es`,
+        'x-default': `${baseUrl}/blog`,
       },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Egypt Travel Blog & Guides | TALAGO Tours',
-    description: BLOG_DESCRIPTION,
-    images: [`${baseUrl}/og/default.png`],
-  },
-};
+    },
+    openGraph: {
+      title,
+      description: BLOG_DESCRIPTION,
+      url: `${baseUrl}/blog`,
+      siteName: 'TALAGO',
+      locale: `${lang}_${lang.toUpperCase()}`,
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: BLOG_DESCRIPTION,
+    },
+  };
+}
 
 export default async function BlogPage() {
   const posts = await prisma.blogPost.findMany({

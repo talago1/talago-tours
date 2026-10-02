@@ -1,5 +1,6 @@
 export const en = {
   navbar: {
+    home: 'Home',
     destinations: 'Destinations',
     tours: 'Tours',
     aboutUs: 'About Us',
@@ -10,10 +11,10 @@ export const en = {
     guest: 'Guest'
   },
   hero: {
-    badge: 'Private Red Sea escapes and golden desert expeditions',
+    badge: 'Egypt luxury tours, Red Sea escapes & historic Nile expeditions',
     tagline: 'Not a Tour. A Memory.',
-    title: "Unveil Hurghada's Hidden Paradises",
-    description: 'Where the pristine depths of the Red Sea meet the majestic golden dunes. TALAGO curates yacht-level marine trips, private island days, and cinematic desert safaris with elite hospitality.',
+    title: "Unveil Egypt's Extraordinary Wonders & Hidden Paradises",
+    description: 'Where the pristine depths of the Red Sea meet majestic golden dunes and timeless Nile temples. TALAGO curates yacht-level marine days, private island escapes, desert safaris, and cultural discoveries with elite hospitality.',
     exploreButton: 'Explore Signature Trips',
     activeExperiences: 'active experiences live',
     guestProofButton: 'View Guest Proof',
@@ -114,6 +115,8 @@ browseAll: 'Browse All Experiences',
     nearYou: 'Showing experiences closest to your current location in {name}',
     exploreAllDestinations: 'Explore All Destinations',
     viewAllDestinations: 'View all destinations',
+    popularDestinations: 'Popular Destinations',
+    popularDestinationsSubtitle: 'Explore Egypt’s most iconic regions across the Red Sea, Nile Valley, and desert oases.',
     noResultsFilterTitle: 'No experiences found for this selection',
     noResultsFilterDesc: 'Try selecting All Destinations or another category to view more.',
     browseAllTours: 'Browse full experience directory & search filters',
@@ -124,7 +127,7 @@ browseAll: 'Browse All Experiences',
     verified: 'Verified Booking'
   },
   footer: {
-    tagline: 'Elite Red Sea marine trips and high-end desert safaris crafted for discerning travelers seeking private access, polished service, and seamless luxury in Hurghada.',
+    tagline: 'Vetted Egypt tours, luxury Red Sea marine trips, and high-end desert safaris crafted for discerning travelers seeking private access, polished service, and seamless luxury across Egypt.',
     experiences: 'Experiences',
     support: 'Support',
     policies: 'Policies',

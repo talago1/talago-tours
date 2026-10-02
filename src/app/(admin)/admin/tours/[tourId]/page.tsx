@@ -87,6 +87,7 @@ export default async function EditTourPage({ params }: Params) {
     cancellationPolicy: tour.cancellationPolicy || '',
     adultPrice: tour.adultPrice || tour.basePriceUSD || 0,
     originalPrice: tour.originalPrice || undefined,
+    privatePrice: tour.pricePrivate || undefined,
     childEnabled: Boolean(tour.childPrice && tour.childPrice > 0),
     childPrice: tour.childPrice || 0,
     childMinAge: tour.childMinAge ?? 3,

@@ -36,7 +36,7 @@ export default function FloatingConciergeWidget() {
           <div className="mt-3">
             <p className="text-sm font-bold text-white">Need personal assistance?</p>
             <p className="mt-1 text-xs leading-5 text-slate-300">
-              Our Hurghada Red Sea luxury hosts are online to curate custom private yacht charters and quad safaris for you.
+              Our Egypt travel specialists are online to curate custom private yacht charters, desert safaris, and Nile experiences for you.
             </p>
           </div>
 

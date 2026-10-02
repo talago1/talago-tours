@@ -141,6 +141,13 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
     setIsDirty(true);
   }, [activeLang]);
 
+  const updateFaqItems = useCallback(
+    (items: NonNullable<LocalizedTourContent['faqItems']>) => {
+      updateLocalized({ faqItems: items });
+    },
+    [updateLocalized],
+  );
+
   // Current localized content helper
   const currentLocale = useMemo(() => {
     return data.translations[activeLang] || createDefaultLocalizedContent();
@@ -253,6 +260,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
         basePriceUSD: data.basePriceUSD || data.adultPrice || 0,
         adultPrice: data.adultPrice,
         originalPrice: data.originalPrice || undefined,
+        privatePrice: typeof data.privatePrice === 'number' && data.privatePrice > 0 ? data.privatePrice : undefined,
         durationHours: data.durationHours || 1,
         maxCapacity: data.maxCapacity || 10,
         coverImage: data.coverImage || undefined,
@@ -1184,6 +1192,26 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   )}
                 </div>
 
+                <div className="rounded-xl border border-white/10 bg-[#070F1E] p-4 space-y-2">
+                  <div>
+                    <span className="text-sm font-bold text-white block">Private Tour Price</span>
+                    <span className="text-xs text-slate-400">
+                      Optional flat price for a fully private departure (leave empty to disable).
+                    </span>
+                  </div>
+                  <div className="max-w-[220px]">
+                    <label className="block text-xs text-slate-400 mb-1">Private Price (USD)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={data.privatePrice ?? ''}
+                      onChange={(e) => updateData({ privatePrice: parseFloat(e.target.value) || undefined })}
+                      placeholder="0.00"
+                      className="w-full rounded-xl border border-white/10 bg-[#0B1528] px-3 py-2 text-sm text-white"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                     Age & Participant Restrictions Notes
@@ -1780,6 +1808,97 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   placeholder="Swimwear, beach towels, sunglasses, sun cream, camera or waterproof phone case."
                   className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                 />
+              </div>
+            )}
+
+            {activeSection === 'important-info' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
+                    Important Information ({activeLang.toUpperCase()})
+                  </label>
+                  <p className="text-xs text-slate-400">
+                    Need-to-know details guests should read before booking — ID/passport rules, restrictions, what is not suitable, and good-to-know notes.
+                  </p>
+                </div>
+                <textarea
+                  rows={6}
+                  value={currentLocale.importantInfo || ''}
+                  onChange={(e) => updateLocalized({ importantInfo: e.target.value })}
+                  placeholder="Please bring your passport. Not recommended for pregnant guests or children under 6. Entrance fees are not included..."
+                  className="w-full resize-y rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
+                />
+              </div>
+            )}
+
+            {activeSection === 'faqs' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-300">
+                      FAQs ({activeLang.toUpperCase()})
+                    </label>
+                    <p className="text-xs text-slate-400">
+                      Questions and answers shown on the public tour page accordion.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateFaqItems([...(currentLocale.faqItems || []), { question: '', answer: '' }])
+                    }
+                    className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-white/10"
+                  >
+                    + Add FAQ
+                  </button>
+                </div>
+
+                {(currentLocale.faqItems || []).length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-xs text-slate-500">
+                    No FAQs yet for {activeLang.toUpperCase()}. Click &quot;Add FAQ&quot; to create localized FAQ content.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(currentLocale.faqItems || []).map((faq, i) => (
+                      <div key={i} className="space-y-2 rounded-xl border border-white/10 bg-[#070F1E] p-3">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={faq.question}
+                            onChange={(e) => {
+                              const items = [...(currentLocale.faqItems || [])];
+                              items[i] = { ...items[i], question: e.target.value };
+                              updateFaqItems(items);
+                            }}
+                            placeholder="Question"
+                            className="flex-1 rounded-lg border border-white/10 bg-[#0B1528] px-3 py-2 text-sm text-white outline-none focus:border-[#00E5FF]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateFaqItems((currentLocale.faqItems || []).filter((_, idx) => idx !== i))
+                            }
+                            className="rounded-lg p-2 text-rose-400/70 hover:bg-rose-500/10 hover:text-rose-400"
+                            title="Delete FAQ"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={faq.answer}
+                          onChange={(e) => {
+                            const items = [...(currentLocale.faqItems || [])];
+                            items[i] = { ...items[i], answer: e.target.value };
+                            updateFaqItems(items);
+                          }}
+                          placeholder="Answer"
+                          className="w-full resize-y rounded-lg border border-white/10 bg-[#0B1528] px-3 py-2 text-sm text-white outline-none focus:border-[#00E5FF]"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

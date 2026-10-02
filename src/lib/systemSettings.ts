@@ -1,4 +1,4 @@
-export const SETTINGS_KEYS = ['contact', 'financial', 'system', 'paymentMethods', 'banners'] as const;
+export const SETTINGS_KEYS = ['contact', 'financial', 'system', 'paymentMethods', 'banners', 'modules'] as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[number];
 
@@ -18,7 +18,7 @@ export function serializeSettingValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
-const DEFAULT_SETTINGS = {
+export const DEFAULT_SETTINGS = {
   contact: {
     whatsappNumber: '+2010222434602',
     corporateEmail: 'tala.tour@outlook.com',
@@ -41,6 +41,9 @@ const DEFAULT_SETTINGS = {
   },
   banners: {
     heroBackground: '',
+    heroBackgroundMobile: '',
+    heroOverlayOpacity: 40,
+    showHero: true,
     splitSectionLeft: '',
     splitSectionRight: '',
     toursCatalogBackground: '',
@@ -69,6 +72,14 @@ const DEFAULT_SETTINGS = {
     heroSecondaryBtnLink: '/#verified-reviews',
     showSecondaryBtn: true,
 
+    toursHeroBackground: '',
+    toursHeroBadge: '',
+    toursHeroTitle: '',
+    toursHeroDescription: '',
+    toursHeroBtnText: '',
+    toursHeroRatingValue: '',
+    toursHeroRatingLabel: '',
+
     showHeroMetrics: true,
     heroMetric1Value: '',
     heroMetric1Label: '',
@@ -80,6 +91,15 @@ const DEFAULT_SETTINGS = {
     aboutPhilosophyImage: '',
     assets: [] as { id: string; label: string; url: string; section: string }[],
     heroTranslations: {} as Record<string, any>,
+  },
+  // Advanced marketplace modules are intentionally OFF by default. TALAGO ships as a
+  // single-operator tours platform; these stay dormant until explicitly enabled.
+  modules: {
+    partners: false,
+    supplierPortal: false,
+    affiliates: false,
+    applications: false,
+    additionalCountries: false,
   },
 };
 

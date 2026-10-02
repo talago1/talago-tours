@@ -15,6 +15,12 @@ export default function EditBlogPostPage() {
   const [coverImage, setCoverImage] = useState('');
   const [excerpt, setExcerpt] = useState('');
   const [content, setContent] = useState('');
+  const [category, setCategory] = useState('Travel Guide');
+  const [tags, setTags] = useState('');
+  const [authorName, setAuthorName] = useState('TALAGO Editorial');
+  const [readTimeMinutes, setReadTimeMinutes] = useState(5);
+  const [isPublished, setIsPublished] = useState(true);
+  const [isFeatured, setIsFeatured] = useState(false);
   const [translations, setTranslations] = useState<Record<string, any>>({});
 
   useEffect(() => {
@@ -28,6 +34,12 @@ export default function EditBlogPostPage() {
           setCoverImage(p.coverImage || '');
           setExcerpt(p.excerpt || '');
           setContent(p.content || '');
+          setCategory(p.category || 'Travel Guide');
+          setTags(Array.isArray(p.tags) ? p.tags.join(', ') : '');
+          setAuthorName(p.authorName || 'TALAGO Editorial');
+          setReadTimeMinutes(p.readTimeMinutes ?? 5);
+          setIsPublished(p.isPublished !== false);
+          setIsFeatured(p.isFeatured === true);
           if (p.translations) setTranslations(p.translations);
         }
       })
@@ -39,7 +51,20 @@ export default function EditBlogPostPage() {
     const res = await fetch(`/api/admin/blog/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, slug, coverImage, excerpt, content, translations }),
+      body: JSON.stringify({
+        title,
+        slug,
+        coverImage,
+        excerpt,
+        content,
+        translations,
+        category,
+        tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
+        authorName,
+        readTimeMinutes,
+        isPublished,
+        isFeatured,
+      }),
     });
     if (res.ok) router.push('/admin/blog');
   };
@@ -101,16 +126,80 @@ export default function EditBlogPostPage() {
         </div>
 
         {lang === 'en' && (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-slate-400">Slug</label>
-              <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full bg-[#0B1528] border border-white/10 rounded-xl p-3 text-white text-sm" />
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-slate-400">Slug</label>
+                <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full bg-[#0B1528] border border-white/10 rounded-xl p-3 text-white text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400">Cover Image URL</label>
+                <input type="text" value={coverImage} onChange={(e) => setCoverImage(e.target.value)} className="w-full bg-[#0B1528] border border-white/10 rounded-xl p-3 text-white text-sm" />
+              </div>
             </div>
-            <div>
-              <label className="text-xs text-slate-400">Cover Image</label>
-              <input type="text" value={coverImage} onChange={(e) => setCoverImage(e.target.value)} className="w-full bg-[#0B1528] border border-white/10 rounded-xl p-3 text-white text-sm" />
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs text-slate-400">Category</label>
+                <input
+                  type="text"
+                  list="blog-categories-edit"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full bg-[#0B1528] border border-white/10 rounded-xl p-3 text-white text-sm"
+                />
+                <datalist id="blog-categories-edit">
+                  <option value="Travel Guide" />
+                  <option value="Destinations" />
+                  <option value="Diving & Snorkeling" />
+                  <option value="Culture & History" />
+                  <option value="Tips & Advice" />
+                  <option value="News" />
+                </datalist>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400">Author</label>
+                <input
+                  type="text"
+                  value={authorName}
+                  onChange={(e) => setAuthorName(e.target.value)}
+                  className="w-full bg-[#0B1528] border border-white/10 rounded-xl p-3 text-white text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400">Read time (minutes)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={readTimeMinutes}
+                  onChange={(e) => setReadTimeMinutes(Number(e.target.value))}
+                  className="w-full bg-[#0B1528] border border-white/10 rounded-xl p-3 text-white text-sm"
+                />
+              </div>
             </div>
-          </div>
+
+            <div>
+              <label className="text-xs text-slate-400">Tags (comma separated)</label>
+              <input
+                type="text"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="red sea, snorkeling, family"
+                className="w-full bg-[#0B1528] border border-white/10 rounded-xl p-3 text-white text-sm"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-6">
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input type="checkbox" checked={isPublished} onChange={(e) => setIsPublished(e.target.checked)} className="h-4 w-4 accent-[#00E5FF]" />
+                Published
+              </label>
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="h-4 w-4 accent-[#00E5FF]" />
+                Featured
+              </label>
+            </div>
+          </>
         )}
 
         <div>

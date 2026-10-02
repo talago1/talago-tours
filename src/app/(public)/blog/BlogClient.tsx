@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { BookOpen, Clock, Search, ArrowRight } from 'lucide-react';
+import { BookOpen, Clock, Search, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface BlogPostData {
@@ -23,6 +23,8 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
   const { dict, language } = useLanguage();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('ALL');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 9;
 
   // Category values are stored in the database, so they stay untranslated;
   // only the synthetic "all" tab is localized.
@@ -39,6 +41,10 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
     }
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagePosts = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <div className="min-h-screen bg-[#070F1E] text-white">
@@ -59,7 +65,10 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
               type="text"
               placeholder={dict.blog.searchPlaceholder}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white outline-none focus:border-[#00E5FF]"
             />
           </div>
@@ -69,7 +78,10 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
               <button
                 key={cat}
                 type="button"
-                onClick={() => setCategory(cat)}
+                onClick={() => {
+                  setCategory(cat);
+                  setPage(1);
+                }}
                 className={`rounded-xl px-3.5 py-1.5 text-xs font-bold ${
                   category === cat ? 'bg-[#00E5FF] text-black' : 'bg-white/5 text-slate-300'
                 }`}
@@ -86,7 +98,7 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
           <div className="py-20 text-center text-slate-400">{dict.blog.noResults}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((post) => {
+            {pagePosts.map((post) => {
               const t = post.translations as Record<string, { title?: string; excerpt?: string }> | undefined;
               const title = t?.[language]?.title || post.title;
               const excerpt = t?.[language]?.excerpt || post.excerpt;
@@ -136,6 +148,49 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
               );
             })}
           </div>
+        )}
+
+        {totalPages > 1 && (
+          <nav
+            aria-label="Blog pagination"
+            className="mt-10 flex items-center justify-center gap-2"
+          >
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+              aria-label="Previous page"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:border-[#00E5FF]/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setPage(n)}
+                aria-current={n === safePage ? 'page' : undefined}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black transition ${
+                  n === safePage
+                    ? 'bg-[#00E5FF] text-black'
+                    : 'border border-white/10 bg-white/5 text-slate-300 hover:border-[#00E5FF]/40 hover:text-white'
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+              aria-label="Next page"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:border-[#00E5FF]/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </nav>
         )}
       </section>
     </div>

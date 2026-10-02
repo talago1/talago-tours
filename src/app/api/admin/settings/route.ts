@@ -1,99 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
+  DEFAULT_SETTINGS,
   isSettingsKey,
   mergeSystemSettings,
   parseSettingValue,
   serializeSettingValue,
   SETTINGS_KEYS,
 } from '@/lib/systemSettings';
-
-const DEFAULT_SETTINGS = {
-  contact: {
-    whatsappNumber: '+2010222434602',
-    corporateEmail: 'tala.tour@outlook.com',
-    socialLinks: {
-      instagram: 'https://instagram.com/talago',
-      facebook: 'https://facebook.com/talago',
-      twitter: 'https://twitter.com/talago',
-    },
-  },
-  financial: {
-    baseCurrency: 'USD',
-    exchangeRates: {
-      USD: 1,
-      EUR: 0.92,
-      RUB: 92.5,
-      GBP: 0.79,
-      PLN: 4.05,
-      EGP: 48.5,
-    },
-  },
-  system: {
-    maintenanceMode: false,
-    paymentGateways: {
-      paymob: true,
-      fawry: false,
-    },
-  },
-  paymentMethods: {
-    allowPayOnArrival: true,
-    allowFullOnline: true,
-    allowDepositOnline: true,
-    defaultDepositPercentage: 20,
-    allowPaymentLink: true,
-  },
-  banners: {
-    heroBackground: '',
-    splitSectionLeft: '',
-    splitSectionRight: '',
-    toursCatalogBackground: '',
-    destinationsBackground: '',
-    bookingCheckoutBackground: '',
-    conciergePickImage: '',
-    conciergePickTitle: 'Private yacht sunrise to Giftun Island',
-    conciergePickDescription: 'Champagne breakfast, reef snorkel guide, and flexible return timing.',
-    conciergePickBadge: 'CONCIERGE PICK',
-    conciergePickPrice: 'VIP All-Inclusive',
-    conciergePickLink: '/tours',
-    showConciergePick: true,
-
-    heroBadge: '',
-    heroTitle: '',
-    heroTagline: '',
-    heroDescription: '',
-    showHeroBadge: true,
-    showHeroTagline: true,
-    showHeroDescription: true,
-
-    heroPrimaryBtnText: '',
-    heroPrimaryBtnLink: '/tours',
-    showPrimaryBtn: true,
-    heroSecondaryBtnText: '',
-    heroSecondaryBtnLink: '/#verified-reviews',
-    showSecondaryBtn: true,
-
-    toursHeroBackground: '',
-    toursHeroBadge: '',
-    toursHeroTitle: '',
-    toursHeroDescription: '',
-    toursHeroBtnText: '',
-    toursHeroRatingValue: '',
-    toursHeroRatingLabel: '',
-
-    showHeroMetrics: true,
-    heroMetric1Value: '',
-    heroMetric1Label: '',
-    heroMetric2Value: '',
-    heroMetric2Label: '',
-    heroMetric3Value: '',
-    heroMetric3Label: '',
-
-    aboutPhilosophyImage: '',
-    assets: [],
-    heroTranslations: {},
-  },
-};
 
 export type SystemSettingsPayload = typeof DEFAULT_SETTINGS;
 

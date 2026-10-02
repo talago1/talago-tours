@@ -56,6 +56,7 @@ export async function PUT(
       exclusions,
       adultPrice,
       originalPrice,
+      privatePrice,
       childPrice,
       childMinAge,
       childMaxAge,
@@ -237,6 +238,10 @@ export async function PUT(
 
     if (originalPrice !== undefined) {
       updateData.originalPrice = originalPrice !== null && Number(originalPrice) > 0 ? Number(originalPrice) : null;
+    }
+
+    if (privatePrice !== undefined) {
+      updateData.pricePrivate = privatePrice !== null && Number(privatePrice) > 0 ? Number(privatePrice) : null;
     }
 
     if (childPrice !== undefined) {

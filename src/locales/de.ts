@@ -2,6 +2,7 @@ import type { en } from './en';
 
 export const de: typeof en = {
   navbar: {
+    home: 'Startseite',
     destinations: 'Reiseziele',
     tours: 'Touren',
     aboutUs: 'Über Uns',
@@ -12,10 +13,10 @@ export const de: typeof en = {
     guest: 'Gast'
   },
   hero: {
-    badge: 'Private Ausflüge auf dem Roten Meer und goldene Wüstensafaris',
+    badge: 'Ägypten Luxustouren, Rotes Meer & Nil-Expeditionen',
     tagline: 'Kein Ausflug. Eine Erinnerung.',
-    title: 'Enthüllen Sie Hurghadas verborgene Paradiese',
-    description: 'Wo die unberührten Tiefen des Roten Meeres auf die majestätischen goldenen Dünen treffen. TALAGO organisiert erstklassige Yachtausflüge, private Inseltage und filmreife Wüstensafaris mit exzellenter Gastfreundschaft.',
+    title: 'Enthüllen Sie Ägyptens außergewöhnliche Wunder & verborgene Paradiese',
+    description: 'Wo die unberührten Tiefen des Roten Meeres auf majestätische goldene Dünen und zeitlose Niltempel treffen. TALAGO organisiert erstklassige Yachtausflüge, private Inseltage, Wüstensafaris und historische Entdeckungen mit exzellenter Gastfreundschaft.',
     exploreButton: 'Erkunden Sie unsere Touren',
     activeExperiences: 'aktive Erlebnisse verfügbar',
     guestProofButton: 'Bewertungen ansehen',
@@ -116,6 +117,8 @@ browseAll: 'Alle Erlebnisse',
     nearYou: 'Wir zeigen Erlebnisse in {name}, die Ihrer aktuellen Position am nächsten liegen',
     exploreAllDestinations: 'Alle Reiseziele entdecken',
     viewAllDestinations: 'Ansicht aller Reiseziele',
+    popularDestinations: 'Beliebte Reiseziele',
+    popularDestinationsSubtitle: 'Entdecken Sie Ägyptens schönste Regionen am Roten Meer, im Niltal und in den Oasen.',
     noResultsFilterTitle: 'Keine Erlebnisse für diese Auswahl gefunden',
     noResultsFilterDesc: 'Wählen Sie Alle Reiseziele oder eine andere Kategorie.',
     browseAllTours: 'Gesamten Erlebniskatalog mit Filtern durchsuchen',
@@ -126,7 +129,7 @@ browseAll: 'Alle Erlebnisse',
     verified: 'Verifizierte Buchung'
   },
   footer: {
-    tagline: 'Elite Rotes Meer Bootsausflüge und Wüstensafaris für anspruchsvolle Reisende in Hurghada.',
+    tagline: 'Erstklassige Touren in ganz Ägypten, luxuriöse Bootsausflüge auf dem Roten Meer und Wüstensafaris mit exzellentem Service.',
     experiences: 'Erlebnisse',
     support: 'Kundenservice',
     policies: 'Richtlinien',

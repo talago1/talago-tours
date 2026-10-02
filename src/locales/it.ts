@@ -2,6 +2,7 @@ import type { en } from './en';
 
 export const it: typeof en = {
   navbar: {
+    home: 'Home',
     destinations: 'Destinazioni',
     tours: 'Tour',
     aboutUs: 'Chi Siamo',
@@ -12,10 +13,10 @@ export const it: typeof en = {
     guest: 'Ospite'
   },
   hero: {
-    badge: 'Fughe private sul Mar Rosso ed escursioni dorate nel deserto',
+    badge: 'Tour di lusso in Egitto, fughe sul Mar Rosso e spedizioni sul Nilo',
     tagline: 'Non un tour. Un ricordo.',
-    title: 'Svela i paradisi nascosti di Hurghada',
-    description: 'Dove le profondità incontaminate del Mar Rosso incontrano le maestose dune dorate. TALAGO cura uscite in yacht di altissimo livello, giornate su isole private e safari cinematografici nel deserto con un ospitalità d’élite.',
+    title: "Svela le meraviglie straordinarie e i paradisi nascosti dell'Egitto",
+    description: "Dove le profondità incontaminate del Mar Rosso incontrano maestose dune dorate e templi millenari sul Nilo. TALAGO organizza escursioni in yacht, fughe su isole private, safari nel deserto ed esperienze culturali con ospitalità d'élite.",
     exploreButton: 'Esplora i Tour Esclusivi',
     activeExperiences: 'esperienze attive disponibili',
     guestProofButton: 'Recensioni degli Ospiti',
@@ -116,6 +117,8 @@ browseAll: 'Vedi tutte le esperienze',
     nearYou: 'Mostriamo le esperienze più vicine alla tua posizione attuale a {name}',
     exploreAllDestinations: 'Esplora tutte le destinazioni',
     viewAllDestinations: 'Vedi tutte le destinazioni',
+    popularDestinations: 'Destinazioni Popolari',
+    popularDestinationsSubtitle: 'Esplora le regioni più iconiche dell’Egitto tra Mar Rosso, Valle del Nilo e oasi nel deserto.',
     noResultsFilterTitle: 'Nessuna esperienza per questa selezione',
     noResultsFilterDesc: 'Prova a scegliere Tutte le destinazioni o un’altra categoria.',
     browseAllTours: 'Sfoglia l’intero elenco esperienze e i filtri',
@@ -126,7 +129,7 @@ browseAll: 'Vedi tutte le esperienze',
     verified: 'Prenotazione Verificata'
   },
   footer: {
-    tagline: 'Escursioni in barca nel Mar Rosso e safari in quad di lusso a Hurghada.',
+    tagline: 'Tour verificati in tutto l’Egitto, escursioni in yacht sul Mar Rosso e safari nel deserto con ospitalità d’élite.',
     experiences: 'Esperienze',
     support: 'Supporto',
     policies: 'Politiche',

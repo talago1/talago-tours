@@ -358,6 +358,16 @@ function ItineraryTimeline({ itinerary, language = 'en' }: { itinerary: any[]; l
         const checklist = Array.isArray(item.checklist) ? item.checklist : [];
         const location = typeof item.location === 'object' ? (item.location[language] || item.location.en || '') : (item.location || '');
 
+        const chips: { label: string; tone: string }[] = [];
+        if (item.durationMinutes) chips.push({ label: `${item.durationMinutes} min`, tone: 'border-[#00E5FF]/20 bg-[#00E5FF]/5 text-[#00E5FF]' });
+        if (item.freeTimeMinutes) chips.push({ label: `Free time ${item.freeTimeMinutes} min`, tone: 'border-cyan-400/20 bg-cyan-400/5 text-cyan-300' });
+        if (item.transport) chips.push({ label: String(item.transport), tone: 'border-slate-400/20 bg-slate-400/5 text-slate-300' });
+        if (item.guideIncluded) chips.push({ label: 'Local guide', tone: 'border-emerald-400/20 bg-emerald-400/5 text-emerald-300' });
+        if (item.entranceFee) chips.push({ label: `Entrance: ${item.entranceFee}`, tone: 'border-amber-400/20 bg-amber-400/5 text-amber-300' });
+        if (item.meal) chips.push({ label: String(item.meal), tone: 'border-orange-400/20 bg-orange-400/5 text-orange-300' });
+        if (item.optionalActivity) chips.push({ label: `Optional: ${item.optionalActivity}`, tone: 'border-violet-400/20 bg-violet-400/5 text-violet-300' });
+        if (item.included === false) chips.push({ label: 'Not included', tone: 'border-rose-400/20 bg-rose-400/5 text-rose-300' });
+
         return (
           <div key={i} className="relative">
             <div className="absolute -left-8 top-0 flex h-[24px] w-[24px] items-center justify-center rounded-full border-2 border-[#00E5FF] bg-[#070F1E]">
@@ -372,6 +382,21 @@ function ItineraryTimeline({ itinerary, language = 'en' }: { itinerary: any[]; l
             )}
             {location && (<p className="mb-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{location}</p>)}
             <p className="text-sm leading-7 text-slate-300">{displayText}</p>
+            {chips.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {chips.map((chip, ci) => (
+                  <span
+                    key={ci}
+                    className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold ${chip.tone}`}
+                  >
+                    {chip.label}
+                  </span>
+                ))}
+              </div>
+            )}
+            {item.notes && (
+              <p className="mt-2 text-xs italic text-slate-400">{item.notes}</p>
+            )}
             {checklist.length > 0 && (
               <div className="mt-2 space-y-1">
                 {checklist.map((ci: string, cj: number) => (
@@ -580,6 +605,9 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
     ? tour.faqItems
     : [];
 
+  const localizedImportantInfo: string =
+    (langTranslation as any).importantInfo || (enTranslation as any).importantInfo || '';
+
   const pricePerAdult = tour.adultPrice ?? tour.basePrice;
   const effectiveChildPrice = tour.childPrice ?? null;
   const effectiveInfantPrice = tour.infantPrice ?? null;
@@ -763,6 +791,17 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
                         <span className="text-sm text-slate-300">{item}</span>
                       </div>
                     ))}
+                  </div>
+                </Accordion>
+              )}
+
+              {/* Important Information */}
+              {localizedImportantInfo && (
+                <Accordion title={(dict.tourDetails as any).importantInfo || 'Important Information'}>
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                    <p className="whitespace-pre-line text-sm leading-7 text-slate-300">
+                      {localizedImportantInfo}
+                    </p>
                   </div>
                 </Accordion>
               )}

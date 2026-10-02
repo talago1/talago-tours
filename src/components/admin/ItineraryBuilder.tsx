@@ -335,6 +335,103 @@ export default function ItineraryBuilder({ milestones, activeLanguage, errors, o
                     />
                   </div>
 
+                  {/* Free time */}
+                  <div className="md:col-span-3">
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                      🕒 Free Time (min)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={milestone.freeTimeMinutes ?? ''}
+                      onChange={(e) =>
+                        update(i, {
+                          freeTimeMinutes: e.target.value ? Number(e.target.value) : undefined,
+                        })
+                      }
+                      placeholder="45"
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  {/* Entrance fee */}
+                  <div className="md:col-span-5">
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                      🎟 Entrance Fee
+                    </label>
+                    <input
+                      type="text"
+                      value={milestone.entranceFee || ''}
+                      onChange={(e) => update(i, { entranceFee: e.target.value })}
+                      placeholder="e.g. €5 per person, paid on site"
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  {/* Transport */}
+                  <div className="md:col-span-4">
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                      🚐 Transport
+                    </label>
+                    <input
+                      type="text"
+                      value={milestone.transport || ''}
+                      onChange={(e) => update(i, { transport: e.target.value })}
+                      placeholder="e.g. Air-conditioned van"
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  {/* Guide included */}
+                  <div className="md:col-span-6 flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      checked={milestone.guideIncluded ?? false}
+                      onChange={(e) => update(i, { guideIncluded: e.target.checked })}
+                      className="h-5 w-5 rounded border-white/20 text-[#00E5FF]"
+                    />
+                    <span className="text-xs font-bold text-slate-300">Local guide included</span>
+                  </div>
+
+                  {/* Included in price */}
+                  <div className="md:col-span-6 flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      checked={milestone.included ?? true}
+                      onChange={(e) => update(i, { included: e.target.checked })}
+                      className="h-5 w-5 rounded border-white/20 text-[#00E5FF]"
+                    />
+                    <span className="text-xs font-bold text-slate-300">Included in tour price</span>
+                  </div>
+
+                  {/* Meal */}
+                  <div className="md:col-span-4">
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                      🍽 Meal
+                    </label>
+                    <input
+                      type="text"
+                      value={milestone.meal || ''}
+                      onChange={(e) => update(i, { meal: e.target.value })}
+                      placeholder="e.g. Lunch included"
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600"
+                    />
+                  </div>
+
+                  {/* Optional activity */}
+                  <div className="md:col-span-8">
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                      ➕ Optional Activity
+                    </label>
+                    <input
+                      type="text"
+                      value={milestone.optionalActivity || ''}
+                      onChange={(e) => update(i, { optionalActivity: e.target.value })}
+                      placeholder="e.g. Parasailing available at extra cost"
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600"
+                    />
+                  </div>
+
                   {/* Description (localized) */}
                   <div className="md:col-span-12">
                     <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
@@ -346,6 +443,20 @@ export default function ItineraryBuilder({ milestones, activeLanguage, errors, o
                       onChange={(e) => updateDescription(i, currentLang, e.target.value)}
                       placeholder={`Brief description of this stop in ${currentLang.toUpperCase()}...`}
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600 resize-y"
+                    />
+                  </div>
+
+                  {/* Notes / instructions */}
+                  <div className="md:col-span-12">
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                      ℹ️ Notes / Instructions
+                    </label>
+                    <input
+                      type="text"
+                      value={milestone.notes || ''}
+                      onChange={(e) => update(i, { notes: e.target.value })}
+                      placeholder="e.g. Please stay with your guide; snorkeling gear collected on board."
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3.5 py-2 text-sm text-white outline-none focus:border-[#06B6D4] placeholder:text-slate-600"
                     />
                   </div>
                 </div>

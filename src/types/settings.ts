@@ -1,3 +1,5 @@
+import { DEFAULT_SETTINGS } from '@/lib/systemSettings';
+
 export interface SiteBanner {
   id: string;
   label: string;
@@ -35,6 +37,9 @@ export interface SystemSettings {
   };
   banners: {
     heroBackground: string;
+    heroBackgroundMobile?: string;
+    heroOverlayOpacity?: number;
+    showHero?: boolean;
     splitSectionLeft: string;
     splitSectionRight: string;
     toursCatalogBackground: string;
@@ -84,6 +89,18 @@ export interface SystemSettings {
     assets: SiteBanner[];
     heroTranslations?: Partial<Record<string, HeroLanguageTexts>>;
   };
+  /**
+   * Advanced marketplace modules — all default to `false`. Enabling these turns on
+   * multi-operator features (partners, suppliers, affiliates, applications) and
+   * expansion beyond the curated destinations.
+   */
+  modules: {
+    partners: boolean;
+    supplierPortal: boolean;
+    affiliates: boolean;
+    applications: boolean;
+    additionalCountries: boolean;
+  };
 }
 
 export interface HeroLanguageTexts {
@@ -99,89 +116,6 @@ export interface HeroLanguageTexts {
   conciergePickPrice?: string;
 }
 
-export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
-  contact: {
-    whatsappNumber: '+2010222434602',
-    corporateEmail: 'tala.tour@outlook.com',
-    socialLinks: {
-      instagram: 'https://instagram.com/talago',
-      facebook: 'https://facebook.com/talago',
-      twitter: 'https://twitter.com/talago',
-    },
-  },
-  financial: {
-    baseCurrency: 'USD',
-    exchangeRates: {
-      USD: 1,
-      EUR: 0.92,
-      RUB: 92.5,
-      GBP: 0.79,
-      PLN: 4.05,
-      EGP: 48.5,
-    },
-  },
-  system: {
-    maintenanceMode: false,
-    paymentGateways: {
-      paymob: true,
-      fawry: false,
-    },
-  },
-  paymentMethods: {
-    allowPayOnArrival: true,
-    allowFullOnline: true,
-    allowDepositOnline: true,
-    defaultDepositPercentage: 20,
-    allowPaymentLink: true,
-  },
-  banners: {
-    heroBackground: '',
-    splitSectionLeft: '',
-    splitSectionRight: '',
-    toursCatalogBackground: '',
-    destinationsBackground: '',
-    bookingCheckoutBackground: '',
-    conciergePickImage: '',
-    conciergePickTitle: 'Private yacht sunrise to Giftun Island',
-    conciergePickDescription: 'Champagne breakfast, reef snorkel guide, and flexible return timing.',
-    conciergePickBadge: 'CONCIERGE PICK',
-    conciergePickPrice: 'VIP All-Inclusive',
-    conciergePickLink: '/tours',
-    showConciergePick: true,
-
-    heroBadge: '',
-    heroTitle: '',
-    heroTagline: '',
-    heroDescription: '',
-    showHeroBadge: true,
-    showHeroTagline: true,
-    showHeroDescription: true,
-
-    heroPrimaryBtnText: '',
-    heroPrimaryBtnLink: '/tours',
-    showPrimaryBtn: true,
-    heroSecondaryBtnText: '',
-    heroSecondaryBtnLink: '/#verified-reviews',
-    showSecondaryBtn: true,
-
-    toursHeroBackground: '',
-    toursHeroBadge: '',
-    toursHeroTitle: '',
-    toursHeroDescription: '',
-    toursHeroBtnText: '',
-    toursHeroRatingValue: '',
-    toursHeroRatingLabel: '',
-
-    showHeroMetrics: true,
-    heroMetric1Value: '',
-    heroMetric1Label: '',
-    heroMetric2Value: '',
-    heroMetric2Label: '',
-    heroMetric3Value: '',
-    heroMetric3Label: '',
-
-    aboutPhilosophyImage: '',
-    assets: [],
-    heroTranslations: {},
-  },
-};
+// Single source of truth lives in `src/lib/systemSettings.ts` so the public
+// read path, the admin defaults endpoint and this type module cannot drift.
+export const DEFAULT_SYSTEM_SETTINGS = DEFAULT_SETTINGS as unknown as SystemSettings;

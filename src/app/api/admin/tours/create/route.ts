@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
       cancellationPolicy,
       adultPrice,
       originalPrice,
+      privatePrice,
       priceAdult,
       childEnabled,
       childPrice,
@@ -368,6 +369,7 @@ export async function POST(request: NextRequest) {
         adultPrice: resolvedAdultPrice,
         priceAdult: resolvedAdultPrice,   // keep legacy alias in sync
         originalPrice: typeof originalPrice === 'number' && originalPrice > 0 ? originalPrice : null,
+        pricePrivate: typeof privatePrice === 'number' && privatePrice > 0 ? privatePrice : null,
         childPrice: childEnabled ? childPrice : null,
         priceChild: childEnabled ? (childPrice ?? null) : null, // keep legacy alias in sync
         childMinAge: childEnabled ? (childMinAge ?? 3) : null,

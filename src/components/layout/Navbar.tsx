@@ -69,7 +69,7 @@ export default function Navbar() {
             href="/"
             className="rounded-xl px-4 py-2 text-sm font-semibold tracking-wide text-slate-300 transition-all hover:bg-white/[0.06] hover:text-white"
           >
-            Home
+            {(dict?.navbar as any)?.home || 'Home'}
           </Link>
           <NavLinks />
           <NavActions />
@@ -95,7 +95,7 @@ export default function Navbar() {
                 href="/"
                 className="flex items-center rounded-xl px-4 py-3 text-base font-bold text-slate-200 transition-all hover:bg-white/5 hover:text-[#00E5FF]"
               >
-                Home
+                {(dict?.navbar as any)?.home || 'Home'}
               </Link>
               <Link
                 href="/tours"

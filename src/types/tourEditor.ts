@@ -22,6 +22,7 @@ export interface LocalizedTourContent {
   inclusions: string[];
   exclusions: string[];
   whatToBring?: string;
+  importantInfo?: string;
   pickupDescription?: string;
   cancellationPolicy?: string;
   cancellationPolicies?: string[];
@@ -61,6 +62,7 @@ export function createDefaultLocalizedContent(): LocalizedTourContent {
     inclusions: [],
     exclusions: [],
     whatToBring: '',
+    importantInfo: '',
     pickupDescription: '',
     cancellationPolicy: '',
     cancellationPolicies: [],
@@ -130,6 +132,8 @@ export type TourEditorSectionId =
   | 'requirements'
   | 'accessibility'
   | 'what-to-bring'
+  | 'important-info'
+  | 'faqs'
   | 'safety'
   | 'addons'
   | 'booking-questions'
@@ -175,6 +179,8 @@ export const TOUR_EDITOR_SECTIONS: SectionMeta[] = [
   { id: 'inclusions', title: '16. Included Features', shortLabel: 'Included', description: 'Everything included in the ticket price', group: 'content', isEssential: false },
   { id: 'exclusions', title: '17. Excluded Items', shortLabel: 'Excluded', description: 'What is not included / extra costs to expect', group: 'content', isEssential: false },
   { id: 'what-to-bring', title: '18. What to Bring', shortLabel: 'What to Bring', description: 'Recommended clothing, gear, sunscreen, passport', group: 'content', isEssential: false },
+  { id: 'important-info', title: '18a. Important Information', shortLabel: 'Important Info', description: 'Need-to-know notes, restrictions and good-to-know details', group: 'content', isEssential: false },
+  { id: 'faqs', title: '18b. FAQs', shortLabel: 'FAQs', description: 'Frequently asked questions with localized answers', group: 'content', isEssential: false },
 
   // Group 5: Rules & Safety
   { id: 'requirements', title: '19. Requirements & Fitness', shortLabel: 'Requirements', description: 'Fitness level, swimming ability and minimum requirements', group: 'rules', isEssential: false },
@@ -230,6 +236,7 @@ export interface TourEditorData {
   // Pricing
   adultPrice: number;
   originalPrice?: number;
+  privatePrice?: number;
   basePriceUSD: number;
   costPerPerson?: number;
   allowDeposit: boolean;

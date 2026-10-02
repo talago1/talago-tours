@@ -2,17 +2,10 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('--- Step 1: Updating Destination El Gouna -> Sharm El Sheikh ---');
+  console.log('--- Step 1: Ensuring Destination Sharm El Sheikh ---');
 
-  // Find destination by slug el-gouna or name El Gouna
   let dest = await prisma.destination.findFirst({
-    where: {
-      OR: [
-        { slug: 'el-gouna' },
-        { name: { contains: 'Gouna', mode: 'insensitive' } },
-        { slug: 'sharm-el-sheikh' },
-      ],
-    },
+    where: { slug: 'sharm-el-sheikh' },
   });
 
   const sharmData = {

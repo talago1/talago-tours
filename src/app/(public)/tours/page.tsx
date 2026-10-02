@@ -5,16 +5,53 @@ import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { parseSettingValue } from '@/lib/systemSettings';
 import { SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
+import { resolveServerLanguage } from '@/lib/i18n.server';
 import { resolveCategoryFilter } from '@/utils/tourCategory';
 import TourSearchHeaderWrapper from '@/components/public/TourSearchHeaderWrapper';
 import ToursGrid from './ToursGrid';
 import ToursHero from './ToursHero';
 
-export const metadata: Metadata = {
-  title: 'Tours & Journeys — TALAGO',
-  description:
-    'Explore our hand-curated portfolio of luxury yachts, private island charters, snorkeling, diving, desert safaris and more across Hurghada, Sharm El Sheikh and Marsa Alam.',
-};
+const toursBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
+const TOURS_DESCRIPTION =
+  'Explore our hand-curated portfolio of luxury yachts, private island charters, snorkeling, diving, desert safaris and more across Hurghada, Sharm El Sheikh, Marsa Alam, Cairo and Luxor.';
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}): Promise<Metadata> {
+  const lang = resolveServerLanguage(searchParams);
+  return {
+    title: 'Tours & Journeys',
+    description: TOURS_DESCRIPTION,
+    alternates: {
+      canonical: `${toursBaseUrl}/tours`,
+      languages: {
+        en: `${toursBaseUrl}/tours?lang=en`,
+        de: `${toursBaseUrl}/tours?lang=de`,
+        ru: `${toursBaseUrl}/tours?lang=ru`,
+        it: `${toursBaseUrl}/tours?lang=it`,
+        fr: `${toursBaseUrl}/tours?lang=fr`,
+        pl: `${toursBaseUrl}/tours?lang=pl`,
+        es: `${toursBaseUrl}/tours?lang=es`,
+        'x-default': `${toursBaseUrl}/tours`,
+      },
+    },
+    openGraph: {
+      title: 'Tours & Journeys | TALAGO',
+      description: TOURS_DESCRIPTION,
+      url: `${toursBaseUrl}/tours`,
+      siteName: 'TALAGO',
+      locale: `${lang}_${lang.toUpperCase()}`,
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: 'Tours & Journeys | TALAGO',
+      description: TOURS_DESCRIPTION,
+    },
+  };
+}
 
 function buildSort(orderBy: string | undefined): Record<string, 'asc' | 'desc'> {
   switch (orderBy) {

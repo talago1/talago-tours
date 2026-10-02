@@ -1,24 +1,32 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { en } from '@/locales/en';
+import { de } from '@/locales/de';
+import { ru } from '@/locales/ru';
+import { it } from '@/locales/it';
+import { fr } from '@/locales/fr';
+import { pl } from '@/locales/pl';
+import { es } from '@/locales/es';
+import {
+  DEFAULT_LANGUAGE,
+  LANGUAGE_COOKIE,
+  LANGUAGE_LABELS,
+  LANGUAGES,
+  normalizeLanguage,
+  type LanguageCode,
+} from '@/lib/i18n';
 
-export type LanguageCode = 'en' | 'de' | 'ru' | 'it' | 'fr' | 'pl' | 'es';
+export type { LanguageCode } from '@/lib/i18n';
+export const languageLabels = LANGUAGE_LABELS;
+
 type LocaleDict = typeof en;
 
-export const languageLabels: Record<LanguageCode, string> = {
-  en: 'EN', de: 'DE', ru: 'RU', it: 'IT', fr: 'FR', pl: 'PL', es: 'ES',
-};
-
-const LANGUAGES: LanguageCode[] = ['en', 'de', 'ru', 'it', 'fr', 'pl', 'es'];
-const localeCache: Partial<Record<LanguageCode, LocaleDict>> = { en };
-
-async function loadLocale(lang: LanguageCode): Promise<LocaleDict> {
-  if (localeCache[lang]) return localeCache[lang]!;
-  const mod = await import(`@/locales/${lang}`);
-  localeCache[lang] = mod[lang] as LocaleDict;
-  return localeCache[lang]!;
-}
+// All seven bundles are imported statically. This is a deliberate trade: a few
+// extra kB of JS in exchange for a correct first paint (no flash of English
+// while an async chunk loads) and server/client hydration parity.
+const DICTS: Record<LanguageCode, LocaleDict> = { en, de, ru, it, fr, pl, es };
 
 interface LanguageContextType {
   language: LanguageCode;
@@ -28,76 +36,57 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<LanguageCode>('en');
-  const [dict, setDict] = useState<LocaleDict>(en);
-  const [mounted, setMounted] = useState(false);
+export function LanguageProvider({
+  children,
+  initialLanguage = DEFAULT_LANGUAGE,
+}: {
+  children: React.ReactNode;
+  initialLanguage?: LanguageCode;
+}) {
+  const router = useRouter();
+  const [language, setLanguageState] = useState<LanguageCode>(initialLanguage);
 
+  // Adopt an explicit `?lang=` deep link on first mount without a full reload.
   useEffect(() => {
-    let chosenLang: LanguageCode | null = null;
-
-    // 1. Check URL query string (?lang=de)
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const urlLang = params.get('lang') as LanguageCode;
-      if (urlLang && LANGUAGES.includes(urlLang)) {
-        chosenLang = urlLang;
-      }
-    }
-
-    // 2. Check localStorage (user explicit preference)
-    if (!chosenLang) {
-      const saved = localStorage.getItem('talago-lang') as LanguageCode;
-      if (saved && LANGUAGES.includes(saved)) {
-        chosenLang = saved;
-      }
-    }
-
-    // 3. Fallback: Auto-detect device/browser language (phone settings)
-    if (!chosenLang && typeof navigator !== 'undefined') {
-      const userLangs = navigator.languages ? Array.from(navigator.languages) : [navigator.language];
-      for (const l of userLangs) {
-        if (!l) continue;
-        const code = l.split('-')[0].toLowerCase() as LanguageCode;
-        if (LANGUAGES.includes(code)) {
-          chosenLang = code;
-          break;
-        }
-      }
-    }
-
-    if (chosenLang && LANGUAGES.includes(chosenLang)) {
-      setLanguageState(chosenLang);
-      if (chosenLang !== 'en') {
-        loadLocale(chosenLang).then(setDict);
-      }
-    }
-
-    setMounted(true);
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const urlLang = params.get('lang');
+    if (!urlLang) return;
+    const next = normalizeLanguage(urlLang);
+    if (!LANGUAGES.includes(next)) return;
+    document.cookie = `${LANGUAGE_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
+    setLanguageState((current) => (current === next ? current : next));
   }, []);
 
-  // Sync html lang attribute for SEO and accessibility
+  // Keep the document language attribute in sync for a11y and SEO.
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.lang = language;
     }
   }, [language]);
 
-  const setLanguage = useCallback((lang: LanguageCode) => {
-    localStorage.setItem('talago-lang', lang);
-    setLanguageState(lang);
-    if (typeof document !== 'undefined') {
+  const setLanguage = useCallback(
+    (lang: LanguageCode) => {
+      if (!LANGUAGES.includes(lang)) return;
+      try {
+        localStorage.setItem('talago-lang', lang);
+      } catch {
+        // localStorage can be unavailable (private mode); cookie still works.
+      }
+      document.cookie = `${LANGUAGE_COOKIE}=${lang}; path=/; max-age=31536000; samesite=lax`;
       document.documentElement.lang = lang;
-    }
-    if (lang === 'en') {
-      setDict(en);
-    } else {
-      loadLocale(lang).then(setDict);
-    }
-  }, []);
+      setLanguageState(lang);
+      // Re-render server components (metadata, headers, breadcrumbs, DB copy)
+      // in the new language so the whole visible experience stays consistent.
+      router.refresh();
+    },
+    [router],
+  );
+
+  const dict = DICTS[language] ?? en;
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, dict: mounted ? dict : en }}>
+    <LanguageContext.Provider value={{ language, setLanguage, dict }}>
       {children}
     </LanguageContext.Provider>
   );

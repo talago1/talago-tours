@@ -2,6 +2,7 @@ import type { en } from './en';
 
 export const es: typeof en = {
   navbar: {
+    home: 'Inicio',
     destinations: 'Destinos',
     tours: 'Tours',
     aboutUs: 'Sobre Nosotros',
@@ -12,10 +13,10 @@ export const es: typeof en = {
     guest: 'Invitado'
   },
   hero: {
-    badge: 'Escapadas privadas en el mar Rojo y expediciones doradas en el desierto',
+    badge: 'Tours de lujo en Egipto, Mar Rojo y expediciones al Nilo',
     tagline: 'No es un tour. Es un recuerdo.',
-    title: 'Descubra los paraísos ocultos de Hurghada',
-    description: 'Donde las profundidades cristalinas del mar Rojo se encuentran con las majestuosas dunas doradas. TALAGO organiza excursiones en yates de lujo, días en islas privadas y safaris cinematográficos en quad en el desierto con una hospitalidad de élite.',
+    title: 'Descubra las extraordinarias maravillas y los paraísos ocultos de Egipto',
+    description: 'Donde las profundidades cristalinas del Mar Rojo se encuentran con majestuosas dunas doradas y templos milenarios a orillas del Nilo. TALAGO organiza excursiones en yates de lujo, escapadas a islas privadas, safaris en el desierto y descubrimientos culturales con hospitalidad de élite.',
     exploreButton: 'Explorar Tours Exclusivos',
     activeExperiences: 'experiencias activas disponibles',
     guestProofButton: 'Opiniones de Huéspedes',
@@ -116,6 +117,8 @@ browseAll: 'Ver todas las experiencias',
     nearYou: 'Mostramos experiencias cercanas a tu ubicación actual en {name}',
     exploreAllDestinations: 'Explorar todos los destinos',
     viewAllDestinations: 'Ver todos los destinos',
+    popularDestinations: 'Destinos Populares',
+    popularDestinationsSubtitle: 'Descubra las regiones más emblemáticas de Egipto a través del Mar Rojo, el Valle del Nilo y los oasis del desierto.',
     noResultsFilterTitle: 'No hay experiencias para esta selección',
     noResultsFilterDesc: 'Prueba a seleccionar Todos los destinos u otra categoría.',
     browseAllTours: 'Ver el directorio completo de experiencias y filtros',
@@ -126,7 +129,7 @@ browseAll: 'Ver todas las experiencias',
     verified: 'Reserva Verificada'
   },
   footer: {
-    tagline: 'Excursiones marítimas en el Mar Rojo y safaris en quad de lujo en Hurghada.',
+    tagline: 'Tours verificados en todo Egipto, excursiones en yates de lujo por el Mar Rojo y safaris en el desierto con hospitalidad de élite.',
     experiences: 'Experiencias',
     support: 'Soporte',
     policies: 'Políticas',

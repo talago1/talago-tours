@@ -11,11 +11,12 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
-  title: { template: '%s — TALAGO', default: 'TALAGO — Luxury Tours & Experiences ' },
-  description: 'Hand-curated luxury yacht charters, private island escapes, and premium desert quad safaris in Hurghada, Red Sea, Egypt.',
+  description:
+    'Discover and book vetted Egypt tours and experiences across the Red Sea, Nile and desert — Hurghada, Sharm El Sheikh, Marsa Alam, Cairo and Luxor. Instant confirmation and local support.',
   keywords: [
-    'Hurghada tours', 'Red Sea excursions', 'Luxury yacht charter', 'Desert safari Hurghada',
-    'Talago tours', 'Egypt excursions', 'Hurghada boat trip', 'Hurghada Ausflüge', 'Экскурсии Хургада'
+    'Egypt tours', 'Egypt excursions', 'Red Sea excursions', 'Hurghada tours',
+    'Sharm El Sheikh tours', 'Marsa Alam tours', 'Cairo tours', 'Luxor tours',
+    'TALAGO', 'Red Sea diving', 'desert safari Egypt',
   ],
   alternates: {
     canonical: baseUrl,
@@ -30,32 +31,8 @@ export const metadata: Metadata = {
       'x-default': baseUrl,
     },
   },
-  openGraph: {
-    title: 'TALAGO — Luxury Tours & Experiences in Hurghada',
-    description: 'Hand-curated luxury yacht charters, private island escapes, and premium desert quad safaris in Hurghada, Egypt.',
-    url: baseUrl,
-    siteName: 'TALAGO Tours',
-    locale: 'en_US',
-    type: 'website',
-    // Declared explicitly because this layout's openGraph replaces the root
-    // layout's rather than merging with it, so an inherited image is not
-    // guaranteed here.
-    images: [
-      {
-        url: `${baseUrl}/og/default.png`,
-        width: 1200,
-        height: 630,
-        alt: 'TALAGO Tours — luxury yacht charters and desert safaris in Hurghada',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'TALAGO — Luxury Tours & Experiences in Hurghada',
-    description:
-      'Hand-curated luxury yacht charters, private island escapes, and premium desert quad safaris in Hurghada, Egypt.',
-    images: [`${baseUrl}/og/default.png`],
-  },
+  // openGraph / twitter are inherited from the root layout so the branded
+  // site-wide OpenGraph image stays consistent across every public page.
 };
 
 export default function PublicRouteLayout({ children }: { children: React.ReactNode }) {

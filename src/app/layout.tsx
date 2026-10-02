@@ -2,105 +2,149 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { resolveServerLanguage } from '@/lib/i18n.server';
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
 const gaId = process.env.NEXT_PUBLIC_GA_ID;
 const metaPixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
 
+const socialLinks = [
+  'https://instagram.com/talago',
+  'https://facebook.com/talago',
+  'https://twitter.com/talago',
+];
+
 const jsonLd = {
   '@context': 'https://schema.org',
-  '@type': 'TravelAgency',
-  name: 'TALAGO Tours',
-  alternateName: 'TALAGO Tours Egypt',
-  url: baseUrl,
-  logo: `${baseUrl}/talago-hero-red-sea-desert.png`,
-  image: `${baseUrl}/og/default.png`,
-  description:
-    'TALAGO Tours — luxury yacht charters, private island escapes, desert safaris, and historical Nile tours in Egypt (Hurghada, Sharm El Sheikh, Marsa Alam, Luxor and Cairo). Handcrafted luxury yacht charters, private island escapes, desert safaris, and historical Nile tours.',
-  priceRange: '$$',
-  currenciesAccepted: 'USD, EUR, GBP, RUB, PLN, EGP',
-  paymentAccepted: 'Credit Card, Cash on Arrival, Paymob',
-  address: {
-    '@type': 'PostalAddress',
-    addressLocality: 'Hurghada',
-    addressRegion: 'Red Sea Governorate',
-    addressCountry: 'EG',
-  },
-  geo: {
-    '@type': 'GeoCoordinates',
-    latitude: 27.2579,
-    longitude: 33.8116,
-  },
-  openingHoursSpecification: {
-    '@type': 'OpeningHoursSpecification',
-    dayOfWeek: [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ],
-    opens: '00:00',
-    closes: '23:59',
-  },
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': `${baseUrl}/#website`,
+      url: baseUrl,
+      name: 'TALAGO',
+      alternateName: 'TALAGO Tours',
+      description: 'TALAGO — Egypt tours and experiences across the Red Sea, Nile and beyond.',
+      inLanguage: 'en',
+      publisher: { '@id': `${baseUrl}/#organization` },
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: {
+          '@type': 'EntryPoint',
+          urlTemplate: `${baseUrl}/tours?search={search_term_string}`,
+        },
+        'query-input': 'required name=search_term_string',
+      },
+    },
+    {
+      '@type': 'Organization',
+      '@id': `${baseUrl}/#organization`,
+      name: 'TALAGO',
+      alternateName: 'TALAGO Tours',
+      url: baseUrl,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${baseUrl}/icon.svg`,
+      },
+      image: `${baseUrl}/og/default.png`,
+      description:
+        'TALAGO is a global Egypt tours and experiences platform — Red Sea islands, desert safaris, diving and historic Nile days across Hurghada, Sharm El Sheikh, Marsa Alam, Cairo and Luxor.',
+      sameAs: socialLinks,
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'customer support',
+        email: 'tala.tour@outlook.com',
+        availableLanguage: ['English', 'German', 'Russian', 'Italian', 'French', 'Polish', 'Spanish'],
+      },
+    },
+    {
+      '@type': 'TravelAgency',
+      '@id': `${baseUrl}/#travelagency`,
+      name: 'TALAGO',
+      url: baseUrl,
+      image: `${baseUrl}/og/default.png`,
+      priceRange: '$$',
+      currenciesAccepted: 'USD, EUR, GBP, RUB, PLN, EGP',
+      paymentAccepted: 'Credit Card, Cash on Arrival, Paymob',
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: 'Hurghada',
+        addressRegion: 'Red Sea Governorate',
+        addressCountry: 'EG',
+      },
+      geo: {
+        '@type': 'GeoCoordinates',
+        latitude: 27.2579,
+        longitude: 33.8116,
+      },
+      openingHoursSpecification: {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        opens: '00:00',
+        closes: '23:59',
+      },
+    },
+  ],
 };
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
+  applicationName: 'TALAGO',
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    shortcut: '/icon.svg',
+    apple: '/og/default.png',
+  },
   title: {
-    template: '%s | TALAGO Tours',
-    default: 'TALAGO Tours — Luxury Yacht Charters, Desert Safaris & Egypt Excursions',
+    template: '%s | TALAGO',
+    default: 'TALAGO | Egypt Tours & Experiences',
   },
   description:
-    'Book handcrafted luxury yacht charters, private island days, desert quad safaris, diving expeditions and historic Nile tours across Hurghada, Sharm El Sheikh, Marsa Alam, Luxor and Cairo — vetted operators, best rates, instant confirmation.',
+    'Discover and book vetted Egypt tours and experiences — Red Sea islands, desert safaris, diving and historic Nile days in Hurghada, Sharm El Sheikh, Marsa Alam, Cairo and Luxor. Instant confirmation and local support.',
   keywords: [
-    'TALAGO Tours',
+    'TALAGO',
+    'Egypt tours',
+    'Egypt excursions',
     'Hurghada tours',
     'Sharm El Sheikh tours',
     'Marsa Alam tours',
-    'Luxury yacht charter',
+    'Cairo tours',
+    'Luxor tours',
     'Red Sea excursions',
-    'Hurghada desert quad safari',
-    'Giftun Island private tour',
-    'Ras Mohamed luxury cruise',
-    'Luxury Egypt excursions',
-    'Hurghada Ausflüge',
-    'Экскурсии в Хургаде',
+    'Red Sea diving',
+    'desert safari Egypt',
   ],
-  authors: [{ name: 'TALAGO Tours' }],
-  creator: 'TALAGO Tours',
-  publisher: 'TALAGO Tours',
+  authors: [{ name: 'TALAGO' }],
+  creator: 'TALAGO',
+  publisher: 'TALAGO',
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
   openGraph: {
-    title: 'TALAGO Tours — Luxury Red Sea Cruises & Egypt Excursions',
+    title: 'TALAGO | Egypt Tours & Experiences',
     description:
-      'Discover and book luxury yacht charters, private desert safaris and historic Nile tours with TALAGO Tours — instant confirmation and guaranteed best rates.',
+      'Book vetted tours and experiences across Egypt — Red Sea islands, desert safaris, diving and historic Nile days. Instant confirmation.',
     url: baseUrl,
-    siteName: 'TALAGO Tours',
+    siteName: 'TALAGO',
     locale: 'en_US',
     alternateLocale: ['de_DE', 'ru_RU', 'fr_FR', 'it_IT', 'pl_PL', 'es_ES'],
     type: 'website',
     images: [
       {
-        url: `${baseUrl}/og/default.png`,
+        url: '/og/default.png',
         width: 1200,
         height: 630,
-        alt: 'TALAGO Tours — luxury Red Sea & desert experiences',
+        alt: 'TALAGO — Egypt Tours & Experiences',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TALAGO Tours — Global Luxury Experiences',
+    title: 'TALAGO | Egypt Tours & Experiences',
     description:
-      'Handcrafted luxury yacht charters, desert safaris, and Nile wonders in Egypt.',
-    images: [`${baseUrl}/og/default.png`],
+      'Book vetted tours and experiences across Egypt — Red Sea islands, desert safaris, diving and historic Nile days.',
+    images: ['/og/default.png'],
   },
   robots: {
     index: true,
@@ -120,8 +164,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const language = resolveServerLanguage();
+
   return (
-    <html lang="en">
+    <html lang={language}>
       <head>
         <link rel="preconnect" href="https://images.unsplash.com" />
         <script
@@ -166,7 +212,7 @@ export default function RootLayout({
           </Script>
         )}
 
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider initialLanguage={language}>{children}</LanguageProvider>
       </body>
     </html>
   );
