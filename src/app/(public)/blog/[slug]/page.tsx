@@ -31,7 +31,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const english = translations.en;
   const postTitle = localized?.title || post.title || english?.title || 'Travel Guide';
   const description = localized?.excerpt || post.excerpt || english?.excerpt || `Read our travel guide on ${postTitle}`;
-  const image = post.coverImage || `${baseUrl}/opengraph-image`;
+  const fallbackImage = `${baseUrl}/og/default.jpg`;
+  const image = post.coverImage || fallbackImage;
   const pageUrl = `${baseUrl}/blog/${params.slug}`;
 
   return {
@@ -47,18 +48,27 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
         fr: `${pageUrl}?lang=fr`,
         pl: `${pageUrl}?lang=pl`,
         es: `${pageUrl}?lang=es`,
+        uk: `${pageUrl}?lang=uk`,
         'x-default': pageUrl,
       },
     },
     openGraph: {
       title: postTitle,
       description,
-      url: pageUrl,
+      url: `${pageUrl}${lang === 'en' ? '' : `?lang=${lang}`}`,
       siteName: 'TALAGO',
-      locale: lang,
+      locale: `${lang}_${lang.toUpperCase()}`,
       type: 'article',
       modifiedTime: post.updatedAt.toISOString(),
-      images: [{ url: image, width: 1200, height: 630, alt: postTitle }],
+      images: [
+        {
+          url: image,
+          secureUrl: image,
+          width: 1200,
+          height: 630,
+          alt: postTitle,
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
@@ -111,7 +121,7 @@ export default async function BlogPostPage({ params, searchParams }: Props) {
       name: 'TALAGO Tours',
       logo: {
         '@type': 'ImageObject',
-        url: `${baseUrl}/logo.png`,
+        url: `${baseUrl}/icon.svg`,
       },
     },
     mainEntityOfPage: {

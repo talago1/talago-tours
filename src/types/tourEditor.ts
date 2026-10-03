@@ -11,6 +11,7 @@ export const ALL_LANGUAGES: { code: LanguageCode; label: string; flag: string }[
   { code: 'it', label: 'Italiano', flag: '🇮🇹' },
   { code: 'pl', label: 'Polski', flag: '🇵🇱' },
   { code: 'es', label: 'Español', flag: '🇪🇸' },
+  { code: 'uk', label: 'Українська', flag: '🇺🇦' },
 ];
 
 export interface LocalizedTourContent {
@@ -88,6 +89,7 @@ export function createDefaultTranslations(): TourEditorTranslations {
     it: createDefaultLocalizedContent(),
     pl: createDefaultLocalizedContent(),
     es: createDefaultLocalizedContent(),
+    uk: createDefaultLocalizedContent(),
   };
 }
 

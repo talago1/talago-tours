@@ -92,7 +92,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
     shortcut: '/icon.svg',
-    apple: '/og/default.png',
+    apple: '/og/default.jpg',
   },
   title: {
     template: '%s | TALAGO',
@@ -128,14 +128,16 @@ export const metadata: Metadata = {
     url: baseUrl,
     siteName: 'TALAGO',
     locale: 'en_US',
-    alternateLocale: ['de_DE', 'ru_RU', 'fr_FR', 'it_IT', 'pl_PL', 'es_ES'],
+    alternateLocale: ['de_DE', 'ru_RU', 'fr_FR', 'it_IT', 'pl_PL', 'es_ES', 'uk_UA'],
     type: 'website',
     images: [
       {
-        url: '/og/default.png',
+        url: `${baseUrl}/og/default.jpg`,
+        secureUrl: `${baseUrl}/og/default.jpg`,
         width: 1200,
         height: 630,
-        alt: 'TALAGO — Egypt Tours & Experiences',
+        alt: 'TALAGO — Egypt Tours & Luxury Experiences',
+        type: 'image/jpeg',
       },
     ],
   },
@@ -144,7 +146,7 @@ export const metadata: Metadata = {
     title: 'TALAGO | Egypt Tours & Experiences',
     description:
       'Book vetted tours and experiences across Egypt — Red Sea islands, desert safaris, diving and historic Nile days.',
-    images: ['/og/default.png'],
+    images: [`${baseUrl}/og/default.jpg`],
   },
   robots: {
     index: true,

@@ -5,6 +5,7 @@ export const pl: typeof en = {
     home: 'Strona główna',
     destinations: 'Kierunki',
     tours: 'Wycieczki',
+    blog: 'Blog',
     aboutUs: 'O nas',
     faq: 'FAQ',
     signInRegister: 'Zaloguj się / Rejestracja',
@@ -151,7 +152,7 @@ browseAll: 'Zobacz wszystkie doświadczenia',
   about: {
     badge: 'LUKSUSOWE CZARTERY I WYPRAWY LĄDOWE',
     title: 'Definiujemy doskonałość w eksploracji Morza Czerwonego i pustyni',
-    intro: 'Założona z jedną obsesją: zastąpienie typowych wycieczek turystycznych spersonalizowanymi rejsami na poziomie luksusowych jachtów w Hurghadzie. TALAGO łączy dziką przygodę na pustyni z elitarnym wypoczynkiem morskim.',
+    intro: 'Założona z jedną obsesją: zastąpienie typowych wycieczek turystycznych spersonalizowanymi podróżami na poziomie luksusowych jachtów po całym Egipcie — od Morza Czerwonego po Nil. TALAGO łączy pustynną przygodę, starożytną kulturę i elitarny wypoczynek morski.',
     philosophy: {
       title: 'Nasze rzemiosło i filozofia',
       p1: 'Wierzymy, że obsługa premium to przewidywanie potrzeb. Od spersonalizowanych przekąsek podczas safari po ciepłe ręczniki po nurkowaniu, TALAGO zapewnia absolutny komfort na każdym kroku.',

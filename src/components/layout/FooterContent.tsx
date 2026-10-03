@@ -35,6 +35,7 @@ export default function FooterContent() {
       links: [
         { label: dict.navbar.tours, href: '/tours' },
         { label: dict.navbar.destinations, href: '/destinations' },
+        { label: dict.navbar.blog, href: '/blog' },
         { label: dict.navbar.aboutUs, href: '/about' },
         { label: dict.navbar.faq, href: '/faq' },
       ],

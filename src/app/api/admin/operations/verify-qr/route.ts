@@ -8,7 +8,7 @@ import type { Prisma } from '@prisma/client';
 function getTourTitle(translations: unknown): string {
   if (typeof translations === 'object' && translations !== null) {
     const t = translations as Record<string, { title?: string }>;
-    for (const key of ['en', 'de', 'ru', 'fr', 'it', 'tr']) {
+    for (const key of ['en', 'de', 'ru', 'fr', 'it', 'pl', 'es', 'uk']) {
       const entry = t[key];
       if (entry && typeof entry.title === 'string') return entry.title;
     }

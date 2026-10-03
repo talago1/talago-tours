@@ -6,6 +6,7 @@ const hurghadaTours = require('./data/tours_hurghada');
 const sharmTours = require('./data/tours_sharm');
 const marsaTours = require('./data/tours_marsa_alam');
 const culturalTours = require('./data/tours_cultural');
+const sharmExpansionTours = require('./data/tours_sharm_expansion');
 const blogArticles = require('./data/blog_articles');
 
 async function ensureZone(name, destinationId) {
@@ -74,6 +75,7 @@ async function main() {
   const allTours = [
     ...hurghadaTours.map((t) => ({ ...t, destSlug: 'hurghada' })),
     ...sharmTours.map((t) => ({ ...t, destSlug: 'sharm-el-sheikh' })),
+    ...sharmExpansionTours.map((t) => ({ ...t, destSlug: t.destSlug || 'sharm-el-sheikh' })),
     ...marsaTours.map((t) => ({ ...t, destSlug: 'marsa-alam' })),
     ...culturalTours.map((t) => ({
       ...t,

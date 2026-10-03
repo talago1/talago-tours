@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import type { ItineraryMilestone, IconToken, LanguageCode, ItineraryPointType } from '@/types/itinerary';
@@ -18,7 +18,7 @@ interface ItineraryBuilderProps {
 }
 
 const LANG_FLAGS: Record<LanguageCode, string> = {
-  en: '🇬🇧', de: '🇩🇪', ru: '🇷🇺', fr: '🇫🇷', it: '🇮🇹', pl: '🇵🇱', es: '🇪🇸',
+  en: '🇬🇧', de: '🇩🇪', ru: '🇷🇺', fr: '🇫🇷', it: '🇮🇹', pl: '🇵🇱', es: '🇪🇸', uk: '🇺🇦',
 };
 
 export default function ItineraryBuilder({ milestones, activeLanguage, errors, onChange }: ItineraryBuilderProps) {

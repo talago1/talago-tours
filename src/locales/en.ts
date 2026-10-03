@@ -3,6 +3,7 @@ export const en = {
     home: 'Home',
     destinations: 'Destinations',
     tours: 'Tours',
+    blog: 'Blog',
     aboutUs: 'About Us',
     faq: 'FAQ',
     signInRegister: 'Sign In / Register',
@@ -149,7 +150,7 @@ browseAll: 'Browse All Experiences',
   about: {
     badge: 'LUXURY CHARTERS & LAND EXPEDITIONS',
     title: 'We Define Premium Red Sea & Desert Exploration',
-    intro: 'Founded with a single obsession: to replace typical tourist excursions with custom, yacht-grade experiences in Hurghada. TALAGO bridges the gap between raw desert adventure and elite marine leisure.',
+    intro: 'Founded with a single obsession: to replace typical tourist excursions with custom, yacht-grade experiences across Egypt — from the Red Sea to the Nile. TALAGO bridges the gap between raw desert adventure, ancient culture, and elite marine leisure.',
     philosophy: {
       title: 'Our Craft & Philosophy',
       p1: 'We believe premium service is about anticipation. From custom snacks on quad safaris to heated towels after marine dives, TALAGO ensures absolute comfort at every step.',

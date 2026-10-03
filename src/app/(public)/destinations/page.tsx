@@ -7,7 +7,7 @@ import DestinationsClient from './DestinationsClient';
 
 export const dynamic = 'force-dynamic';
 
-const destinationsBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
+import { getDestinationsMetadata } from '@/lib/seoMetadata';
 
 export async function generateMetadata({
   searchParams,
@@ -15,25 +15,7 @@ export async function generateMetadata({
   searchParams?: Record<string, string | string[] | undefined>;
 }): Promise<Metadata> {
   const lang = resolveServerLanguage(searchParams);
-  return {
-    title: 'Egypt Destinations',
-    description:
-      'Explore Egypt by destination — Hurghada, Sharm El Sheikh, Marsa Alam, El Gouna, Cairo, Luxor, Aswan and more. Discover and book tours with TALAGO.',
-    alternates: {
-      canonical: `${destinationsBaseUrl}/destinations`,
-      languages: {
-        en: `${destinationsBaseUrl}/destinations?lang=en`,
-        de: `${destinationsBaseUrl}/destinations?lang=de`,
-        ru: `${destinationsBaseUrl}/destinations?lang=ru`,
-        it: `${destinationsBaseUrl}/destinations?lang=it`,
-        fr: `${destinationsBaseUrl}/destinations?lang=fr`,
-        pl: `${destinationsBaseUrl}/destinations?lang=pl`,
-        es: `${destinationsBaseUrl}/destinations?lang=es`,
-        'x-default': `${destinationsBaseUrl}/destinations`,
-      },
-    },
-    openGraph: { locale: lang, siteName: 'TALAGO' },
-  };
+  return getDestinationsMetadata(lang);
 }
 
 export default async function DestinationsPage() {

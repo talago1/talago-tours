@@ -18,6 +18,7 @@ const LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
   { code: 'fr', label: 'FR', native: 'Français' },
   { code: 'pl', label: 'PL', native: 'Polski' },
   { code: 'es', label: 'ES', native: 'Español' },
+  { code: 'uk', label: 'UA', native: 'Українська' },
 ];
 
 export default function Navbar() {
@@ -108,6 +109,12 @@ export default function Navbar() {
                 className="flex items-center rounded-xl px-4 py-3 text-base font-bold text-slate-200 transition-all hover:bg-white/5 hover:text-[#00E5FF]"
               >
                 {dict.navbar.destinations}
+              </Link>
+              <Link
+                href="/blog"
+                className="flex items-center rounded-xl px-4 py-3 text-base font-bold text-slate-200 transition-all hover:bg-white/5 hover:text-[#00E5FF]"
+              >
+                {dict.navbar.blog}
               </Link>
               <Link
                 href="/about"

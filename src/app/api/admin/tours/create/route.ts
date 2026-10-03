@@ -5,7 +5,7 @@ import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema, 
 
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 const ALLOWED_TYPES = ['SHARED', 'PRIVATE'];
-const REQUIRED_LANGUAGES = ['en', 'de', 'ru', 'fr', 'it', 'pl', 'es'];
+const REQUIRED_LANGUAGES = ['en', 'de', 'ru', 'fr', 'it', 'pl', 'es', 'uk'];
 
 export async function POST(request: NextRequest) {
   try {

@@ -1,4 +1,4 @@
-export const LANGUAGES = ['en', 'de', 'ru', 'it', 'fr', 'pl', 'es'] as const;
+export const LANGUAGES = ['en', 'de', 'ru', 'it', 'fr', 'pl', 'es', 'uk'] as const;
 
 export type LanguageCode = (typeof LANGUAGES)[number];
 
@@ -14,6 +14,7 @@ export const LANGUAGE_LABELS: Record<LanguageCode, string> = {
   fr: 'FR',
   pl: 'PL',
   es: 'ES',
+  uk: 'UA',
 };
 
 export function isLanguageCode(value: unknown): value is LanguageCode {
@@ -29,6 +30,7 @@ export function normalizeLanguage(value: unknown): LanguageCode {
   if (typeof value === 'string') {
     const base = value.split('-')[0].split('_')[0].toLowerCase();
     if (isLanguageCode(base)) return base;
+    if (base === 'ua') return 'uk';
   }
   return DEFAULT_LANGUAGE;
 }

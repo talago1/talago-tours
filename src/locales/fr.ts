@@ -5,6 +5,7 @@ export const fr: typeof en = {
     home: 'Accueil',
     destinations: 'Destinations',
     tours: 'Tours',
+    blog: 'Blog',
     aboutUs: 'À Propos',
     faq: 'FAQ',
     signInRegister: 'Se Connecter / S\'inscrire',
@@ -151,7 +152,7 @@ browseAll: 'Voir toutes les expériences',
   about: {
     badge: 'CHARTERS DE LUXE & EXPÉDITIONS TERRESTRES',
     title: 'Nous définissons l\'excellence de l\'exploration marine et désertique',
-    intro: 'Fondé avec une seule obsession : remplacer les excursions touristiques classiques par des expériences sur mesure de niveau yacht à Hurghada. TALAGO allie aventure sauvage et loisirs d\'élite.',
+    intro: 'Fondé avec une seule obsession : remplacer les excursions touristiques classiques par des expériences sur mesure de niveau yacht à travers l\'Égypte — de la mer Rouge au Nil. TALAGO allie aventure désertique, culture antique et loisirs marins d\'élite.',
     philosophy: {
       title: 'Notre savoir-faire & philosophie',
       p1: 'Nous pensons que le service premium réside dans l\'anticipation. Des collations sur mesure pendant les safaris en quad aux serviettes chaudes après les plongées, TALAGO garantit un confort absolu à chaque étape.',

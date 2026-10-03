@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
 
-const languages = ['en', 'de', 'ru', 'it', 'fr', 'pl', 'es'] as const;
+const languages = ['en', 'de', 'ru', 'it', 'fr', 'pl', 'es', 'uk'] as const;
 
 function buildAlternates(path: string) {
   const languageMap: Record<string, string> = {

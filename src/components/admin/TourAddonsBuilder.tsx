@@ -12,7 +12,7 @@ interface TourAddonsBuilderProps {
 }
 
 const LANG_FLAGS: Record<LanguageCode, string> = {
-  en: '🇬🇧', de: '🇩🇪', ru: '🇷🇺', fr: '🇫🇷', it: '🇮🇹', pl: '🇵🇱', es: '🇪🇸',
+  en: '🇬🇧', de: '🇩🇪', ru: '🇷🇺', fr: '🇫🇷', it: '🇮🇹', pl: '🇵🇱', es: '🇪🇸', uk: '🇺🇦',
 };
 
 export default function TourAddonsBuilder({ addons, activeLanguage = 'en', onChange }: TourAddonsBuilderProps) {

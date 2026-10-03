@@ -9,6 +9,7 @@ import { it } from '@/locales/it';
 import { fr } from '@/locales/fr';
 import { pl } from '@/locales/pl';
 import { es } from '@/locales/es';
+import { uk } from '@/locales/uk';
 import {
   DEFAULT_LANGUAGE,
   LANGUAGE_COOKIE,
@@ -23,10 +24,10 @@ export const languageLabels = LANGUAGE_LABELS;
 
 type LocaleDict = typeof en;
 
-// All seven bundles are imported statically. This is a deliberate trade: a few
+// All eight bundles are imported statically. This is a deliberate trade: a few
 // extra kB of JS in exchange for a correct first paint (no flash of English
 // while an async chunk loads) and server/client hydration parity.
-const DICTS: Record<LanguageCode, LocaleDict> = { en, de, ru, it, fr, pl, es };
+const DICTS: Record<LanguageCode, LocaleDict> = { en, de, ru, it, fr, pl, es, uk };
 
 interface LanguageContextType {
   language: LanguageCode;
@@ -46,16 +47,29 @@ export function LanguageProvider({
   const router = useRouter();
   const [language, setLanguageState] = useState<LanguageCode>(initialLanguage);
 
-  // Adopt an explicit `?lang=` deep link on first mount without a full reload.
+  // Adopt an explicit `?lang=` deep link or user phone/browser language on first mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const urlLang = params.get('lang');
-    if (!urlLang) return;
-    const next = normalizeLanguage(urlLang);
-    if (!LANGUAGES.includes(next)) return;
-    document.cookie = `${LANGUAGE_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
-    setLanguageState((current) => (current === next ? current : next));
+    if (urlLang) {
+      const next = normalizeLanguage(urlLang);
+      if (LANGUAGES.includes(next)) {
+        document.cookie = `${LANGUAGE_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
+        setLanguageState((current) => (current === next ? current : next));
+        return;
+      }
+    }
+
+    // If no language cookie is saved yet, detect from user's phone / browser OS
+    const hasCookie = document.cookie.split(';').some((c) => c.trim().startsWith(`${LANGUAGE_COOKIE}=`));
+    if (!hasCookie && typeof navigator !== 'undefined' && navigator.language) {
+      const detected = normalizeLanguage(navigator.language);
+      if (LANGUAGES.includes(detected)) {
+        document.cookie = `${LANGUAGE_COOKIE}=${detected}; path=/; max-age=31536000; samesite=lax`;
+        setLanguageState(detected);
+      }
+    }
   }, []);
 
   // Keep the document language attribute in sync for a11y and SEO.

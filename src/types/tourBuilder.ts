@@ -1,6 +1,6 @@
-export type LanguageCode = 'en' | 'de' | 'ru' | 'fr' | 'it' | 'pl' | 'es';
+export type LanguageCode = 'en' | 'de' | 'ru' | 'fr' | 'it' | 'pl' | 'es' | 'uk';
 
-export const LANGUAGE_CODES: LanguageCode[] = ['en', 'de', 'ru', 'fr', 'it', 'pl', 'es'];
+export const LANGUAGE_CODES: LanguageCode[] = ['en', 'de', 'ru', 'fr', 'it', 'pl', 'es', 'uk'];
 
 // Tour Add-on / Option that the admin can fully control
 export interface TourAddon {
@@ -13,7 +13,7 @@ export interface TourAddon {
 }
 
 export function createDefaultAddon(): TourAddon {
-  const emptyLabels = { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '' };
+  const emptyLabels = { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '', uk: '' };
   return {
     id: `addon-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     price: 0,
@@ -32,6 +32,7 @@ export const LANGUAGE_LABELS: Record<LanguageCode, string> = {
   it: 'IT',
   pl: 'PL',
   es: 'ES',
+  uk: 'UK',
 };
 
 export interface TranslationEntry {
@@ -73,6 +74,7 @@ export function createEmptyTranslations(): Translations {
     it: createEmptyTranslationEntry(),
     pl: createEmptyTranslationEntry(),
     es: createEmptyTranslationEntry(),
+    uk: createEmptyTranslationEntry(),
   };
 }
 

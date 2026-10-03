@@ -13,7 +13,7 @@ export const metadata = { robots: { index: false, follow: false } };
 function getTourTitle(translations: unknown, lang: string): string {
   if (typeof translations === 'object' && translations !== null) {
     const t = translations as Record<string, { title?: string }>;
-    for (const key of [lang, 'en', 'de', 'ru', 'fr', 'it', 'tr']) {
+    for (const key of [lang, 'en', 'de', 'ru', 'it', 'fr', 'pl', 'es', 'uk']) {
       const entry = t[key];
       if (entry && typeof entry.title === 'string') return entry.title;
     }

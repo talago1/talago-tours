@@ -1,7 +1,7 @@
-﻿import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Ship, Compass, Waves, Utensils, Building, MapPin } from 'lucide-react';
 
-export type LanguageCode = 'en' | 'de' | 'ru' | 'fr' | 'it' | 'pl' | 'es';
+export type LanguageCode = 'en' | 'de' | 'ru' | 'fr' | 'it' | 'pl' | 'es' | 'uk';
 
 export type IconToken = 'boat' | 'safari' | 'swim' | 'food' | 'hotel' | 'generic';
 
@@ -22,6 +22,7 @@ export interface LocalizedMilestoneTitle {
   it: string;
   pl: string;
   es: string;
+  uk: string;
 }
 
 // v2 milestone — all new fields are optional to preserve backward compatibility
@@ -117,8 +118,8 @@ export function createEmptyMilestone(): ItineraryMilestone {
     timeTag: '',
     iconToken: 'generic',
     pointType: 'STOP',
-    title: { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '' },
-    description: { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '' },
+    title: { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '', uk: '' },
+    description: { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '', uk: '' },
     durationMinutes: undefined,
     location: '',
     _v: 2,
@@ -126,5 +127,5 @@ export function createEmptyMilestone(): ItineraryMilestone {
 }
 
 export function createLocalizedMilestoneTitle(): LocalizedMilestoneTitle {
-  return { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '' };
+  return { en: '', de: '', ru: '', fr: '', it: '', pl: '', es: '', uk: '' };
 }

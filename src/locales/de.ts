@@ -5,6 +5,7 @@ export const de: typeof en = {
     home: 'Startseite',
     destinations: 'Reiseziele',
     tours: 'Touren',
+    blog: 'Blog',
     aboutUs: 'Über Uns',
     faq: 'FAQ',
     signInRegister: 'Anmelden / Registrieren',
@@ -151,7 +152,7 @@ browseAll: 'Alle Erlebnisse',
   about: {
     badge: 'LUXUS-CHARTER & LAND-EXPEDITIONEN',
     title: 'Wir definieren erstklassige Rote-Meer- & Wüsten-Erkundungen',
-    intro: 'Gegründet mit einem einzigen Ziel: typische Touristen-Ausflüge durch maßgeschneiderte Erlebnisse auf Yacht-Niveau in Hurghada zu ersetzen. TALAGO verbindet echtes Wüstenabenteuer mit exklusivem Meeresluxus.',
+    intro: 'Gegründet mit einem einzigen Ziel: typische Touristen-Ausflüge durch maßgeschneiderte Erlebnisse auf Yacht-Niveau in ganz Ägypten zu ersetzen – vom Roten Meer bis zum Nil. TALAGO verbindet echtes Wüstenabenteuer, antike Kultur und exklusiven Meeresluxus.',
     philosophy: {
       title: 'Unser Handwerk & unsere Philosophie',
       p1: 'Wir glauben, dass erstklassiger Service auf Antizipation beruht. Von maßgeschneiderten Snacks auf Quadsafaris bis hin zu warmen Handtüchern nach Meerestauchgängen sorgt TALAGO für absoluten Komfort bei jedem Schritt.',

@@ -70,7 +70,7 @@ interface TourBuilderFormProps {
 
 function buildInitialState(d?: InitialTourData): TourFormState {
   if (!d) return createInitialFormState();
-  const langs = ['en', 'de', 'ru', 'fr', 'it', 'pl', 'es'] as const;
+  const langs = ['en', 'de', 'ru', 'fr', 'it', 'pl', 'es', 'uk'] as const;
   const translations: TourFormState['translations'] = createEmptyTranslations();
   for (const lang of langs) {
     const t = (d.translations && typeof d.translations === 'object') ? (d.translations[lang] as unknown as Record<string, unknown> | undefined) : undefined;
@@ -137,11 +137,11 @@ const STEPS = [
 ];
 
 const LANG_FLAGS: Record<LanguageCode, string> = {
-  en: '🇬🇧', de: '🇩🇪', ru: '🇷🇺', fr: '🇫🇷', it: '🇮🇹', pl: '🇵🇱', es: '🇪🇸',
+  en: '🇬🇧', de: '🇩🇪', ru: '🇷🇺', fr: '🇫🇷', it: '🇮🇹', pl: '🇵🇱', es: '🇪🇸', uk: '🇺🇦',
 };
 
 const LANG_NAMES: Record<LanguageCode, string> = {
-  en: 'English', de: 'German', ru: 'Russian', fr: 'French', it: 'Italian', pl: 'Polish', es: 'Spanish',
+  en: 'English', de: 'German', ru: 'Russian', fr: 'French', it: 'Italian', pl: 'Polish', es: 'Spanish', uk: 'Ukrainian',
 };
 
 export default function TourBuilderForm({ zones, initialData }: TourBuilderFormProps) {

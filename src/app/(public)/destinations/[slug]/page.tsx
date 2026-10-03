@@ -10,7 +10,7 @@ import PublicTourCard from '@/components/tours/PublicTourCard';
 import { resolveServerLanguage } from '@/lib/i18n.server';
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
-const CONTENT_LANGUAGES = ['en', 'de', 'ru', 'it', 'fr', 'pl', 'es'] as const;
+const CONTENT_LANGUAGES = ['en', 'de', 'ru', 'it', 'fr', 'pl', 'es', 'uk'] as const;
 
 type DestTranslations = Record<string, { name?: string; description?: string } | undefined>;
 
@@ -27,6 +27,8 @@ async function getDestination(slug: string) {
   return prisma.destination.findUnique({ where: { slug } });
 }
 
+import { buildDestinationDetailSEO } from '@/lib/seoMetadata';
+
 export async function generateMetadata({
   params,
   searchParams,
@@ -40,40 +42,9 @@ export async function generateMetadata({
 
   const t = dest.translations as DestTranslations | null;
   const name = localized(t, lang, 'name', dest.name);
-  const description = localized(
-    t,
-    lang,
-    'description',
-    dest.description || `Discover and book the best ${name} tours, excursions and experiences with TALAGO.`,
-  );
-  const url = `${baseUrl}/destinations/${dest.slug}`;
+  const description = localized(t, lang, 'description', dest.description || '');
 
-  return {
-    title: `${name} Tours & Experiences`,
-    description,
-    alternates: {
-      canonical: url,
-      languages: Object.fromEntries([
-        ...CONTENT_LANGUAGES.map((code) => [code, `${url}?lang=${code}`]),
-        ['x-default', url],
-      ]),
-    },
-    openGraph: {
-      title: `${name} Tours & Experiences | TALAGO`,
-      description,
-      url,
-      siteName: 'TALAGO',
-      locale: `${lang}_${lang.toUpperCase()}`,
-      type: 'website',
-      images: dest.imageUrl ? [{ url: dest.imageUrl, width: 1200, height: 630, alt: name }] : undefined,
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: `${name} Tours & Experiences | TALAGO`,
-      description,
-      images: dest.imageUrl ? [dest.imageUrl] : undefined,
-    },
-  };
+  return buildDestinationDetailSEO(name, description, lang, dest.slug, dest.imageUrl);
 }
 
 export default async function DestinationPage({

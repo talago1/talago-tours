@@ -29,6 +29,7 @@ export async function generateMetadata({
         fr: `${baseUrl}/blog?lang=fr`,
         pl: `${baseUrl}/blog?lang=pl`,
         es: `${baseUrl}/blog?lang=es`,
+        uk: `${baseUrl}/blog?lang=uk`,
         'x-default': `${baseUrl}/blog`,
       },
     },
@@ -36,14 +37,24 @@ export async function generateMetadata({
       title,
       description: BLOG_DESCRIPTION,
       url: `${baseUrl}/blog`,
-      siteName: 'TALAGO',
       locale: `${lang}_${lang.toUpperCase()}`,
       type: 'website',
+      images: [
+        {
+          url: `${baseUrl}/og/default.jpg`,
+          secureUrl: `${baseUrl}/og/default.jpg`,
+          width: 1200,
+          height: 630,
+          alt: title,
+          type: 'image/jpeg',
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description: BLOG_DESCRIPTION,
+      images: [`${baseUrl}/og/default.jpg`],
     },
   };
 }

@@ -16,6 +16,7 @@ const LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
   { code: 'fr', label: 'FR', native: 'Français' },
   { code: 'pl', label: 'PL', native: 'Polski' },
   { code: 'es', label: 'ES', native: 'Español' },
+  { code: 'uk', label: 'UA', native: 'Українська' },
 ];
 
 export default function NavActions() {

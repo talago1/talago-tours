@@ -42,7 +42,7 @@ interface BookingItem {
 function getTourTitle(translations: unknown, lang = 'en'): string {
   if (typeof translations === 'object' && translations !== null) {
     const t = translations as Record<string, { title?: string }>;
-    for (const key of [lang, 'en', 'de']) {
+    for (const key of [lang, 'en', 'de', 'ru', 'it', 'fr', 'pl', 'es', 'uk']) {
       if (t[key]?.title) return t[key].title!;
     }
   }

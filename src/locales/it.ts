@@ -5,6 +5,7 @@ export const it: typeof en = {
     home: 'Home',
     destinations: 'Destinazioni',
     tours: 'Tour',
+    blog: 'Blog',
     aboutUs: 'Chi Siamo',
     faq: 'FAQ',
     signInRegister: 'Accedi / Registrati',
@@ -151,7 +152,7 @@ browseAll: 'Vedi tutte le esperienze',
   about: {
     badge: 'CHARTER DI LUSSO & SPEDIZIONI TERRESTRI',
     title: 'Definiamo l’eccellenza nell’esplorazione del Mar Rosso e del deserto',
-    intro: 'Fondata con un’unica ossessione: sostituire le tipiche escursioni turistiche con esperienze su misura di livello yacht a Hurghada. TALAGO unisce l’avventura del deserto incontaminato con il lusso marino d’élite.',
+    intro: 'Fondata con un’unica ossessione: sostituire le tipiche escursioni turistiche con esperienze su misura di livello yacht in tutto l\'Egitto — dal Mar Rosso al Nilo. TALAGO unisce l\'avventura del deserto incontaminato, la cultura antica e il lusso marino d\'élite.',
     philosophy: {
       title: 'La nostra maestria e filosofia',
       p1: 'Crediamo che il servizio premium consista nell’anticipare i desideri. Dagli snack personalizzati durante i safari in quad agli asciugamani caldi dopo le immersioni, TALAGO garantisce il massimo comfort in ogni momento.',

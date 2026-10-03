@@ -14,7 +14,7 @@ import Testimonials from '@/components/landing/Testimonials';
 import FAQSection from '@/components/landing/FAQSection';
 import NewsletterBanner from '@/components/landing/NewsletterBanner';
 
-const homeBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
+import { getHomeMetadata } from '@/lib/seoMetadata';
 
 export async function generateMetadata({
   searchParams,
@@ -22,25 +22,7 @@ export async function generateMetadata({
   searchParams?: Record<string, string | string[] | undefined>;
 }): Promise<Metadata> {
   const lang = resolveServerLanguage(searchParams);
-  return {
-    title: { absolute: 'TALAGO | Egypt Tours & Experiences' },
-    description:
-      'Book vetted Egypt tours and experiences across the Red Sea, Nile and desert — Hurghada, Sharm El Sheikh, Marsa Alam, Cairo and Luxor. Instant confirmation and local support.',
-    alternates: {
-      canonical: homeBaseUrl,
-      languages: {
-        en: `${homeBaseUrl}?lang=en`,
-        de: `${homeBaseUrl}?lang=de`,
-        ru: `${homeBaseUrl}?lang=ru`,
-        it: `${homeBaseUrl}?lang=it`,
-        fr: `${homeBaseUrl}?lang=fr`,
-        pl: `${homeBaseUrl}?lang=pl`,
-        es: `${homeBaseUrl}?lang=es`,
-        'x-default': homeBaseUrl,
-      },
-    },
-    openGraph: { locale: lang, siteName: 'TALAGO' },
-  };
+  return getHomeMetadata(lang);
 }
 
 export default async function HomePage() {

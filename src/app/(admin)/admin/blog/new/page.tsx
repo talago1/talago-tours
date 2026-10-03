@@ -27,6 +27,7 @@ export default function NewBlogPostPage() {
     it: { title: '', excerpt: '', content: '' },
     pl: { title: '', excerpt: '', content: '' },
     es: { title: '', excerpt: '', content: '' },
+    uk: { title: '', excerpt: '', content: '' },
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -79,7 +80,7 @@ export default function NewBlogPostPage() {
       </div>
 
       <div className="flex gap-2">
-        {['en', 'de', 'ru', 'fr', 'it', 'pl', 'es'].map((l) => (
+        {['en', 'de', 'ru', 'fr', 'it', 'pl', 'es', 'uk'].map((l) => (
           <button
             key={l}
             type="button"

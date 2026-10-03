@@ -47,7 +47,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     english?.seoDescription ||
     english?.description ||
     'Curated tour and experience in Egypt.';
-  const image = tour?.coverImage || `${baseUrl}/opengraph-image`;
+  const fallbackImage = `${baseUrl}/og/default.jpg`;
+  const image = tour?.coverImage || fallbackImage;
   const pageUrl = `${baseUrl}/tours/${params.slug}`;
 
   return {
@@ -64,17 +65,20 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
         fr: `${pageUrl}?lang=fr`,
         pl: `${pageUrl}?lang=pl`,
         es: `${pageUrl}?lang=es`,
+        uk: `${pageUrl}?lang=uk`,
         'x-default': pageUrl,
       },
     },
     openGraph: {
       title,
       description,
-      url: pageUrl,
+      url: `${pageUrl}${lang === 'en' ? '' : `?lang=${lang}`}`,
       siteName: 'TALAGO',
+      locale: `${lang}_${lang.toUpperCase()}`,
       images: [
         {
           url: image,
+          secureUrl: image,
           width: 1200,
           height: 630,
           alt: title,

@@ -5,6 +5,7 @@ export const es: typeof en = {
     home: 'Inicio',
     destinations: 'Destinos',
     tours: 'Tours',
+    blog: 'Blog',
     aboutUs: 'Sobre Nosotros',
     faq: 'FAQ',
     signInRegister: 'Iniciar Sesión / Registro',
@@ -151,7 +152,7 @@ browseAll: 'Ver todas las experiencias',
   about: {
     badge: 'CHÁRTER DE LUJO Y EXPEDICIONES TERRESTRES',
     title: 'Definimos la excelencia en la exploración del mar Rojo y el desierto',
-    intro: 'Fundada con una única obsesión: sustituir las excursiones turísticas habituales por experiencias a medida de nivel yate en Hurghada. TALAGO une la aventura del desierto con el lujo marino de élite.',
+    intro: 'Fundada con una única obsesión: sustituir las excursiones turísticas habituales por experiencias a medida de nivel yate en todo Egipto — desde el Mar Rojo hasta el Nilo. TALAGO une la aventura del desierto, la cultura milenaria y el lujo marino de élite.',
     philosophy: {
       title: 'Nuestra artesanía y filosofía',
       p1: 'Creemos que el servicio premium consiste en anticipar los deseos. Desde aperitivos personalizados durante los safaris en quad hasta toallas calientes después del buceo, TALAGO garantiza el máximo confort en todo momento.',

@@ -24,7 +24,7 @@ export default async function EditTourPage({ params }: Params) {
   // Normalize translations
   const baseTranslations = createDefaultTranslations();
   const rawTrans = (tour.translations as Record<string, any>) || {};
-  for (const lang of ['en', 'de', 'ru', 'fr', 'it', 'pl', 'es'] as const) {
+  for (const lang of ['en', 'de', 'ru', 'fr', 'it', 'pl', 'es', 'uk'] as const) {
     if (rawTrans[lang]) {
       baseTranslations[lang] = {
         title: rawTrans[lang].title || '',

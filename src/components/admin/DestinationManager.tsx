@@ -9,9 +9,9 @@ import type { Destination, ZoneItem } from '@/types/destination';
 // Types
 // ---------------------------------------------------------------------------
 
-type LanguageTab = 'en' | 'de' | 'ru' | 'it' | 'fr' | 'pl' | 'es';
+type LanguageTab = 'en' | 'de' | 'ru' | 'it' | 'fr' | 'pl' | 'es' | 'uk';
 
-const LANGUAGE_TABS: LanguageTab[] = ['en', 'de', 'ru', 'it', 'fr', 'pl', 'es'];
+const LANGUAGE_TABS: LanguageTab[] = ['en', 'de', 'ru', 'it', 'fr', 'pl', 'es', 'uk'];
 
 interface DestinationTranslation {
   description: string;
@@ -36,6 +36,7 @@ const emptyTranslations = (): Record<string, DestinationTranslation> => ({
   fr: { description: '' },
   pl: { description: '' },
   es: { description: '' },
+  uk: { description: '' },
 });
 
 const emptyForm: FormState = {
