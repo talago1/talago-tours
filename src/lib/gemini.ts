@@ -17,7 +17,7 @@ export function isGeminiConfigured(): boolean {
 }
 
 const GEMINI_API_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
 
 interface GeminiResponse {
   candidates?: Array<{
