@@ -32,7 +32,9 @@ import {
   Info,
   Sliders,
   FileText,
-  BadgeAlert
+  BadgeAlert,
+  Languages,
+  Loader2,
 } from 'lucide-react';
 
 import type {
@@ -111,6 +113,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [translating, setTranslating] = useState(false);
 
   const isEditing = Boolean(data.id);
 
@@ -140,6 +143,68 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
     });
     setIsDirty(true);
   }, [activeLang]);
+
+  const handleAiAutoTranslate = async () => {
+    const enContent = data.translations.en || createDefaultLocalizedContent();
+    const sourceTitle = enContent.title?.trim();
+    if (!sourceTitle) {
+      alert('Please provide an English experience title first before generating AI translations.');
+      return;
+    }
+
+    try {
+      setTranslating(true);
+      setErrorMessage(null);
+      const res = await fetch('/api/admin/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: {
+            title: sourceTitle,
+            description: enContent.description || '',
+            highlights: enContent.highlights?.length ? enContent.highlights : data.highlights,
+            inclusions: enContent.inclusions?.length ? enContent.inclusions : data.inclusions,
+            exclusions: enContent.exclusions?.length ? enContent.exclusions : data.exclusions,
+            whatToBring: enContent.whatToBring || '',
+            requirements: enContent.requirements || '',
+            cancellationPolicy: enContent.cancellationPolicy || '',
+            faqItems: enContent.faqItems || [],
+            itinerary: (data.itinerary || []).map((i) => ({
+              timeTag: i.timeTag,
+              title: typeof i.title === 'string' ? i.title : (i.title?.en || ''),
+              description: typeof i.description === 'string' ? i.description : (i.description?.en || ''),
+            })),
+          },
+        }),
+      });
+
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.error || 'Failed to auto-translate tour');
+      }
+
+      if (resData.translations) {
+        setData((prev) => {
+          const merged = { ...prev.translations };
+          for (const [langKey, translated] of Object.entries(resData.translations)) {
+            const typedKey = langKey as LanguageCode;
+            merged[typedKey] = {
+              ...(merged[typedKey] || createDefaultLocalizedContent()),
+              ...(translated as Partial<LocalizedTourContent>),
+            };
+          }
+          return { ...prev, translations: merged };
+        });
+        setIsDirty(true);
+        setSaveSuccessMessage('✨ Experience localized into all languages using Gemini AI!');
+        setTimeout(() => setSaveSuccessMessage(null), 5000);
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Error running AI auto-translation');
+    } finally {
+      setTranslating(false);
+    }
+  };
 
   const updateFaqItems = useCallback(
     (items: NonNullable<LocalizedTourContent['faqItems']>) => {
@@ -466,6 +531,22 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </button>
             ))}
           </div>
+
+          {/* AI Auto-Translate Button */}
+          <button
+            type="button"
+            disabled={translating}
+            onClick={handleAiAutoTranslate}
+            className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 transition disabled:opacity-50"
+            title="Auto-translate English experience into all 7 languages using Gemini AI"
+          >
+            {translating ? (
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+            ) : (
+              <Languages className="w-4 h-4 text-emerald-400" />
+            )}
+            <span>{translating ? 'Translating...' : 'AI Translate All'}</span>
+          </button>
 
           {/* Templates Library Button */}
           <button
