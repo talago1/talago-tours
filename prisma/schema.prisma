@@ -71,6 +71,7 @@ model Destination {
   latitude    Float?
   longitude   Float?
   timezone    String   @default("Africa/Cairo")
+  isVisible   Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -79,6 +80,7 @@ model Destination {
 
   @@index([slug])
 }
+
 
 model Zone {
   id           String   @id @default(cuid())

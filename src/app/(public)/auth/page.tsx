@@ -53,14 +53,21 @@ export default function AuthPage() {
           setTimeout(() => router.push('/my-bookings'), 1500);
         }
       } else {
-        const { error } = await supabaseClient.auth.signInWithOtp({
-          email,
-          options: {
-            emailRedirectTo: `${window.location.origin}/my-bookings`,
-          },
+        // Use our custom magic-link endpoint which sends via Resend (reliable
+        // delivery) instead of Supabase's built-in SMTP (limited on free tier).
+        const res = await fetch('/api/auth/magic-link', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            redirectTo: `${window.location.origin}/my-bookings`,
+          }),
         });
 
-        if (error) throw error;
+        const resData = await res.json();
+        if (!res.ok) {
+          throw new Error(resData.error || 'Failed to send magic link.');
+        }
 
         setMessage({
           type: 'success',

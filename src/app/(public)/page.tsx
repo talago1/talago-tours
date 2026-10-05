@@ -68,6 +68,7 @@ export default async function HomePage() {
       },
     }),
     prisma.destination.findMany({
+      where: { isVisible: true },
       orderBy: { name: 'asc' },
       select: {
         id: true,

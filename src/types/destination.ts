@@ -10,6 +10,7 @@ export interface Destination {
   latitude?: number | null;
   longitude?: number | null;
   timezone?: string;
+  isVisible: boolean;
   createdAt: string;
   updatedAt: string;
   _count?: { tours: number };

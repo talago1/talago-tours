@@ -99,6 +99,7 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
       },
     }),
     prisma.destination.findMany({
+      where: { isVisible: true },
       orderBy: { name: 'asc' },
       select: { name: true, slug: true },
     }).catch(() => [] as { name: string; slug: string }[]),
@@ -136,7 +137,7 @@ export default async function ToursPage({ searchParams }: CatalogPageProps) {
     prisma.tour.count({ where: { status: 'ACTIVE' } }),
     prisma.systemSetting.findUnique({ where: { key: 'banners' } }),
     prisma.destination.findMany({
-      where: { tours: { some: { status: 'ACTIVE' } } },
+      where: { isVisible: true, tours: { some: { status: 'ACTIVE' } } },
       orderBy: { name: 'asc' },
       select: { name: true, slug: true },
     }),

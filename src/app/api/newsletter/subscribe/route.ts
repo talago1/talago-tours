@@ -1,7 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 
-export async function POST(request: Request) {
+const LIMIT = 10;
+const WINDOW_MS = 10 * 60 * 1000;
+
+export async function POST(request: NextRequest) {
+  const limit = rateLimit(clientKey(request, 'newsletter-subscribe'), LIMIT, WINDOW_MS);
+  if (!limit.allowed) {
+    return tooManyRequests(limit.retryAfterSeconds);
+  }
+
   try {
     const { email } = await request.json();
     if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {

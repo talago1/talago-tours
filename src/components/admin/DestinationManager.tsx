@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, type FormEvent } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Compass, Edit3, ImageIcon, Loader2, Plus, Trash2, Upload, X, MapPin, Clock } from 'lucide-react';
+import { Compass, Edit3, Eye, EyeOff, ImageIcon, Loader2, Plus, Trash2, Upload, X, MapPin, Clock } from 'lucide-react';
 import type { Destination, ZoneItem } from '@/types/destination';
 
 // ---------------------------------------------------------------------------
@@ -25,6 +25,7 @@ interface FormState {
   countryCode: string;
   region: string;
   city: string;
+  isVisible: boolean;
   translations: Record<string, DestinationTranslation>;
 }
 
@@ -47,6 +48,7 @@ const emptyForm: FormState = {
   countryCode: 'EG',
   region: '',
   city: '',
+  isVisible: true,
   translations: emptyTranslations(),
 };
 
@@ -410,6 +412,7 @@ export default function DestinationManager() {
       countryCode: destination.countryCode ?? 'EG',
       region: destination.region ?? '',
       city: destination.city ?? '',
+      isVisible: destination.isVisible ?? true,
       translations: parsedTranslations,
     });
     setServerError(null);
@@ -445,6 +448,7 @@ export default function DestinationManager() {
             countryCode: form.countryCode || 'EG',
             region: form.region,
             city: form.city,
+            isVisible: form.isVisible,
             translations: form.translations,
           }),
         },
@@ -479,6 +483,22 @@ export default function DestinationManager() {
       await fetchDestinations();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete destination');
+    }
+  }
+
+  async function handleToggleVisibility(destination: Destination) {
+    try {
+      const nextVisible = !(destination.isVisible ?? true);
+      const response = await fetch(`/api/admin/destinations/${destination.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isVisible: nextVisible }),
+      });
+      if (response.ok) {
+        await fetchDestinations();
+      }
+    } catch {
+      // silent
     }
   }
 
@@ -547,9 +567,20 @@ export default function DestinationManager() {
                   <h3 className="text-xl font-black text-white">{destination.name}</h3>
                   <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-400">{destination.description}</p>
                 </div>
-                <span className="shrink-0 rounded-full bg-[#06B6D4]/10 px-3 py-1 text-xs font-black text-[#06B6D4]">
-                  {destination._count?.tours ?? 0} tours
-                </span>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <span className="rounded-full bg-[#06B6D4]/10 px-3 py-1 text-xs font-black text-[#06B6D4]">
+                    {destination._count?.tours ?? 0} tours
+                  </span>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-black tracking-wide ${
+                      destination.isVisible !== false
+                        ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-400'
+                        : 'border-slate-500/30 bg-slate-500/15 text-slate-400'
+                    }`}
+                  >
+                    {destination.isVisible !== false ? '● Live' : '○ Hidden'}
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
@@ -560,6 +591,18 @@ export default function DestinationManager() {
                 >
                   <Edit3 className="h-4 w-4" />
                   Edit Hub
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleVisibility(destination)}
+                  className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-300 ${
+                    destination.isVisible !== false
+                      ? 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'
+                      : 'border-slate-500/30 text-slate-400 hover:bg-slate-500/10 hover:text-white'
+                  }`}
+                  title={destination.isVisible !== false ? 'Hide destination from public' : 'Make destination visible'}
+                >
+                  {destination.isVisible !== false ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                 </button>
                 <button
                   type="button"
@@ -723,6 +766,19 @@ export default function DestinationManager() {
                   placeholder={`Description in ${activeTab.toUpperCase()}...`}
                 />
               </div>
+
+              <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-white/20">
+                <div>
+                  <span className="block text-sm font-bold text-white">Visible on public site</span>
+                  <span className="block text-xs text-slate-400">Controls whether this destination hub and its page are publicly visible</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={form.isVisible}
+                  onChange={(e) => setForm((c) => ({ ...c, isVisible: e.target.checked }))}
+                  className="h-5 w-5 rounded border-white/20 bg-black/40 text-[#EAB308] accent-[#EAB308] focus:ring-0"
+                />
+              </label>
 
               {serverError && (
                 <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">

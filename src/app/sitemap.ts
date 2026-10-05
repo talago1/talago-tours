@@ -69,6 +69,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let destinationEntries: MetadataRoute.Sitemap = [];
   try {
     const destinations = await prisma.destination.findMany({
+      where: { isVisible: true },
       select: { slug: true, updatedAt: true },
     });
 

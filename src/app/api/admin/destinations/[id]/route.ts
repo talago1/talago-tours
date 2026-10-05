@@ -28,6 +28,7 @@ export async function PUT(
         ...(body.latitude !== undefined && { latitude: typeof body.latitude === 'number' ? body.latitude : null }),
         ...(body.longitude !== undefined && { longitude: typeof body.longitude === 'number' ? body.longitude : null }),
         ...(body.timezone !== undefined && { timezone: body.timezone }),
+        ...(body.isVisible !== undefined && { isVisible: Boolean(body.isVisible) }),
       },
       include: {
         _count: { select: { tours: true } },

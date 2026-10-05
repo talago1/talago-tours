@@ -24,7 +24,7 @@ function localized(
 }
 
 async function getDestination(slug: string) {
-  return prisma.destination.findUnique({ where: { slug } });
+  return prisma.destination.findFirst({ where: { slug, isVisible: true } });
 }
 
 import { buildDestinationDetailSEO } from '@/lib/seoMetadata';
@@ -58,7 +58,7 @@ export default async function DestinationPage({
   const [dest, siblings] = await Promise.all([
     getDestination(params.slug),
     prisma.destination.findMany({
-      where: { NOT: { slug: params.slug } },
+      where: { NOT: { slug: params.slug }, isVisible: true },
       orderBy: { name: 'asc' },
       select: { name: true, slug: true, translations: true },
       take: 8,

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
   try {
     const destinations = await prisma.destination.findMany({
+      where: { isVisible: true },
       select: {
         id: true,
         name: true,

@@ -21,6 +21,7 @@ export async function generateMetadata({
 export default async function DestinationsPage() {
   const [destinations, bannerSetting] = await Promise.all([
     prisma.destination.findMany({
+      where: { isVisible: true },
       include: {
         _count: {
           select: { tours: true },
