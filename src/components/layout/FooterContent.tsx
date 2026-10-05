@@ -17,7 +17,7 @@ export function FooterBrandColumn() {
       </p>
       {/* Contact info */}
       <div className="mt-6 space-y-2 text-sm text-slate-500">
-        <p>Hurghada, Red Sea, Egypt</p>
+        <p>Red Sea &amp; Nile Valley, Egypt</p>
         <p>+20 102 224 34602</p>
         <p>tala.tour@outlook.com</p>
       </div>

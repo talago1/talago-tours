@@ -38,7 +38,12 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
     fetch('/api/public/geo')
       .then((res) => res.json())
       .then((data) => {
-        if (data.destination && ['hurghada', 'sharm-el-sheikh', 'marsa-alam'].includes(data.destination)) {
+        const ALL_DEST_SLUGS = [
+          'hurghada', 'sharm-el-sheikh', 'marsa-alam', 'el-gouna', 'makadi-bay',
+          'sahl-hasheesh', 'soma-bay', 'safaga', 'luxor', 'aswan', 'cairo',
+          'alexandria', 'fayoum', 'siwa', 'el-alamein',
+        ];
+        if (data.destination && ALL_DEST_SLUGS.includes(data.destination)) {
           setActiveDestination(data.destination);
           setDetectedLocation({
             destination: data.destination,
@@ -57,6 +62,18 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
             { id: 'hurghada', name: 'Hurghada', lat: 27.2579, lng: 33.8116 },
             { id: 'sharm-el-sheikh', name: 'Sharm El Sheikh', lat: 27.9158, lng: 34.3299 },
             { id: 'marsa-alam', name: 'Marsa Alam', lat: 25.0676, lng: 34.8790 },
+            { id: 'el-gouna', name: 'El Gouna', lat: 27.3918, lng: 33.6799 },
+            { id: 'makadi-bay', name: 'Makadi Bay', lat: 26.9985, lng: 33.7804 },
+            { id: 'sahl-hasheesh', name: 'Sahl Hasheesh', lat: 27.0706, lng: 33.8401 },
+            { id: 'soma-bay', name: 'Soma Bay', lat: 26.8522, lng: 33.9438 },
+            { id: 'safaga', name: 'Safaga', lat: 26.7337, lng: 33.9366 },
+            { id: 'luxor', name: 'Luxor', lat: 25.6872, lng: 32.6396 },
+            { id: 'aswan', name: 'Aswan', lat: 24.0889, lng: 32.8998 },
+            { id: 'cairo', name: 'Cairo', lat: 30.0444, lng: 31.2357 },
+            { id: 'alexandria', name: 'Alexandria', lat: 31.2001, lng: 29.9187 },
+            { id: 'fayoum', name: 'Fayoum', lat: 29.3084, lng: 30.8428 },
+            { id: 'siwa', name: 'Siwa', lat: 29.2031, lng: 25.5195 },
+            { id: 'el-alamein', name: 'El Alamein', lat: 30.8418, lng: 28.9550 },
           ];
           let closest = dests[0];
           let minD = Infinity;
