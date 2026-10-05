@@ -186,14 +186,34 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
       if (resData.translations) {
         setData((prev) => {
           const merged = { ...prev.translations };
+          const updatedItinerary = prev.itinerary ? [...prev.itinerary.map((m) => ({ ...m, title: { ...m.title }, description: { ...(m.description || {}) } }))] : [];
+
           for (const [langKey, translated] of Object.entries(resData.translations)) {
             const typedKey = langKey as LanguageCode;
             merged[typedKey] = {
               ...(merged[typedKey] || createDefaultLocalizedContent()),
               ...(translated as Partial<LocalizedTourContent>),
             };
+
+            // Merge translated itinerary milestones if present
+            const translatedItinerary = (translated as any).itinerary;
+            if (Array.isArray(translatedItinerary) && updatedItinerary.length > 0) {
+              translatedItinerary.forEach((item: any, idx: number) => {
+                if (updatedItinerary[idx]) {
+                  if (item.title) {
+                    (updatedItinerary[idx].title as any)[typedKey] = item.title;
+                  }
+                  if (item.description) {
+                    if (!updatedItinerary[idx].description) {
+                      updatedItinerary[idx].description = {} as any;
+                    }
+                    (updatedItinerary[idx].description as any)[typedKey] = item.description;
+                  }
+                }
+              });
+            }
           }
-          return { ...prev, translations: merged };
+          return { ...prev, translations: merged, itinerary: updatedItinerary };
         });
         setIsDirty(true);
         setSaveSuccessMessage('✨ Experience localized into all languages using Gemini AI!');
