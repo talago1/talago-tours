@@ -6,30 +6,38 @@ import { generateBookingReference } from '@/utils/bookingReference';
 import { generateAccessToken } from '@/utils/bookingToken';
 import { calculateTotalPrice, calculateTieredPrice } from '@/utils/priceCalculator';
 import { enforceCapacity, CapacityExceededError } from '@/utils/capacityEngine';
+import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
+import { sanitizePlain, sanitizeEmail, sanitizePhone, sanitizeText } from '@/utils/sanitize';
+
+const LIMIT = 20;
+const WINDOW_MS = 10 * 60 * 1000;
 
 export async function POST(request: NextRequest) {
+  const limit = rateLimit(clientKey(request, 'bookings-checkout'), LIMIT, WINDOW_MS);
+  if (!limit.allowed) {
+    return tooManyRequests(limit.retryAfterSeconds);
+  }
+
   try {
     const body = await request.json();
-    const {
-      tourId,
-      zoneId,
-      hotelName,
-      travelDate,
-      guestCount,
-      adultsCount,
-      childrenCount,
-      infantsCount,
-      customerName,
-      customerEmail,
-      customerPhone,
-      roomNumber,
-      pickupDirectives,
-      flightNumbers,
-      bedConfiguration,
-      specialRequirements,
-      selectedAddons,
-      bookingAnswers,
-    } = body;
+    const tourId = body.tourId;
+    const zoneId = body.zoneId;
+    const hotelName = sanitizePlain(body.hotelName, 150);
+    const travelDate = body.travelDate;
+    const guestCount = body.guestCount;
+    const adultsCount = body.adultsCount;
+    const childrenCount = body.childrenCount;
+    const infantsCount = body.infantsCount;
+    const customerName = sanitizePlain(body.customerName, 100);
+    const customerEmail = sanitizeEmail(body.customerEmail);
+    const customerPhone = sanitizePhone(body.customerPhone);
+    const roomNumber = sanitizePlain(body.roomNumber, 50);
+    const pickupDirectives = sanitizeText(body.pickupDirectives, 500);
+    const flightNumbers = sanitizePlain(body.flightNumbers, 100);
+    const bedConfiguration = sanitizePlain(body.bedConfiguration, 100);
+    const specialRequirements = sanitizeText(body.specialRequirements, 1000);
+    const selectedAddons = body.selectedAddons;
+    const bookingAnswers = body.bookingAnswers;
 
     const tour = await prisma.tour.findUnique({
       where: { id: tourId },

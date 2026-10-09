@@ -21,13 +21,15 @@ import {
   Languages,
   CreditCard,
   Package,
+  Bot,
 } from 'lucide-react';
 import type { SystemSettings, SiteBanner, HeroLanguageTexts } from '@/types/settings';
 import { DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
 import NotificationSettingsDashboard from '@/components/admin/NotificationSettingsDashboard';
 import GlobalAssetStudio from '@/components/admin/GlobalAssetStudio';
+import AiKeyPoolManager from '@/components/admin/AiKeyPoolManager';
 
-type ActiveSection = 'contact' | 'financial' | 'paymentMethods' | 'system' | 'banners' | 'notifications' | 'modules';
+type ActiveSection = 'contact' | 'financial' | 'paymentMethods' | 'system' | 'banners' | 'notifications' | 'modules' | 'ai';
 
 const HERO_LANGUAGES = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -46,6 +48,7 @@ const SECTIONS: { key: ActiveSection; label: string; icon: typeof Settings }[] =
   { key: 'system', label: 'System Toggles', icon: ToggleLeft },
   { key: 'banners', label: 'Hero & Banners', icon: ImageIcon },
   { key: 'notifications', label: 'Notifications', icon: MessageSquare },
+  { key: 'ai', label: 'AI Key Pool & Models', icon: Bot },
   { key: 'modules', label: 'Advanced Modules', icon: Package },
 ];
 
@@ -57,6 +60,16 @@ export default function AdminSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<ActiveSection>('contact');
   const [heroActiveLang, setHeroActiveLang] = useState<string>('en');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab') as ActiveSection | null;
+      if (tab && SECTIONS.some((s) => s.key === tab)) {
+        setActiveSection(tab);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     async function loadSettings() {
@@ -1936,6 +1949,10 @@ export default function AdminSettingsPage() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {activeSection === 'ai' && (
+              <AiKeyPoolManager />
             )}
           </div>
         </div>

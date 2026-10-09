@@ -18,6 +18,7 @@ import {
 import CarouselImages from '@/components/ui/CarouselImages';
 
 import { useLanguage } from '@/context/LanguageContext';
+import { useCurrency } from '@/context/CurrencyContext';
 import { getCategoryGradient, normalizeCategory } from '@/utils/tourCategory';
 
 export interface PublicTourCardData {
@@ -73,6 +74,7 @@ function RatingStars({ ratingAverage }: { ratingAverage: number }) {
 
 export default function PublicTourCard({ tour, priority = false }: { tour: PublicTourCardData; priority?: boolean }) {
   const { dict, language } = useLanguage();
+  const { formatPrice } = useCurrency();
   const [isHovered, setIsHovered] = useState(false);
 
   const t = tour.translations as Record<string, { title?: string; description?: string; cardExcerpt?: string }> | undefined;
@@ -220,11 +222,11 @@ export default function PublicTourCard({ tour, priority = false }: { tour: Publi
               </p>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-xl font-black text-[#FFD700]">
-                  ${price != null ? price.toFixed(0) : '0'}
+                  {price != null ? formatPrice(price, { round: true }) : formatPrice(0, { round: true })}
                 </span>
                 {hasDiscount && (
                   <span className="text-xs text-slate-500 line-through">
-                    ${tour.originalPrice!.toFixed(0)}
+                    {formatPrice(tour.originalPrice!, { round: true })}
                   </span>
                 )}
               </div>

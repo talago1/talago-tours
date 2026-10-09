@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ADMIN_SESSION_COOKIE, getAdminToken } from '@/utils/adminAuth';
+import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
+
+const LOGIN_LIMIT = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
 export async function POST(request: NextRequest) {
+  const limit = rateLimit(clientKey(request, 'admin-login'), LOGIN_LIMIT, LOGIN_WINDOW_MS);
+  if (!limit.allowed) {
+    return tooManyRequests(limit.retryAfterSeconds);
+  }
+
   let body: unknown;
 
   try {

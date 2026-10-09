@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateAiBlogPost, isGeminiConfigured } from '@/lib/gemini';
+import { generateAiBlogPost, isAiConfigured } from '@/lib/gemini';
 import { prisma } from '@/lib/prisma';
+import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
+
+const LIMIT = 10;
+const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
 export async function POST(request: NextRequest) {
+  const limit = rateLimit(clientKey(request, 'ai-blog-generate'), LIMIT, WINDOW_MS);
+  if (!limit.allowed) {
+    return tooManyRequests(limit.retryAfterSeconds);
+  }
+
   try {
-    if (!isGeminiConfigured()) {
+    const configured = await isAiConfigured();
+    if (!configured) {
       return NextResponse.json(
         {
           error:
-            'GEMINI_API_KEY is not configured in .env. Please provide a Google Gemini API key to enable AI blog generation.',
+            'No AI Provider is configured. Please configure an AI Provider in Admin Settings > AI Key Pool or set GEMINI_API_KEY in .env.',
         },
         { status: 503 },
       );

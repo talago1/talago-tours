@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { User, Globe, LayoutDashboard, LogOut, ChevronDown } from 'lucide-react';
+import { User, Globe, LayoutDashboard, LogOut, ChevronDown, DollarSign } from 'lucide-react';
 import { useLanguage, type LanguageCode, languageLabels } from '@/context/LanguageContext';
+import { useCurrency } from '@/context/CurrencyContext';
 import { supabaseClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import type { Session } from '@supabase/supabase-js';
@@ -21,11 +22,14 @@ const LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
 
 export default function NavActions() {
   const { language, setLanguage, dict } = useLanguage();
+  const { currency, setCurrency, symbols, supportedCurrencies } = useCurrency();
   const router = useRouter();
   const [langOpen, setLangOpen] = useState(false);
+  const [currencyOpen, setCurrencyOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const langRef = useRef<HTMLDivElement>(null);
+  const currencyRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
 
   // Bootstrap session state + listen for changes
@@ -45,6 +49,7 @@ export default function NavActions() {
   useEffect(() => {
     function handleOutsideClick(e: MouseEvent) {
       if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
+      if (currencyRef.current && !currencyRef.current.contains(e.target as Node)) setCurrencyOpen(false);
       if (userRef.current && !userRef.current.contains(e.target as Node)) setUserOpen(false);
     }
     document.addEventListener('mousedown', handleOutsideClick);
@@ -89,6 +94,38 @@ export default function NavActions() {
               >
                 <span className="w-8 font-bold">{lang.label}</span>
                 <span className="text-slate-500">{lang.native}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Currency Switcher ── */}
+      <div ref={currencyRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setCurrencyOpen(!currencyOpen)}
+          className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-bold text-slate-300 transition-all hover:bg-white/[0.06] hover:text-white"
+        >
+          <span className="text-[#00E5FF] font-mono text-xs font-black">{symbols[currency]}</span>
+          <span>{currency}</span>
+        </button>
+
+        {currencyOpen && (
+          <div className="absolute right-0 top-full mt-2 w-36 rounded-xl border border-white/10 bg-[#0B1528] py-1 shadow-2xl shadow-black/60 backdrop-blur-xl z-50">
+            {supportedCurrencies.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => { setCurrency(c); setCurrencyOpen(false); }}
+                className={`flex w-full items-center justify-between px-3.5 py-2 text-xs font-bold transition-colors ${
+                  currency === c
+                    ? 'bg-[#00E5FF]/10 text-[#00E5FF]'
+                    : 'text-slate-300 hover:bg-white/[0.06] hover:text-white'
+                }`}
+              >
+                <span>{c}</span>
+                <span className="font-mono text-slate-400">{symbols[c]}</span>
               </button>
             ))}
           </div>

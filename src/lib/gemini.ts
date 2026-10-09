@@ -1,23 +1,111 @@
 /**
  * Google Gemini AI client for TALAGO
- * Used for:
- * 1. AI Auto-Translation of tours across 8 languages
- * 2. AI Article / Blog Post generation for destinations & experiences
+ * Features:
+ *  1. AI Auto-Translation of tours across 8 languages
+ *  2. AI Article / Blog Post generation for destinations & experiences
  *
- * Uses free-tier Google Gemini 1.5 Flash via REST API (zero extra dependencies).
- * Configure GEMINI_API_KEY in .env.
+ * Uses free-tier Google Gemini 1.5 Flash via REST API.
+ *
+ * Key Pool & Dynamic Failover:
+ *  - Reads GEMINI_API_KEY (primary) + GEMINI_API_KEY_2 … GEMINI_API_KEY_10 from env.
+ *  - Round-robins across all configured keys.
+ *  - On 429 (rate-limit) or 5xx, marks the key as temporarily exhausted and
+ *    immediately retries with the next available key.
+ *  - Exhausted keys re-enter the pool after COOLDOWN_MS (default: 60 s).
  */
 
+if (typeof window !== 'undefined') {
+  throw new Error('Security Violation: Gemini AI utility imported into browser bundle.');
+}
+
+// ---------------------------------------------------------------------------
+// Key Pool
+// ---------------------------------------------------------------------------
+
+const GEMINI_API_ENDPOINT =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+
+const COOLDOWN_MS = 60_000; // 60 seconds before a rate-limited key is retried
+
+interface PoolKey {
+  key: string;
+  exhaustedUntil: number; // epoch ms; 0 = available
+}
+
+let _pool: PoolKey[] | null = null;
+
+function buildPool(): PoolKey[] {
+  const keys: string[] = [];
+
+  // Primary key
+  const primary = process.env.GEMINI_API_KEY?.trim();
+  if (primary) keys.push(primary);
+
+  // Additional keys GEMINI_API_KEY_2 … GEMINI_API_KEY_10
+  for (let i = 2; i <= 10; i++) {
+    const extra = process.env[`GEMINI_API_KEY_${i}`]?.trim();
+    if (extra) keys.push(extra);
+  }
+
+  return keys.map((key) => ({ key, exhaustedUntil: 0 }));
+}
+
+function getPool(): PoolKey[] {
+  if (!_pool) _pool = buildPool();
+  return _pool;
+}
+
+let _roundRobinIndex = 0;
+
+/** Returns the next available key from the pool, or null if all are exhausted. */
+function pickKey(): PoolKey | null {
+  const pool = getPool();
+  if (pool.length === 0) return null;
+
+  const now = Date.now();
+  for (let attempt = 0; attempt < pool.length; attempt++) {
+    const idx = (_roundRobinIndex + attempt) % pool.length;
+    const entry = pool[idx];
+    if (entry.exhaustedUntil === 0 || now >= entry.exhaustedUntil) {
+      entry.exhaustedUntil = 0; // reset if cooldown has passed
+      _roundRobinIndex = (idx + 1) % pool.length;
+      return entry;
+    }
+  }
+  return null; // all exhausted
+}
+
+function markExhausted(poolKey: PoolKey) {
+  poolKey.exhaustedUntil = Date.now() + COOLDOWN_MS;
+  console.warn(`[gemini] Key ...${poolKey.key.slice(-6)} rate-limited. Cooling down for ${COOLDOWN_MS / 1000}s.`);
+}
+
+// ---------------------------------------------------------------------------
+// Public helpers (backward-compatible)
+// ---------------------------------------------------------------------------
+
 export function getGeminiApiKey(): string | null {
-  return process.env.GEMINI_API_KEY?.trim() || null;
+  return getPool()[0]?.key ?? null;
 }
 
 export function isGeminiConfigured(): boolean {
-  return Boolean(getGeminiApiKey());
+  return getPool().length > 0;
 }
 
-const GEMINI_API_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
+export async function isAiConfigured(): Promise<boolean> {
+  if (getPool().length > 0) return true;
+  try {
+    const { getAiProviders } = await import('@/lib/ai-router');
+    const providers = await getAiProviders(true);
+    return providers.some((p) => p.isActive);
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Core fetch with failover
+// ---------------------------------------------------------------------------
 
 interface GeminiResponse {
   candidates?: Array<{
@@ -34,46 +122,103 @@ interface GeminiResponse {
 }
 
 async function callGemini(prompt: string, jsonMode = true): Promise<string> {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured in environment variables.');
-  }
-
-  const url = `${GEMINI_API_ENDPOINT}?key=${encodeURIComponent(apiKey)}`;
-
-  const body: Record<string, unknown> = {
-    contents: [
-      {
-        parts: [{ text: prompt }],
-      },
-    ],
-    generationConfig: {
+  // 1. Try Universal AI Router pool (Gemini, Groq, OpenRouter, DeepSeek)
+  try {
+    const { executeAiPrompt } = await import('@/lib/ai-router');
+    const result = await executeAiPrompt({
+      prompt,
+      jsonMode,
       temperature: 0.2,
-      maxOutputTokens: 8192,
-      ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
-    },
-  };
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorBody = (await response.json().catch(() => null)) as GeminiResponse | null;
-    const msg = errorBody?.error?.message || `Gemini API returned status ${response.status}`;
-    throw new Error(`Gemini AI Error: ${msg}`);
+    });
+    if (result.text && result.text.trim()) {
+      return result.text.trim();
+    }
+  } catch (routerErr) {
+    console.warn('[gemini] Universal AI Router failed or empty, using native pool fallback:', routerErr);
   }
 
-  const data = (await response.json()) as GeminiResponse;
-  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!rawText) {
-    throw new Error('Gemini AI returned empty response');
+  // 2. Direct fallback using built-in Gemini key pool
+  const pool = getPool();
+  if (pool.length === 0) {
+    throw new Error('No AI provider or GEMINI_API_KEY configured.');
   }
 
-  return rawText;
+  let lastError: Error = new Error('All Gemini API keys are exhausted or unavailable.');
+
+  for (let attempt = 0; attempt < pool.length; attempt++) {
+    const entry = pickKey();
+    if (!entry) {
+      // All keys in cooldown - brief wait then try first key anyway
+      await new Promise((r) => setTimeout(r, 2000));
+      const fallback = pool[0];
+      fallback.exhaustedUntil = 0;
+      const url = `${GEMINI_API_ENDPOINT}?key=${encodeURIComponent(fallback.key)}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 8192,
+            ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
+          },
+        }),
+      });
+      if (!response.ok) throw lastError;
+      const data = (await response.json()) as GeminiResponse;
+      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) throw new Error('Gemini AI returned empty response');
+      return rawText;
+    }
+
+    const url = `${GEMINI_API_ENDPOINT}?key=${encodeURIComponent(entry.key)}`;
+
+    const body: Record<string, unknown> = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 8192,
+        ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
+      },
+    };
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch (networkErr) {
+      lastError = networkErr instanceof Error ? networkErr : new Error(String(networkErr));
+      markExhausted(entry);
+      continue;
+    }
+
+    // Rate limit or server error → mark key and try next
+    if (response.status === 429 || response.status >= 500) {
+      const errorBody = (await response.json().catch(() => null)) as GeminiResponse | null;
+      const msg = errorBody?.error?.message || `Gemini API status ${response.status}`;
+      lastError = new Error(`Gemini AI Error (key ...${entry.key.slice(-6)}): ${msg}`);
+      markExhausted(entry);
+      continue;
+    }
+
+    if (!response.ok) {
+      const errorBody = (await response.json().catch(() => null)) as GeminiResponse | null;
+      const msg = errorBody?.error?.message || `Gemini API returned status ${response.status}`;
+      throw new Error(`Gemini AI Error: ${msg}`);
+    }
+
+    const data = (await response.json()) as GeminiResponse;
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) throw new Error('Gemini AI returned empty response');
+
+    return rawText;
+  }
+
+  throw lastError;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,9 +245,7 @@ export async function translateTourContent(
   targetLangs: SupportedLanguage[] = ['de', 'ru', 'fr', 'it', 'pl', 'es', 'uk'],
 ): Promise<Record<SupportedLanguage, Partial<TourTranslationPayload>>> {
   const prompt = `You are a professional travel localization expert for luxury travel platform TALAGO.
-Translate the following tourism experience data from English into the specified target languages: ${targetLangs.join(
-    ', ',
-  )}.
+Translate the following tourism experience data from English into the specified target languages: ${targetLangs.join(', ')}.
 
 Maintain professional, compelling, and localized tone suitable for tourists. Do not invent facts, keep specific names (landmarks, beaches, equipment) accurate.
 
@@ -126,10 +269,8 @@ ${JSON.stringify(source, null, 2)}
 
   const rawJson = await callGemini(prompt, true);
   try {
-    const parsed = JSON.parse(rawJson);
-    return parsed;
+    return JSON.parse(rawJson);
   } catch {
-    // If wrapped in code block
     const cleaned = rawJson.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
     return JSON.parse(cleaned);
   }
@@ -216,3 +357,6 @@ Return strictly valid JSON adhering to this schema:
     return JSON.parse(cleaned);
   }
 }
+
+
+

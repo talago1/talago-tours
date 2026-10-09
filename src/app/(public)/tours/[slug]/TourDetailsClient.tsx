@@ -25,6 +25,7 @@ import Button from '@/components/ui/Button';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useLanguage } from '@/context/LanguageContext';
+import { useCurrency } from '@/context/CurrencyContext';
 import TourCard from '@/components/public/TourCard';
 import type { PublicTour } from '@/types/publicTour';
 
@@ -101,13 +102,29 @@ interface Props {
   relatedTours?: PublicTour[];
 }
 
-// ---------- Hero Slider ----------
-function HeroSlider({ images, title, destinationName, category }: { images: string[]; title: string; destinationName: string; category: string | null }) {
+function HeroSlider({
+  images,
+  title,
+  destinationName,
+  destinationSlug,
+  category,
+}: {
+  images: string[];
+  title: string;
+  destinationName: string;
+  destinationSlug?: string;
+  category: string | null;
+}) {
   const { dict } = useLanguage();
   const [current, setCurrent] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Touch swipe support
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const minSwipeDistance = 50;
 
   const startInterval = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
@@ -153,11 +170,38 @@ function HeroSlider({ images, title, destinationName, category }: { images: stri
   const goPrev = () => goTo((current - 1 + images.length) % images.length);
   const goNext = () => goTo((current + 1) % images.length);
 
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    if (distance > minSwipeDistance) goNext();
+    if (distance < -minSwipeDistance) goPrev();
+  };
+
+  const onLightboxTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    if (distance > minSwipeDistance) setLightboxIndex((prev) => (prev + 1) % images.length);
+    if (distance < -minSwipeDistance) setLightboxIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
   if (images.length === 0) return null;
 
   return (
     <section className="relative overflow-hidden">
-      <div className="group relative h-[50vh] cursor-pointer md:h-[70vh]" onClick={() => openLightbox(current)}>
+      <div
+        className="group relative h-[50vh] cursor-pointer md:h-[70vh]"
+        onClick={() => openLightbox(current)}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         {images.map((img, i) => (
           <div
             key={i}
@@ -225,15 +269,32 @@ function HeroSlider({ images, title, destinationName, category }: { images: stri
           </div>
         )}
 
-        {/* Destination + category badges */}
-        <div className="absolute left-6 top-6 z-10 flex flex-wrap gap-2">
-          <span className="rounded-full border border-[#00E5FF]/20 bg-[#0B1528]/80 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#00E5FF] shadow-xl backdrop-blur-md">
-            {destinationName}
-          </span>
-          {category && (
-            <span className="rounded-full border border-[#FFD700]/20 bg-[#0B1528]/80 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#FFD700] shadow-xl backdrop-blur-md">
-              {category.replace(/_/g, ' ')}
+        {/* Interactive Taxonomy Tags (Destination + Category) */}
+        <div className="absolute left-6 top-6 z-10 flex flex-wrap gap-2.5">
+          {destinationSlug ? (
+            <Link
+              href={`/destinations/${destinationSlug}`}
+              onClick={(e) => e.stopPropagation()}
+              className="group/badge inline-flex items-center gap-1.5 rounded-full border border-[#00E5FF]/30 bg-[#0B1528]/85 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#00E5FF] shadow-2xl backdrop-blur-md transition-all hover:bg-[#00E5FF] hover:text-[#070F1E] hover:scale-105"
+            >
+              <MapPin className="h-3.5 w-3.5 text-[#00E5FF] group-hover/badge:text-[#070F1E] transition-colors" />
+              <span>{destinationName}</span>
+            </Link>
+          ) : (
+            <span className="rounded-full border border-[#00E5FF]/20 bg-[#0B1528]/80 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#00E5FF] shadow-xl backdrop-blur-md">
+              {destinationName}
             </span>
+          )}
+
+          {category && (
+            <Link
+              href={`/tours?category=${encodeURIComponent(category.toLowerCase())}`}
+              onClick={(e) => e.stopPropagation()}
+              className="group/badge inline-flex items-center gap-1.5 rounded-full border border-[#FFD700]/30 bg-[#0B1528]/85 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#FFD700] shadow-2xl backdrop-blur-md transition-all hover:bg-[#FFD700] hover:text-[#070F1E] hover:scale-105"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-[#FFD700] group-hover/badge:text-[#070F1E] transition-colors" />
+              <span>{category.replace(/_/g, ' ')}</span>
+            </Link>
           )}
         </div>
       </div>
@@ -258,8 +319,14 @@ function HeroSlider({ images, title, destinationName, category }: { images: stri
             </button>
           </div>
 
-          {/* Lightbox Main Uncropped Image Container */}
-          <div className="relative flex max-h-[75vh] w-full flex-1 items-center justify-center py-2" onClick={(e) => e.stopPropagation()}>
+          {/* Lightbox Main Uncropped Image Container with Touch Swipe */}
+          <div
+            className="relative flex max-h-[75vh] w-full flex-1 items-center justify-center py-2"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onLightboxTouchEnd}
+          >
             <Image
               src={images[lightboxIndex]}
               alt={`${title} full size ${lightboxIndex + 1}`}
@@ -612,6 +679,8 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
   const effectiveChildPrice = tour.childPrice ?? null;
   const effectiveInfantPrice = tour.infantPrice ?? null;
 
+  const { formatPrice } = useCurrency();
+
   const totalGuests = adultsCount + childrenCount + infantsCount;
   const totalPrice =
     pricePerAdult * adultsCount +
@@ -627,7 +696,13 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
   return (
     <>
       {/* Hero Slider */}
-      <HeroSlider images={tour.images} title={localizedTitle} destinationName={tour.destination.name} category={tour.category} />
+      <HeroSlider
+        images={tour.images}
+        title={localizedTitle}
+        destinationName={tour.destination.name}
+        destinationSlug={tour.destination.slug}
+        category={tour.category}
+      />
 
       {/* Main Content Grid */}
       <div className="mx-auto max-w-7xl px-5 pb-24 lg:px-10">
@@ -1051,11 +1126,11 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
               <div className="mb-6">
                 <p className="text-sm font-black uppercase tracking-[0.22em] text-slate-500">{dict.tourDetails.from}</p>
                 <div className="mt-1 flex flex-wrap items-baseline gap-2">
-                  <span className="text-4xl font-black text-white">${pricePerAdult.toFixed(0)}</span>
+                  <span className="text-4xl font-black text-white">{formatPrice(pricePerAdult, { round: true })}</span>
                   {tour.originalPrice && tour.originalPrice > pricePerAdult && (
                     <>
                       <span className="text-base font-bold text-slate-500 line-through">
-                        ${tour.originalPrice.toFixed(0)}
+                        {formatPrice(tour.originalPrice, { round: true })}
                       </span>
                       <span className="rounded-full bg-gradient-to-r from-[#FF5B00] to-[#EAB308] px-2.5 py-0.5 text-xs font-black text-white shadow-md shadow-[#FF5B00]/30">
                         -{Math.round((1 - pricePerAdult / tour.originalPrice) * 100)}% OFF
@@ -1103,7 +1178,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
                   <SidebarStepper
                     label={dict.tourDetails.adults}
                     sublabel={dict.tourDetails.ageAdult}
-                    priceLabel={`$${pricePerAdult.toFixed(0)} ${dict.tourDetails.perPerson}`}
+                    priceLabel={`${formatPrice(pricePerAdult, { round: true })} ${dict.tourDetails.perPerson}`}
                     icon={UserRound}
                     iconBg="bg-[#00E5FF]/10 text-[#00E5FF]"
                     value={adultsCount}
@@ -1115,7 +1190,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
                     sublabel={dict.tourDetails.ageChild}
                     priceLabel={
                       effectiveChildPrice
-                        ? `$${effectiveChildPrice.toFixed(0)} ${dict.tourDetails.perChild}`
+                        ? `${formatPrice(effectiveChildPrice, { round: true })} ${dict.tourDetails.perChild}`
                         : dict.tourDetails.sameAsAdult
                     }
                     icon={Users}
@@ -1128,7 +1203,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
                     sublabel={dict.tourDetails.ageInfant}
                     priceLabel={
                       effectiveInfantPrice
-                        ? `$${effectiveInfantPrice.toFixed(0)} ${dict.tourDetails.perInfant}`
+                        ? `${formatPrice(effectiveInfantPrice, { round: true })} ${dict.tourDetails.perInfant}`
                         : dict.tourDetails.free
                     }
                     icon={Baby}
@@ -1160,7 +1235,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
                       <p className="text-xs text-slate-500">{dict.tourDetails.fullOnlineDesc}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-white">${totalPrice.toFixed(0)}</p>
+                      <p className="text-sm font-bold text-white">{formatPrice(totalPrice, { round: true })}</p>
                     </div>
                   </button>
                 )}
@@ -1184,7 +1259,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
                       <p className="text-xs text-slate-500">{dict.tourDetails.depositDesc}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-white">${depositAmount.toFixed(0)}</p>
+                      <p className="text-sm font-bold text-white">{formatPrice(depositAmount, { round: true })}</p>
                     </div>
                   </button>
                 )}
@@ -1215,29 +1290,29 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
               {/* Price breakdown */}
               <div className="mb-6 space-y-2 border-t border-white/10 pt-5">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">${pricePerAdult.toFixed(0)} × {adultsCount} {dict.tourDetails.adults?.toLowerCase()}</span>
-                  <span className="font-bold text-white">${(pricePerAdult * adultsCount).toFixed(0)}</span>
+                  <span className="text-slate-400">{formatPrice(pricePerAdult, { round: true })} × {adultsCount} {dict.tourDetails.adults?.toLowerCase()}</span>
+                  <span className="font-bold text-white">{formatPrice(pricePerAdult * adultsCount, { round: true })}</span>
                 </div>
                 {childrenCount > 0 && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">${(effectiveChildPrice ?? pricePerAdult).toFixed(0)} × {childrenCount} {dict.tourDetails.children?.toLowerCase()}</span>
-                    <span className="font-bold text-white">${((effectiveChildPrice ?? pricePerAdult) * childrenCount).toFixed(0)}</span>
+                    <span className="text-slate-400">{formatPrice(effectiveChildPrice ?? pricePerAdult, { round: true })} × {childrenCount} {dict.tourDetails.children?.toLowerCase()}</span>
+                    <span className="font-bold text-white">{formatPrice((effectiveChildPrice ?? pricePerAdult) * childrenCount, { round: true })}</span>
                   </div>
                 )}
                 {infantsCount > 0 && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">{effectiveInfantPrice ? `$${effectiveInfantPrice.toFixed(0)} × ${infantsCount} ${dict.tourDetails.infants?.toLowerCase()}` : `${infantsCount} ${dict.tourDetails.infants?.toLowerCase()} · ${dict.tourDetails.free}`}</span>
-                    <span className="font-bold text-white">{effectiveInfantPrice ? `$${(effectiveInfantPrice * infantsCount).toFixed(0)}` : '$0'}</span>
+                    <span className="text-slate-400">{effectiveInfantPrice ? `${formatPrice(effectiveInfantPrice, { round: true })} × ${infantsCount} ${dict.tourDetails.infants?.toLowerCase()}` : `${infantsCount} ${dict.tourDetails.infants?.toLowerCase()} · ${dict.tourDetails.free}`}</span>
+                    <span className="font-bold text-white">{effectiveInfantPrice ? formatPrice(effectiveInfantPrice * infantsCount, { round: true }) : formatPrice(0, { round: true })}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between border-t border-white/5 pt-2 text-sm">
                   <span className="text-slate-300 font-semibold">{dict.tourDetails.total} · {totalGuests} {dict.tourDetails.guests?.toLowerCase()}</span>
-                  <span className="text-lg font-black text-white">${totalPrice.toFixed(0)}</span>
+                  <span className="text-lg font-black text-white">{formatPrice(totalPrice, { round: true })}</span>
                 </div>
                 {selectedPayment === 'deposit' && tour.allowDeposit && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-400">{dict.tourDetails.dueOnArrival}</span>
-                    <span className="font-bold text-amber-400">${dueOnArrival.toFixed(0)}</span>
+                    <span className="font-bold text-amber-400">{formatPrice(dueOnArrival, { round: true })}</span>
                   </div>
                 )}
               </div>
@@ -1284,11 +1359,11 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
             <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">{dict.tourDetails.from}</p>
             <div className="flex items-baseline gap-2">
               <p className="text-2xl font-black text-white">
-                ${pricePerAdult.toFixed(0)}
+                {formatPrice(pricePerAdult, { round: true })}
               </p>
               {tour.originalPrice && tour.originalPrice > pricePerAdult && (
                 <span className="text-sm font-bold text-slate-500 line-through">
-                  ${tour.originalPrice.toFixed(0)}
+                  {formatPrice(tour.originalPrice, { round: true })}
                 </span>
               )}
               <span className="text-xs font-normal text-slate-400">{dict.tourDetails.perPerson}</span>

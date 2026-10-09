@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Star, Clock, MapPin, ArrowRight } from 'lucide-react';
 import type { PublicTour } from '@/types/publicTour';
 import { useLanguage } from '@/context/LanguageContext';
+import { useCurrency } from '@/context/CurrencyContext';
 
 interface TourCardProps {
   tour: PublicTour;
@@ -29,6 +30,7 @@ function StarRating({ rating }: { rating: number }) {
 export default function TourCard({ tour, priority }: TourCardProps) {
   const [imgError, setImgError] = useState(false);
   const { language, dict } = useLanguage();
+  const { formatPrice } = useCurrency();
 
   // Extract dynamic localized title
   const localizedTitle = tour.translations?.[language]?.title || tour.title;
@@ -99,7 +101,7 @@ export default function TourCard({ tour, priority }: TourCardProps) {
                     {dict.catalog.startingAt}
                   </span>
                   <span className="text-2xl font-black text-white">
-                    ${tour.basePrice.toFixed(0)}
+                    {formatPrice(tour.basePrice, { round: true })}
                   </span>
                 </>
               ) : (

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { ZoneOption } from '@/types/booking';
 import BookingFormSteps from './BookingFormSteps';
+import { useCurrency } from '@/context/CurrencyContext';
 
 interface BookingWidgetProps {
   tourId: string;
@@ -26,6 +27,7 @@ export default function BookingWidget({
   zones,
 }: BookingWidgetProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { formatPrice } = useCurrency();
 
   const commonProps = {
     tourId,
@@ -53,7 +55,7 @@ export default function BookingWidget({
           <div>
             <p className="text-xs text-gray-500">From</p>
             <p className="text-lg font-bold text-gray-800">
-              ${(adultPrice ?? perPersonPrice).toFixed(2)}
+              {formatPrice(adultPrice ?? perPersonPrice)}
               <span className="text-xs font-normal text-gray-500 ml-1">/ adult</span>
             </p>
           </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyPaymobEnv } from '@/lib/env';
 import { initiatePaymobSession } from '@/utils/paymob';
+import { convertCurrency } from '@/utils/currency';
 import { getBookingByAccessToken, isPlausibleAccessToken } from '@/utils/bookingToken';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 import type { PaymentInitiationRequest, PaymentInitiationResponse } from '@/types/payment';
@@ -67,9 +68,15 @@ export async function POST(request: NextRequest) {
     }
 
     const firstLine = booking.customerName.trim().split(' ');
+    const amountUsd = booking.amountPaidOnline && booking.amountPaidOnline > 0
+      ? booking.amountPaidOnline
+      : booking.totalPriceUSD;
+
+    const { convertedAmount: egpAmount } = await convertCurrency(amountUsd, 'USD', 'EGP');
+    const amountCents = Math.round(egpAmount * 100);
 
     const redirectUrl = await initiatePaymobSession({
-      amountCents: Math.round(booking.totalPriceUSD * 100),
+      amountCents,
       merchantOrderId: booking.bookingReference,
       billingData: {
         email: booking.customerEmail,

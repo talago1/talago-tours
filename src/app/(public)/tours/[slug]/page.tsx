@@ -9,15 +9,16 @@ import type { Metadata } from 'next';
 import { safeParseItinerary, safeParseReviews } from '@/utils/tourJsonSchemas';
 import { resolveServerLanguage } from '@/lib/i18n.server';
 
+import { buildTourDetailSEO } from '@/lib/seoMetadata';
+
 interface Props {
   params: { slug: string };
   searchParams?: Record<string, string | string[] | undefined>;
 }
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
   const lang = resolveServerLanguage(searchParams);
-  const tour = await prisma.tour.findUnique({
+  let tour = await prisma.tour.findUnique({
     where: { slug: params.slug },
     select: {
       translations: true,
@@ -31,6 +32,23 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       destination: { select: { name: true } },
     },
   });
+
+  if (!tour) {
+    tour = await prisma.tour.findUnique({
+      where: { id: params.slug },
+      select: {
+        translations: true,
+        coverImage: true,
+        priceAdult: true,
+        adultPrice: true,
+        basePrice: true,
+        metaTitle: true,
+        metaDescription: true,
+        keywords: true,
+        destination: { select: { name: true } },
+      },
+    });
+  }
 
   const t = tour?.translations as Record<string, { title?: string; description?: string; seoTitle?: string; seoDescription?: string }> | undefined;
   const localized = t?.[lang];
@@ -47,56 +65,24 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     english?.seoDescription ||
     english?.description ||
     'Curated tour and experience in Egypt.';
-  const fallbackImage = `${baseUrl}/og/default.jpg`;
-  const image = tour?.coverImage || fallbackImage;
-  const pageUrl = `${baseUrl}/tours/${params.slug}`;
 
-  return {
+  const price = tour?.priceAdult ?? tour?.adultPrice ?? tour?.basePrice ?? null;
+
+  return buildTourDetailSEO({
     title,
     description,
-    keywords: tour?.keywords && tour.keywords.length > 0 ? tour.keywords : undefined,
-    alternates: {
-      canonical: pageUrl,
-      languages: {
-        en: `${pageUrl}?lang=en`,
-        de: `${pageUrl}?lang=de`,
-        ru: `${pageUrl}?lang=ru`,
-        it: `${pageUrl}?lang=it`,
-        fr: `${pageUrl}?lang=fr`,
-        pl: `${pageUrl}?lang=pl`,
-        es: `${pageUrl}?lang=es`,
-        uk: `${pageUrl}?lang=uk`,
-        'x-default': pageUrl,
-      },
-    },
-    openGraph: {
-      title,
-      description,
-      url: `${pageUrl}${lang === 'en' ? '' : `?lang=${lang}`}`,
-      siteName: 'TALAGO',
-      locale: `${lang}_${lang.toUpperCase()}`,
-      images: [
-        {
-          url: image,
-          secureUrl: image,
-          width: 1200,
-          height: 630,
-          alt: title,
-        },
-      ],
-      type: 'website',
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: [image],
-    },
-  };
+    slug: params.slug,
+    coverImage: tour?.coverImage,
+    destinationName: tour?.destination?.name,
+    lang,
+    price,
+    currency: 'USD',
+    keywords: tour?.keywords,
+  });
 }
 
 export default async function TourDetailPage({ params }: Props) {
-  const tour = await prisma.tour.findUnique({
+  let tour = await prisma.tour.findUnique({
     where: { slug: params.slug },
     select: {
       id: true,
@@ -163,6 +149,76 @@ export default async function TourDetailPage({ params }: Props) {
       },
     },
   });
+
+  if (!tour) {
+    tour = await prisma.tour.findUnique({
+      where: { id: params.slug },
+      select: {
+        id: true,
+        slug: true,
+        basePrice: true,
+        basePriceUSD: true,
+        duration: true,
+        durationHours: true,
+        maxCapacity: true,
+        thumbnailUrl: true,
+        coverImage: true,
+        galleryImages: true,
+        category: true,
+        status: true,
+        translations: true,
+        highlights: true,
+        inclusions: true,
+        exclusions: true,
+        itinerary: true,
+        whatToBring: true,
+        pickupDescription: true,
+        hotelPickupIncluded: true,
+        ratingAverage: true,
+        ratingCount: true,
+        adultPrice: true,
+        priceAdult: true,
+        originalPrice: true,
+        childPrice: true,
+        priceChild: true,
+        infantPrice: true,
+        pickupTime: true,
+        pickupTimes: true,
+        pickupType: true,
+        meetingPointName: true,
+        meetingPointAddress: true,
+        meetingPointLat: true,
+        meetingPointLng: true,
+        meetingPointLandmark: true,
+        meetingPointInstructions: true,
+        meetingPointMapUrl: true,
+        meetingPointImageUrl: true,
+        cancellationPolicy: true,
+        allowDeposit: true,
+        depositPercentage: true,
+        allowPayAtLocation: true,
+        images: true,
+        reviews: true,
+        reviewEntries: {
+          select: {
+            id: true,
+            customerName: true,
+            rating: true,
+            comment: true,
+            status: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        ageRestrictionsNotes: true,
+        destinationId: true,
+        tourOptions: true,
+        destination: {
+          select: { name: true, slug: true },
+        },
+      },
+    });
+  }
 
   if (!tour || (tour.status && tour.status.toUpperCase() !== 'ACTIVE')) {
     notFound();

@@ -10,6 +10,10 @@
 
 import { Resend } from 'resend';
 
+if (typeof window !== 'undefined') {
+  throw new Error('Security Violation: Email utility imported into browser bundle.');
+}
+
 function getResendClient(): Resend {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {

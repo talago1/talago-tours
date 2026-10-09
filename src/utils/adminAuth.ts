@@ -1,5 +1,9 @@
 import type { NextRequest } from 'next/server';
 
+if (typeof window !== 'undefined') {
+  throw new Error('Security Violation: Admin auth utility imported into browser bundle.');
+}
+
 export const ADMIN_SESSION_COOKIE = 'talago_admin_session';
 
 export function getAdminToken(): string | null {

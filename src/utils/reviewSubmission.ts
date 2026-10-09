@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import type { ReviewSubmissionPayload } from '../types/review';
+import { sanitizePlain, sanitizeText } from './sanitize';
 import {
   verifyBookingEligibility,
   type EligibilityResult,
@@ -63,7 +64,7 @@ export function validateReviewSubmissionPayload(body: unknown): ValidationResult
     return { error: 'customerName is required.' };
   }
 
-  const customerName = payload.customerName.trim();
+  const customerName = sanitizePlain(payload.customerName, 50);
   if (customerName.length < 2 || customerName.length > 50) {
     return { error: 'customerName must be between 2 and 50 characters.' };
   }
@@ -77,7 +78,7 @@ export function validateReviewSubmissionPayload(body: unknown): ValidationResult
     return { error: 'comment is required.' };
   }
 
-  const comment = payload.comment.trim();
+  const comment = sanitizeText(payload.comment, 1000);
   if (comment.length < 10 || comment.length > 1000) {
     return { error: 'comment must be between 10 and 1000 characters.' };
   }

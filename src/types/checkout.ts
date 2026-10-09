@@ -34,6 +34,7 @@ export interface CheckoutFormData {
   specialRequirements?: string;
   selectedAddons?: SelectedAddonPayload[];
   bookingAnswers?: Record<string, any>;
+  whatsappOptIn?: boolean;
   paymentScheme: PaymentScheme;
 }
 

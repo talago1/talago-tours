@@ -129,15 +129,20 @@ function generateUniqueFilename(originalName: string, mimeType: string): string 
   return `${timestamp}-${sanitizedBase}-${randomSuffix}.${canonicalExtension(mimeType)}`;
 }
 
-async function uploadSingleFile(file: File, buffer: Buffer): Promise<UploadedFileResult> {
+async function uploadSingleFile(
+  file: File,
+  buffer: Buffer,
+  targetBucket: string = 'talago-tour-media'
+): Promise<UploadedFileResult> {
   const uniqueFilename = generateUniqueFilename(file.name, file.type);
+  const bucketName = targetBucket === 'talago-media' ? 'talago-media' : 'talago-tour-media';
+  const prefix = bucketName === 'talago-tour-media' ? 'tours/' : 'general/';
+  const storagePath = `${prefix}${uniqueFilename}`;
 
   // 1. Try Supabase Storage if credentials are configured
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
       const { supabaseAdmin } = await import('@/lib/supabase/server');
-      const bucketName = 'talago-tour-media';
-      const storagePath = `tours/${uniqueFilename}`;
 
       const { data, error } = await supabaseAdmin.storage
         .from(bucketName)
@@ -224,6 +229,7 @@ export async function POST(
     const uploaded: UploadedFileResult[] = [];
     const errors: UploadErrorItem[] = [];
     const settingsKey = formData.get('settingsKey');
+    const targetBucket = (formData.get('bucket') as string) || 'talago-tour-media';
 
     for (const file of files) {
       // Size is checked before reading the body: arrayBuffer() buffers the whole
@@ -246,7 +252,7 @@ export async function POST(
       }
 
       try {
-        const result = await uploadSingleFile(file, buffer);
+        const result = await uploadSingleFile(file, buffer, targetBucket);
         uploaded.push(result);
       } catch (err) {
         errors.push({

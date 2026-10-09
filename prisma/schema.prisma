@@ -322,6 +322,9 @@ model Booking {
   // WhatsApp opt-in
   whatsappOptIn Boolean @default(false)
 
+  // Direct Boarding Pass PDF in talago-media bucket
+  pdfBoardingPassUrl String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -576,3 +579,24 @@ model BlogPost {
   @@index([category, isPublished])
   @@map("blog_posts")
 }
+
+model AbandonedCheckout {
+  id             String    @id @default(cuid())
+  tourId         String
+  name           String
+  phone          String
+  email          String?
+  guestCount     Int       @default(1)
+  travelDate     String?
+  step           String    @default("modal") // "modal" | "form"
+  isRecovered    Boolean   @default(false)
+  reminderSent   Boolean   @default(false)
+  reminderSentAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([phone])
+  @@index([createdAt, isRecovered, reminderSent])
+  @@map("abandoned_checkouts")
+}
+

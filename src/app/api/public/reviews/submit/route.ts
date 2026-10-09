@@ -4,10 +4,19 @@ import {
   submitVerifiedReview,
   ReviewSubmissionError,
 } from '@/utils/reviewSubmission';
+import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
+const LIMIT = 5;
+const WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
 export async function POST(request: NextRequest) {
+  const limit = rateLimit(clientKey(request, 'reviews-submit'), LIMIT, WINDOW_MS);
+  if (!limit.allowed) {
+    return tooManyRequests(limit.retryAfterSeconds);
+  }
+
   try {
     const body = await request.json();
 

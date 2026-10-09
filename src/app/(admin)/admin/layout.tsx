@@ -16,12 +16,14 @@ import {
   Menu,
   X,
   LogOut,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/tours', label: 'Tours', icon: Ship },
   { href: '/admin/destinations', label: 'Destinations', icon: Compass },
+  { href: '/admin/media', label: 'Media Library', icon: ImageIcon },
   { href: '/admin/bookings', label: 'Bookings', icon: CalendarCheck },
   { href: '/admin/blog', label: 'Blog & Articles', icon: BookOpen },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },

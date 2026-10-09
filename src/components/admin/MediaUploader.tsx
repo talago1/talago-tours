@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback, type DragEvent } from 'react';
-import { UploadCloud, Image as ImageIcon, Star, Trash2, Plus, X, RefreshCw, CheckSquare, Square } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Star, Trash2, Plus, X, RefreshCw, CheckSquare, Square, FolderOpen } from 'lucide-react';
+import MediaLibraryModal from './MediaLibraryModal';
 
 interface UploadingFile {
   id: string;
@@ -60,6 +61,8 @@ export default function MediaUploader({
   const [uploading, setUploading] = useState<UploadingFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [urlInput, setUrlInput] = useState('');
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [libraryModalOpen, setLibraryModalOpen] = useState(false);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
 
@@ -69,6 +72,29 @@ export default function MediaUploader({
   const removeUploadItem = useCallback((id: string) => {
     setUploading((prev) => prev.filter((u) => u.id !== id));
   }, []);
+
+  const handleSelectFromLibrary = useCallback(
+    (urls: string[], makeCover?: boolean) => {
+      if (urls.length === 0) return;
+      if (makeCover && urls[0]) {
+        onCoverChange(urls[0]);
+        if (urls.length > 1) {
+          if (onGalleryAddBatch) {
+            onGalleryAddBatch(urls.slice(1));
+          } else {
+            urls.slice(1).forEach((u) => onGalleryAdd(u));
+          }
+        }
+      } else {
+        if (onGalleryAddBatch) {
+          onGalleryAddBatch(urls);
+        } else {
+          urls.forEach((u) => onGalleryAdd(u));
+        }
+      }
+    },
+    [onCoverChange, onGalleryAdd, onGalleryAddBatch]
+  );
 
   // Process a batch of files concurrently
   const handleBatchFiles = useCallback(
@@ -331,38 +357,77 @@ export default function MediaUploader({
         </div>
       </div>
 
-      {/* Direct URL input fallback / alternative */}
-      <div className="rounded-xl border border-white/10 bg-[#0B1528] p-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <input
-            type="text"
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            placeholder="Paste image URL (or multiple URLs separated by commas/newlines)"
-            className="flex-1 rounded-lg border border-white/10 bg-[#060D1A] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
-          />
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleAddUrls('cover')}
-              disabled={!urlInput.trim()}
-              className="flex items-center gap-1 rounded-lg bg-[#00E5FF]/20 px-3 py-2 text-xs font-bold text-[#00E5FF] transition-colors hover:bg-[#00E5FF] hover:text-[#060D1A] disabled:opacity-40"
-            >
-              <Star className="h-3 w-3" />
-              Set Cover
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAddUrls('gallery')}
-              disabled={!urlInput.trim()}
-              className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
-            >
-              <Plus className="h-3 w-3" />
-              + Gallery
-            </button>
+      {/* Centralized Media Library Integration Banner */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/[0.04] p-4 transition-all hover:border-[#00E5FF]/30">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/20 shadow-sm shadow-[#00E5FF]/10">
+            <FolderOpen className="h-5 w-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+              Centralized Media Library
+              <span className="rounded-full bg-[#00E5FF]/20 px-2 py-0.5 text-[9px] font-black uppercase text-[#00E5FF]">Supabase</span>
+            </h4>
+            <p className="text-xs text-slate-400">
+              Browse, search, and reuse existing tour assets or multi-select images in one click.
+            </p>
           </div>
         </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setLibraryModalOpen(true)}
+            className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl bg-[#00E5FF] px-4 py-2.5 text-xs font-black text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 hover:brightness-110 transition-all"
+          >
+            <FolderOpen className="h-4 w-4" />
+            Select from Library
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowUrlInput(!showUrlInput)}
+            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+            title="Paste image URL directly"
+          >
+            + URL
+          </button>
+        </div>
       </div>
+
+      {/* Optional Direct URL input fallback */}
+      {showUrlInput && (
+        <div className="rounded-xl border border-white/10 bg-[#0B1528] p-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input
+              type="text"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder="Paste image URL (or multiple URLs separated by commas/newlines)"
+              className="flex-1 rounded-lg border border-white/10 bg-[#060D1A] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleAddUrls('cover')}
+                disabled={!urlInput.trim()}
+                className="flex items-center gap-1 rounded-lg bg-[#00E5FF]/20 px-3 py-2 text-xs font-bold text-[#00E5FF] transition-colors hover:bg-[#00E5FF] hover:text-[#060D1A] disabled:opacity-40"
+              >
+                <Star className="h-3 w-3" />
+                Set Cover
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddUrls('gallery')}
+                disabled={!urlInput.trim()}
+                className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
+              >
+                <Plus className="h-3 w-3" />
+                + Gallery
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Active Uploads Indicator */}
       {uploading.length > 0 && (
@@ -595,6 +660,16 @@ export default function MediaUploader({
           </div>
         )}
       </div>
+
+      {/* Media Library Selector Modal */}
+      <MediaLibraryModal
+        isOpen={libraryModalOpen}
+        onClose={() => setLibraryModalOpen(false)}
+        onSelect={handleSelectFromLibrary}
+        multiple={true}
+        initialBucket="talago-tour-media"
+        title="Select Tour Photos from Media Library"
+      />
     </div>
   );
 }

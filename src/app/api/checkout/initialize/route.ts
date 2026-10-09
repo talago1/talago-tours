@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { validateCheckoutForm, validateGuestTiers } from '@/utils/bookingValidation';
+import { validateCheckoutForm, validateGuestTiers, deriveGuestEmail } from '@/utils/bookingValidation';
 import { generateBookingReference } from '@/utils/bookingReference';
 import { generateAccessToken } from '@/utils/bookingToken';
 import { supabaseAdmin } from '@/lib/supabase/server';
@@ -11,10 +11,21 @@ import { validatePromoCode } from '@/utils/promo';
 import { computePriceBreakdown } from '@/utils/priceCalculator';
 import { PaymentScheme, type InitializeResponse } from '@/types/checkout';
 import { BookingStatus, Prisma } from '@prisma/client';
+import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
+import { sanitizePlain, sanitizeEmail, sanitizePhone, sanitizeText } from '@/utils/sanitize';
+import { normalizeCurrency, convertCurrency } from '@/utils/currency';
 
 export const dynamic = 'force-dynamic';
 
+const LIMIT = 20;
+const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
 export async function POST(request: NextRequest) {
+  const limit = rateLimit(clientKey(request, 'checkout-initialize'), LIMIT, WINDOW_MS);
+  if (!limit.allowed) {
+    return tooManyRequests(limit.retryAfterSeconds);
+  }
+
   try {
     const body = await request.json();
     const {
@@ -35,23 +46,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const {
-      leadName,
-      email,
-      phone,
-      hotelName,
-      pickupType,
-      pickupLocationName,
-      pickupAddress,
-      roomNumber,
-      pickupTime,
-      paymentScheme,
-      pickupDirectives,
-      flightNumbers,
-      bedConfiguration,
-      specialRequirements,
-      currency,
-    } = formData;
+    const leadName = sanitizePlain(formData.leadName, 100);
+    const rawEmail = formData.email ? sanitizeEmail(formData.email) : '';
+    const phone = sanitizePhone(formData.phone);
+    // Phone-only booking: auto-derive a synthetic email if guest didn't provide one
+    const isPhoneOnlyBooking = !rawEmail && !!phone;
+    const email = rawEmail || deriveGuestEmail(phone || '');
+    const hotelName = sanitizePlain(formData.hotelName, 150);
+    const pickupType = sanitizePlain(formData.pickupType, 50);
+    const pickupLocationName = sanitizePlain(formData.pickupLocationName, 150);
+    const pickupAddress = sanitizeText(formData.pickupAddress, 300);
+    const roomNumber = sanitizePlain(formData.roomNumber, 50);
+    const pickupTime = sanitizePlain(formData.pickupTime, 20);
+    const paymentScheme = formData.paymentScheme;
+    const pickupDirectives = sanitizeText(formData.pickupDirectives, 500);
+    const flightNumbers = sanitizePlain(formData.flightNumbers, 100);
+    const bedConfiguration = sanitizePlain(formData.bedConfiguration, 100);
+    const specialRequirements = sanitizeText(formData.specialRequirements, 1000);
+    const currency = normalizeCurrency(formData.currency);
 
     const tour = await prisma.tour.findUnique({
       where: { id: tourId },
@@ -86,6 +98,7 @@ export async function POST(request: NextRequest) {
       customerPhone: phone || '',
       pickupType: effectivePickupType,
       requiresHotelPickup: tour.hotelPickupIncluded && effectivePickupType === 'hotel',
+      allowPhoneOnly: isPhoneOnlyBooking,
     });
 
     // Tier validation check
@@ -270,6 +283,7 @@ export async function POST(request: NextRequest) {
           amountDueOnArrival,
           promoCodeId: promoCodeId || null,
           customerProfileId: profile.id,
+          whatsappOptIn: formData.whatsappOptIn !== undefined ? Boolean(formData.whatsappOptIn) : true,
           status: paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
           paymentStatus: paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? 'CASH' : 'PENDING',
         },
@@ -293,6 +307,23 @@ export async function POST(request: NextRequest) {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Fire-and-forget: PDF boarding pass + WhatsApp + Telegram notifications
+    // These run after the atomic transaction succeeds and NEVER block the
+    // response returned to the guest.
+    // ─────────────────────────────────────────────────────────────────────────
+    void (async () => {
+      try {
+        const { generateAndStoreBoardingPassPdf } = await import('@/utils/pdfGenerator');
+        const pdfUrl = await generateAndStoreBoardingPassPdf(result.booking.id);
+
+        const { dispatchBookingNotifications } = await import('@/utils/notificationDispatcher');
+        await dispatchBookingNotifications(result.booking.id, pdfUrl ?? undefined);
+      } catch (bgErr) {
+        console.error('[initialize] Background notification dispatch failed:', bgErr);
+      }
+    })();
+
     const responsePayload: InitializeResponse = {
       bookingId: result.booking.id,
       accessToken: result.booking.accessToken,
@@ -305,8 +336,9 @@ export async function POST(request: NextRequest) {
       confirmationUrl: `/booking/${result.booking.accessToken}`,
     };
 
-    // Trigger Supabase invitation email for new/shadow profile
-    if (result.shouldInvite) {
+    // Trigger Supabase invitation email for new/shadow profiles with real emails only.
+    // Skip the Supabase invite for synthetic noreply addresses (phone-only guests).
+    if (result.shouldInvite && !isPhoneOnlyBooking) {
       try {
         const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
           email.trim().toLowerCase(),
@@ -328,8 +360,12 @@ export async function POST(request: NextRequest) {
     if (paymentScheme !== PaymentScheme.PAY_ON_ARRIVAL && amountPaidOnline > 0) {
       try {
         const firstLine = leadName.trim().split(' ');
+        // Authoritative server-side currency conversion to EGP piastres for Paymob
+        const { convertedAmount: egpAmount } = await convertCurrency(amountPaidOnline, 'USD', 'EGP');
+        const amountCents = Math.round(egpAmount * 100);
+
         const gatewayIframeUrl = await initiatePaymobSession({
-          amountCents: Math.round(amountPaidOnline * 100),
+          amountCents,
           merchantOrderId: result.booking.bookingReference,
           billingData: {
             email: email.trim(),

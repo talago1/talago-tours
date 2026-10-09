@@ -1,5 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
+if (typeof window !== 'undefined') {
+  throw new Error('Security Violation: Supabase server-side client imported into browser bundle.');
+}
+
 let instance: any = null;
 
 function getClient() {

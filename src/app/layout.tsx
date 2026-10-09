@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { CurrencyProvider } from '@/context/CurrencyContext';
 import { resolveServerLanguage } from '@/lib/i18n.server';
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
@@ -214,7 +215,9 @@ export default function RootLayout({
           </Script>
         )}
 
-        <LanguageProvider initialLanguage={language}>{children}</LanguageProvider>
+        <CurrencyProvider>
+          <LanguageProvider initialLanguage={language}>{children}</LanguageProvider>
+        </CurrencyProvider>
       </body>
     </html>
   );

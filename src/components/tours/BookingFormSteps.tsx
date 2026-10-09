@@ -12,6 +12,7 @@ import {
 } from '@/utils/bookingValidation';
 import { calculateTieredPrice } from '@/utils/priceCalculator';
 import { Users, Baby, UserRound } from 'lucide-react';
+import { useCurrency } from '@/context/CurrencyContext';
 
 interface BookingFormStepsProps {
   tourId: string;
@@ -132,6 +133,7 @@ export default function BookingFormSteps({
   zones,
   onClose,
 }: BookingFormStepsProps) {
+  const { formatPrice } = useCurrency();
   const effectiveAdultPrice = adultPrice ?? perPersonPrice;
   const hasChildPrice = (childPrice ?? 0) > 0;
   const hasInfantPrice = (infantPrice ?? 0) > 0;
@@ -311,7 +313,7 @@ export default function BookingFormSteps({
                 <GuestStepper
                   label="Adults"
                   sublabel="Age 12+"
-                  priceLabel={`$${effectiveAdultPrice.toFixed(0)} / person`}
+                  priceLabel={`${formatPrice(effectiveAdultPrice)} / person`}
                   icon={UserRound}
                   iconColor="bg-[#FF5B00]/10 text-[#FF5B00]"
                   value={adultsCount}
@@ -321,7 +323,7 @@ export default function BookingFormSteps({
                   <GuestStepper
                     label="Children"
                     sublabel="Age 3–11"
-                    priceLabel={`$${childPrice!.toFixed(0)} / child`}
+                    priceLabel={`${formatPrice(childPrice!)} / child`}
                     icon={Users}
                     iconColor="bg-blue-500/10 text-blue-500"
                     value={childrenCount}
@@ -332,7 +334,7 @@ export default function BookingFormSteps({
                   <GuestStepper
                     label="Infants"
                     sublabel="Age 0–2"
-                    priceLabel={`$${infantPrice!.toFixed(0)} / infant`}
+                    priceLabel={`${formatPrice(infantPrice!)} / infant`}
                     icon={Baby}
                     iconColor="bg-purple-500/10 text-purple-500"
                     value={infantsCount}
@@ -372,7 +374,7 @@ export default function BookingFormSteps({
                 Total · {totalGuests} guest{totalGuests !== 1 ? 's' : ''}
               </span>
               <span className="text-lg font-bold text-gray-800">
-                ${totalPrice.toFixed(2)}
+                {formatPrice(totalPrice)}
               </span>
             </div>
 
@@ -389,7 +391,7 @@ export default function BookingFormSteps({
         {step === 2 && (
           <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
             <div className="flex items-center justify-between text-sm text-gray-500 bg-orange-50 rounded-lg px-3 py-2">
-              <span>Total: <strong className="text-gray-800">${totalPrice.toFixed(2)}</strong></span>
+              <span>Total: <strong className="text-gray-800">{formatPrice(totalPrice)}</strong></span>
               <span>{travelDate} · {totalGuests} guest{totalGuests > 1 ? 's' : ''}</span>
             </div>
 
@@ -405,7 +407,7 @@ export default function BookingFormSteps({
                 <option value="">Select zone...</option>
                 {zones.map((z) => (
                   <option key={z.id} value={z.id}>
-                    {z.name}{z.transferFee > 0 ? ` (+$${z.transferFee.toFixed(2)})` : ''}
+                    {z.name}{z.transferFee > 0 ? ` (+${formatPrice(z.transferFee)})` : ''}
                   </option>
                 ))}
               </select>

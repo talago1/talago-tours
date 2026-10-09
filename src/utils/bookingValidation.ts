@@ -53,6 +53,16 @@ export function validateCustomerPhone(value: string): string | null {
   return null;
 }
 
+/**
+ * Derives a stable synthetic guest email from a phone number.
+ * Used when a guest books with phone-only (no email provided).
+ * Format: guest-<normalized_phone>@noreply.talago.com
+ */
+export function deriveGuestEmail(phone: string): string {
+  const normalized = phone.replace(/[^\d]/g, '');
+  return `guest-${normalized}@noreply.talago.com`;
+}
+
 export function validateCheckoutForm(data: {
   tourId: string;
   zoneId?: string | null;
@@ -65,6 +75,8 @@ export function validateCheckoutForm(data: {
   maxGuestCount?: number;
   pickupType?: string | null;
   requiresHotelPickup?: boolean;
+  /** If true, email is optional — will be derived from phone number */
+  allowPhoneOnly?: boolean;
 }): Record<string, string> {
   const errors: Record<string, string> = {};
 
@@ -94,8 +106,12 @@ export function validateCheckoutForm(data: {
   const nameErr = validateCustomerName(data.customerName);
   if (nameErr) errors.customerName = nameErr;
 
-  const emailErr = validateCustomerEmail(data.customerEmail);
-  if (emailErr) errors.customerEmail = emailErr;
+  // Email is optional when phone-only mode is enabled and a phone is provided
+  const phoneProvided = !!data.customerPhone?.trim();
+  if (!data.allowPhoneOnly || !phoneProvided) {
+    const emailErr = validateCustomerEmail(data.customerEmail);
+    if (emailErr) errors.customerEmail = emailErr;
+  }
 
   const phoneErr = validateCustomerPhone(data.customerPhone);
   if (phoneErr) errors.customerPhone = phoneErr;

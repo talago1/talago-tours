@@ -22,6 +22,7 @@ import {
   MapPin,
   Sparkles,
   HelpCircle,
+  Check,
 } from 'lucide-react';
 import PriceSummarySidebar from '@/components/checkout/PriceSummarySidebar';
 import Button from '@/components/ui/Button';
@@ -30,6 +31,7 @@ import { PaymentScheme, type CheckoutFormData, type InitializeResponse, type Sel
 import type { BookingQuestion } from '@/types/tourEditor';
 import type { PromoDiscount } from '@/utils/promo';
 import { useLanguage } from '@/context/LanguageContext';
+import { useCurrency } from '@/context/CurrencyContext';
 
 interface ZoneOption {
   id: string;
@@ -190,11 +192,19 @@ function validateForm(
 ): FormErrors {
   const errors: FormErrors = {};
   if (!data.leadName.trim()) errors.leadName = m.nameRequired;
-  if (!data.email.trim()) {
+
+  // Email is optional when phone is provided (phone-only booking)
+  const phoneProvided = !!(data.phone && data.phone.trim());
+  if (data.email.trim()) {
+    // Validate format only when email is actually entered
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      errors.email = m.emailInvalid;
+    }
+  } else if (!phoneProvided) {
+    // Email required only when phone is also absent
     errors.email = m.emailRequired;
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    errors.email = m.emailInvalid;
   }
+
   if (!data.phone.trim()) {
     errors.phone = m.phoneRequired;
   } else if (!/^\+[1-9]\d{6,14}$/.test(data.phone.replace(/[\s\-().]/g, ''))) {
@@ -278,8 +288,8 @@ export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { dict, language } = useLanguage();
+  const { currency, formatPrice } = useCurrency();
   const tourId = params.tourId as string;
-  const currencySymbol = (c: string | undefined) => c === 'EGP' ? 'EGP ' : c === 'EUR' ? '€' : c === 'GBP' ? '£' : '$';
 
   const [tour, setTour] = useState<TourDetails | null>(null);
   const [pageState, setPageState] = useState<PageState>('loading');
@@ -320,6 +330,29 @@ export default function CheckoutPage() {
     paymentScheme: PaymentScheme.PAY_ON_ARRIVAL,
   });
   const [errors, setErrors] = useState<FormErrors>({});
+  const [whatsappOptIn, setWhatsappOptIn] = useState(true);
+
+  // Saves a partial abandoned checkout entry when guest starts filling the form
+  const saveAbandonedCheckout = useCallback(async (step: 'modal' | 'form' = 'form') => {
+    if (!tourId || !form.leadName.trim() || !form.phone.trim()) return;
+    try {
+      await fetch('/api/abandoned-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tourId,
+          name: form.leadName.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim() || null,
+          guestCount: adultsCount + childrenCount + infantsCount,
+          travelDate: departureDate || null,
+          step,
+        }),
+      });
+    } catch {
+      // Non-fatal — never block the UI
+    }
+  }, [tourId, form.leadName, form.phone, form.email, adultsCount, childrenCount, infantsCount, departureDate]);
 
   // Synchronize counts from search parameters on mount
   useEffect(() => {
@@ -514,8 +547,10 @@ export default function CheckoutPage() {
           infantsCount,
           formData: {
             ...form,
+            currency,
             selectedAddons: selectedAddonsList,
             bookingAnswers,
+            whatsappOptIn,
           },
           selectedAddons: selectedAddonsList,
           bookingAnswers,
@@ -560,7 +595,7 @@ export default function CheckoutPage() {
   // guest totals and the active language, so all of them have to be listed
   // here — omitting them submits stale validation state when the guest
   // changes an answer, a pickup addon or the interface language.
-  }, [form, tour, departureDate, adultsCount, childrenCount, infantsCount, promoDiscount, bookingAnswers, selectedAddons, totalPayingGuests, language, dict]);
+  }, [form, tour, departureDate, adultsCount, childrenCount, infantsCount, promoDiscount, bookingAnswers, selectedAddons, totalPayingGuests, language, dict, whatsappOptIn, currency]);
 
   const handleResume = useCallback(() => {
     if (resumeAccessToken) {
@@ -599,8 +634,6 @@ export default function CheckoutPage() {
   }
 
   if (pageState === 'confirm' && confirmData) {
-    const confirmCurrency = form.currency || 'USD';
-    const confirmCurrencySymbol = confirmCurrency === 'EGP' ? 'EGP ' : confirmCurrency === 'EUR' ? '€' : confirmCurrency === 'GBP' ? '£' : '$';
     return (
       <div className="flex min-h-[80vh] items-center justify-center bg-[#070F1E] px-5">
         <div className="max-w-lg text-center">
@@ -617,7 +650,7 @@ export default function CheckoutPage() {
             <div className="mx-auto mt-8 max-w-sm rounded-2xl border border-[#FF5B00]/20 bg-[#FF5B00]/5 p-6">
               <p className="text-sm text-slate-400">{dict.checkout.successDue}</p>
               <p className="mt-1 text-3xl font-black text-[#FF5B00]">
-                {confirmCurrencySymbol}{confirmData.amountDueOnArrival.toFixed(2)}
+                {formatPrice(confirmData.amountDueOnArrival)}
               </p>
             </div>
           )}
@@ -712,7 +745,7 @@ export default function CheckoutPage() {
                       icon={User}
                       iconColor="bg-blue-500/10 text-blue-400"
                       onChange={(val) => setAdultsCount(Math.max(1, val))}
-                      priceLabel={`${currencySymbol(form.currency)}${tour.adultPrice.toFixed(2)} ${dict.checkout.perPerson}`}
+                      priceLabel={`${formatPrice(tour.adultPrice)} ${dict.checkout.perPerson}`}
                     />
                     <GuestStepper
                       label={dict.checkout.children}
@@ -721,7 +754,7 @@ export default function CheckoutPage() {
                       icon={Users}
                       iconColor="bg-yellow-500/10 text-yellow-400"
                       onChange={(val) => setChildrenCount(val)}
-                      priceLabel={tour.childPrice != null ? `${currencySymbol(form.currency)}${tour.childPrice.toFixed(2)} ${dict.checkout.perChild}` : undefined}
+                      priceLabel={tour.childPrice != null ? `${formatPrice(tour.childPrice)} ${dict.checkout.perChild}` : undefined}
                     />
                     <GuestStepper
                       label={dict.checkout.infants}
@@ -730,7 +763,7 @@ export default function CheckoutPage() {
                       icon={Baby}
                       iconColor="bg-emerald-500/10 text-emerald-400"
                       onChange={(val) => setInfantsCount(val)}
-                      priceLabel={tour.infantPrice != null ? `${currencySymbol(form.currency)}${tour.infantPrice.toFixed(2)} ${dict.checkout.perInfant}` : undefined}
+                      priceLabel={tour.infantPrice != null ? `${formatPrice(tour.infantPrice)} ${dict.checkout.perInfant}` : undefined}
                     />
                   </div>
                 </div>
@@ -765,22 +798,26 @@ export default function CheckoutPage() {
                     />
                   </FormField>
 
-                  <FormField label={dict.checkout.email} required error={errors.email}>
+                  <FormField label={dict.checkout.email} error={errors.email}>
                     <Input
                       id="email"
                       type="email"
                       value={form.email}
                       onChange={(e) => handleFieldChange('email', e.target.value)}
-                      placeholder="john@example.com"
+                      placeholder="john@example.com (optional if phone provided)"
                       icon={<Mail className="h-5 w-5" />}
                       error={errors.email}
                     />
+                    <p className="mt-1 text-xs text-slate-500">Leave blank to book with phone number only</p>
                   </FormField>
 
                   <FormField label={dict.checkout.phone} required error={errors.phone}>
                     <CountryCodeSelector
                       value={form.phone}
-                      onChange={(val) => handleFieldChange('phone', val)}
+                      onChange={(val) => {
+                        handleFieldChange('phone', val);
+                      }}
+                      onBlur={() => saveAbandonedCheckout('form')}
                       error={errors.phone}
                     />
                   </FormField>
@@ -1039,14 +1076,14 @@ export default function CheckoutPage() {
                             <div>
                               <p className="text-sm font-bold text-white">{z.name}</p>
                               <p className="mt-1 text-xs text-slate-400">
-                                {z.transferFee === 0 ? 'Free Hotel Transfer' : `+$${z.transferFee} / person`}
+                                {z.transferFee === 0 ? 'Free Hotel Transfer' : `+${formatPrice(z.transferFee)} / person`}
                               </p>
                             </div>
                             <div className="mt-3">
                               <span className={`inline-block text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${
                                 z.transferFee === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-300'
                               }`}>
-                                {z.transferFee === 0 ? 'Included' : `+$${z.transferFee}`}
+                                {z.transferFee === 0 ? 'Included' : `+${formatPrice(z.transferFee)}`}
                               </span>
                             </div>
                           </button>
@@ -1074,8 +1111,8 @@ export default function CheckoutPage() {
                         const optTitle = opt.labels?.[language] || opt.labels?.['en'] || Object.values(opt.labels || {})[0] || 'Upgrade Option';
                         const optDesc = opt.descriptions?.[language] || opt.descriptions?.['en'] || Object.values(opt.descriptions || {})[0] || '';
                         const priceDisplay = opt.priceType === 'per_person'
-                          ? `+$${opt.price} / person (+$${opt.price * totalPayingGuests} total)`
-                          : `+$${opt.price} Total`;
+                          ? `+${formatPrice(opt.price)} / person (+${formatPrice(opt.price * totalPayingGuests)} total)`
+                          : `+${formatPrice(opt.price)} Total`;
 
                         return (
                           <label
@@ -1313,6 +1350,37 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 )}
+
+                {/* WhatsApp Instant Notification Opt-in */}
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4 transition-all hover:border-emerald-500/30">
+                  <label className="flex items-start gap-3.5 cursor-pointer select-none group">
+                    <div className="relative flex items-center justify-center mt-0.5">
+                      <input
+                        type="checkbox"
+                        id="whatsapp-optin"
+                        checked={whatsappOptIn}
+                        onChange={(e) => setWhatsappOptIn(e.target.checked)}
+                        className="sr-only"
+                      />
+                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                        whatsappOptIn
+                          ? 'bg-[#25D366] border-[#25D366] text-white shadow-sm shadow-[#25D366]/30'
+                          : 'border-white/30 bg-white/5 group-hover:border-white/50'
+                      }`}>
+                        {whatsappOptIn && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-white">Receive Instant Boarding Pass & Updates on WhatsApp</span>
+                        <span className="inline-flex items-center rounded-full bg-[#25D366]/20 px-2 py-0.5 text-[10px] font-bold text-[#25D366]">Free & Instant</span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        We will send your PDF boarding pass, pickup confirmation, and 24/7 emergency support directly to your phone.
+                      </p>
+                    </div>
+                  </label>
+                </div>
 
                 <div className="flex items-center justify-between border-t border-white/10 pt-6">
                   <div className="flex items-center gap-2 text-xs text-slate-500">

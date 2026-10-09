@@ -54,12 +54,14 @@ interface CountryCodeSelectorProps {
   value: string; // The complete international phone number e.g. "+49171234567"
   onChange: (fullNumber: string) => void;
   error?: string;
+  onBlur?: () => void;
 }
 
 export default function CountryCodeSelector({
   value,
   onChange,
   error,
+  onBlur,
 }: CountryCodeSelectorProps) {
   const [selectedCountry, setSelectedCountry] = useState<CountryCode>(COUNTRIES[0]); // default Germany
   const [isOpen, setIsOpen] = useState(false);
@@ -215,6 +217,7 @@ export default function CountryCodeSelector({
           type="tel"
           value={localNumber}
           onChange={handleLocalNumberChange}
+          onBlur={onBlur}
           placeholder="171 2345678"
           className="w-full rounded-r-2xl bg-transparent px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600"
         />

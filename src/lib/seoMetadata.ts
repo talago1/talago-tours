@@ -420,7 +420,9 @@ export function buildDestinationDetailSEO(
       break;
   }
 
-  const ogImage = imageUrl || BRAND_OG_IMAGE;
+  const ogImage = imageUrl
+    ? (imageUrl.startsWith('http') ? imageUrl : `${APP_BASE_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`)
+    : BRAND_OG_IMAGE;
 
   return {
     title,
@@ -455,3 +457,74 @@ export function buildDestinationDetailSEO(
     },
   };
 }
+
+export function buildTourDetailSEO(params: {
+  title: string;
+  description: string;
+  slug: string;
+  coverImage?: string | null;
+  destinationName?: string | null;
+  lang: LanguageCode;
+  price?: number | null;
+  currency?: string;
+  keywords?: string[];
+}): Metadata {
+  const { title, description, slug, coverImage, destinationName, lang, price, currency = 'USD', keywords } = params;
+  const pageUrl = `${APP_BASE_URL}/tours/${slug}`;
+
+  const resolvedImage = coverImage || BRAND_OG_IMAGE;
+  const absoluteImage = resolvedImage.startsWith('http')
+    ? resolvedImage
+    : `${APP_BASE_URL}${resolvedImage.startsWith('/') ? '' : '/'}${resolvedImage}`;
+
+  const formattedTitle = destinationName
+    ? `${title} — ${destinationName} | TALAGO`
+    : `${title} | TALAGO`;
+
+  const mimeType = absoluteImage.endsWith('.png')
+    ? 'image/png'
+    : absoluteImage.endsWith('.webp')
+    ? 'image/webp'
+    : 'image/jpeg';
+
+  return {
+    title: formattedTitle,
+    description,
+    keywords: keywords && keywords.length > 0 ? keywords : undefined,
+    alternates: {
+      canonical: pageUrl,
+      languages: buildHreflangAlternates(`/tours/${slug}`),
+    },
+    openGraph: {
+      title: formattedTitle,
+      description,
+      url: `${pageUrl}${lang === 'en' ? '' : `?lang=${lang}`}`,
+      siteName: 'TALAGO Tours',
+      locale: getOpenGraphLocale(lang),
+      type: 'website',
+      images: [
+        {
+          url: absoluteImage,
+          secureUrl: absoluteImage,
+          width: 1200,
+          height: 630,
+          alt: title,
+          type: mimeType,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: formattedTitle,
+      description,
+      images: [absoluteImage],
+    },
+    other: price
+      ? {
+          'product:price:amount': String(price),
+          'product:price:currency': currency,
+        }
+      : undefined,
+  };
+}
+

@@ -6,6 +6,7 @@ import { computePriceBreakdown } from '@/utils/priceCalculator';
 import type { PromoDiscount } from '@/utils/promo';
 import { Ticket, Percent, Sparkles } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { useCurrency } from '@/context/CurrencyContext';
 
 interface PriceSummarySidebarProps {
   tourTitle: string;
@@ -47,6 +48,7 @@ export default function PriceSummarySidebar({
   allowFullOnline = true,
 }: PriceSummarySidebarProps) {
   const { dict } = useLanguage();
+  const { formatPrice } = useCurrency();
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [promoError, setPromoError] = useState<string | null>(null);
   const [isApplying, setIsApplying] = useState(false);
@@ -126,34 +128,34 @@ export default function PriceSummarySidebar({
         <div className="space-y-3.5 border-b border-white/10 pb-6 text-sm text-slate-300">
           <div className="flex justify-between items-center">
             <span>{adultsCount} {dict.checkout.adults}</span>
-            <span className="font-semibold text-white">${adultTotal.toFixed(2)}</span>
+            <span className="font-semibold text-white">{formatPrice(adultTotal)}</span>
           </div>
 
           {childrenCount > 0 && (
             <div className="flex justify-between items-center">
               <span>{childrenCount} {dict.checkout.children}</span>
-              <span className="font-semibold text-white">${childTotal.toFixed(2)}</span>
+              <span className="font-semibold text-white">{formatPrice(childTotal)}</span>
             </div>
           )}
 
           {infantsCount > 0 && (
             <div className="flex justify-between items-center">
               <span>{infantsCount} {dict.checkout.infants}</span>
-              <span className="font-semibold text-white">${infantTotal.toFixed(2)}</span>
+              <span className="font-semibold text-white">{formatPrice(infantTotal)}</span>
             </div>
           )}
 
           {zoneTransferFee > 0 && (
             <div className="flex justify-between items-center text-slate-400">
               <span>{dict.checkout.pickupFee}</span>
-              <span className="font-semibold text-white">+${zoneTransferFee.toFixed(2)}</span>
+              <span className="font-semibold text-white">+{formatPrice(zoneTransferFee)}</span>
             </div>
           )}
 
           {addonsTotal > 0 && (
             <div className="flex justify-between items-center text-[#06B6D4]">
               <span>Upgrades & Extras</span>
-              <span className="font-semibold text-[#06B6D4]">+${addonsTotal.toFixed(2)}</span>
+              <span className="font-semibold text-[#06B6D4]">+{formatPrice(addonsTotal)}</span>
             </div>
           )}
         </div>
@@ -206,9 +208,9 @@ export default function PriceSummarySidebar({
             <span className="text-base font-bold text-slate-300">{dict.checkout.grandTotal}</span>
             <div className="text-right">
               {discountAmount > 0 && (
-                <p className="text-sm text-slate-500 line-through mb-0.5">${(baseSubtotal + zoneTransferFee).toFixed(2)}</p>
+                <p className="text-sm text-slate-500 line-through mb-0.5">{formatPrice(baseSubtotal + zoneTransferFee)}</p>
               )}
-              <p className="text-3xl font-black text-white">${grandTotal.toFixed(2)}</p>
+              <p className="text-3xl font-black text-white">{formatPrice(grandTotal)}</p>
             </div>
           </div>
         </div>
@@ -302,14 +304,14 @@ export default function PriceSummarySidebar({
         <div className="mt-6 border-t border-white/10 pt-6 space-y-4">
           <div className="flex justify-between items-center">
             <span className="text-sm text-slate-400 font-medium">{dict.checkout.dueOnline}</span>
-            <span className="text-lg font-black text-white">${amountPaidOnline.toFixed(2)}</span>
+            <span className="text-lg font-black text-white">{formatPrice(amountPaidOnline)}</span>
           </div>
 
           {amountDueOnArrival > 0 && (
             <div className="flex justify-between items-center">
               <span className="text-sm text-slate-400 font-medium">{dict.checkout.balanceArrival}</span>
               <span className="text-xl font-bold text-[#FF5B00] bg-[#FF5B00]/10 px-2.5 py-1 rounded-xl">
-                ${amountDueOnArrival.toFixed(2)}
+                {formatPrice(amountDueOnArrival)}
               </span>
             </div>
           )}
