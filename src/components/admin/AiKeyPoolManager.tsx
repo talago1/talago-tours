@@ -42,8 +42,8 @@ const PRESETS = [
     name: 'Google Gemini (Flash)',
     type: 'gemini' as const,
     baseUrl: '',
-    modelId: 'gemini-1.5-flash',
-    description: 'High quota free tier, official Google Generative API',
+    modelId: 'gemini-3.8-flash',
+    description: 'Google Generative Language API – gemini-3.8-flash (auto-fallback to 3.5)',
   },
   {
     name: 'Groq Cloud (Llama 3.3)',
@@ -83,7 +83,7 @@ export default function AiKeyPoolManager() {
     type: 'gemini',
     baseUrl: '',
     apiKey: '',
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3.8-flash',
     isActive: true,
     priority: 10,
   });

@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, ImageIcon } from 'lucide-react';
+import dynamic from 'next/dynamic';
+const MediaLibraryModalLazy = dynamic(() => import('@/components/admin/MediaLibraryModal'), { ssr: false });
 
 export default function EditBlogPostPage() {
   const router = useRouter();
@@ -22,6 +24,7 @@ export default function EditBlogPostPage() {
   const [isPublished, setIsPublished] = useState(true);
   const [isFeatured, setIsFeatured] = useState(false);
   const [translations, setTranslations] = useState<Record<string, any>>({});
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/admin/blog/${id}`)
@@ -134,7 +137,13 @@ export default function EditBlogPostPage() {
               </div>
               <div>
                 <label className="text-xs text-slate-400">Cover Image URL</label>
-                <input type="text" value={coverImage} onChange={(e) => setCoverImage(e.target.value)} className="w-full bg-[#0B1528] border border-white/10 rounded-xl p-3 text-white text-sm" />
+                <div className="flex gap-2">
+                  <input type="text" value={coverImage} onChange={(e) => setCoverImage(e.target.value)} className="flex-1 bg-[#0B1528] border border-white/10 rounded-xl p-3 text-white text-sm" placeholder="https://... or pick from library" />
+                  <button type="button" onClick={() => setLibraryOpen(true)} className="flex items-center gap-1.5 px-3 rounded-xl border border-[#00E5FF]/30 bg-[#00E5FF]/10 text-[#00E5FF] text-xs font-semibold hover:bg-[#00E5FF]/20 transition-colors whitespace-nowrap">
+                    <ImageIcon className="h-3.5 w-3.5" /> Media Library
+                  </button>
+                </div>
+                {coverImage && <img src={coverImage} alt="Cover preview" className="mt-2 w-full h-32 object-cover rounded-xl border border-white/10" />}
               </div>
             </div>
 
@@ -230,6 +239,18 @@ export default function EditBlogPostPage() {
           />
         </div>
       </form>
+      {libraryOpen && (
+        <MediaLibraryModalLazy
+          isOpen={libraryOpen}
+          onClose={() => setLibraryOpen(false)}
+          multiple={false}
+          title="Select Cover Image"
+          onSelect={(urls) => {
+            if (urls[0]) setCoverImage(urls[0]);
+            setLibraryOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

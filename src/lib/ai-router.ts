@@ -66,10 +66,10 @@ export async function getAiProviders(includeSecrets = false): Promise<AiProvider
     if (primaryGemini) {
       envProviders.push({
         id: 'env-gemini-primary',
-        name: 'Google Gemini 1.5 Flash (Primary Env)',
+        name: 'Google Gemini Flash (Primary Env)',
         type: 'gemini',
         apiKey: primaryGemini,
-        modelId: 'gemini-1.5-flash',
+        modelId: 'gemini-3.8-flash',
         isActive: true,
         priority: 1,
       });
@@ -81,10 +81,10 @@ export async function getAiProviders(includeSecrets = false): Promise<AiProvider
       if (extraKey) {
         envProviders.push({
           id: `env-gemini-pool-${i}`,
-          name: `Google Gemini 1.5 Flash (Pool #${i})`,
+          name: `Google Gemini Flash (Pool #${i})`,
           type: 'gemini',
           apiKey: extraKey,
-          modelId: 'gemini-1.5-flash',
+          modelId: 'gemini-3.8-flash',
           isActive: true,
           priority: i,
         });
@@ -172,11 +172,23 @@ export async function saveAiProviders(providers: AiProviderConfig[]): Promise<vo
 /**
  * Executes a completion request against a specific provider.
  */
+/**
+ * Models that have been sunset by Google – automatically redirected to supported equivalents.
+ */
+const GEMINI_MODEL_ALIASES: Record<string, string> = {
+  'gemini-1.5-flash': 'gemini-3.8-flash',
+  'gemini-1.5-flash-latest': 'gemini-3.8-flash',
+  'gemini-2.5-flash': 'gemini-3.8-flash',
+  'gemini-2.5-flash-preview': 'gemini-3.8-flash',
+};
+
 async function callProvider(provider: AiProviderConfig, options: GenerateOptions): Promise<string> {
   const { prompt, systemPrompt, temperature = 0.4, jsonMode = false } = options;
 
   if (provider.type === 'gemini') {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${provider.modelId}:generateContent?key=${provider.apiKey}`;
+    // Resolve any sunset model aliases before calling the API
+    const resolvedModel = GEMINI_MODEL_ALIASES[provider.modelId] ?? provider.modelId;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedModel}:generateContent?key=${provider.apiKey}`;
     const contents: any[] = [];
 
     let combinedPrompt = prompt;
@@ -207,6 +219,21 @@ async function callProvider(provider: AiProviderConfig, options: GenerateOptions
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
+      // On 503 (capacity spike), automatically retry with gemini-3.5-flash fallback
+      if (res.status === 503 && resolvedModel === 'gemini-3.8-flash') {
+        console.warn('[ai-router] gemini-3.8-flash returned 503, retrying with gemini-3.5-flash…');
+        const fallbackEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${provider.apiKey}`;
+        const fallbackRes = await fetch(fallbackEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          const fallbackText = fallbackData.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (fallbackText) return fallbackText.trim();
+        }
+      }
       throw new Error(`Gemini API HTTP ${res.status}: ${errText.slice(0, 300)}`);
     }
 

@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, type FormEvent } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Compass, Edit3, Eye, EyeOff, ImageIcon, Loader2, Plus, Trash2, Upload, X, MapPin, Clock } from 'lucide-react';
 import type { Destination, ZoneItem } from '@/types/destination';
+import dynamic from 'next/dynamic';
+const MediaLibraryModalLazy = dynamic(() => import('./MediaLibraryModal'), { ssr: false });
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,6 +80,7 @@ function DestinationImageDropzone({
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -129,7 +132,17 @@ function DestinationImageDropzone({
 
   return (
     <div className="space-y-2">
-      <span className="mb-2 block text-sm font-bold text-slate-300">Destination Image</span>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-bold text-slate-300">Destination Image</span>
+        <button
+          type="button"
+          onClick={() => setLibraryOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#06B6D4]/30 bg-[#06B6D4]/10 text-[#06B6D4] text-xs font-semibold hover:bg-[#06B6D4]/20 transition-colors"
+        >
+          <ImageIcon className="h-3.5 w-3.5" />
+          Pick from Media Library
+        </button>
+      </div>
       <div
         {...getRootProps()}
         className={`relative flex min-h-[140px] cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition-all duration-300 ${
@@ -174,6 +187,21 @@ function DestinationImageDropzone({
         )}
       </div>
       {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+      {libraryOpen && (
+        <MediaLibraryModalLazy
+          isOpen={libraryOpen}
+          onClose={() => setLibraryOpen(false)}
+          multiple={false}
+          title="Select Destination Image"
+          onSelect={(urls) => {
+            if (urls[0]) {
+              setPreviewUrl(null);
+              onUploaded(urls[0]);
+            }
+            setLibraryOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

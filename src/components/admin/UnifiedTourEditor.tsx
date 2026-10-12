@@ -62,6 +62,8 @@ import ItineraryBuilder from './ItineraryBuilder';
 import TourAddonsBuilder from './TourAddonsBuilder';
 import BookingQuestionsBuilder from './BookingQuestionsBuilder';
 import MediaOrganizer from './MediaOrganizer';
+import dynamic from 'next/dynamic';
+const MediaLibraryModalLazy = dynamic(() => import('./MediaLibraryModal'), { ssr: false });
 
 interface ZoneOption {
   id: string;
@@ -114,6 +116,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   const [isDirty, setIsDirty] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [translating, setTranslating] = useState(false);
+  const [mediaPickerTarget, setMediaPickerTarget] = useState<'cover' | 'gallery' | null>(null);
 
   const isEditing = Boolean(data.id);
 
@@ -933,50 +936,104 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
 
             {activeSection === 'media' && (
               <div className="space-y-6">
+                {/* Cover Image */}
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                     Primary Cover Hero Image URL *
                   </label>
-                  <input
-                    type="text"
-                    value={data.coverImage}
-                    onChange={(e) => updateData({ coverImage: e.target.value })}
-                    placeholder="https://images.unsplash.com/... or Supabase storage URL"
-                    className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-mono focus:border-[#00E5FF] outline-none"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={data.coverImage}
+                      onChange={(e) => updateData({ coverImage: e.target.value })}
+                      placeholder="https://... or pick from Media Library"
+                      className="flex-1 rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-mono focus:border-[#00E5FF] outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setMediaPickerTarget('cover')}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#00E5FF]/30 bg-[#00E5FF]/10 text-[#00E5FF] text-sm font-semibold hover:bg-[#00E5FF]/20 transition-colors whitespace-nowrap"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      Media Library
+                    </button>
+                  </div>
                   {data.coverImage && (
                     <div className="mt-3 relative w-full h-48 rounded-xl overflow-hidden border border-white/10 bg-[#070F1E]">
                       <img src={data.coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => updateData({ coverImage: '' })}
+                        className="absolute top-2 right-2 bg-black/60 hover:bg-red-600/80 text-white rounded-lg p-1.5 transition-colors"
+                        title="Remove cover image"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   )}
                 </div>
 
+                {/* Gallery Images */}
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
-                    Gallery Images (One URL per line or add items)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold uppercase text-slate-300">
+                      Gallery Images ({data.galleryImages.length})
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setMediaPickerTarget('gallery')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#00E5FF]/30 bg-[#00E5FF]/10 text-[#00E5FF] text-xs font-semibold hover:bg-[#00E5FF]/20 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add from Media Library
+                    </button>
+                  </div>
                   <textarea
-                    rows={4}
+                    rows={3}
                     value={data.galleryImages.join('\n')}
                     onChange={(e) =>
                       updateData({
                         galleryImages: e.target.value.split('\n').map((u) => u.trim()).filter(Boolean),
                       })
                     }
-                    placeholder="https://...\nhttps://..."
+                    placeholder="Paste URLs manually (one per line) — or use the button above to pick from Media Library"
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-mono focus:border-[#00E5FF] outline-none"
                   />
                   {data.galleryImages.length > 0 && (
                     <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {data.galleryImages.map((img, i) => (
-                        <div key={i} className="h-24 rounded-lg overflow-hidden border border-white/10 bg-[#070F1E]">
+                        <div key={i} className="relative h-24 rounded-lg overflow-hidden border border-white/10 bg-[#070F1E] group">
                           <img src={img} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => updateData({ galleryImages: data.galleryImages.filter((_, idx) => idx !== i) })}
+                            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-black/60 hover:bg-red-600/80 text-white rounded p-1 transition-all"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               </div>
+            )}
+            {/* Media Library Picker Modal */}
+            {mediaPickerTarget && (
+              <MediaLibraryModalLazy
+                isOpen={!!mediaPickerTarget}
+                onClose={() => setMediaPickerTarget(null)}
+                multiple={mediaPickerTarget === 'gallery'}
+                title={mediaPickerTarget === 'cover' ? 'Select Cover Image' : 'Add Gallery Images'}
+                onSelect={(urls) => {
+                  if (mediaPickerTarget === 'cover') {
+                    updateData({ coverImage: urls[0] || data.coverImage });
+                  } else {
+                    updateData({ galleryImages: [...data.galleryImages, ...urls] });
+                  }
+                  setMediaPickerTarget(null);
+                }}
+              />
             )}
 
             {activeSection === 'operator' && (
