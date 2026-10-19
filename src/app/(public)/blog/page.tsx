@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
 const BLOG_DESCRIPTION =
-  'Expert Egypt travel guides, secret snorkeling spots, yacht charter guides, quad safari tips, and Luxor & Cairo cultural itineraries.';
+  'Curated travel guides, expert tips, secret snorkeling spots, yacht charter advice, desert expedition tips, and cultural itineraries worldwide.';
 
 export async function generateMetadata({
   searchParams,
@@ -15,7 +15,7 @@ export async function generateMetadata({
   searchParams?: Record<string, string | string[] | undefined>;
 }): Promise<Metadata> {
   const lang = resolveServerLanguage(searchParams);
-  const title = 'Egypt Travel Blog & Guides';
+  const title = 'TALAGO | Travel Journal & Curated Experience Guides Worldwide';
   return {
     title,
     description: BLOG_DESCRIPTION,

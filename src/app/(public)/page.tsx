@@ -147,6 +147,17 @@ export default async function HomePage() {
         heroMetric3Label={bannerData.heroMetric3Label}
         showcaseDestinations={showcaseDestinations}
         searchDestinations={searchDestinations}
+        popularTours={tours.slice(0, 15).map((t) => {
+          const trans = t.translations as Record<string, { title?: string }> | null;
+          const title = trans?.en?.title || t.slug.replace(/-/g, ' ');
+          return {
+            title,
+            slug: t.slug,
+            category: t.category,
+            destinationName: t.destination?.name,
+            price: t.adultPrice || t.priceAdult,
+          };
+        })}
         activeTourCount={activeTourCount}
         heroTranslations={bannerData.heroTranslations}
       />

@@ -15,12 +15,15 @@ import {
   AlertCircle,
   User,
   Clock,
+  Star,
 } from 'lucide-react';
+import WriteReviewModal from '@/components/modals/WriteReviewModal';
 
 interface BookingItem {
   id: string;
   bookingReference: string;
   accessToken: string;
+  tourId: string;
   status: string;
   travelDate: string;
   guestCount: number;
@@ -30,6 +33,7 @@ interface BookingItem {
   amountDueOnArrival: number | null;
   amountPaidOnline: number | null;
   createdAt: string;
+  reviews?: { id: string; rating: number }[];
   tour: {
     slug: string;
     coverImage: string | null;
@@ -56,7 +60,13 @@ const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
   COMPLETED: { label: 'Completed', class: 'bg-sky-500/10 text-sky-300 border-sky-500/20' },
 };
 
-function BookingCard({ booking }: { booking: BookingItem }) {
+function BookingCard({
+  booking,
+  onOpenReview,
+}: {
+  booking: BookingItem;
+  onOpenReview?: (booking: BookingItem) => void;
+}) {
   const statusCfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.PENDING;
   const tourTitle = getTourTitle(booking.tour?.translations);
   const travelDate = new Date(booking.travelDate);
@@ -122,7 +132,7 @@ function BookingCard({ booking }: { booking: BookingItem }) {
             )}
           </div>
 
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2.5">
             <div className="text-sm font-bold text-white">
               {currencySymbol}{Number(booking.totalPriceUSD).toFixed(2)}
               {amountDue > 0 && (
@@ -131,7 +141,29 @@ function BookingCard({ booking }: { booking: BookingItem }) {
                 </span>
               )}
             </div>
-            <ChevronRight className="h-4 w-4 text-slate-600 transition-transform group-hover:translate-x-1 group-hover:text-[#00E5FF]" />
+
+            <div className="flex items-center gap-2">
+              {booking.reviews && booking.reviews.length > 0 ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/20 px-2.5 py-1 text-[11px] font-bold text-[#FFD700]">
+                  <Star className="h-3 w-3 fill-[#FFD700]" />
+                  Reviewed
+                </span>
+              ) : (booking.status === 'CONFIRMED' || booking.status === 'COMPLETED') && onOpenReview ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onOpenReview(booking);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#00E5FF]/40 bg-[#00E5FF]/10 px-3 py-1 text-xs font-bold text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20 hover:scale-105"
+                >
+                  <Star className="h-3 w-3" />
+                  Leave a Review
+                </button>
+              ) : null}
+              <ChevronRight className="h-4 w-4 text-slate-600 transition-transform group-hover:translate-x-1 group-hover:text-[#00E5FF]" />
+            </div>
           </div>
         </div>
       </div>
@@ -145,6 +177,7 @@ export default function MyBookingsPage() {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<BookingItem | null>(null);
 
   const loadBookingsForSession = useCallback(async (token: string, userEmail: string) => {
     setEmail(userEmail);
@@ -277,7 +310,9 @@ export default function MyBookingsPage() {
                 Upcoming ({upcoming.length})
               </h2>
               <div className="space-y-3">
-                {upcoming.map(b => <BookingCard key={b.id} booking={b} />)}
+                {upcoming.map(b => (
+                  <BookingCard key={b.id} booking={b} onOpenReview={(target) => setReviewTarget(target)} />
+                ))}
               </div>
             </section>
           )}
@@ -289,8 +324,10 @@ export default function MyBookingsPage() {
                 <Clock className="h-3.5 w-3.5" />
                 Past & Cancelled ({past.length})
               </h2>
-              <div className="space-y-3 opacity-70">
-                {past.map(b => <BookingCard key={b.id} booking={b} />)}
+              <div className="space-y-3 opacity-90">
+                {past.map(b => (
+                  <BookingCard key={b.id} booking={b} onOpenReview={(target) => setReviewTarget(target)} />
+                ))}
               </div>
             </section>
           )}
@@ -307,6 +344,25 @@ export default function MyBookingsPage() {
             Book Another Tour
           </Link>
         </div>
+      )}
+
+      {/* Write a Review Modal */}
+      {reviewTarget && (
+        <WriteReviewModal
+          isOpen={Boolean(reviewTarget)}
+          onClose={() => setReviewTarget(null)}
+          tourId={reviewTarget.tourId}
+          tourTitle={getTourTitle(reviewTarget.tour?.translations)}
+          initialBookingId={reviewTarget.bookingReference || reviewTarget.id}
+          initialCustomerName={email ? email.split('@')[0] : ''}
+          onSuccess={() => {
+            setBookings((prev) =>
+              prev.map((b) =>
+                b.id === reviewTarget.id ? { ...b, reviews: [{ id: 'new', rating: 5 }] } : b
+              )
+            );
+          }}
+        />
       )}
     </main>
   );

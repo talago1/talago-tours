@@ -47,6 +47,13 @@ export async function GET(request: NextRequest) {
         amountPaidOnline: true,
         amountDueOnArrival: true,
         createdAt: true,
+        tourId: true,
+        reviews: {
+          select: {
+            id: true,
+            rating: true,
+          },
+        },
         tour: {
           select: {
             slug: true,

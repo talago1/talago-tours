@@ -11,11 +11,16 @@ export interface SystemSettings {
   contact: {
     whatsappNumber: string;
     corporateEmail: string;
+    phoneNumber?: string;
     socialLinks: {
       instagram: string;
       facebook: string;
       twitter: string;
     };
+    showContactChannels?: boolean;
+    showWhatsApp?: boolean;
+    showEmail?: boolean;
+    showPhone?: boolean;
   };
   financial: {
     baseCurrency: string;

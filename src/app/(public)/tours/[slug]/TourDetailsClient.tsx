@@ -27,6 +27,7 @@ import Image from 'next/image';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import TourCard from '@/components/public/TourCard';
+import WriteReviewModal from '@/components/modals/WriteReviewModal';
 import type { PublicTour } from '@/types/publicTour';
 
 interface TourData {
@@ -610,6 +611,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
     tour.allowPayAtLocation ? 'arrival' : (tour.allowFullOnline !== false ? 'full' : 'deposit')
   );
   const [selectedTime, setSelectedTime] = useState<string>(tour.pickupTimes?.[0] || '');
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
   // Resolve localized translations from parent with fallback cascade
   const translations = tour.translations;
@@ -1042,11 +1044,42 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
               )}
 
               {/* Verified Reviews */}
-              {reviews.reviews.length > 0 && (
-                <Accordion title={`${dict.tourDetails.reviews} (${reviews.ratingCount})`} defaultOpen>
-                  <div className="space-y-6">
-                    {/* Rating Summary */}
-                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
+              <Accordion title={`${dict.tourDetails.reviews} (${reviews.ratingCount || reviews.reviews.length})`} defaultOpen>
+                <div className="space-y-6">
+                  {/* Reviews Action Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-4">
+                    <div>
+                      <p className="text-sm font-bold text-white">Verified Guest Experiences</p>
+                      <p className="text-xs text-slate-400">Authentic reviews from confirmed bookings</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setReviewModalOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-4 py-2 text-xs font-bold text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20 hover:scale-[1.02]"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Write a Review
+                    </button>
+                  </div>
+
+                  {reviews.reviews.length === 0 && (
+                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-8 text-center">
+                      <p className="text-sm text-slate-300">No verified reviews published yet for this experience.</p>
+                      <p className="mt-1 text-xs text-slate-500">Were you on this tour? Be the first to share your experience!</p>
+                      <button
+                        type="button"
+                        onClick={() => setReviewModalOpen(true)}
+                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#00E5FF] px-5 py-2.5 text-xs font-black uppercase text-[#070F1E] transition-all hover:scale-105"
+                      >
+                        Write the First Review
+                      </button>
+                    </div>
+                  )}
+
+                  {reviews.reviews.length > 0 && (
+                    <>
+                      {/* Rating Summary */}
+                      <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
                       <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
                         <div className="text-center">
                           <span className="text-5xl font-black text-white">{reviews.ratingAverage.toFixed(1)}</span>
@@ -1113,11 +1146,12 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
                         </article>
                       ))}
                     </div>
-                  </div>
-                </Accordion>
-              )}
-            </div>
+                  </>
+                )}
+              </div>
+            </Accordion>
           </div>
+        </div>
 
           {/* ----- RIGHT: Desktop Booking Widget + Payment Action Drawer ----- */}
           <aside className="hidden lg:block">
@@ -1377,6 +1411,14 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
 
       {/* Spacer for mobile sticky bar */}
       <div className="h-20 lg:hidden" />
+
+      {/* Write a Review Modal */}
+      <WriteReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        tourId={tour.id}
+        tourTitle={localizedTitle}
+      />
     </>
   );
 }

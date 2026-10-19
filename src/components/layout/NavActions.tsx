@@ -178,13 +178,21 @@ export default function NavActions() {
           )}
         </div>
       ) : (
-        <Link
-          href="/auth"
-          className="inline-flex items-center gap-2 rounded-full border border-[#00E5FF]/25 bg-[#00E5FF]/10 px-5 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20 hover:shadow-lg hover:shadow-[#00E5FF]/10"
-        >
-          <User className="h-3.5 w-3.5" />
-          {dict.navbar.signInRegister}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/auth"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:text-white"
+          >
+            <span>Sign In</span>
+          </Link>
+          <Link
+            href="/auth"
+            className="inline-flex items-center gap-2 rounded-full border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#00E5FF]/10"
+          >
+            <User className="h-3.5 w-3.5" />
+            <span>Register</span>
+          </Link>
+        </div>
       )}
     </div>
   );
