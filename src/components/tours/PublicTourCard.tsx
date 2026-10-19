@@ -58,15 +58,16 @@ function getCategoryIcon(category: ReturnType<typeof normalizeCategory>) {
 }
 
 function RatingStars({ ratingAverage }: { ratingAverage: number }) {
+  const rounded = Math.round(ratingAverage);
   return (
     <div className="flex items-center gap-0.5">
       {Array.from({ length: 5 }).map((_, index) => (
         <Star
           key={index}
           className={`h-3.5 w-3.5 ${
-            index < Math.round(ratingAverage || 5)
+            index < rounded
               ? 'fill-[#FFD700] text-[#FFD700]'
-              : 'fill-slate-700 text-slate-700'
+              : 'fill-slate-700/60 text-slate-700/60'
           }`}
         />
       ))}
@@ -235,15 +236,22 @@ export default function PublicTourCard({ tour, priority = false }: { tour: Publi
           <div className="p-5">
             {/* Rating Row */}
             <div className="mb-2.5 flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <RatingStars ratingAverage={tour.ratingAverage} />
-                <span className="text-xs font-bold text-white">
-                  {tour.ratingAverage > 0 ? tour.ratingAverage.toFixed(1) : '5.0'}
-                </span>
-                <span className="text-[11px] text-slate-500">
-                  ({tour.ratingCount || 14} {dict.catalog.reviews})
-                </span>
-              </div>
+              {tour.ratingCount > 0 ? (
+                <div className="flex items-center gap-1.5">
+                  <RatingStars ratingAverage={tour.ratingAverage} />
+                  <span className="text-xs font-bold text-white">
+                    {tour.ratingAverage.toFixed(1)}
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    ({tour.ratingCount} {dict.catalog.reviews})
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#00E5FF]">
+                  <Sparkles className="h-3.5 w-3.5 text-[#00E5FF]" />
+                  <span>{(dict.catalog as any)?.newExperience || 'New Experience'}</span>
+                </div>
+              )}
 
               <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-400">
                 <CheckCircle2 className="h-3 w-3" />

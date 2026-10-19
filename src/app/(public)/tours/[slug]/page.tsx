@@ -340,6 +340,12 @@ export default async function TourDetailPage({ params }: Props) {
         : new Date().toISOString(),
   }));
 
+  const effectiveReviewCount = reviews.length;
+  const effectiveRatingAverage =
+    effectiveReviewCount > 0
+      ? reviews.reduce((acc, r) => acc + (r.rating || 5), 0) / effectiveReviewCount
+      : 0;
+
   const basePrice = tour.basePrice ? Number(tour.basePrice) : (tour.basePriceUSD ?? 0);
 
   // Gather all available images for the hero slider — safe cast
@@ -374,12 +380,12 @@ export default async function TourDetailPage({ params }: Props) {
       name: 'TALAGO Tours',
       url: baseUrl,
     },
-    ...(tour.ratingCount > 0
+    ...(effectiveReviewCount > 0
       ? {
           aggregateRating: {
             '@type': 'AggregateRating',
-            ratingValue: tour.ratingAverage.toFixed(1),
-            reviewCount: tour.ratingCount,
+            ratingValue: effectiveRatingAverage.toFixed(1),
+            reviewCount: effectiveReviewCount,
             bestRating: '5',
             worstRating: '1',
           },
@@ -430,8 +436,8 @@ export default async function TourDetailPage({ params }: Props) {
           basePrice,
           duration: tour.duration ?? `${tour.durationHours ?? 0}h`,
           maxCapacity: tour.maxCapacity,
-          ratingAverage: tour.ratingAverage,
-          ratingCount: tour.ratingCount,
+          ratingAverage: effectiveRatingAverage,
+          ratingCount: effectiveReviewCount,
           category: tour.category,
           destination: tour.destination ?? { name: '', slug: '' },
           highlights: tour.highlights as string[],
@@ -471,7 +477,7 @@ export default async function TourDetailPage({ params }: Props) {
           tourOptions,
           ageRestrictionsNotes: tour.ageRestrictionsNotes,
         }}
-        reviews={{ distribution, reviews, ratingAverage: tour.ratingAverage, ratingCount: tour.ratingCount }}
+        reviews={{ distribution, reviews, ratingAverage: effectiveRatingAverage, ratingCount: effectiveReviewCount }}
         relatedTours={relatedTours}
       />
     </main>

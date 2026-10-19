@@ -718,12 +718,19 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
             {/* Title & Meta */}
             <div className="mb-8">
               <div className="mb-4 flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <StarRating rating={tour.ratingAverage} />
-                  <span className="text-sm font-semibold text-slate-300">
-                    {tour.ratingAverage.toFixed(1)} ({tour.ratingCount} {dict.catalog.reviews})
-                  </span>
-                </div>
+                {tour.ratingCount > 0 ? (
+                  <div className="flex items-center gap-1.5">
+                    <StarRating rating={tour.ratingAverage} />
+                    <span className="text-sm font-semibold text-slate-300">
+                      {tour.ratingAverage.toFixed(1)} ({tour.ratingCount} {dict.catalog.reviews})
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 rounded-full border border-[#00E5FF]/20 bg-[#00E5FF]/10 px-3 py-1 text-xs font-bold text-[#00E5FF]">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>{(dict.catalog as any)?.newExperience || 'New Experience'}</span>
+                  </div>
+                )}
                 <span className="text-slate-600">·</span>
                 <span className="flex items-center gap-1.5 text-sm text-slate-400">
                   <MapPin className="h-4 w-4 text-[#00E5FF]" />
@@ -1082,7 +1089,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
               )}
 
               {/* Verified Reviews */}
-              <Accordion title={`${dict.tourDetails.reviews} (${reviews.ratingCount || reviews.reviews.length})`} defaultOpen>
+              <Accordion title={`${dict.tourDetails.reviews} (${reviews.reviews.length})`} defaultOpen>
                 <div className="space-y-6">
                   {/* Reviews Action Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-4">
@@ -1125,7 +1132,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
                             <StarRating rating={reviews.ratingAverage} size="md" />
                           </div>
                           <p className="mt-1 text-xs text-slate-500">
-                            {reviews.ratingCount} {dict.catalog.reviews}
+                            {reviews.reviews.length} {dict.catalog.reviews}
                           </p>
                         </div>
                         <div className="flex-1 space-y-1.5">
