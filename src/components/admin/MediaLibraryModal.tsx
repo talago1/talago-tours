@@ -58,6 +58,7 @@ export default function MediaLibraryModal({
       const params = new URLSearchParams();
       if (bucket !== 'all') params.set('bucket', bucket);
       if (search.trim()) params.set('search', search.trim());
+      params.set('limit', '300');
       const res = await fetch(`/api/admin/media?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
