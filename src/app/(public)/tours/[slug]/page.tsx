@@ -393,10 +393,11 @@ export default async function TourDetailPage({ params }: Props) {
       : {}),
   };
 
-  // Global payment method master toggles from /admin/settings
-  const pmSetting = await prisma.systemSetting.findUnique({
-    where: { key: 'paymentMethods' },
-  });
+  // Global payment method & marketplace modules settings from /admin/settings
+  const [pmSetting, modulesSetting] = await Promise.all([
+    prisma.systemSetting.findUnique({ where: { key: 'paymentMethods' } }),
+    prisma.systemSetting.findUnique({ where: { key: 'modules' } }),
+  ]);
   let paymentMethods = {
     allowPayOnArrival: true,
     allowFullOnline: true,
@@ -407,6 +408,21 @@ export default async function TourDetailPage({ params }: Props) {
   if (pmSetting?.value) {
     try {
       paymentMethods = { ...paymentMethods, ...JSON.parse(pmSetting.value) };
+    } catch {
+      // fallback to defaults
+    }
+  }
+
+  let modules = {
+    wishlist: true,
+    showWishlistInNav: true,
+    stickyMobileBookingBar: true,
+    activityAtAGlance: true,
+    facetedFilters: true,
+  };
+  if (modulesSetting?.value) {
+    try {
+      modules = { ...modules, ...JSON.parse(modulesSetting.value) };
     } catch {
       // fallback to defaults
     }
@@ -435,6 +451,7 @@ export default async function TourDetailPage({ params }: Props) {
           description,
           basePrice,
           duration: tour.duration ?? `${tour.durationHours ?? 0}h`,
+          durationHours: tour.durationHours ?? null,
           maxCapacity: tour.maxCapacity,
           ratingAverage: effectiveRatingAverage,
           ratingCount: effectiveReviewCount,
@@ -479,6 +496,7 @@ export default async function TourDetailPage({ params }: Props) {
         }}
         reviews={{ distribution, reviews, ratingAverage: effectiveRatingAverage, ratingCount: effectiveReviewCount }}
         relatedTours={relatedTours}
+        modules={modules}
       />
     </main>
   );

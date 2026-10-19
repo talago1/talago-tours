@@ -109,6 +109,7 @@ export interface SystemSettings {
     showWishlistInNav?: boolean;
     stickyMobileBookingBar?: boolean;
     activityAtAGlance?: boolean;
+    facetedFilters?: boolean;
   };
 }
 

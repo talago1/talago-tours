@@ -109,6 +109,7 @@ export const DEFAULT_SETTINGS = {
     showWishlistInNav: true,
     stickyMobileBookingBar: true,
     activityAtAGlance: true,
+    facetedFilters: true,
   },
 };
 

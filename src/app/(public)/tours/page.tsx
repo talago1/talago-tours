@@ -43,6 +43,10 @@ interface CatalogPageProps {
     category?: string;
     search?: string;
     sort?: string;
+    duration?: string;
+    rating?: string;
+    maxPrice?: string;
+    pickup?: string;
   };
 }
 
@@ -56,14 +60,44 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
   // `type` is canonical; `category` is accepted so older shared links keep working.
   const dbCategories = resolveCategoryFilter(filters.type ?? filters.category);
   if (dbCategories && dbCategories.length > 0) {
-    // `Tour.category` is a free-form string and the database already holds
-    // inconsistent casing ("Cultural" vs "cultural") plus stray whitespace
-    // ("Cultural "), so the lookup has to be case-insensitive or whole groups
-    // of tours silently vanish from their filter.
     where.category = { in: dbCategories, mode: 'insensitive' };
   }
 
-  const [totalCount, allTours, destinations] = await Promise.all([
+  // Faceted duration filtering
+  if (filters.duration) {
+    if (filters.duration === 'quick') {
+      where.durationHours = { lte: 2 };
+    } else if (filters.duration === 'half') {
+      where.durationHours = { gt: 2, lte: 4 };
+    } else if (filters.duration === 'extended') {
+      where.durationHours = { gt: 4, lte: 8 };
+    } else if (filters.duration === 'fullday') {
+      where.durationHours = { gt: 8 };
+    }
+  }
+
+  // Faceted rating filtering
+  if (filters.rating) {
+    const minRating = parseFloat(filters.rating);
+    if (!isNaN(minRating)) {
+      where.ratingAverage = { gte: minRating };
+    }
+  }
+
+  // Faceted price ceiling filtering
+  if (filters.maxPrice) {
+    const max = parseFloat(filters.maxPrice);
+    if (!isNaN(max)) {
+      where.adultPrice = { lte: max };
+    }
+  }
+
+  // Faceted hotel pickup inclusion
+  if (filters.pickup === 'true' || filters.pickup === '1') {
+    where.hotelPickupIncluded = true;
+  }
+
+  const [totalCount, allTours, destinations, modulesSetting] = await Promise.all([
     prisma.tour.count({ where: { status: 'ACTIVE' } }),
     prisma.tour.findMany({
       where,
@@ -105,6 +139,7 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
       orderBy: { name: 'asc' },
       select: { name: true, slug: true },
     }).catch(() => [] as { name: string; slug: string }[]),
+    prisma.systemSetting.findUnique({ where: { key: 'modules' } }),
   ]);
 
   // Multi-entity search matching: tour titles/excerpts, destination name, or category
@@ -125,12 +160,17 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
 
   const filteredCount = tours.length;
 
+  const modules = modulesSetting
+    ? parseSettingValue<SystemSettings['modules']>(modulesSetting.value, DEFAULT_SYSTEM_SETTINGS.modules)
+    : DEFAULT_SYSTEM_SETTINGS.modules;
+
   return (
     <div id="catalog" className="scroll-mt-8">
       <TourSearchHeaderWrapper
         destinations={destinations}
         totalCount={totalCount}
         filteredCount={filteredCount}
+        modules={modules}
       />
       <div className="mt-8">
         <ToursGrid tours={tours} />
