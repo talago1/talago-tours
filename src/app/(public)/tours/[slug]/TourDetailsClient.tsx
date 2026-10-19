@@ -20,12 +20,18 @@ import {
   Baby,
   Maximize2,
   Sparkles,
+  Heart,
+  Smartphone,
+  Languages,
+  Ban,
+  AlertTriangle,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { useWishlist } from '@/context/WishlistContext';
 import TourCard from '@/components/public/TourCard';
 import WriteReviewModal from '@/components/modals/WriteReviewModal';
 import type { PublicTour } from '@/types/publicTour';
@@ -37,6 +43,7 @@ interface TourData {
   description: string;
   basePrice: number;
   duration: string;
+  durationHours?: number | null;
   maxCapacity: number;
   ratingAverage: number;
   ratingCount: number;
@@ -101,6 +108,13 @@ interface Props {
   tour: TourData;
   reviews: ReviewsData;
   relatedTours?: PublicTour[];
+  modules?: {
+    wishlist?: boolean;
+    showWishlistInNav?: boolean;
+    stickyMobileBookingBar?: boolean;
+    activityAtAGlance?: boolean;
+    facetedFilters?: boolean;
+  };
 }
 
 function HeroSlider({
@@ -602,8 +616,9 @@ function SidebarStepper({
   );
 }
 
-export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: Props) {
+export default function TourDetailsClient({ tour, reviews, relatedTours = [], modules }: Props) {
   const { dict, language } = useLanguage();
+  const { isWishlisted, toggleWishlist } = useWishlist();
   const [adultsCount, setAdultsCount] = useState(1);
   const [childrenCount, setChildrenCount] = useState(0);
   const [infantsCount, setInfantsCount] = useState(0);
@@ -612,6 +627,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
   );
   const [selectedTime, setSelectedTime] = useState<string>(tour.pickupTimes?.[0] || '');
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [wishAnim, setWishAnim] = useState(false);
 
   // Resolve localized translations from parent with fallback cascade
   const translations = tour.translations;
@@ -714,12 +730,19 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
             {/* Title & Meta */}
             <div className="mb-8">
               <div className="mb-4 flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <StarRating rating={tour.ratingAverage} />
-                  <span className="text-sm font-semibold text-slate-300">
-                    {tour.ratingAverage.toFixed(1)} ({tour.ratingCount} {dict.catalog.reviews})
-                  </span>
-                </div>
+                {tour.ratingCount > 0 ? (
+                  <div className="flex items-center gap-1.5">
+                    <StarRating rating={tour.ratingAverage} />
+                    <span className="text-sm font-semibold text-slate-300">
+                      {tour.ratingAverage.toFixed(1)} ({tour.ratingCount} {dict.catalog.reviews})
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 rounded-full border border-[#00E5FF]/20 bg-[#00E5FF]/10 px-3 py-1 text-xs font-bold text-[#00E5FF]">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>{(dict.catalog as any)?.newExperience || 'New Experience'}</span>
+                  </div>
+                )}
                 <span className="text-slate-600">·</span>
                 <span className="flex items-center gap-1.5 text-sm text-slate-400">
                   <MapPin className="h-4 w-4 text-[#00E5FF]" />
@@ -744,7 +767,136 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
               {localizedDesc && (
                 <p className="mt-4 max-w-3xl text-base leading-8 text-slate-300">{localizedDesc}</p>
               )}
+              {/* ── Wishlist Save Button ── */}
+              {modules?.wishlist !== false && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    toggleWishlist({
+                      id: tour.id,
+                      slug: tour.slug,
+                      title: localizedTitle,
+                      coverImage: tour.images?.[0] || '',
+                      priceUSD: tour.adultPrice ?? tour.basePrice,
+                      ratingAverage: tour.ratingAverage,
+                      ratingCount: tour.ratingCount,
+                      duration: tour.duration,
+                      durationHours: null,
+                      destinationName: tour.destination.name,
+                      category: tour.category,
+                      addedAt: Date.now(),
+                    });
+                    setWishAnim(true);
+                    setTimeout(() => setWishAnim(false), 400);
+                  }}
+                  className={`mt-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-all duration-200 ${
+                    isWishlisted(tour.id)
+                      ? 'border-rose-500/60 bg-rose-500/15 text-rose-400 hover:bg-rose-500/25'
+                      : 'border-white/15 bg-white/[0.04] text-slate-300 hover:border-rose-400/40 hover:text-rose-300'
+                  } ${wishAnim ? 'scale-110' : 'scale-100'}`}
+                >
+                  <Heart
+                    className={`h-4 w-4 transition-all ${
+                      isWishlisted(tour.id) ? 'fill-rose-400 text-rose-400' : ''
+                    }`}
+                  />
+                  {isWishlisted(tour.id) ? 'Saved to Wishlist' : 'Save Experience'}
+                </button>
+              )}
             </div>
+
+            {/* ── Tier-1 OTA: Activity At-a-Glance Matrix (GetYourGuide / Viator Standard) ── */}
+            {modules?.activityAtAGlance !== false && (
+              <div className="mb-10 rounded-3xl border border-white/10 bg-[#0B1528]/80 p-6 shadow-2xl backdrop-blur-xl sm:p-7">
+                <div className="mb-5 flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-[0.22em] text-[#00E5FF] flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Key Activity Details
+                  </h3>
+                  <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[11px] font-bold text-slate-400">
+                    Instant Overview
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {/* 1. Free Cancellation */}
+                  <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-emerald-500/30 hover:bg-white/[0.04]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                      <ShieldCheck className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Cancellation</h4>
+                      <p className="mt-0.5 text-xs font-bold text-emerald-400">Free cancellation</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Up to 24 hours before start</p>
+                    </div>
+                  </div>
+
+                  {/* 2. Instant Confirmation */}
+                  <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#00E5FF]/30 hover:bg-white/[0.04]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Confirmation</h4>
+                      <p className="mt-0.5 text-xs font-bold text-white">Instant confirmation</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Instant digital ticket delivery</p>
+                    </div>
+                  </div>
+
+                  {/* 3. Mobile Voucher */}
+                  <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-violet-500/30 hover:bg-white/[0.04]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
+                      <Smartphone className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Voucher / Ticket</h4>
+                      <p className="mt-0.5 text-xs font-bold text-white">Mobile ticket accepted</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Show on smartphone / no print</p>
+                    </div>
+                  </div>
+
+                  {/* 4. Duration */}
+                  <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#FFD700]/30 hover:bg-white/[0.04]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFD700]/10 text-[#FFD700]">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Duration</h4>
+                      <p className="mt-0.5 text-xs font-bold text-white">{tour.duration || (tour.durationHours ? `${tour.durationHours} hours` : 'Full day')}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Flexible start &amp; return schedule</p>
+                    </div>
+                  </div>
+
+                  {/* 5. Live Guide Languages */}
+                  <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-sky-500/30 hover:bg-white/[0.04]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
+                      <Languages className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Live Tour Guide</h4>
+                      <p className="mt-0.5 text-xs font-bold text-white">Multilingual Guide</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">English, German, French, Russian</p>
+                    </div>
+                  </div>
+
+                  {/* 6. Pickup Service */}
+                  <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#00E5FF]/30 hover:bg-white/[0.04]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
+                      <MapPin className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pickup Service</h4>
+                      <p className="mt-0.5 text-xs font-bold text-white">
+                        {tour.hotelPickupIncluded ? 'Hotel pickup included' : (tour.meetingPointName ? 'Meeting point check-in' : 'Pickup optional / included')}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        {tour.hotelPickupIncluded ? 'Roundtrip hotel transport' : 'Convenient designated point'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Highlights */}
             {localizedHighlights.length > 0 && (
@@ -858,30 +1010,84 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
                 </Accordion>
               )}
 
-              {/* What to Bring */}
-              {localizedWhatToBringItems.length > 0 && (
-                <Accordion title={dict.tourDetails.whatToBring}>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {localizedWhatToBringItems.map((item, i) => (
-                      <div key={i} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                        <Check className="h-4 w-4 shrink-0 text-[#FFD700]" />
-                        <span className="text-sm text-slate-300">{item}</span>
+              {/* ── Know Before You Go (GetYourGuide / Viator Comprehensive Guide) ── */}
+              <Accordion title={dict.tourDetails.whatToBring ? `Know Before You Go (${dict.tourDetails.whatToBring})` : 'Know Before You Go'} defaultOpen>
+                <div className="space-y-6">
+                  {/* Subsection 1: What to Bring */}
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#FFD700]/15 text-[#FFD700]">
+                        <Check className="h-3.5 w-3.5" />
                       </div>
-                    ))}
+                      <h4 className="text-sm font-bold text-white">What to bring</h4>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      {(localizedWhatToBringItems.length > 0
+                        ? localizedWhatToBringItems
+                        : [
+                            'Passport or official photo ID',
+                            'Comfortable walking shoes & sunglasses',
+                            'Sunscreen & beach towel (for coastal/boat tours)',
+                            'Camera or smartphone for memories',
+                            'Cash for personal expenses or tips',
+                          ]
+                      ).map((item, i) => (
+                        <div key={i} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3 transition-colors hover:bg-white/[0.04]">
+                          <Check className="h-4 w-4 shrink-0 text-[#FFD700]" />
+                          <span className="text-xs text-slate-300">{item}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </Accordion>
-              )}
 
-              {/* Important Information */}
-              {localizedImportantInfo && (
-                <Accordion title={(dict.tourDetails as any).importantInfo || 'Important Information'}>
-                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-                    <p className="whitespace-pre-line text-sm leading-7 text-slate-300">
-                      {localizedImportantInfo}
-                    </p>
+                  {/* Subsection 2: Not Allowed */}
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-500/15 text-rose-400">
+                        <Ban className="h-3.5 w-3.5" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">Not allowed</h4>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      {[
+                        'Luggage or large suitcases',
+                        'Drones / aerial cameras (strictly regulated in Egypt)',
+                        'Pets or non-service animals',
+                        'Glass bottles or sharp objects',
+                        'Smoking in closed vehicles or marine reserves',
+                      ].map((item, i) => (
+                        <div key={i} className="flex items-center gap-3 rounded-xl border border-rose-500/10 bg-rose-500/[0.03] p-3">
+                          <Ban className="h-3.5 w-3.5 shrink-0 text-rose-400" />
+                          <span className="text-xs text-slate-300">{item}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </Accordion>
-              )}
+
+                  {/* Subsection 3: Good to know / Health & Safety advisory */}
+                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
+                      <div className="space-y-1.5 text-xs text-slate-300 leading-relaxed">
+                        <p className="font-bold text-amber-300">Important Traveler Guidelines</p>
+                        {localizedImportantInfo && (
+                          <p className="whitespace-pre-line text-slate-200 mb-2">{localizedImportantInfo}</p>
+                        )}
+                        <ul className="list-disc pl-4 space-y-1 text-slate-400">
+                          <li>Instant confirmation: show your smartphone voucher at pickup; no physical printout is required.</li>
+                          <li>Hotel pickup time will be re-confirmed via WhatsApp or email the evening prior to departure.</li>
+                          {tour.ageRestrictionsNotes ? (
+                            <li>{tour.ageRestrictionsNotes}</li>
+                          ) : (
+                            <li>Infants (ages 0–2) participate free of charge; child rates apply for ages 3–11.</li>
+                          )}
+                          <li>Not recommended for travelers with severe back injuries or pregnant travelers on rugged terrain excursions.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Accordion>
 
               {/* Pickup & Meeting Point Info */}
               {(localizedPickupDescription || tour.hotelPickupIncluded || tour.meetingPointName || tour.pickupType) && (
@@ -1044,7 +1250,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
               )}
 
               {/* Verified Reviews */}
-              <Accordion title={`${dict.tourDetails.reviews} (${reviews.ratingCount || reviews.reviews.length})`} defaultOpen>
+              <Accordion title={`${dict.tourDetails.reviews} (${reviews.reviews.length})`} defaultOpen>
                 <div className="space-y-6">
                   {/* Reviews Action Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-4">
@@ -1087,7 +1293,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
                             <StarRating rating={reviews.ratingAverage} size="md" />
                           </div>
                           <p className="mt-1 text-xs text-slate-500">
-                            {reviews.ratingCount} {dict.catalog.reviews}
+                            {reviews.reviews.length} {dict.catalog.reviews}
                           </p>
                         </div>
                         <div className="flex-1 space-y-1.5">
@@ -1386,31 +1592,48 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
         )}
       </div>
 
-      {/* Mobile Sticky Bottom Booking Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#0B1528]/95 backdrop-blur-xl lg:hidden">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">{dict.tourDetails.from}</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-black text-white">
-                {formatPrice(pricePerAdult, { round: true })}
-              </p>
-              {tour.originalPrice && tour.originalPrice > pricePerAdult && (
-                <span className="text-sm font-bold text-slate-500 line-through">
-                  {formatPrice(tour.originalPrice, { round: true })}
+      {/* Mobile Sticky Bottom Booking Bar (Admin Controllable) */}
+      {modules?.stickyMobileBookingBar !== false && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#0B1528]/95 px-5 py-3.5 backdrop-blur-2xl shadow-2xl shadow-black lg:hidden">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#00E5FF]">{dict.tourDetails.from}</span>
+                {tour.ratingAverage > 0 && (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-slate-300">
+                    <span className="text-[#FFD700]">★</span>
+                    <span>{tour.ratingAverage.toFixed(1)}</span>
+                    <span className="text-slate-500">({tour.ratingCount})</span>
+                  </span>
+                )}
+              </div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-white">
+                  {formatPrice(pricePerAdult, { round: true })}
                 </span>
-              )}
-              <span className="text-xs font-normal text-slate-400">{dict.tourDetails.perPerson}</span>
+                {tour.originalPrice && tour.originalPrice > pricePerAdult && (
+                  <span className="text-xs font-bold text-slate-500 line-through">
+                    {formatPrice(tour.originalPrice, { round: true })}
+                  </span>
+                )}
+                <span className="text-[11px] text-slate-400">{dict.tourDetails.perPerson}</span>
+              </div>
             </div>
+            <Link href={reserveHref} className="shrink-0">
+              <button
+                type="button"
+                className="relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] via-[#00C2E0] to-[#00A3BF] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition-all hover:scale-105 active:scale-95"
+              >
+                <span>{dict.tourDetails.bookNow || 'Book Now'}</span>
+                <span className="text-base leading-none">→</span>
+              </button>
+            </Link>
           </div>
-          <Link href={reserveHref}>
-            <Button variant="primary" size="md">{dict.tourDetails.bookNow}</Button>
-          </Link>
         </div>
-      </div>
+      )}
 
       {/* Spacer for mobile sticky bar */}
-      <div className="h-20 lg:hidden" />
+      {modules?.stickyMobileBookingBar !== false && <div className="h-20 lg:hidden" />}
 
       {/* Write a Review Modal */}
       <WriteReviewModal

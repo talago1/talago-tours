@@ -16,6 +16,10 @@ import {
   Check,
   X,
   AlertCircle,
+  Heart,
+  Smartphone,
+  SlidersHorizontal,
+  ListChecks,
 } from 'lucide-react';
 import type { SystemSettings } from '@/types/settings';
 import type { PartnerApplication } from '@/app/api/public/partners/apply/route';
@@ -180,6 +184,181 @@ export default function MarketplaceModulesDashboard({
                 className="inline-flex items-center gap-1.5 font-bold text-[#FFD700] hover:underline"
               >
                 <span>Preview Public /partners Page</span>
+                <ExternalLink className="h-3 w-3" />
+              </Link>
+            </div>
+          </div>
+
+          {/* 3. Traveler Wishlist & Bucket List Engine */}
+          <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5 transition-all hover:border-white/20">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400">
+                  <Heart className="h-5 w-5 fill-rose-500/20" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">Wishlist &amp; Bucket List</h3>
+                  <span className="inline-block mt-0.5 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                    🟢 Live at /wishlist
+                  </span>
+                </div>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={settings.modules?.wishlist ?? true}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      modules: {
+                        ...prev.modules,
+                        wishlist: e.target.checked,
+                        showWishlistInNav: e.target.checked,
+                      },
+                    }))
+                  }
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-rose-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none" />
+              </label>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-slate-400">
+              Allows travelers to bookmark experiences, view their saved bucket list at <code className="text-slate-300">/wishlist</code>, and send their dream itinerary directly to WhatsApp Concierge.
+            </p>
+            <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs">
+              <Link
+                href="/wishlist"
+                target="_blank"
+                className="inline-flex items-center gap-1.5 font-bold text-rose-400 hover:underline"
+              >
+                <span>View Public /wishlist Page</span>
+                <ExternalLink className="h-3 w-3" />
+              </Link>
+            </div>
+          </div>
+
+          {/* 4. Mobile Quick-Booking & Sticky Bar */}
+          <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5 transition-all hover:border-white/20">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
+                  <Smartphone className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">Sticky Mobile Booking Bar</h3>
+                  <span className="inline-block mt-0.5 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                    🟢 High-Conversion Mobile UX
+                  </span>
+                </div>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={settings.modules?.stickyMobileBookingBar ?? true}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      modules: {
+                        ...prev.modules,
+                        stickyMobileBookingBar: e.target.checked,
+                      },
+                    }))
+                  }
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#00E5FF] peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none" />
+              </label>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-slate-400">
+              Affixes dynamic pricing, available slot indicators, and a 1-tap booking button to the bottom viewport on mobile devices when viewing tour detail pages.
+            </p>
+            <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs">
+              <span className="text-slate-400">Optimized for iOS Safari &amp; Android Chrome</span>
+            </div>
+          </div>
+
+          {/* 5. Activity At-a-Glance & Know Before You Go */}
+          <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5 transition-all hover:border-white/20">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/10 text-amber-400">
+                  <ListChecks className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">Activity At-a-Glance &amp; Guidelines</h3>
+                  <span className="inline-block mt-0.5 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                    🟢 GetYourGuide / Viator Standard
+                  </span>
+                </div>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={settings.modules?.activityAtAGlance ?? true}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      modules: {
+                        ...prev.modules,
+                        activityAtAGlance: e.target.checked,
+                      },
+                    }))
+                  }
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-amber-400 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none" />
+              </label>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-slate-400">
+              Renders instant key specifications (duration, cancellation window, mobile tickets, guide languages, group sizes) and the standardized &quot;Know Before You Go&quot; section on tour pages.
+            </p>
+            <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs">
+              <span className="text-slate-400">Essential for conversion &amp; traveler expectations</span>
+            </div>
+          </div>
+
+          {/* 6. Advanced Faceted Catalog Search */}
+          <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5 transition-all hover:border-white/20">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-400">
+                  <SlidersHorizontal className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">Faceted Catalog Search</h3>
+                  <span className="inline-block mt-0.5 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                    🟢 Multi-Faceted Filters Live
+                  </span>
+                </div>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={settings.modules?.facetedFilters ?? true}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      modules: {
+                        ...prev.modules,
+                        facetedFilters: e.target.checked,
+                      },
+                    }))
+                  }
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-cyan-400 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none" />
+              </label>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-slate-400">
+              Enables granular filtering across catalog listings by duration buckets (&lt;2h, 2-4h, 4-8h, full day), rating tiers (4.5★+, 4.0★+), price ceilings, and inclusions (hotel pickup).
+            </p>
+            <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs">
+              <Link
+                href="/tours"
+                target="_blank"
+                className="inline-flex items-center gap-1.5 font-bold text-cyan-400 hover:underline"
+              >
+                <span>Preview /tours Catalog</span>
                 <ExternalLink className="h-3 w-3" />
               </Link>
             </div>

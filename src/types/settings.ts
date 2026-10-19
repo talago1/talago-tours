@@ -105,6 +105,11 @@ export interface SystemSettings {
     affiliates: boolean;
     applications: boolean;
     additionalCountries: boolean;
+    wishlist?: boolean;
+    showWishlistInNav?: boolean;
+    stickyMobileBookingBar?: boolean;
+    activityAtAGlance?: boolean;
+    facetedFilters?: boolean;
   };
 }
 

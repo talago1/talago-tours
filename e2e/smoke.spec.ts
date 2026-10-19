@@ -24,6 +24,16 @@ test.describe('Public Experience Marketplace Smoke Tests', () => {
       await searchInput.fill('Sea');
       await page.waitForTimeout(400); // debounce
     }
+
+    // Check presence of Faceted Filters button
+    const filtersBtn = page.locator('button:has-text("Filters")');
+    if (await filtersBtn.isVisible()) {
+      await filtersBtn.click();
+      // Refinement sections should reveal
+      await expect(page.locator('text=Faceted Refinements')).toBeVisible();
+      await expect(page.locator('text=Duration').first()).toBeVisible();
+      await expect(page.locator('text=Guest Rating').first()).toBeVisible();
+    }
   });
 
   test('Destinations hub page loads destination cards', async ({ page }) => {
@@ -45,5 +55,30 @@ test.describe('Public Experience Marketplace Smoke Tests', () => {
   test('Admin login gate is operational', async ({ page }) => {
     await page.goto('/admin/login');
     await expect(page.locator('input[type="password"]')).toBeVisible();
+  });
+
+  test('Wishlist page (/wishlist) renders empty state or saved tours cleanly', async ({ page }) => {
+    await page.goto('/wishlist');
+
+    // Title should mention Saved Experiences or Bucket List
+    await expect(page.locator('h1:has-text("Saved Experiences")')).toBeVisible();
+
+    // Check presence of Browse Tours / Explore button if empty
+    await expect(page.locator('a[href="/tours"]').first()).toBeVisible();
+  });
+
+  test('Tour detail page renders Activity At-a-Glance Matrix and Know Before You Go guide', async ({ page }) => {
+    await page.goto('/tours/super-safari-hurghada');
+
+    // Key specs matrix
+    await expect(page.locator('text=Key Activity Details').first()).toBeVisible();
+    await expect(page.locator('text=Free cancellation').first()).toBeVisible();
+    await expect(page.locator('text=Instant confirmation').first()).toBeVisible();
+    await expect(page.locator('text=Mobile ticket accepted').first()).toBeVisible();
+
+    // Know Before You Go section
+    await expect(page.locator('text=Know Before You Go').first()).toBeVisible();
+    await expect(page.locator('text=What to bring').first()).toBeVisible();
+    await expect(page.locator('text=Not allowed').first()).toBeVisible();
   });
 });
