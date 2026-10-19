@@ -24,7 +24,7 @@ const jsonLd = {
       url: baseUrl,
       name: 'TALAGO',
       alternateName: 'TALAGO Tours',
-      description: 'TALAGO — Egypt tours and experiences across the Red Sea, Nile and beyond.',
+      description: 'TALAGO — Book top-rated tours, activities & experiences worldwide. Discover Egypt, the Red Sea, and beyond.',
       inLanguage: 'en',
       publisher: { '@id': `${baseUrl}/#organization` },
       potentialAction: {
@@ -48,7 +48,7 @@ const jsonLd = {
       },
       image: `${baseUrl}/og/default.png`,
       description:
-        'TALAGO is a global Egypt tours and experiences platform — Red Sea islands, desert safaris, diving and historic Nile days across Hurghada, Sharm El Sheikh, Marsa Alam, Cairo and Luxor.',
+        'TALAGO is a global tours and experiences marketplace — discover and book curated activities across Egypt, the Red Sea, the Nile Valley, and destinations worldwide.',
       sameAs: socialLinks,
       contactPoint: {
         '@type': 'ContactPoint',
@@ -97,22 +97,24 @@ export const metadata: Metadata = {
   },
   title: {
     template: '%s | TALAGO',
-    default: 'TALAGO | Egypt Tours & Experiences',
+    default: 'TALAGO | Book Top Tours, Activities & Experiences Worldwide',
   },
   description:
-    'Discover and book vetted Egypt tours and experiences — Red Sea islands, desert safaris, diving and historic Nile days in Hurghada, Sharm El Sheikh, Marsa Alam, Cairo and Luxor. Instant confirmation and local support.',
+    'Discover and book top-rated tours, activities, and experiences worldwide with instant confirmation and flexible cancellation. Egypt, Red Sea, Nile Valley, and beyond.',
   keywords: [
     'TALAGO',
+    'tours and activities',
+    'book experiences worldwide',
     'Egypt tours',
-    'Egypt excursions',
+    'Red Sea excursions',
     'Hurghada tours',
     'Sharm El Sheikh tours',
-    'Marsa Alam tours',
     'Cairo tours',
     'Luxor tours',
-    'Red Sea excursions',
+    'desert safari',
     'Red Sea diving',
-    'desert safari Egypt',
+    'travel experiences',
+    'tour booking platform',
   ],
   authors: [{ name: 'TALAGO' }],
   creator: 'TALAGO',
@@ -123,9 +125,9 @@ export const metadata: Metadata = {
     telephone: false,
   },
   openGraph: {
-    title: 'TALAGO | Egypt Tours & Experiences',
+    title: 'TALAGO | Book Top Tours, Activities & Experiences Worldwide',
     description:
-      'Book vetted tours and experiences across Egypt — Red Sea islands, desert safaris, diving and historic Nile days. Instant confirmation.',
+      'Discover and book top-rated tours, unique activities, and unforgettable experiences worldwide — Egypt, Red Sea, Nile Valley, and beyond. Instant confirmation.',
     url: baseUrl,
     siteName: 'TALAGO',
     locale: 'en_US',
@@ -137,16 +139,16 @@ export const metadata: Metadata = {
         secureUrl: `${baseUrl}/og/default.jpg`,
         width: 1200,
         height: 630,
-        alt: 'TALAGO — Egypt Tours & Luxury Experiences',
+        alt: 'TALAGO — World-Class Tours & Luxury Experiences',
         type: 'image/jpeg',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TALAGO | Egypt Tours & Experiences',
+    title: 'TALAGO | Book Top Tours, Activities & Experiences Worldwide',
     description:
-      'Book vetted tours and experiences across Egypt — Red Sea islands, desert safaris, diving and historic Nile days.',
+      'Discover and book top-rated tours, unique activities, and unforgettable experiences worldwide — Egypt, Red Sea, Nile Valley, and beyond.',
     images: [`${baseUrl}/og/default.jpg`],
   },
   robots: {

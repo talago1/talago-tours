@@ -2,10 +2,10 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'TALAGO | Egypt Tours & Experiences',
+    name: 'TALAGO | Tours, Activities & Experiences Worldwide',
     short_name: 'TALAGO',
     description:
-      'Book vetted tours and experiences across Egypt — Red Sea islands, desert safaris, diving and historic Nile days.',
+      'Discover and book top-rated tours, activities, and unforgettable experiences worldwide — Egypt, Red Sea, Nile Valley, and beyond.',
     start_url: '/',
     display: 'standalone',
     background_color: '#070F1E',

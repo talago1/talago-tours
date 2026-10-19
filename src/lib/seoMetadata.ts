@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+﻿import type { Metadata } from 'next';
 import { type LanguageCode, LANGUAGES } from './i18n';
 
 export const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
@@ -44,40 +44,38 @@ interface HomeCopy {
 
 const HOME_SEO: Record<LanguageCode, HomeCopy> = {
   en: {
-    title: 'TALAGO | Egypt Tours & Experiences | Red Sea & Nile',
+    title: 'TALAGO | Tours, Activities & Experiences Worldwide',
     description:
-      'Book vetted Egypt tours and experiences across the Red Sea, Nile and desert — Hurghada, Sharm El Sheikh, Marsa Alam, Cairo and Luxor. Instant confirmation.',
+      'Discover and book top-rated tours, unique activities, and unforgettable experiences worldwide — Egypt, Red Sea, Nile Valley, and beyond. Instant confirmation & flexible cancellation.',
     keywords: [
-      'Egypt tours',
-      'Egypt excursions',
-      'Hurghada tours',
-      'Sharm El Sheikh excursions',
-      'Marsa Alam boat trips',
-      'Cairo day tours',
-      'Luxor temple tours',
-      'Desert safari Egypt',
       'TALAGO',
+      'tours and activities',
+      'book experiences',
+      'Egypt tours',
+      'Red Sea excursions',
+      'Hurghada tours',
+      'desert safari',
+      'tour booking platform',
     ],
   },
   de: {
-    title: 'TALAGO | Ägypten Ausflüge, Touren & Erlebnisse | Rotes Meer & Nil',
+    title: 'TALAGO | Touren, Aktivitäten & Erlebnisse weltweit',
     description:
-      'Buchen Sie erstklassige Ausflüge und Touren in Ägypten — Hurghada, Sharm El Sheikh, Marsa Alam, Kairo und Luxor. Bootstouren, Wüstensafari & Tauchen mit Sofortbestätigung.',
+      'Entdecken und buchen Sie erstklassige Touren, einzigartige Aktivitäten und unvergessliche Erlebnisse weltweit — Ägypten, Rotes Meer, Niltal und mehr. Sofortbestätigung.',
     keywords: [
+      'TALAGO',
+      'Touren und Aktivitäten',
       'Ägypten Ausflüge',
       'Hurghada Ausflüge',
-      'Sharm El Sheikh Touren',
-      'Marsa Alam Ausflüge',
       'Bootstouren Rotes Meer',
-      'Wüstensafari Ägypten',
-      'Kairo Tagesausflug',
-      'TALAGO',
+      'Wüstensafari',
+      'Erlebnisse buchen',
     ],
   },
   ru: {
-    title: 'TALAGO | Экскурсии в Египте, морские прогулки и сафари',
+    title: 'TALAGO | Туры, экскурсии и впечатления по всему миру',
     description:
-      'Бронируйте проверенные экскурсии и туры по Египту — Хургада, Шарм-эль-Шейх, Марса Алам, Каир и Луксор. Морские прогулки, дайвинг, сафари с мгновенным подтверждением.',
+      'Откройте и забронируйте лучшие туры, уникальные экскурсии и незабываемые впечатления по всему миру — Египет, Красное море, долина Нила и не только. Мгновенное подтверждение.',
     keywords: [
       'Экскурсии в Египте',
       'Экскурсии Хургада',
@@ -89,73 +87,73 @@ const HOME_SEO: Record<LanguageCode, HomeCopy> = {
     ],
   },
   fr: {
-    title: 'TALAGO | Excursions en Égypte, Croisières Mer Rouge & Safaris',
+    title: 'TALAGO | Tours, Activités & Expériences dans le Monde',
     description:
-      'Réservez les meilleures excursions et activités en Égypte — Hurghada, Charm el-Cheikh, Marsa Alam, Le Caire et Louxor. Sorties bateau, plongée et safaris avec confirmation immédiate.',
+      'Découvrez et réservez les meilleurs tours, activités uniques et expériences inoubliables dans le monde entier — Égypte, Mer Rouge, Vallée du Nil et plus encore. Confirmation instantanée.',
     keywords: [
-      'Excursions Égypte',
-      'Excursions Hurghada',
-      'Visites Charm el-Cheikh',
-      'Croisières Mer Rouge',
-      'Safari désert Égypte',
-      'Plongée Égypte',
       'TALAGO',
+      'tours et activités',
+      'Excursions Égypte',
+      'Hurghada',
+      'Croisières Mer Rouge',
+      'Safari désert',
+      'réservation expériences',
     ],
   },
   it: {
-    title: 'TALAGO | Escursioni in Egitto, Tour Mar Rosso & Safari nel Deserto',
+    title: 'TALAGO | Tour, Attività & Esperienze in Tutto il Mondo',
     description:
-      'Prenota le migliori escursioni e tour in Egitto — Hurghada, Sharm El Sheikh, Marsa Alam, Il Cairo e Luxor. Gite in barca, immersioni e safari con conferma immediata.',
+      'Scopri e prenota i migliori tour, attività uniche ed esperienze indimenticabili in tutto il mondo — Egitto, Mar Rosso, Valle del Nilo e altro. Conferma immediata.',
     keywords: [
-      'Escursioni Egitto',
-      'Escursioni Hurghada',
-      'Tour Sharm El Sheikh',
-      'Gite in barca Mar Rosso',
-      'Safari deserto Egitto',
-      'Immersioni Egitto',
       'TALAGO',
+      'tour e attività',
+      'Escursioni Egitto',
+      'Hurghada',
+      'Gite Mar Rosso',
+      'Safari deserto',
+      'prenotazione esperienze',
     ],
   },
   es: {
-    title: 'TALAGO | Excursiones en Egipto, Tours en Mar Rojo y Safaris',
+    title: 'TALAGO | Tours, Actividades & Experiencias en el Mundo',
     description:
-      'Reserve las mejores excursiones y tours en Egipto — Hurghada, Sharm El Sheikh, Marsa Alam, El Cairo y Luxor. Paseos en barco, buceo y safaris con confirmación inmediata.',
+      'Descubre y reserva los mejores tours, actividades únicas y experiencias inolvidables en todo el mundo — Egipto, Mar Rojo, Valle del Nilo y más. Confirmación instantánea.',
     keywords: [
-      'Excursiones Egipto',
-      'Excursiones Hurghada',
-      'Tours Sharm El Sheikh',
-      'Barcos Mar Rojo',
-      'Safari desierto Egipto',
-      'Buceo Egipto',
       'TALAGO',
+      'tours y actividades',
+      'Excursiones Egipto',
+      'Hurghada',
+      'Barcos Mar Rojo',
+      'Safari desierto',
+      'reserva experiencias',
     ],
   },
   pl: {
-    title: 'TALAGO | Wycieczki w Egipcie, Rejsy po Morzu Czerwonym i Safari',
+    title: 'TALAGO | Wycieczki, Aktywności & Doświadczenia na Świecie',
     description:
-      'Rezerwuj sprawdzone wycieczki i atrakcje w Egipcie — Hurghada, Sharm El Sheikh, Marsa Alam, Kair i Luksor. Rejsy statkiem, nurkowanie i safari na pustyni z natychmiastowym potwierdzeniem.',
+      'Odkryj i zarezerwuj najlepsze wycieczki, wyjątkowe aktywności i niezapomniane doświadczenia na całym świecie — Egipt, Morze Czerwone, Dolina Nilu i więcej. Natychmiastowe potwierdzenie.',
     keywords: [
-      'Wycieczki Egipt',
-      'Wycieczki Hurghada',
-      'Wycieczki Sharm El Sheikh',
-      'Rejsy Morze Czerwone',
-      'Safari pustynia Egipt',
-      'Nurkowanie Egipt',
       'TALAGO',
+      'wycieczki i aktywności',
+      'Wycieczki Egipt',
+      'Hurghada',
+      'Rejsy Morze Czerwone',
+      'Safari pustynia',
+      'rezerwacja doświadczeń',
     ],
   },
   uk: {
-    title: 'TALAGO | Екскурсії в Єгипті, морські прогулянки та сафарі',
+    title: 'TALAGO | Тури, Активності & Враження по всьому світу',
     description:
-      'Бронюйте перевірені екскурсії та тури в Єгипті — Хургада, Шарм-ель-Шейх, Марса Алам, Каїр і Луксор. Морські прогулянки, дайвінг та сафарі з миттєвим підтвердженням.',
+      'Відкрийте та забронюйте найкращі тури, унікальні активності та незабутні враження по всьому світу — Єгипет, Червоне море, Долина Нілу та більше. Миттєве підтвердження.',
     keywords: [
-      'Екскурсії Єгипет',
-      'Екскурсії Хургада',
-      'Тури Шарм-ель-Шейх',
-      'Морські прогулянки',
-      'Сафарі Єгипет',
-      'Дайвінг Єгипет',
       'TALAGO',
+      'Тури та активності',
+      'Екскурсії Єгипет',
+      'Хургада',
+      'Морські прогулянки',
+      'Сафарі пустеля',
+      'бронювання вражень',
     ],
   },
 };
@@ -282,47 +280,46 @@ export function getToursMetadata(lang: LanguageCode): Metadata {
 
 const DESTINATIONS_SEO: Record<LanguageCode, { title: string; description: string }> = {
   en: {
-    title: 'Egypt Travel Destinations',
+    title: 'Destinations Worldwide',
     description:
-      'Explore Egypt by destination — Hurghada, Sharm El Sheikh, Marsa Alam, El Gouna, Cairo, Luxor, Aswan and more. Curated tours and activities with TALAGO.',
+      'Browse all destinations — Hurghada, Sharm El Sheikh, Cairo, Luxor, and more. Curated tours, activities, and experiences with instant confirmation by TALAGO.',
   },
   de: {
-    title: 'Reiseziele in Ägypten',
+    title: 'Reiseziele weltweit',
     description:
-      'Erkunden Sie Ägypten nach Reisezielen — Hurghada, Sharm El Sheikh, Marsa Alam, El Gouna, Kairo, Luxor und Assuan. Handverlesene Touren mit TALAGO.',
+      'Erkunden Sie alle Reiseziele — Hurghada, Sharm El Sheikh, Kairo, Luxor und mehr. Handverlesene Touren und Erlebnisse mit sofortiger Bestaetigung durch TALAGO.',
   },
   ru: {
-    title: 'Туристические направления в Египте',
+    title: 'Направления по всему миру',
     description:
-      'Исследуйте Египет по направлениям: Хургада, Шарм-эль-Шейх, Марса Алам, Эль-Гуна, Каир, Луксор и Асуан. Экскурсии и туры с TALAGO.',
+      'Просматривайте все направления: Хургада, Шарм-эль-Шейх, Каир, Луксор и многое другое. Экскурсии и туры с мгновенным подтверждением от TALAGO.',
   },
   fr: {
-    title: 'Destinations de Voyage en Égypte',
+    title: 'Destinations Mondiales',
     description:
-      'Explorez l’Égypte par destination — Hurghada, Charm el-Cheikh, Marsa Alam, El Gouna, Le Caire, Louxor et Assouan. Visites guidées avec TALAGO.',
+      'Parcourez toutes les destinations — Hurghada, Charm el-Cheikh, Le Caire, Louxor et plus encore. Activites et experiences avec confirmation instantanee par TALAGO.',
   },
   it: {
-    title: 'Destinazioni Turistiche in Egitto',
+    title: 'Destinazioni nel Mondo',
     description:
-      'Esplora l’Egitto per destinazione — Hurghada, Sharm El Sheikh, Marsa Alam, El Gouna, Il Cairo, Luxor e Assuan. Tour selezionati con TALAGO.',
+      'Esplora tutte le destinazioni — Hurghada, Sharm El Sheikh, Il Cairo, Luxor e altro. Tour ed esperienze con conferma immediata con TALAGO.',
   },
   es: {
-    title: 'Destinos Turísticos en Egipto',
+    title: 'Destinos en el Mundo',
     description:
-      'Explore Egipto por destino: Hurghada, Sharm El Sheikh, Marsa Alam, El Gouna, El Cairo, Luxor y Asuán. Tours exclusivos con TALAGO.',
+      'Explore todos los destinos: Hurghada, Sharm El Sheikh, El Cairo, Luxor y mas. Tours y experiencias con confirmacion instantanea con TALAGO.',
   },
   pl: {
-    title: 'Kierunki Podróży w Egipcie',
+    title: 'Kierunki Podrozy na Swiecie',
     description:
-      'Odkrywaj Egipt według kierunków: Hurghada, Sharm El Sheikh, Marsa Alam, El Gouna, Kair, Luksor i Asuan. Wycieczki i rejsy z TALAGO.',
+      'Przegladaj wszystkie kierunki — Hurghada, Sharm El Sheikh, Kair, Luksor i inne. Wycieczki i doswiadczenia z natychmiastowym potwierdzeniem od TALAGO.',
   },
   uk: {
-    title: 'Туристичні напрямки в Єгипті',
+    title: 'Напрямки по всьому світу',
     description:
-      'Досліджуйте Єгипет за напрямками: Хургада, Шарм-ель-Шейх, Марса Алам, Ель-Гуна, Каїр, Луксор та Асуан. Екскурсії та враження з TALAGO.',
+      'Переглядайте всі напрямки: Хургада, Шарм-ель-Шейх, Каїр, Луксор та інші. Екскурсії та враження з миттєвим підтвердженням від TALAGO.',
   },
 };
-
 export function getDestinationsMetadata(lang: LanguageCode): Metadata {
   const copy = DESTINATIONS_SEO[lang] || DESTINATIONS_SEO.en;
   const canonicalUrl = `${APP_BASE_URL}/destinations`;

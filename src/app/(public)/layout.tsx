@@ -12,11 +12,12 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   description:
-    'Discover and book vetted Egypt tours and experiences across the Red Sea, Nile and desert — Hurghada, Sharm El Sheikh, Marsa Alam, Cairo and Luxor. Instant confirmation and local support.',
+    'Discover and book top-rated tours, activities, and experiences worldwide with instant confirmation and flexible cancellation. Egypt, Red Sea, Nile Valley, and beyond.',
   keywords: [
-    'Egypt tours', 'Egypt excursions', 'Red Sea excursions', 'Hurghada tours',
-    'Sharm El Sheikh tours', 'Marsa Alam tours', 'Cairo tours', 'Luxor tours',
-    'TALAGO', 'Red Sea diving', 'desert safari Egypt',
+    'TALAGO', 'tours and activities', 'book experiences', 'Egypt tours',
+    'Red Sea excursions', 'Hurghada tours', 'Sharm El Sheikh tours',
+    'Cairo tours', 'Luxor tours', 'desert safari', 'Red Sea diving',
+    'travel experiences', 'tour booking platform',
   ],
   alternates: {
     canonical: baseUrl,
@@ -62,12 +63,45 @@ export default function PublicRouteLayout({ children }: { children: React.ReactN
           {/* Bottom Bar */}
           <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-white/[0.06] pt-8 sm:flex-row">
             <p className="text-xs text-slate-500">
-              &copy; 2016 TALAGO. All rights reserved.
+              &copy; {new Date().getFullYear()} TALAGO Experiences Ltd. All rights reserved.
             </p>
-            <div className="flex gap-6">
-              <a href="#" className="text-xs text-slate-500 transition-colors hover:text-[#00E5FF]">Instagram</a>
-              <a href="#" className="text-xs text-slate-500 transition-colors hover:text-[#00E5FF]">Facebook</a>
-              <a href="#" className="text-xs text-slate-500 transition-colors hover:text-[#00E5FF]">Twitter</a>
+            <div className="flex items-center gap-6">
+              <a
+                href="https://instagram.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-400 transition-colors hover:text-[#00E5FF]"
+                aria-label="Instagram"
+              >
+                Instagram
+              </a>
+              <a
+                href="https://facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-400 transition-colors hover:text-[#00E5FF]"
+                aria-label="Facebook"
+              >
+                Facebook
+              </a>
+              <a
+                href="https://tiktok.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-400 transition-colors hover:text-[#00E5FF]"
+                aria-label="TikTok"
+              >
+                TikTok
+              </a>
+              <a
+                href="https://t.me"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-400 transition-colors hover:text-[#00E5FF]"
+                aria-label="Telegram"
+              >
+                Telegram
+              </a>
             </div>
           </div>
         </div>
