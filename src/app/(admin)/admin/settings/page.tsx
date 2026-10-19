@@ -28,6 +28,7 @@ import { DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
 import NotificationSettingsDashboard from '@/components/admin/NotificationSettingsDashboard';
 import GlobalAssetStudio from '@/components/admin/GlobalAssetStudio';
 import AiKeyPoolManager from '@/components/admin/AiKeyPoolManager';
+import MarketplaceModulesDashboard from '@/components/admin/MarketplaceModulesDashboard';
 
 type ActiveSection = 'contact' | 'financial' | 'paymentMethods' | 'system' | 'banners' | 'notifications' | 'modules' | 'ai';
 
@@ -1887,68 +1888,7 @@ export default function AdminSettingsPage() {
             )}
 
             {activeSection === 'modules' && (
-              <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
-                <div className="mb-6">
-                  <h2 className="text-lg font-black text-white">Advanced Modules</h2>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Optional marketplace features. All are disabled by default — enable only when the
-                    operational workflows behind them are ready.
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  {(
-                    [
-                      {
-                        key: 'partners',
-                        label: 'Partners',
-                        description: 'Public partner directory and co-branded listings.',
-                      },
-                      {
-                        key: 'supplierPortal',
-                        label: 'Supplier Portal',
-                        description: 'Third-party suppliers manage their own tours and availability.',
-                      },
-                      {
-                        key: 'affiliates',
-                        label: 'Affiliates',
-                        description: 'Affiliate tracking links, referrals and commission payouts.',
-                      },
-                      {
-                        key: 'applications',
-                        label: 'Applications',
-                        description: 'Accept and review partner/supplier onboarding applications.',
-                      },
-                      {
-                        key: 'additionalCountries',
-                        label: 'Additional Countries',
-                        description: 'Expand the catalog beyond Egypt to other countries.',
-                      },
-                    ] as const
-                  ).map((mod) => (
-                    <label
-                      key={mod.key}
-                      className="flex items-start gap-4 rounded-2xl border border-white/10 bg-[#070F1E] p-4"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={settings.modules?.[mod.key] === true}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            modules: { ...prev.modules, [mod.key]: e.target.checked },
-                          }))
-                        }
-                        className="mt-0.5 h-4 w-4 accent-[#00E5FF]"
-                      />
-                      <span>
-                        <span className="block text-sm font-bold text-white">{mod.label}</span>
-                        <span className="block text-xs text-slate-400">{mod.description}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <MarketplaceModulesDashboard settings={settings} setSettings={setSettings} />
             )}
 
             {activeSection === 'ai' && (

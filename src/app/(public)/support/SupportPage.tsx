@@ -174,11 +174,11 @@ export default function SupportPage() {
               </div>
               <p className="mb-5 text-sm leading-6 text-slate-400">{s.emailDescription}</p>
               <a
-                href="mailto:tala.tour@outlook.com"
+                href="mailto:support@talago-tours.com"
                 className="inline-flex items-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-black text-slate-200 transition-all hover:border-[#FFD700]/40 hover:text-[#FFD700]"
               >
                 <Mail className="h-4 w-4" />
-                tala.tour@outlook.com
+                support@talago-tours.com
               </a>
             </div>
 

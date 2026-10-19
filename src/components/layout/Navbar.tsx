@@ -128,6 +128,19 @@ export default function Navbar() {
               >
                 {dict.navbar.faq}
               </Link>
+              <Link
+                href="/partners"
+                className="flex items-center justify-between rounded-xl px-4 py-3 text-base font-bold text-slate-200 transition-all hover:bg-white/5 hover:text-[#00E5FF]"
+              >
+                <span>Partner with Us</span>
+                <span className="rounded-full bg-[#EAB308]/10 px-2 py-0.5 text-[10px] font-bold text-[#EAB308]">Supplier</span>
+              </Link>
+              <Link
+                href="/support"
+                className="flex items-center rounded-xl px-4 py-3 text-base font-bold text-slate-200 transition-all hover:bg-white/5 hover:text-[#00E5FF]"
+              >
+                {dict.footer?.contactUs || 'Concierge & Support'}
+              </Link>
             </nav>
 
             <div className="h-px bg-white/10" />
