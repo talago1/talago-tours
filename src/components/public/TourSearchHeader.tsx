@@ -178,6 +178,8 @@ export default function TourSearchHeader({
             className="appearance-none rounded-full border border-white/10 bg-white/5 px-4 py-2 pl-8 pr-10 text-xs font-black uppercase tracking-[0.18em] text-slate-400 outline-none transition-all hover:border-white/20 hover:text-white"
           >
             <option value="" className="bg-[#0B1528] text-slate-400">{dict.catalog.sortDefault}</option>
+            <option value="popular" className="bg-[#0B1528] text-white">{dict.catalog.bestSeller || 'Best Sellers'}</option>
+            <option value="rating_desc" className="bg-[#0B1528] text-white">Top Rated</option>
             <option value="price_asc" className="bg-[#0B1528] text-white">{dict.catalog.sortPriceAsc}</option>
             <option value="price_desc" className="bg-[#0B1528] text-white">{dict.catalog.sortPriceDesc}</option>
             <option value="duration_asc" className="bg-[#0B1528] text-white">{dict.catalog.sortDurationAsc}</option>

@@ -29,6 +29,8 @@ function buildSort(orderBy: string | undefined): Record<string, 'asc' | 'desc'> 
     case 'price_desc':   return { adultPrice: 'desc' as const };
     case 'duration_asc': return { durationHours: 'asc'  as const };
     case 'duration_desc':return { durationHours: 'desc' as const };
+    case 'rating_desc':  return { ratingAverage: 'desc' as const };
+    case 'popular':      return { isBestSeller: 'desc' as const };
     default:             return { isBestSeller: 'desc' as const };
   }
 }
@@ -105,14 +107,19 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
     }).catch(() => [] as { name: string; slug: string }[]),
   ]);
 
-  // In-memory search filter for multilingual JSON fields
+  // Multi-entity search matching: tour titles/excerpts, destination name, or category
   const tours = filters.search
     ? allTours.filter((t) => {
-        const lower = filters.search!.toLowerCase();
-        const tData = t.translations as Record<string, { title?: string }>;
-        return Object.values(tData).some(
-          (entry) => entry?.title && entry.title.toLowerCase().includes(lower),
+        const lower = filters.search!.toLowerCase().trim();
+        const tData = (t.translations as Record<string, { title?: string; shortDescription?: string; overview?: string }>) || {};
+        const matchesTitleOrDesc = Object.values(tData).some(
+          (entry) =>
+            (entry?.title && entry.title.toLowerCase().includes(lower)) ||
+            (entry?.shortDescription && entry.shortDescription.toLowerCase().includes(lower)),
         );
+        const matchesDestination = t.destination?.name?.toLowerCase().includes(lower);
+        const matchesCategory = t.category?.toLowerCase().includes(lower);
+        return matchesTitleOrDesc || matchesDestination || matchesCategory;
       })
     : allTours;
 
