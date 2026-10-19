@@ -3,6 +3,7 @@ import Script from 'next/script';
 import './globals.css';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
+import { WishlistProvider } from '@/context/WishlistContext';
 import { resolveServerLanguage } from '@/lib/i18n.server';
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
@@ -218,7 +219,9 @@ export default function RootLayout({
         )}
 
         <CurrencyProvider>
-          <LanguageProvider initialLanguage={language}>{children}</LanguageProvider>
+          <WishlistProvider>
+            <LanguageProvider initialLanguage={language}>{children}</LanguageProvider>
+          </WishlistProvider>
         </CurrencyProvider>
       </body>
     </html>

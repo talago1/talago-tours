@@ -46,4 +46,14 @@ test.describe('Public Experience Marketplace Smoke Tests', () => {
     await page.goto('/admin/login');
     await expect(page.locator('input[type="password"]')).toBeVisible();
   });
+
+  test('Wishlist page (/wishlist) renders empty state or saved tours cleanly', async ({ page }) => {
+    await page.goto('/wishlist');
+
+    // Title should mention Saved Experiences or Bucket List
+    await expect(page.locator('h1:has-text("Saved Experiences")')).toBeVisible();
+
+    // Check presence of Browse Tours / Explore button if empty
+    await expect(page.locator('a[href="/tours"]').first()).toBeVisible();
+  });
 });

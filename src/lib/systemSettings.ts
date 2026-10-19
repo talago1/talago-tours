@@ -105,6 +105,10 @@ export const DEFAULT_SETTINGS = {
     affiliates: false,
     applications: false,
     additionalCountries: false,
+    wishlist: true,
+    showWishlistInNav: true,
+    stickyMobileBookingBar: true,
+    activityAtAGlance: true,
   },
 };
 

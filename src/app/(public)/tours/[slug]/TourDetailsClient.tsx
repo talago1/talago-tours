@@ -20,12 +20,14 @@ import {
   Baby,
   Maximize2,
   Sparkles,
+  Heart,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { useWishlist } from '@/context/WishlistContext';
 import TourCard from '@/components/public/TourCard';
 import WriteReviewModal from '@/components/modals/WriteReviewModal';
 import type { PublicTour } from '@/types/publicTour';
@@ -604,6 +606,7 @@ function SidebarStepper({
 
 export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: Props) {
   const { dict, language } = useLanguage();
+  const { isWishlisted, toggleWishlist } = useWishlist();
   const [adultsCount, setAdultsCount] = useState(1);
   const [childrenCount, setChildrenCount] = useState(0);
   const [infantsCount, setInfantsCount] = useState(0);
@@ -612,6 +615,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
   );
   const [selectedTime, setSelectedTime] = useState<string>(tour.pickupTimes?.[0] || '');
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [wishAnim, setWishAnim] = useState(false);
 
   // Resolve localized translations from parent with fallback cascade
   const translations = tour.translations;
@@ -744,6 +748,40 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [] }: 
               {localizedDesc && (
                 <p className="mt-4 max-w-3xl text-base leading-8 text-slate-300">{localizedDesc}</p>
               )}
+              {/* ── Wishlist Save Button ── */}
+              <button
+                type="button"
+                onClick={() => {
+                  toggleWishlist({
+                    id: tour.id,
+                    slug: tour.slug,
+                    title: localizedTitle,
+                    coverImage: tour.images?.[0] || '',
+                    priceUSD: tour.adultPrice ?? tour.basePrice,
+                    ratingAverage: tour.ratingAverage,
+                    ratingCount: tour.ratingCount,
+                    duration: tour.duration,
+                    durationHours: null,
+                    destinationName: tour.destination.name,
+                    category: tour.category,
+                    addedAt: Date.now(),
+                  });
+                  setWishAnim(true);
+                  setTimeout(() => setWishAnim(false), 400);
+                }}
+                className={`mt-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-all duration-200 ${
+                  isWishlisted(tour.id)
+                    ? 'border-rose-500/60 bg-rose-500/15 text-rose-400 hover:bg-rose-500/25'
+                    : 'border-white/15 bg-white/[0.04] text-slate-300 hover:border-rose-400/40 hover:text-rose-300'
+                } ${wishAnim ? 'scale-110' : 'scale-100'}`}
+              >
+                <Heart
+                  className={`h-4 w-4 transition-all ${
+                    isWishlisted(tour.id) ? 'fill-rose-400 text-rose-400' : ''
+                  }`}
+                />
+                {isWishlisted(tour.id) ? 'Saved to Wishlist' : 'Save Experience'}
+              </button>
             </div>
 
             {/* Highlights */}

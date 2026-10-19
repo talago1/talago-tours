@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -14,11 +14,13 @@ import {
   Ticket,
   Flame,
   CheckCircle2,
+  Heart,
 } from 'lucide-react';
 import CarouselImages from '@/components/ui/CarouselImages';
 
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { useWishlist } from '@/context/WishlistContext';
 import { getCategoryGradient, normalizeCategory } from '@/utils/tourCategory';
 
 export interface PublicTourCardData {
@@ -75,7 +77,41 @@ function RatingStars({ ratingAverage }: { ratingAverage: number }) {
 export default function PublicTourCard({ tour, priority = false }: { tour: PublicTourCardData; priority?: boolean }) {
   const { dict, language } = useLanguage();
   const { formatPrice } = useCurrency();
+  const { isWishlisted, toggleWishlist } = useWishlist();
   const [isHovered, setIsHovered] = useState(false);
+  const [wishAnim, setWishAnim] = useState(false);
+
+  const wishlisted = isWishlisted(tour.id);
+
+  const handleWishlistToggle = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const price = tour.priceAdult ?? tour.adultPrice ?? tour.basePriceUSD ?? tour.basePrice ?? 0;
+      const t = tour.translations as Record<string, { title?: string }> | undefined;
+      const title =
+        (t as any)?.[language]?.title ||
+        (t as any)?.en?.title ||
+        'Untitled Experience';
+      toggleWishlist({
+        id: tour.id,
+        slug: tour.slug,
+        title,
+        coverImage: tour.coverImage || '',
+        priceUSD: price,
+        ratingAverage: tour.ratingAverage,
+        ratingCount: tour.ratingCount,
+        duration: tour.duration ?? undefined,
+        durationHours: tour.durationHours,
+        destinationName: tour.destination?.name,
+        category: tour.category,
+        addedAt: Date.now(),
+      });
+      setWishAnim(true);
+      setTimeout(() => setWishAnim(false), 400);
+    },
+    [tour, language, toggleWishlist]
+  );
 
   const t = tour.translations as Record<string, { title?: string; description?: string; cardExcerpt?: string }> | undefined;
   const langT = (t as any)?.[language] || {};
@@ -110,6 +146,23 @@ export default function PublicTourCard({ tour, priority = false }: { tour: Publi
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {/* ── Wishlist Heart Button (outside Link to prevent navigation) ── */}
+      <button
+        type="button"
+        onClick={handleWishlistToggle}
+        aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
+        className={`absolute right-3.5 top-[calc(45%-1rem)] z-20 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md transition-all duration-200 ${
+          wishlisted
+            ? 'border-rose-500/60 bg-rose-500/90 shadow-lg shadow-rose-500/40'
+            : 'border-white/20 bg-[#070F1E]/70 opacity-0 group-hover:opacity-100'
+        } ${wishAnim ? 'scale-125' : 'scale-100'}`}
+      >
+        <Heart
+          className={`h-3.5 w-3.5 transition-all duration-200 ${
+            wishlisted ? 'fill-white text-white' : 'text-white/80'
+          }`}
+        />
+      </button>
       {/* The whole card is one link: clicking the image, title, price or the
           action row all navigate to the tour, so there is no separate target to
           aim for. */}
