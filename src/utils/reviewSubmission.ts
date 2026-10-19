@@ -109,10 +109,12 @@ export async function submitVerifiedReview(
     );
   }
 
+  const actualBookingId = eligibility.resolvedBookingId || payload.bookingId;
+
   try {
     const review = await prismaClient.review.create({
       data: {
-        bookingId: payload.bookingId,
+        bookingId: actualBookingId,
         tourId: payload.tourId,
         customerName: payload.customerName,
         rating: payload.rating,

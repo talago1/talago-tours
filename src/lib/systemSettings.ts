@@ -21,8 +21,13 @@ export function serializeSettingValue(value: unknown): string {
 export const DEFAULT_SETTINGS = {
   contact: {
     whatsappNumber: '+2010222434602',
-    corporateEmail: 'tala.tour@outlook.com',
+    corporateEmail: 'support@talago-tours.com',
+    phoneNumber: '',
     socialLinks: { instagram: '', facebook: '', twitter: '' },
+    showContactChannels: true,
+    showWhatsApp: true,
+    showEmail: true,
+    showPhone: false,
   },
   financial: {
     baseCurrency: 'USD',

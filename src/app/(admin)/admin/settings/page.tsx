@@ -124,11 +124,16 @@ export default function AdminSettingsPage() {
     }
   }
 
-  function updateContact(path: string, value: string) {
+  function updateContact(path: string, value: any) {
     setSettings((prev) => {
-      const updated = { ...prev };
+      const updated = { ...prev, contact: { ...prev.contact } };
       if (path === 'whatsappNumber') updated.contact.whatsappNumber = value;
       if (path === 'corporateEmail') updated.contact.corporateEmail = value;
+      if (path === 'phoneNumber') updated.contact.phoneNumber = value;
+      if (path === 'showContactChannels') updated.contact.showContactChannels = value;
+      if (path === 'showWhatsApp') updated.contact.showWhatsApp = value;
+      if (path === 'showEmail') updated.contact.showEmail = value;
+      if (path === 'showPhone') updated.contact.showPhone = value;
       if (path.startsWith('social.')) {
         const key = path.split('.')[1] as keyof typeof updated.contact.socialLinks;
         updated.contact.socialLinks[key] = value;
@@ -401,27 +406,106 @@ export default function AdminSettingsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-5">
-                  <label className="block">
-                    <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                      <Phone className="h-3.5 w-3.5" /> WhatsApp Business Number
-                    </span>
-                    <input
-                      type="text"
-                      value={settings.contact.whatsappNumber}
-                      onChange={(e) => updateContact('whatsappNumber', e.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none focus:border-[#00E5FF]"
-                    />
-                  </label>
+                <div className="space-y-6">
+                  {/* Public Page Visibility Toggles */}
+                  <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5 space-y-4">
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-[#00E5FF]" />
+                      Public Support Page Channels Visibility
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Control which contact options are displayed on the public /support page. You can turn off the entire contact channels sidebar to display only the message form.
+                    </p>
+
+                    {/* Master Switch: Show Channels */}
+                    <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                      <div>
+                        <p className="text-xs font-bold text-white">Show Contact Channels Sidebar</p>
+                        <p className="text-[11px] text-slate-500">If disabled, only the message form is shown on /support</p>
+                      </div>
+                      <label className="relative inline-flex cursor-pointer items-center">
+                        <input
+                          type="checkbox"
+                          checked={settings.contact?.showContactChannels !== false}
+                          onChange={(e) => updateContact('showContactChannels', e.target.checked)}
+                          className="peer sr-only"
+                        />
+                        <div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#00E5FF] peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none" />
+                      </label>
+                    </div>
+
+                    {/* Individual Toggles */}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 border-t border-white/5 pt-3">
+                      <label className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-3 cursor-pointer">
+                        <span className="text-xs font-semibold text-slate-300">Show WhatsApp</span>
+                        <input
+                          type="checkbox"
+                          checked={settings.contact?.showWhatsApp !== false}
+                          onChange={(e) => updateContact('showWhatsApp', e.target.checked)}
+                          className="rounded text-[#00E5FF] focus:ring-0"
+                        />
+                      </label>
+
+                      <label className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-3 cursor-pointer">
+                        <span className="text-xs font-semibold text-slate-300">Show Email</span>
+                        <input
+                          type="checkbox"
+                          checked={settings.contact?.showEmail !== false}
+                          onChange={(e) => updateContact('showEmail', e.target.checked)}
+                          className="rounded text-[#00E5FF] focus:ring-0"
+                        />
+                      </label>
+
+                      <label className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-3 cursor-pointer">
+                        <span className="text-xs font-semibold text-slate-300">Show Phone</span>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(settings.contact?.showPhone)}
+                          onChange={(e) => updateContact('showPhone', e.target.checked)}
+                          className="rounded text-[#00E5FF] focus:ring-0"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Channel Inputs */}
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                        <Phone className="h-3.5 w-3.5 text-emerald-400" /> WhatsApp Concierge Number
+                      </span>
+                      <input
+                        type="text"
+                        value={settings.contact.whatsappNumber}
+                        onChange={(e) => updateContact('whatsappNumber', e.target.value)}
+                        placeholder="+2010222434602"
+                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none focus:border-[#00E5FF]"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                        <Mail className="h-3.5 w-3.5 text-[#FFD700]" /> Corporate Email
+                      </span>
+                      <input
+                        type="email"
+                        value={settings.contact.corporateEmail}
+                        onChange={(e) => updateContact('corporateEmail', e.target.value)}
+                        placeholder="support@talago-tours.com"
+                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none focus:border-[#00E5FF]"
+                      />
+                    </label>
+                  </div>
 
                   <label className="block">
                     <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                      <Mail className="h-3.5 w-3.5" /> Corporate Email
+                      <Phone className="h-3.5 w-3.5 text-[#00E5FF]" /> Direct Support Phone Number
                     </span>
                     <input
-                      type="email"
-                      value={settings.contact.corporateEmail}
-                      onChange={(e) => updateContact('corporateEmail', e.target.value)}
+                      type="text"
+                      value={settings.contact?.phoneNumber || ''}
+                      onChange={(e) => updateContact('phoneNumber', e.target.value)}
+                      placeholder="+20 102 224 34602"
                       className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none focus:border-[#00E5FF]"
                     />
                   </label>

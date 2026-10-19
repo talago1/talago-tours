@@ -69,9 +69,8 @@ export default function CancellationContent() {
               <h2 className="mb-3 text-lg font-bold text-white">{dict.cancellationPage.sec8Title}</h2>
               <p>To cancel or modify a booking:</p>
               <ul className="mt-3 list-disc space-y-1.5 pl-5">
-                <li>Contact our concierge team via the <a href="/support" className="text-[#00E5FF] underline">Support page</a></li>
-                <li>WhatsApp your dedicated concierge directly</li>
-                <li>Call us at +20 102 224 34602</li>
+                <li>Contact our concierge team via the <a href="/support" className="text-[#00E5FF] underline">Support Concierge page</a></li>
+                <li>Submit a message with your booking reference for priority assistance</li>
               </ul>
               <p className="mt-3">Please have your booking reference number ready.</p>
             </section>

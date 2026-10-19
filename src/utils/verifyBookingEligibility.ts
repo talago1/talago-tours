@@ -4,12 +4,13 @@ export interface EligibilityResult {
   eligible: boolean;
   error?: string;
   statusCode?: number;
+  resolvedBookingId?: string;
 }
 
 /**
  * Verifies that a booking is eligible for a review submission.
  * A booking is eligible when:
- * - It exists
+ * - It exists (by ID or bookingReference)
  * - Its status is CONFIRMED or COMPLETED
  * - The provided tourId matches the booking's tourId
  * - No Review row already exists for this bookingId
@@ -18,8 +19,13 @@ export async function verifyBookingEligibility(
   bookingId: string,
   tourId: string,
 ): Promise<EligibilityResult> {
-  const booking = await prisma.booking.findUnique({
-    where: { id: bookingId },
+  const booking = await prisma.booking.findFirst({
+    where: {
+      OR: [
+        { id: bookingId },
+        { bookingReference: bookingId },
+      ],
+    },
     select: {
       id: true,
       tourId: true,
@@ -29,7 +35,7 @@ export async function verifyBookingEligibility(
   });
 
   if (!booking) {
-    return { eligible: false, error: 'Booking not found.', statusCode: 404 };
+    return { eligible: false, error: 'Booking not found with this ID or Reference.', statusCode: 404 };
   }
 
   if (booking.tourId !== tourId) {
