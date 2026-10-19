@@ -13,6 +13,9 @@ interface DestData {
   name: string;
   description: string;
   imageUrl: string | null;
+  countryCode?: string;
+  region?: string | null;
+  city?: string | null;
   ownedCover: string | null;
   translations: Record<string, { name?: string; description?: string }> | null;
   tourCount: number;
@@ -245,6 +248,15 @@ export default function DestinationsClient({ destinations, banners }: Props) {
 
                       {/* Destination name on image bottom */}
                       <div className="absolute bottom-4 left-4 right-4 z-10">
+                        {dest.countryCode && (
+                          <div className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-[#EAB308]">
+                            <MapPin className="h-3 w-3 shrink-0" />
+                            <span>
+                              {dest.city ? `${dest.city}, ` : ''}
+                              {dest.countryCode === 'EG' ? 'Egypt' : dest.countryCode}
+                            </span>
+                          </div>
+                        )}
                         <h3 className="text-2xl font-black tracking-tight text-white drop-shadow-lg">
                           {localizedName}
                         </h3>

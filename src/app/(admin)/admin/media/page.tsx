@@ -51,6 +51,7 @@ export default function AdminMediaPage() {
       const params = new URLSearchParams();
       if (bucketFilter !== 'all') params.set('bucket', bucketFilter);
       if (search.trim()) params.set('search', search.trim());
+      params.set('limit', '500');
       const res = await fetch(`/api/admin/media?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();

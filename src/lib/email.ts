@@ -23,7 +23,7 @@ function getResendClient(): Resend {
 }
 
 const FROM_EMAIL =
-  process.env.RESEND_FROM_EMAIL || 'Talago Tours <onboarding@resend.dev>';
+  process.env.RESEND_FROM_EMAIL || 'TALAGO <onboarding@resend.dev>';
 
 // ---------------------------------------------------------------------------
 // Magic Link / OTP email
@@ -49,7 +49,7 @@ export async function sendMagicLinkEmail(to: string, magicLink: string): Promise
           If you didn't request this email, you can safely ignore it.
         </p>
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
-        <p style="color:#aaa;font-size:12px;">Talago Tours · Red Sea, Egypt</p>
+        <p style="color:#aaa;font-size:12px;">TALAGO · Global Tours, Activities & Experiences</p>
       </div>
     `,
   });
@@ -96,7 +96,7 @@ export async function sendBookingConfirmationEmail(
           View Booking Details
         </a>
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
-        <p style="color:#aaa;font-size:12px;">Talago Tours · Red Sea, Egypt</p>
+        <p style="color:#aaa;font-size:12px;">TALAGO · Global Tours, Activities & Experiences</p>
       </div>
     `,
   });

@@ -6,16 +6,16 @@
 
 /** Maps a public filter value (uppercase) → the DB category values it covers. */
 const CATEGORY_FILTER_MAP: Record<string, string[]> = {
-  SNORKELING:    ['snorkeling', 'snorkelling', 'sea', 'sea excursions', 'Sea Excursions'],
-  DIVING:        ['diving',     'scuba', 'sea', 'sea excursions', 'Sea Excursions'],
-  BOAT_TRIP:     ['boat_trip',  'boat trip', 'sea', 'sea excursions', 'Sea Excursions'],
-  ADVENTURE:     ['adventure',  'sea', 'sea excursions', 'Sea Excursions'],
-  CITY:          ['city',       'sea', 'sea excursions', 'Sea Excursions'],
-  SAFARI:        ['safari', 'Safari', 'desert safari', 'Desert Safari'],
-  DESERT:        ['desert', 'desert safari', 'Desert Safari', 'safari', 'Safari'],
-  CULTURAL:      ['cultural', 'Historical', 'historical', 'heritage', 'luxor', 'cairo'],
-  SPA:           ['spa', 'spa & wellness', 'wellness'],
-  ENTERTAINMENT: ['entertainment', 'Entertainment'],
+  SNORKELING:    ['snorkeling', 'snorkelling'],
+  DIVING:        ['diving',     'scuba'],
+  BOAT_TRIP:     ['boat_trip',  'boat trip'],
+  ADVENTURE:     ['adventure',  'Adventure'],
+  CITY:          ['city',       'City', 'city tour', 'City Tour'],
+  SAFARI:        ['safari',     'Safari', 'desert safari', 'Desert Safari'],
+  DESERT:        ['desert',     'desert safari', 'Desert Safari', 'safari', 'Safari'],
+  CULTURAL:      ['cultural',   'Historical', 'historical', 'heritage'],
+  SPA:           ['spa',        'spa & wellness', 'wellness'],
+  ENTERTAINMENT: ['entertainment', 'Entertainment', 'dolphin'],
 };
 
 /**

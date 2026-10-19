@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
             <h3 style="color:#555;margin-bottom:8px;">Message</h3>
             <div style="background:#f9f9f9;border-radius:6px;padding:16px;white-space:pre-wrap;color:#333;">${safeMessage}</div>
             <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
-            <p style="color:#aaa;font-size:12px;">Talago Tours · Egypt</p>
+            <p style="color:#aaa;font-size:12px;">TALAGO Experiences · Global Concierge & Support</p>
           </div>
         `,
       });
