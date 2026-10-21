@@ -47,6 +47,34 @@ export async function POST(
       },
     });
 
+    // Send WhatsApp notification if Green API credentials are configured
+    try {
+      const instanceId = process.env.GREEN_API_ID;
+      const token = process.env.GREEN_API_TOKEN;
+      if (instanceId && token && targetApp.phone) {
+        const cleaned = targetApp.phone.replace(/[\s\-()]/g, '');
+        const phone = cleaned.startsWith('+') ? cleaned.substring(1) : cleaned;
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://talago-tours.vercel.app';
+        const message = `🎉 *Congratulations ${targetApp.contactName}!*
+
+Your partnership application for *${targetApp.companyName}* has been officially APPROVED by TALAGO Tours. 🌊
+
+You can now access the Partner Portal to publish and manage your travel experiences:
+👉 ${baseUrl}/partner/dashboard
+
+Welcome to the TALAGO Travel Supplier Network!
+— TALAGO Tours Operations`;
+
+        fetch(`https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chatId: `${phone}@c.us`, message }),
+        }).catch((e) => console.log('[partner-wa-notice] could not send wa:', e.message));
+      }
+    } catch (waErr) {
+      console.log('[partner-approve] wa dispatch notice:', waErr);
+    }
+
     return NextResponse.json({
       success: true,
       message: `Partner application for ${targetApp.companyName} has been approved.`,

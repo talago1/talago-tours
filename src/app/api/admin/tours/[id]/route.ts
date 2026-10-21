@@ -445,6 +445,12 @@ export async function PATCH(
     if (body.originalPrice !== undefined) {
       updateData.originalPrice = body.originalPrice;
     }
+    if (body.isFeatured !== undefined) {
+      updateData.isFeatured = Boolean(body.isFeatured);
+    }
+    if (body.isBestSeller !== undefined) {
+      updateData.isBestSeller = Boolean(body.isBestSeller);
+    }
 
     const tour = await prisma.tour.update({
       where: { id: params.id },

@@ -55,6 +55,33 @@ export async function POST(
       },
     });
 
+    // Send polite notification if Green API credentials are configured
+    try {
+      const instanceId = process.env.GREEN_API_ID;
+      const token = process.env.GREEN_API_TOKEN;
+      if (instanceId && token && targetApp.phone) {
+        const cleaned = targetApp.phone.replace(/[\s\-()]/g, '');
+        const phone = cleaned.startsWith('+') ? cleaned.substring(1) : cleaned;
+        const reasonText = reason ? `\n*Note:* ${reason}` : '';
+        const message = `Hello ${targetApp.contactName},
+
+Thank you for your interest in partnering with TALAGO Tours for *${targetApp.companyName}*.
+
+After reviewing your application, our operations team is unable to approve it at this time.${reasonText}
+
+We appreciate your time and wish you continued success.
+— TALAGO Tours Operations`;
+
+        fetch(`https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chatId: `${phone}@c.us`, message }),
+        }).catch((e) => console.log('[partner-wa-notice] could not send wa:', e.message));
+      }
+    } catch (waErr) {
+      console.log('[partner-reject] wa dispatch notice:', waErr);
+    }
+
     return NextResponse.json({
       success: true,
       message: `Partner application for ${targetApp.companyName} has been declined.`,
