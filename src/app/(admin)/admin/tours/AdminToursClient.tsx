@@ -14,7 +14,8 @@ import {
   MapPin,
   Image as ImageIcon,
   Check,
-  AlertCircle
+  AlertCircle,
+  Flame
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,8 @@ interface Tour {
   maxCapacity: number;
   durationHours: number;
   destination: { name: string };
+  isFeatured?: boolean;
+  isBestSeller?: boolean;
   allowDeposit?: boolean;
   depositPercentage?: number;
   allowPayAtLocation?: boolean;
@@ -251,6 +254,46 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
     }
   }
 
+  async function handleToggleFeatured(tour: Tour) {
+    const newFeatured = !tour.isFeatured;
+    try {
+      const res = await fetch(`/api/admin/tours/${tour.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isFeatured: newFeatured }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update featured state');
+      }
+      setTours((prev) =>
+        prev.map((t) => (t.id === tour.id ? { ...t, isFeatured: newFeatured } : t))
+      );
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update featured state');
+    }
+  }
+
+  async function handleToggleBestSeller(tour: Tour) {
+    const newBestSeller = !tour.isBestSeller;
+    try {
+      const res = await fetch(`/api/admin/tours/${tour.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isBestSeller: newBestSeller }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update best seller state');
+      }
+      setTours((prev) =>
+        prev.map((t) => (t.id === tour.id ? { ...t, isBestSeller: newBestSeller } : t))
+      );
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update best seller state');
+    }
+  }
+
   async function handleDelete(tourId: string, tourTitle?: string) {
     if (!confirm(`Are you sure you want to delete "${tourTitle || 'this experience'}"?`)) return;
 
@@ -392,6 +435,36 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
                   >
                     <span className={`h-1.5 w-1.5 rounded-full ${tour.status === 'ACTIVE' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                     {tour.status}
+                  </button>
+
+                  {/* Featured on Homepage Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => handleToggleFeatured(tour)}
+                    title="Toggle Featured on Homepage"
+                    className={`absolute left-3 bottom-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-all backdrop-blur-sm ${
+                      tour.isFeatured
+                        ? 'bg-[#EAB308] text-[#070F1E] shadow-lg shadow-[#EAB308]/30 font-bold'
+                        : 'bg-[#070F1E]/80 text-slate-400 hover:text-white border border-white/10'
+                    }`}
+                  >
+                    <Star className={`h-3 w-3 ${tour.isFeatured ? 'fill-[#070F1E]' : ''}`} />
+                    {tour.isFeatured ? 'Featured' : 'Feature'}
+                  </button>
+
+                  {/* Best Seller Badge Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => handleToggleBestSeller(tour)}
+                    title="Toggle Best Seller badge"
+                    className={`absolute right-3 bottom-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-all backdrop-blur-sm ${
+                      tour.isBestSeller
+                        ? 'bg-amber-500 text-[#070F1E] shadow-lg shadow-amber-500/30 font-bold'
+                        : 'bg-[#070F1E]/80 text-slate-400 hover:text-white border border-white/10'
+                    }`}
+                  >
+                    <Flame className={`h-3 w-3 ${tour.isBestSeller ? 'fill-[#070F1E]' : ''}`} />
+                    {tour.isBestSeller ? 'Best Seller' : 'Badge'}
                   </button>
                 </div>
 

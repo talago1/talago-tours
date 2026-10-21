@@ -30,6 +30,7 @@ export default async function HomePage() {
     prisma.tour.findMany({
       where: { status: 'ACTIVE' },
       orderBy: [
+        { isFeatured: 'desc' },
         { isBestSeller: 'desc' },
         { ratingAverage: 'desc' },
         { ratingCount: 'desc' },
