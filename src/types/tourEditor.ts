@@ -165,7 +165,7 @@ export const TOUR_EDITOR_SECTIONS: SectionMeta[] = [
   // Group 2: Pricing & Guests
   { id: 'pricing', title: '5. Pricing Engine', shortLabel: 'Pricing', description: 'Adult price, deposit rules and payment methods', group: 'pricing', isEssential: true },
   { id: 'guest-types', title: '6. Guest Types & Age Rules', shortLabel: 'Guests', description: 'Child & infant tiers, age bounds and participant limits', group: 'pricing', isEssential: false },
-  { id: 'addons', title: '7. Add-ons & Upgrades', shortLabel: 'Add-ons', description: 'Optional upgrades, photo packages and equipment rentals', group: 'pricing', isEssential: false },
+  { id: 'addons', title: '7. Add-ons & Upgrades', shortLabel: 'Add-ons', description: 'Optional upgrades, photo packages and equipment rentals', group: 'pricing', isEssential: true },
 
   // Group 3: Schedule & Logistics
   { id: 'availability', title: '8. Availability & Capacity', shortLabel: 'Capacity', description: 'Max participants per slot and cut-off window', group: 'logistics', isEssential: true },

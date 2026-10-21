@@ -59,6 +59,7 @@ interface Tour {
   showExcerptOnCard?: boolean;
   ratingAverage?: number;
   ratingCount?: number;
+  tourOptions?: Array<{ id: string; title?: string; name?: string; labels?: Record<string, string>; price: number; priceType?: string }> | null;
 }
 
 interface AdminToursClientProps {
@@ -193,6 +194,32 @@ function TourPreviewModal({
               <p className="font-bold text-white">{tour.maxCapacity} pax</p>
             </div>
           </div>
+
+          {tour.tourOptions && tour.tourOptions.length > 0 && (
+            <div className="border-t border-white/10 pt-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#00E5FF]">
+                Tour Options & Upgrades ({tour.tourOptions.length})
+              </span>
+              <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {tour.tourOptions.map((opt) => (
+                  <div
+                    key={opt.id}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3 text-xs"
+                  >
+                    <div>
+                      <p className="font-bold text-white">{opt.labels?.en || opt.title || opt.name || 'Option'}</p>
+                      <p className="text-[10px] text-slate-400 capitalize">
+                        {opt.priceType === 'per_person' ? 'Per Guest' : 'Per Booking'}
+                      </p>
+                    </div>
+                    <span className="font-mono font-bold text-[#00E5FF]">
+                      {opt.price > 0 ? `+$${opt.price}` : 'Included'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="pt-2 flex justify-end">
             <a

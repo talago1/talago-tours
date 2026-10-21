@@ -36,7 +36,6 @@ export default async function HomePage() {
         { ratingCount: 'desc' },
         { createdAt: 'desc' },
       ],
-      take: 18,
       select: {
         id: true,
         slug: true,
@@ -67,6 +66,7 @@ export default async function HomePage() {
           select: { id: true, name: true, slug: true },
         },
       },
+      take: 24,
     }),
     prisma.destination.findMany({
       where: {
@@ -92,7 +92,6 @@ export default async function HomePage() {
       where: {
         status: 'APPROVED',
         isVisible: true,
-        isSeeded: false,
       },
       // Use select instead of include to avoid loading all tour fields
       select: {

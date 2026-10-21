@@ -22,7 +22,7 @@ export default function TourCatalog({ tours, totalActiveCount }: TourCatalogProp
 
   const [activeDestination, setActiveDestination] = useState<string>('ALL');
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
-  const [visibleCount, setVisibleCount] = useState<number>(9);
+  const [visibleCount, setVisibleCount] = useState<number>(12);
   const [detectedLocation, setDetectedLocation] = useState<{ destination: string; name: string } | null>(null);
 
   // Auto-detect guest location and recommend nearest destination experiences
@@ -45,7 +45,6 @@ export default function TourCatalog({ tours, totalActiveCount }: TourCatalogProp
           'alexandria', 'fayoum', 'siwa', 'el-alamein',
         ];
         if (data.destination && ALL_DEST_SLUGS.includes(data.destination)) {
-          setActiveDestination(data.destination);
           setDetectedLocation({
             destination: data.destination,
             name: data.destinationName || data.destination,
@@ -86,7 +85,6 @@ export default function TourCatalog({ tours, totalActiveCount }: TourCatalogProp
             }
           });
           if (minD < 2.5) {
-            setActiveDestination(closest.id);
             setDetectedLocation({ destination: closest.id, name: closest.name });
           }
         },
@@ -98,7 +96,7 @@ export default function TourCatalog({ tours, totalActiveCount }: TourCatalogProp
 
   const handleDestinationSelect = (id: string) => {
     setActiveDestination(id);
-    setVisibleCount(9);
+    setVisibleCount(12);
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('talago_active_dest', id);
     }

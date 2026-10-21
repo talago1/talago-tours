@@ -332,46 +332,48 @@ export default function Hero({
   if (!showHero) return null;
 
   return (
-    <section className="relative overflow-hidden bg-[#070F1E] text-[#F8FAFC]">
-      {/* Background Image / Ambient Backdrop */}
-      {!heroError && heroBackgroundMobile && (
-        <Image
-          src={heroBackgroundMobile}
-          alt="Global luxury experiences and coastal landscapes"
-          fill
-          priority
-          unoptimized={isRemote(heroBackgroundMobile)}
-          sizes="100vw"
-          className="scale-105 object-cover object-center md:hidden"
+    <section className="relative z-30 overflow-visible bg-[#070F1E] text-[#F8FAFC]">
+      {/* Background Image / Ambient Backdrop Wrapped with overflow-hidden */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {!heroError && heroBackgroundMobile && (
+          <Image
+            src={heroBackgroundMobile}
+            alt="Global luxury experiences and coastal landscapes"
+            fill
+            priority
+            unoptimized={isRemote(heroBackgroundMobile)}
+            sizes="100vw"
+            className="scale-105 object-cover object-center md:hidden"
+          />
+        )}
+        {!heroError && (
+          <Image
+            src={heroBackground || '/talago-hero-red-sea-desert.png'}
+            alt="Global luxury experiences and coastal landscapes"
+            fill
+            priority
+            unoptimized={isRemote(heroBackground)}
+            sizes="100vw"
+            className={`scale-105 object-cover object-center ${heroBackgroundMobile ? 'hidden md:block' : ''}`}
+            onError={() => setHeroError(true)}
+          />
+        )}
+
+        {/* Adjustable Scrim (admin-controlled overlay) */}
+        <div
+          className="absolute inset-0 bg-[#070F1E]"
+          style={{ opacity: Math.min(Math.max(heroOverlayOpacity, 0), 95) / 100 }}
         />
-      )}
-      {!heroError && (
-        <Image
-          src={heroBackground || '/talago-hero-red-sea-desert.png'}
-          alt="Global luxury experiences and coastal landscapes"
-          fill
-          priority
-          unoptimized={isRemote(heroBackground)}
-          sizes="100vw"
-          className={`scale-105 object-cover object-center ${heroBackgroundMobile ? 'hidden md:block' : ''}`}
-          onError={() => setHeroError(true)}
-        />
-      )}
 
-      {/* Adjustable Scrim (admin-controlled overlay) */}
-      <div
-        className="absolute inset-0 bg-[#070F1E]"
-        style={{ opacity: Math.min(Math.max(heroOverlayOpacity, 0), 95) / 100 }}
-      />
+        {/* Cinematic Dark & Ambient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#070F1E] via-[#070F1E]/90 to-[#070F1E]/75" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#070F1E]/80 via-transparent to-[#070F1E]" />
 
-      {/* Cinematic Dark & Ambient Overlays */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#070F1E] via-[#070F1E]/90 to-[#070F1E]/75" />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#070F1E]/80 via-transparent to-[#070F1E]" />
-
-      {/* Glowing Ambient Light Orbs */}
-      <div className="pointer-events-none absolute -left-20 top-20 h-96 w-96 rounded-full bg-[#00E5FF]/10 blur-[120px]" />
-      <div className="pointer-events-none absolute right-10 top-1/4 h-96 w-96 rounded-full bg-[#FFD700]/10 blur-[130px]" />
-      <div className="pointer-events-none absolute bottom-10 left-1/3 h-80 w-80 rounded-full bg-[#06B6D4]/10 blur-[100px]" />
+        {/* Glowing Ambient Light Orbs */}
+        <div className="pointer-events-none absolute -left-20 top-20 h-96 w-96 rounded-full bg-[#00E5FF]/10 blur-[120px]" />
+        <div className="pointer-events-none absolute right-10 top-1/4 h-96 w-96 rounded-full bg-[#FFD700]/10 blur-[130px]" />
+        <div className="pointer-events-none absolute bottom-10 left-1/3 h-80 w-80 rounded-full bg-[#06B6D4]/10 blur-[100px]" />
+      </div>
 
       {/* Main Container - Compact and Balanced */}
       <div className="relative mx-auto max-w-7xl px-5 pt-28 pb-16 sm:px-8 lg:px-10 lg:pt-32 lg:pb-20">

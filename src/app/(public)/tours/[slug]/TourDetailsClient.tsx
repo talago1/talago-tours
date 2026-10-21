@@ -701,14 +701,38 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
 
   const { formatPrice } = useCurrency();
 
+  const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
+
+  const toggleAddon = (id: string) => {
+    setSelectedAddons((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      if (typeof window !== 'undefined') {
+        const activeIds = Object.keys(next).filter((k) => next[k]);
+        sessionStorage.setItem('talago_selected_addons', JSON.stringify(activeIds));
+      }
+      return next;
+    });
+  };
+
   const totalGuests = adultsCount + childrenCount + infantsCount;
-  const totalPrice =
+  const payingGuests = adultsCount + childrenCount;
+  const baseToursPrice =
     pricePerAdult * adultsCount +
     (effectiveChildPrice ?? pricePerAdult) * childrenCount +
     (effectiveInfantPrice ?? 0) * infantsCount;
+
+  const addonsTotal = (tour.tourOptions || []).reduce((sum, opt) => {
+    if (!selectedAddons[opt.id]) return sum;
+    return sum + (opt.priceType === 'per_person' ? opt.price * payingGuests : opt.price);
+  }, 0);
+
+  const totalPrice = baseToursPrice + addonsTotal;
   const depositAmount = Math.round(totalPrice * (tour.depositPercentage / 100) * 100) / 100;
   const dueOnArrival = Math.round((totalPrice - depositAmount) * 100) / 100;
-  const reserveHref = `/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}${selectedTime ? `&time=${encodeURIComponent(selectedTime)}` : ''}`;
+
+  const selectedAddonIds = Object.keys(selectedAddons).filter((k) => selectedAddons[k]);
+  const addonsQuery = selectedAddonIds.length > 0 ? `&addons=${encodeURIComponent(selectedAddonIds.join(','))}` : '';
+  const reserveHref = `/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}${selectedTime ? `&time=${encodeURIComponent(selectedTime)}` : ''}${addonsQuery}`;
 
   const whatToBringItems = localizedWhatToBringItems;
   const itineraryItems = localizedItineraryItems;
@@ -1463,6 +1487,85 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                   />
                 </div>
               </div>
+
+              {/* Add-ons & Upgrades Panel */}
+              {tour.tourOptions && tour.tourOptions.filter((o) => o.enabled !== false).length > 0 && (
+                <div className="mb-6">
+                  <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                    Add-ons &amp; Upgrades
+                  </p>
+                  <div className="space-y-2">
+                    {tour.tourOptions
+                      .filter((o) => o.enabled !== false)
+                      .map((opt) => {
+                        const isSelected = !!selectedAddons[opt.id];
+                        const label =
+                          opt.labels?.en || opt.title || opt.name || 'Option';
+                        const desc =
+                          opt.descriptions?.en || opt.description || '';
+                        const addonPrice =
+                          opt.priceType === 'per_person'
+                            ? opt.price * payingGuests
+                            : opt.price;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => toggleAddon(opt.id)}
+                            className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-all ${
+                              isSelected
+                                ? 'border-[#00E5FF]/40 bg-[#00E5FF]/[0.07]'
+                                : 'border-white/10 bg-white/[0.03] hover:border-white/20'
+                            }`}
+                          >
+                            {/* Checkbox indicator */}
+                            <div
+                              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
+                                isSelected
+                                  ? 'border-[#00E5FF] bg-[#00E5FF]'
+                                  : 'border-white/20 bg-white/5'
+                              }`}
+                            >
+                              {isSelected && (
+                                <Check className="h-3 w-3 text-[#070F1E]" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p
+                                className={`text-sm font-bold ${
+                                  isSelected ? 'text-[#00E5FF]' : 'text-slate-200'
+                                }`}
+                              >
+                                {label}
+                              </p>
+                              {desc && (
+                                <p className="mt-0.5 text-xs text-slate-500 line-clamp-2">
+                                  {desc}
+                                </p>
+                              )}
+                              <p className="mt-1 text-[10px] text-slate-500 capitalize">
+                                {opt.priceType === 'per_person'
+                                  ? `Per guest × ${payingGuests}`
+                                  : 'Per booking'}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p
+                                className={`text-sm font-bold ${
+                                  isSelected ? 'text-[#00E5FF]' : 'text-white'
+                                }`}
+                              >
+                                {addonPrice > 0
+                                  ? `+${formatPrice(addonPrice, { round: true })}`
+                                  : 'Included'}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
 
               {/* Payment Option Selector — Dynamic Action Drawer */}
               <div className="mb-6 space-y-3">
