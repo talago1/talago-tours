@@ -20,12 +20,12 @@ export const en = {
     activeExperiences: 'active experiences live',
     guestProofButton: 'View Guest Proof',
     metrics: {
-      ratingValue: '4.9/5',
-      ratingLabel: 'Luxury guest rating',
-      bookingsValue: '300+',
-      bookingsLabel: 'Verified bookings',
+      ratingValue: 'Since 2016',
+      ratingLabel: 'Local Red Sea Operator',
+      bookingsValue: '100%',
+      bookingsLabel: 'Direct Operator Pricing',
       conciergeValue: '24/7',
-      conciergeLabel: 'Private concierge'
+      conciergeLabel: 'Private WhatsApp Concierge'
     },
     concierge: {
       pick: 'Concierge pick',
@@ -81,8 +81,8 @@ export const en = {
     pageBadge: 'Signature Journeys',
     pageTitle: 'Experience Library',
     pageDesc: 'Filter through our custom-designed sea charters and desert quad bike routes, configured to premium hospitality standards.',
-browseAll: 'Browse All Experiences',
-    verifiedGuests: '300+ verified guests',
+    browseAll: 'Browse All Experiences',
+    verifiedGuests: 'Verified Local Operator',
     all: 'All',
     sea: 'Sea',
     safari: 'Safari',
@@ -124,7 +124,7 @@ browseAll: 'Browse All Experiences',
   },
   testimonials: {
     section: 'Verified Reviews',
-    heading: 'Excellent - 4.9 out of 5 based on 300+ bookings',
+    heading: 'Verified Guest Reviews',
     verified: 'Verified Booking'
   },
   footer: {

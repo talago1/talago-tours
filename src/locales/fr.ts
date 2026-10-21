@@ -22,12 +22,12 @@ export const fr: typeof en = {
     activeExperiences: 'expériences actives disponibles',
     guestProofButton: 'Avis des clients',
     metrics: {
-      ratingValue: '4,9/5',
-      ratingLabel: 'Note des clients',
-      bookingsValue: '300+',
-      bookingsLabel: 'Réservations vérifiées',
+      ratingValue: 'Depuis 2016',
+      ratingLabel: 'Opérateur local Mer Rouge',
+      bookingsValue: '100%',
+      bookingsLabel: 'Tarifs directs sans intermédiaire',
       conciergeValue: '24/7',
-      conciergeLabel: 'Concierge privé'
+      conciergeLabel: 'Concierge WhatsApp direct'
     },
     concierge: {
       pick: 'Sélection du concierge',
@@ -83,8 +83,8 @@ export const fr: typeof en = {
     pageBadge: 'Voyages Signature',
     pageTitle: 'Bibliothèque d\'expériences',
     pageDesc: 'Parcourez nos charters maritimes et circuits en quad dans le désert, conçus pour un accueil haut de gamme.',
-browseAll: 'Voir toutes les expériences',
-    verifiedGuests: '300+ clients vérifiés',
+    browseAll: 'Voir toutes les expériences',
+    verifiedGuests: 'Opérateur local vérifié',
     all: 'Tout',
     sea: 'Mer',
     safari: 'Safari',
@@ -126,7 +126,7 @@ browseAll: 'Voir toutes les expériences',
   },
   testimonials: {
     section: 'Avis vérifiés',
-    heading: 'Excellent - 4,9 sur 5 basé sur plus de 300 réservations',
+    heading: 'Avis clients vérifiés',
     verified: 'Réservation vérifiée'
   },
   footer: {

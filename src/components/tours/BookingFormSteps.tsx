@@ -221,33 +221,39 @@ export default function BookingFormSteps({
     setSubmitError(null);
 
     try {
-      const res = await fetch('/api/bookings/checkout', {
+      const res = await fetch('/api/checkout/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tourId,
-          zoneId,
-          hotelName: hotelName.trim(),
-          travelDate,
+          departureDate: travelDate,
           adultsCount,
           childrenCount,
           infantsCount,
           guestCount: adultsCount + childrenCount + infantsCount,
-          customerName: customerName.trim(),
-          customerEmail: customerEmail.trim(),
-          customerPhone: customerPhone.trim(),
-          roomNumber: roomNumber.trim() || undefined,
-          pickupDirectives: pickupDirectives.trim() || undefined,
-          flightNumbers: flightNumbers.trim() || undefined,
-          bedConfiguration: bedConfiguration.trim() || undefined,
-          specialRequirements: specialRequirements.trim() || undefined,
+          formData: {
+            leadName: customerName.trim(),
+            email: customerEmail.trim(),
+            phone: customerPhone.trim(),
+            hotelName: hotelName.trim(),
+            roomNumber: roomNumber.trim() || undefined,
+            pickupDirectives: pickupDirectives.trim() || undefined,
+            flightNumbers: flightNumbers.trim() || undefined,
+            bedConfiguration: bedConfiguration.trim() || undefined,
+            specialRequirements: specialRequirements.trim() || undefined,
+            paymentScheme: 'pay_on_arrival',
+            currency: 'USD',
+            whatsappOptIn: true,
+          },
         }),
       });
 
       if (!res.ok) {
-        const err: CheckoutError = await res.json();
-        if (err.field) {
-          setErrors((prev) => ({ ...prev, [err.field!]: err.error }));
+        const err = await res.json();
+        if (err.fields) {
+          setErrors((prev) => ({ ...prev, ...err.fields }));
+        } else if (err.field) {
+          setErrors((prev) => ({ ...prev, [err.field]: err.error }));
         }
         setSubmitError(err.error || 'Failed to create booking');
         setIsSubmitting(false);
@@ -255,8 +261,8 @@ export default function BookingFormSteps({
         return;
       }
 
-      const data: CheckoutResponse = await res.json();
-      window.location.href = `/tours/checkout/success?token=${encodeURIComponent(data.accessToken)}`;
+      const data = await res.json();
+      window.location.href = data.confirmationUrl || `/booking/${encodeURIComponent(data.accessToken)}`;
     } catch {
       setSubmitError('Network error. Please check your connection and try again.');
       setIsSubmitting(false);

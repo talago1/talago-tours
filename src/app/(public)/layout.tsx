@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { prisma } from '@/lib/prisma';
 
 const Navbar = dynamic(() => import('@/components/layout/Navbar'), { ssr: false });
 const FooterContent = dynamic(() => import('@/components/layout/FooterContent'), { ssr: false });
@@ -36,7 +37,27 @@ export const metadata: Metadata = {
   // site-wide OpenGraph image stays consistent across every public page.
 };
 
-export default function PublicRouteLayout({ children }: { children: React.ReactNode }) {
+export default async function PublicRouteLayout({ children }: { children: React.ReactNode }) {
+  let socialLinks: { instagram?: string; facebook?: string; tiktok?: string; telegram?: string; twitter?: string } = {};
+  try {
+    const contactSetting = await prisma.systemSetting.findUnique({ where: { key: 'contact' } });
+    if (contactSetting?.value) {
+      const parsed = JSON.parse(contactSetting.value);
+      if (parsed?.socialLinks) {
+        socialLinks = parsed.socialLinks;
+      }
+    }
+  } catch {
+    // fallback to empty
+  }
+
+  const validLinks = [
+    { label: 'Instagram', href: socialLinks.instagram },
+    { label: 'Facebook', href: socialLinks.facebook },
+    { label: 'TikTok', href: socialLinks.tiktok },
+    { label: 'Telegram', href: socialLinks.telegram },
+  ].filter((l): l is { label: string; href: string } => typeof l.href === 'string' && l.href.trim().length > 0 && l.href.startsWith('http'));
+
   return (
     <div className="flex min-h-screen flex-col bg-[#070F1E] text-[#F8FAFC]">
       {/* ─── Sticky Glassmorphism Navbar ─── */}
@@ -65,44 +86,22 @@ export default function PublicRouteLayout({ children }: { children: React.ReactN
             <p className="text-xs text-slate-500">
               &copy; {new Date().getFullYear()} TALAGO Experiences Ltd. All rights reserved.
             </p>
-            <div className="flex items-center gap-6">
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-slate-400 transition-colors hover:text-[#00E5FF]"
-                aria-label="Instagram"
-              >
-                Instagram
-              </a>
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-slate-400 transition-colors hover:text-[#00E5FF]"
-                aria-label="Facebook"
-              >
-                Facebook
-              </a>
-              <a
-                href="https://tiktok.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-slate-400 transition-colors hover:text-[#00E5FF]"
-                aria-label="TikTok"
-              >
-                TikTok
-              </a>
-              <a
-                href="https://t.me"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-slate-400 transition-colors hover:text-[#00E5FF]"
-                aria-label="Telegram"
-              >
-                Telegram
-              </a>
-            </div>
+            {validLinks.length > 0 && (
+              <div className="flex items-center gap-6">
+                {validLinks.map((link) => (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-slate-400 transition-colors hover:text-[#00E5FF]"
+                    aria-label={link.label}
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </footer>

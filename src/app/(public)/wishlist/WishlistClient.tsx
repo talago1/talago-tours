@@ -245,7 +245,7 @@ export default function WishlistClient() {
               Your Bucket List is Empty
             </h2>
             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-400">
-              You haven't saved any experiences yet. Tap the heart icon on any tour card to bookmark
+              You haven&apos;t saved any experiences yet. Tap the heart icon on any tour card to bookmark
               it for later!
             </p>
 

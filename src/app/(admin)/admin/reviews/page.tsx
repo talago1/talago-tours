@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ArrowLeft,
   Star,
@@ -13,6 +13,11 @@ import {
   X,
   CheckCircle2,
   Filter,
+  Upload,
+  FileText,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -66,6 +71,44 @@ export default function AdminReviewsPage() {
     comment: '',
     status: 'APPROVED' as ReviewStatus,
   });
+
+  // CSV Importer State
+  const [csvPanelOpen, setCsvPanelOpen] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvResult, setCsvResult] = useState<{
+    imported: number;
+    queued: number;
+    errors: number;
+    affectedTours: number;
+    queuedRows: { row: number; tourName: string; reviewerName: string; reason: string }[];
+    errorRows: { row: number; reason: string }[];
+  } | null>(null);
+  const csvDropRef = useRef<HTMLDivElement>(null);
+
+  const handleCsvUpload = async () => {
+    if (!csvFile) return;
+    setCsvUploading(true);
+    setCsvResult(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', csvFile);
+      const res = await fetch('/api/admin/reviews/import-csv', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      setCsvResult(data);
+      setCsvFile(null);
+      if (data.imported > 0) {
+        setSuccessMsg(`✅ ${data.imported} review${data.imported > 1 ? 's' : ''} imported across ${data.affectedTours} tour${data.affectedTours > 1 ? 's' : ''}. Ratings recalculated.`);
+        setTimeout(() => setSuccessMsg(null), 5000);
+        fetchReviews();
+      }
+    } catch (e: any) {
+      setError(e.message || 'CSV import failed');
+    } finally {
+      setCsvUploading(false);
+    }
+  };
 
   const fetchReviews = useCallback(async () => {
     setLoading(true);
@@ -254,6 +297,14 @@ export default function AdminReviewsPage() {
             <div className="flex items-center gap-3">
               <button
                 type="button"
+                onClick={() => setCsvPanelOpen((p) => !p)}
+                className="inline-flex items-center gap-2 rounded-2xl border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-5 py-3 text-sm font-black uppercase tracking-wider text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20"
+              >
+                <Upload className="h-4 w-4" />
+                Import CSV
+              </button>
+              <button
+                type="button"
                 onClick={openAddModal}
                 className="inline-flex items-center gap-2 rounded-2xl bg-[#EAB308] px-5 py-3 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-xl shadow-[#EAB308]/20 transition-all hover:bg-[#FFE55C]"
               >
@@ -270,6 +321,124 @@ export default function AdminReviewsPage() {
             </div>
           </div>
         </div>
+
+        {/* CSV Import Panel */}
+        {csvPanelOpen && (
+          <div className="mb-6 rounded-3xl border border-[#00E5FF]/20 bg-[#00E5FF]/5 p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <Upload className="h-4 w-4 text-[#00E5FF]" />
+                  Bulk Review Import (CSV)
+                </h3>
+                <p className="mt-1 text-xs text-slate-400">
+                  Import real reviews from GetYourGuide, Viator, TripAdvisor, Google, etc.
+                  All imported rows are set to <strong className="text-white">Approved + Visible</strong>.
+                </p>
+              </div>
+              <button onClick={() => setCsvPanelOpen(false)} className="text-slate-500 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Template Download */}
+            <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-xs text-slate-400">
+              <p className="font-bold text-slate-300 mb-1">Required CSV columns (header row):</p>
+              <code className="font-mono text-[#00E5FF] text-[11px] break-all">
+                tour_name,tour_slug,source,reviewer_name,country,rating,review_date,original_text,original_language,translated_text,source_url
+              </code>
+              <p className="mt-2"><strong>source</strong> must be one of: TALAGO, GETYOURGUIDE, VIATOR, TRIPADVISOR, SPUTNIK8, TRIPSTER, BOOKING_COM, GOOGLE, OTHER</p>
+              <p><strong>country</strong>: 2-letter ISO code (DE, RU, GB, US…). <strong>review_date</strong>: YYYY-MM-DD. <strong>original_language</strong>: en, de, ru…</p>
+            </div>
+
+            {/* File Drop Zone */}
+            <div
+              ref={csvDropRef}
+              onDragOver={(e) => { e.preventDefault(); csvDropRef.current?.classList.add('border-[#00E5FF]'); }}
+              onDragLeave={() => csvDropRef.current?.classList.remove('border-[#00E5FF]')}
+              onDrop={(e) => {
+                e.preventDefault();
+                csvDropRef.current?.classList.remove('border-[#00E5FF]');
+                const f = e.dataTransfer.files[0];
+                if (f?.name.endsWith('.csv')) setCsvFile(f);
+              }}
+              className="mb-4 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.02] py-10 text-center transition-colors cursor-pointer hover:border-white/30"
+              onClick={() => document.getElementById('csv-file-input')?.click()}
+            >
+              <FileText className="h-8 w-8 text-slate-500" />
+              {csvFile ? (
+                <p className="text-sm font-bold text-white">{csvFile.name} <span className="text-xs text-slate-400">({(csvFile.size / 1024).toFixed(1)} KB)</span></p>
+              ) : (
+                <p className="text-sm text-slate-400">Drag & drop a <strong className="text-white">.csv</strong> file here, or click to browse</p>
+              )}
+              <input
+                id="csv-file-input"
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => setCsvFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+
+            <button
+              type="button"
+              disabled={!csvFile || csvUploading}
+              onClick={handleCsvUpload}
+              className="inline-flex items-center gap-2 rounded-2xl bg-[#00E5FF] px-6 py-3 text-sm font-black uppercase tracking-wider text-[#070F1E] transition-all hover:bg-[#5CF1FF] disabled:opacity-40"
+            >
+              {csvUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {csvUploading ? 'Importing…' : 'Run Import'}
+            </button>
+
+            {/* Results */}
+            {csvResult && (
+              <div className="mt-5 space-y-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[
+                    { label: 'Imported', value: csvResult.imported, color: 'text-emerald-400' },
+                    { label: 'Tours Updated', value: csvResult.affectedTours, color: 'text-[#00E5FF]' },
+                    { label: 'Queued (Unmatched)', value: csvResult.queued, color: 'text-[#EAB308]' },
+                    { label: 'Errors', value: csvResult.errors, color: 'text-red-400' },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-center">
+                      <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                      <p className="mt-1 text-xs text-slate-500">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {csvResult.queuedRows.length > 0 && (
+                  <div className="rounded-2xl border border-[#EAB308]/20 bg-[#EAB308]/5 p-4">
+                    <p className="mb-2 text-xs font-black uppercase tracking-wider text-[#EAB308] flex items-center gap-2">
+                      <AlertTriangle className="h-3.5 w-3.5" /> Unmatched Tours (manual matching required)
+                    </p>
+                    <div className="space-y-1 text-xs text-slate-300 max-h-40 overflow-y-auto">
+                      {csvResult.queuedRows.map((q, i) => (
+                        <div key={i} className="flex gap-2">
+                          <span className="text-slate-500">Row {q.row}:</span>
+                          <span className="font-bold">{q.tourName}</span>
+                          <span className="text-slate-500">— {q.reviewerName}</span>
+                          <span className="text-[#EAB308] ml-auto shrink-0">{q.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {csvResult.errorRows.length > 0 && (
+                  <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
+                    <p className="mb-2 text-xs font-black uppercase tracking-wider text-red-400">Errors</p>
+                    <div className="space-y-1 text-xs text-slate-300 max-h-40 overflow-y-auto">
+                      {csvResult.errorRows.map((e, i) => (
+                        <div key={i}><span className="text-slate-500">Row {e.row}:</span> {e.reason}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Notifications */}
         {successMsg && (

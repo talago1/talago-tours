@@ -18,3 +18,5 @@ _archive/
 public/uploads/*
 !public/uploads/.gitkeep
 .vercel
+scripts/backups/
+scripts/*.json

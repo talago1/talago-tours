@@ -93,6 +93,8 @@ interface TourData {
     price: number;
     priceType?: string;
     enabled?: boolean;
+    labels?: Record<string, string>;
+    descriptions?: Record<string, string>;
   }>;
   ageRestrictionsNotes?: string | null;
 }
@@ -926,28 +928,36 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                   <span className="text-xs text-slate-400">Selectable during checkout</span>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {tour.tourOptions.map((addon) => (
-                    <div
-                      key={addon.id}
-                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 flex flex-col justify-between hover:border-[#00E5FF]/30 transition"
-                    >
-                      <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="text-sm font-bold text-white">{addon.title || addon.name || 'Optional Upgrade'}</h4>
-                          <span className="rounded-full bg-[#00E5FF]/10 px-2.5 py-0.5 text-xs font-black text-[#00E5FF]">
-                            +${addon.price || 0}
-                          </span>
+                  {tour.tourOptions.map((addon) => {
+                    const optTitle = addon.labels?.[language] || addon.labels?.['en'] || addon.title || addon.name || 'Optional Upgrade';
+                    const optDesc = addon.descriptions?.[language] || addon.descriptions?.['en'] || addon.description;
+                    const priceBadge = addon.price > 0 ? `+$${addon.price}` : 'Included';
+                    const typeLabel = addon.priceType === 'per_booking' || addon.priceType === 'flat' ? 'Per booking' : 'Per guest';
+                    const statusLabel = addon.price > 0 ? 'Optional Upgrade' : 'Standard Option';
+
+                    return (
+                      <div
+                        key={addon.id}
+                        className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 flex flex-col justify-between hover:border-[#00E5FF]/30 transition"
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="text-sm font-bold text-white">{optTitle}</h4>
+                            <span className="rounded-full bg-[#00E5FF]/10 px-2.5 py-0.5 text-xs font-black text-[#00E5FF]">
+                              {priceBadge}
+                            </span>
+                          </div>
+                          {optDesc && (
+                            <p className="mt-2 text-xs text-slate-400 leading-relaxed">{optDesc}</p>
+                          )}
                         </div>
-                        {addon.description && (
-                          <p className="mt-2 text-xs text-slate-400 leading-relaxed">{addon.description}</p>
-                        )}
+                        <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 border-t border-white/5 pt-2">
+                          <span>{typeLabel}</span>
+                          <span className="text-[#00E5FF] font-semibold">{statusLabel}</span>
+                        </div>
                       </div>
-                      <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 border-t border-white/5 pt-2">
-                        <span>{addon.priceType === 'per_booking' ? 'Per booking' : 'Per guest'}</span>
-                        <span className="text-[#00E5FF] font-semibold">Available</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -22,12 +22,12 @@ export const es: typeof en = {
     activeExperiences: 'experiencias activas disponibles',
     guestProofButton: 'Opiniones de Huéspedes',
     metrics: {
-      ratingValue: '4.9/5',
-      ratingLabel: 'Valoración de lujo',
-      bookingsValue: '300+',
-      bookingsLabel: 'Reservas verificadas',
+      ratingValue: 'Desde 2016',
+      ratingLabel: 'Operador local Mar Rojo',
+      bookingsValue: '100%',
+      bookingsLabel: 'Precios directos de operador',
       conciergeValue: '24/7',
-      conciergeLabel: 'Conserje privado'
+      conciergeLabel: 'Conserje WhatsApp 24/7'
     },
     concierge: {
       pick: 'Selección del conserje',
@@ -83,8 +83,8 @@ export const es: typeof en = {
     pageBadge: 'Viajes Exclusivos',
     pageTitle: 'Biblioteca de Experiencias',
     pageDesc: 'Explore nuestros charters marítimos y rutas en quad por el desierto, diseñados con estándares de hospitalidad premium.',
-browseAll: 'Ver todas las experiencias',
-    verifiedGuests: '300+ huéspedes verificados',
+    browseAll: 'Ver todas las experiencias',
+    verifiedGuests: 'Operador local verificado',
     all: 'Todos',
     sea: 'Mar',
     safari: 'Safari',
@@ -126,7 +126,7 @@ browseAll: 'Ver todas las experiencias',
   },
   testimonials: {
     section: 'Reseñas Verificadas',
-    heading: 'Excelente - 4.9 de 5 basado en más de 300 reservas',
+    heading: 'Reseñas verificadas de huéspedes',
     verified: 'Reserva Verificada'
   },
   footer: {

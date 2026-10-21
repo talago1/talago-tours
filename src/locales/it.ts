@@ -22,12 +22,12 @@ export const it: typeof en = {
     activeExperiences: 'esperienze attive disponibili',
     guestProofButton: 'Recensioni degli Ospiti',
     metrics: {
-      ratingValue: '4.9/5',
-      ratingLabel: 'Valutazione degli ospiti',
-      bookingsValue: '300+',
-      bookingsLabel: 'Prenotazioni verificate',
+      ratingValue: 'Dal 2016',
+      ratingLabel: 'Operatore locale Mar Rosso',
+      bookingsValue: '100%',
+      bookingsLabel: 'Prezzi diretti garantiti',
       conciergeValue: '24/7',
-      conciergeLabel: 'Concierge privato'
+      conciergeLabel: 'Concierge WhatsApp 24/7'
     },
     concierge: {
       pick: 'Scelta del concierge',
@@ -83,8 +83,8 @@ export const it: typeof en = {
     pageBadge: 'Viaggi Signature',
     pageTitle: 'Libreria di Esperienze',
     pageDesc: 'Seleziona tra i nostri charter marittimi e percorsi nel deserto in quad, pensati per un’ospitalità premium.',
-browseAll: 'Vedi tutte le esperienze',
-    verifiedGuests: '300+ ospiti verificati',
+    browseAll: 'Vedi tutte le esperienze',
+    verifiedGuests: 'Operatore locale verificato',
     all: 'Tutti',
     sea: 'Mare',
     safari: 'Safari',
@@ -126,7 +126,7 @@ browseAll: 'Vedi tutte le esperienze',
   },
   testimonials: {
     section: 'Recensioni Verificate',
-    heading: 'Eccellente - 4.9 su 5 basato su oltre 300 prenotazioni',
+    heading: 'Recensioni verificate degli ospiti',
     verified: 'Prenotazione Verificata'
   },
   footer: {

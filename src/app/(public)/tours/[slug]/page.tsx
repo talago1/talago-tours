@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import TourDetailsClient from './TourDetailsClient';
 import type { ReviewDistribution, ApprovedReview } from '@/types/review';
@@ -48,6 +48,15 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
         destination: { select: { name: true } },
       },
     });
+  }
+
+  if (!tour) {
+    const redirectRecord = await prisma.tourRedirect.findUnique({
+      where: { sourceSlug: params.slug },
+    });
+    if (redirectRecord) {
+      redirect(`/tours/${redirectRecord.targetSlug}`);
+    }
   }
 
   const t = tour?.translations as Record<string, { title?: string; description?: string; seoTitle?: string; seoDescription?: string }> | undefined;
@@ -131,11 +140,20 @@ export default async function TourDetailPage({ params }: Props) {
       images: true,
       reviews: true,
       reviewEntries: {
+        where: {
+          status: 'APPROVED',
+          isVisible: true,
+          isSeeded: false,
+        },
         select: {
           id: true,
           customerName: true,
+          reviewerName: true,
+          country: true,
           rating: true,
           comment: true,
+          source: true,
+          reviewDate: true,
           status: true,
           createdAt: true,
         },
@@ -200,11 +218,24 @@ export default async function TourDetailPage({ params }: Props) {
         images: true,
         reviews: true,
         reviewEntries: {
+          where: {
+            status: 'APPROVED',
+            isVisible: true,
+            isSeeded: false,
+          },
           select: {
             id: true,
             customerName: true,
+            reviewerName: true,
+            country: true,
             rating: true,
             comment: true,
+            originalText: true,
+            originalLanguage: true,
+            translatedText: true,
+            source: true,
+            sourceUrl: true,
+            reviewDate: true,
             status: true,
             createdAt: true,
           },
@@ -221,6 +252,12 @@ export default async function TourDetailPage({ params }: Props) {
   }
 
   if (!tour || (tour.status && tour.status.toUpperCase() !== 'ACTIVE')) {
+    const redirectRecord = await prisma.tourRedirect.findUnique({
+      where: { sourceSlug: params.slug },
+    });
+    if (redirectRecord) {
+      redirect(`/tours/${redirectRecord.targetSlug}`);
+    }
     notFound();
   }
 
@@ -294,28 +331,29 @@ export default async function TourDetailPage({ params }: Props) {
       price: Number(opt.price || 0),
       priceType: opt.priceType ? String(opt.priceType) : undefined,
       enabled: opt.enabled !== false,
+      labels: opt.labels && typeof opt.labels === 'object' ? opt.labels : undefined,
+      descriptions: opt.descriptions && typeof opt.descriptions === 'object' ? opt.descriptions : undefined,
     }));
 
-  // Merge reviews from both sources: reviewEntries (relation) and reviews (JSON)
-  const jsonReviews = safeParseReviews(tour.reviews);
+  // Real reviews ONLY: relation entries already filtered to isVisible=true, isSeeded=false, status=APPROVED.
+  // JSON reviews column is legacy and may contain seeded data — exclude it entirely from counts.
+  const relationReviews = (tour.reviewEntries ?? []);
 
-  const relationReviews = (tour.reviewEntries ?? []).filter((r) => r.status === 'APPROVED');
-
-  const combinedRawReviews = [
-    ...relationReviews.map((r) => ({
-      id: r.id,
-      customerName: r.customerName,
-      rating: r.rating,
-      comment: r.comment ?? '',
-      status: r.status,
-      createdAt: r.createdAt,
-    })),
-    ...jsonReviews.filter((j: any) => j.status === 'APPROVED' || !j.status),
-  ];
+  const combinedRawReviews = relationReviews.map((r) => ({
+    id: r.id,
+    customerName: r.reviewerName || r.customerName || 'Verified Guest',
+    rating: r.rating,
+    comment: r.comment ?? '',
+    source: (r as any).source ?? null,
+    country: (r as any).country ?? null,
+    reviewDate: (r as any).reviewDate ?? null,
+    status: r.status,
+    createdAt: r.createdAt,
+  }));
 
   const distributionMap: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-  combinedRawReviews.forEach((r: any) => {
-    const stars = r.rating ?? r.stars ?? 5;
+  combinedRawReviews.forEach((r) => {
+    const stars = r.rating ?? 5;
     if (distributionMap[stars] !== undefined) {
       distributionMap[stars]++;
     }
@@ -328,18 +366,19 @@ export default async function TourDetailPage({ params }: Props) {
     percentage: total > 0 ? Math.round((count / total) * 100) : 0,
   }));
 
-  const reviews: ApprovedReview[] = combinedRawReviews.map((r: any) => ({
-    id: r.id || r._id || crypto.randomUUID(),
-    customerName: r.customerName || r.authorName || 'Verified Guest',
-    rating: r.rating ?? r.stars ?? 5,
-    comment: r.comment ?? r.text ?? '',
-    createdAt: r.createdAt
-      ? new Date(r.createdAt).toISOString()
-      : r.date
-        ? new Date(r.date).toISOString()
+  const reviews: ApprovedReview[] = combinedRawReviews.map((r) => ({
+    id: r.id,
+    customerName: r.customerName,
+    rating: r.rating ?? 5,
+    comment: r.comment,
+    createdAt: r.reviewDate
+      ? new Date(r.reviewDate).toISOString()
+      : r.createdAt
+        ? new Date(r.createdAt).toISOString()
         : new Date().toISOString(),
   }));
 
+  // 0 real reviews → effectiveRatingAverage stays 0 → "New" badge displayed in TourDetailsClient
   const effectiveReviewCount = reviews.length;
   const effectiveRatingAverage =
     effectiveReviewCount > 0
@@ -361,8 +400,47 @@ export default async function TourDetailPage({ params }: Props) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
   const effectivePrice = tour.priceAdult ?? tour.adultPrice ?? basePrice;
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
+  const breadcrumbSchema = {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: baseUrl,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: tour.destination?.name || 'Tours',
+        item: tour.destination?.slug ? `${baseUrl}/destinations/${tour.destination.slug}` : `${baseUrl}/tours`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: title,
+        item: `${baseUrl}/tours/${tour.slug}`,
+      },
+    ],
+  };
+
+  const validFaqList = faqItems
+    .filter((f: any) => (f.question || f.q) && (f.answer || f.a))
+    .map((f: any) => ({
+      '@type': 'Question',
+      name: String(f.question || f.q),
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: String(f.answer || f.a),
+      },
+    }));
+
+  const faqSchema = validFaqList.length > 0 ? {
+    '@type': 'FAQPage',
+    mainEntity: validFaqList,
+  } : null;
+
+  const touristTripSchema = {
     '@type': 'TouristTrip',
     name: title,
     description: description,
@@ -391,6 +469,15 @@ export default async function TourDetailPage({ params }: Props) {
           },
         }
       : {}),
+  };
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      touristTripSchema,
+      breadcrumbSchema,
+      ...(faqSchema ? [faqSchema] : []),
+    ],
   };
 
   // Global payment method & marketplace modules settings from /admin/settings

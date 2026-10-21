@@ -3,43 +3,30 @@
 import { ShieldCheck, Star } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
-interface Testimonial {
-  name: string;
-  initials: string;
-  tourName: string;
-  feedback: string;
-  date: string;
+export interface LandingReview {
+  id: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+  tourName?: string;
+  createdAt?: string | Date;
+  country?: string | null;
+  source?: string | null;
 }
 
-const testimonials: Testimonial[] = [
-  {
-    name: 'Amelia Hart',
-    initials: 'AH',
-    tourName: 'VIP Private Yacht Cruise & Giftun Island',
-    feedback:
-      'The yacht crew anticipated everything before we asked. Towels were warm, the reef guide was superb, and the lunch felt like a private club at sea.',
-    date: 'May 28, 2026',
-  },
-  {
-    name: 'Karim El-Nour',
-    initials: 'KE',
-    tourName: 'Sunset Desert VIP Quad Safari & Bedouin Oasis',
-    feedback:
-      'This was not a typical safari. The convoy pacing, sunset stop, private Bedouin dinner, and chilled transfer made the whole evening feel cinematic.',
-    date: 'May 21, 2026',
-  },
-  {
-    name: 'Sophie Laurent',
-    initials: 'SL',
-    tourName: 'Deep Sea Dolphin House Snorkeling & Diving',
-    feedback:
-      'Impeccable luxury treatment from hotel pickup to return. The captain found quiet water, and the dive team made the dolphin encounter feel respectful and rare.',
-    date: 'May 16, 2026',
-  },
-];
+interface TestimonialsProps {
+  reviews?: LandingReview[];
+}
 
-export default function Testimonials() {
+export default function Testimonials({ reviews = [] }: TestimonialsProps) {
   const { dict } = useLanguage();
+
+  if (!reviews || reviews.length === 0) {
+    return null;
+  }
+
+  const averageRating =
+    reviews.reduce((sum, r) => sum + (r.rating || 5), 0) / reviews.length;
 
   return (
     <section id="verified-reviews" className="bg-[#070F1E] px-5 py-20 text-[#F8FAFC] sm:px-8 lg:px-10 lg:py-28">
@@ -54,10 +41,22 @@ export default function Testimonials() {
                 {dict.testimonials.heading}
               </h2>
             </div>
-            <div className="flex items-center gap-2">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <Star key={index} className="h-6 w-6 fill-[#EAB308] text-[#EAB308]" />
-              ))}
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-black text-[#EAB308]">
+                {averageRating.toFixed(1)}
+              </span>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <Star
+                    key={index}
+                    className={`h-5 w-5 ${
+                      index < Math.round(averageRating)
+                        ? 'fill-[#EAB308] text-[#EAB308]'
+                        : 'text-slate-600'
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
           <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10">
@@ -66,34 +65,79 @@ export default function Testimonials() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {testimonials.map((testimonial) => (
-            <article
-              key={testimonial.name}
-              className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/20 transition-all duration-300 ease-in-out hover:-translate-y-2 hover:border-[#06B6D4]/35 hover:shadow-[#06B6D4]/10"
-            >
-              <div className="mb-6 flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#EAB308]/30 bg-[#EAB308]/10 text-sm font-black text-[#EAB308]">
-                  {testimonial.initials}
-                </div>
-                <div>
-                  <h3 className="font-black text-white">{testimonial.name}</h3>
-                  <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-[#00473F]/50 px-2 py-1 text-xs font-bold text-[#A7F3D0]">
-                    <ShieldCheck className="h-3 w-3" />
-                    {dict.testimonials.verified}
+          {reviews.slice(0, 6).map((testimonial) => {
+            const initials = (testimonial.customerName || 'VG')
+              .split(' ')
+              .map((n) => n[0])
+              .filter(Boolean)
+              .slice(0, 2)
+              .join('')
+              .toUpperCase();
+
+            const dateStr = testimonial.createdAt
+              ? new Date(testimonial.createdAt).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+              : '';
+
+            return (
+              <article
+                key={testimonial.id}
+                className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/20 transition-all duration-300 ease-in-out hover:-translate-y-2 hover:border-[#06B6D4]/35 hover:shadow-[#06B6D4]/10"
+              >
+                <div className="mb-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#EAB308]/30 bg-[#EAB308]/10 text-sm font-black text-[#EAB308]">
+                      {initials}
+                    </div>
+                    <div>
+                      <h3 className="font-black text-white">{testimonial.customerName}</h3>
+                      {testimonial.country && (
+                        <p className="text-xs text-slate-400">{testimonial.country}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="inline-flex items-center gap-1 rounded-full bg-[#00473F]/50 px-2.5 py-1 text-xs font-bold text-[#A7F3D0]">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    {testimonial.source && testimonial.source !== 'TALAGO'
+                      ? `${testimonial.source}`
+                      : dict.testimonials.verified}
                   </div>
                 </div>
-              </div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#06B6D4]">
-                {testimonial.tourName}
-              </p>
-              <p className="mt-4 text-sm leading-7 text-slate-300">
-                “{testimonial.feedback}”
-              </p>
-              <p className="mt-6 text-sm font-semibold text-slate-500">
-                {testimonial.date}
-              </p>
-            </article>
-          ))}
+
+                {testimonial.tourName && (
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-[#06B6D4]">
+                    {testimonial.tourName}
+                  </p>
+                )}
+
+                <div className="my-3 flex items-center gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-3.5 w-3.5 ${
+                        i < testimonial.rating
+                          ? 'fill-[#EAB308] text-[#EAB308]'
+                          : 'text-slate-600'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <p className="text-sm leading-6 text-slate-300 line-clamp-4">
+                  “{testimonial.comment}”
+                </p>
+
+                {dateStr && (
+                  <p className="mt-4 text-xs font-semibold text-slate-500">
+                    {dateStr}
+                  </p>
+                )}
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>

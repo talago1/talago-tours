@@ -111,6 +111,15 @@ export interface SystemSettings {
     activityAtAGlance?: boolean;
     facetedFilters?: boolean;
   };
+  /** SEO & Open Graph — all values stored as absolute URLs for WhatsApp/Telegram/Facebook previews */
+  seo?: {
+    ogImage?: string;
+    ogImageAlt?: string;
+    faviconUrl?: string;
+    siteTitle?: string;
+    siteDescription?: string;
+    twitterHandle?: string;
+  };
 }
 
 export interface HeroLanguageTexts {

@@ -5,6 +5,8 @@ import { LanguageProvider } from '@/context/LanguageContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
 import { WishlistProvider } from '@/context/WishlistContext';
 import { resolveServerLanguage } from '@/lib/i18n.server';
+import { prisma } from '@/lib/prisma';
+import { parseSettingValue } from '@/lib/systemSettings';
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
 const gaId = process.env.NEXT_PUBLIC_GA_ID;
@@ -88,82 +90,123 @@ const jsonLd = {
   ],
 };
 
-export const metadata: Metadata = {
-  metadataBase: new URL(baseUrl),
-  applicationName: 'TALAGO',
-  icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-    shortcut: '/icon.svg',
-    apple: '/og/default.jpg',
-  },
-  title: {
-    template: '%s | TALAGO',
-    default: 'TALAGO | Book Top Tours, Activities & Experiences Worldwide',
-  },
-  description:
-    'Discover and book top-rated tours, activities, and experiences worldwide with instant confirmation and flexible cancellation. Egypt, Red Sea, Nile Valley, and beyond.',
-  keywords: [
-    'TALAGO',
-    'tours and activities',
-    'book experiences worldwide',
-    'Egypt tours',
-    'Red Sea excursions',
-    'Hurghada tours',
-    'Sharm El Sheikh tours',
-    'Cairo tours',
-    'Luxor tours',
-    'desert safari',
-    'Red Sea diving',
-    'travel experiences',
-    'tour booking platform',
-  ],
-  authors: [{ name: 'TALAGO' }],
-  creator: 'TALAGO',
-  publisher: 'TALAGO',
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
-  openGraph: {
-    title: 'TALAGO | Book Top Tours, Activities & Experiences Worldwide',
-    description:
-      'Discover and book top-rated tours, unique activities, and unforgettable experiences worldwide — Egypt, Red Sea, Nile Valley, and beyond. Instant confirmation.',
-    url: baseUrl,
-    siteName: 'TALAGO',
-    locale: 'en_US',
-    alternateLocale: ['de_DE', 'ru_RU', 'fr_FR', 'it_IT', 'pl_PL', 'es_ES', 'uk_UA'],
-    type: 'website',
-    images: [
-      {
-        url: `${baseUrl}/og/default.jpg`,
-        secureUrl: `${baseUrl}/og/default.jpg`,
-        width: 1200,
-        height: 630,
-        alt: 'TALAGO — World-Class Tours & Luxury Experiences',
-        type: 'image/jpeg',
-      },
+// --------------------------------------------------------------------------
+// generateMetadata: reads OG image / favicon from SystemSetting key `seo`.
+// Next.js caches the result for 60 s (revalidate tag) so we avoid a DB hit
+// on every single page load while still reflecting admin changes within a
+// minute — no redeploy required.
+// --------------------------------------------------------------------------
+export const revalidate = 60;
+
+async function getSeoSettings() {
+  try {
+    const record = await prisma.systemSetting.findUnique({ where: { key: 'seo' } });
+    if (record?.value) {
+      return parseSettingValue<{
+        ogImage?: string;
+        ogImageAlt?: string;
+        faviconUrl?: string;
+        siteTitle?: string;
+        siteDescription?: string;
+        twitterHandle?: string;
+      }>(record.value, {});
+    }
+  } catch {
+    // DB unavailable — fall back to static defaults silently
+  }
+  return {};
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getSeoSettings();
+
+  const defaultOgImage = `${baseUrl}/og/default.jpg`;
+  const ogImage = seo.ogImage || defaultOgImage;
+  const ogImageAlt = seo.ogImageAlt || 'TALAGO — World-Class Tours & Luxury Experiences';
+  const faviconUrl = seo.faviconUrl || '/icon.svg';
+  const siteTitle = seo.siteTitle || 'TALAGO | Book Top Tours, Activities & Experiences Worldwide';
+  const siteDescription =
+    seo.siteDescription ||
+    'Discover and book top-rated tours, activities, and experiences worldwide with instant confirmation and flexible cancellation. Egypt, Red Sea, Nile Valley, and beyond.';
+  const twitterHandle = seo.twitterHandle || '@talago';
+
+  return {
+    metadataBase: new URL(baseUrl),
+    applicationName: 'TALAGO',
+    icons: {
+      icon: [
+        { url: faviconUrl, type: faviconUrl.endsWith('.svg') ? 'image/svg+xml' : 'image/png' },
+      ],
+      shortcut: faviconUrl,
+      apple: ogImage,
+    },
+    title: {
+      template: '%s | TALAGO',
+      default: siteTitle,
+    },
+    description: siteDescription,
+    keywords: [
+      'TALAGO',
+      'tours and activities',
+      'book experiences worldwide',
+      'Egypt tours',
+      'Red Sea excursions',
+      'Hurghada tours',
+      'Sharm El Sheikh tours',
+      'Cairo tours',
+      'Luxor tours',
+      'desert safari',
+      'Red Sea diving',
+      'travel experiences',
+      'tour booking platform',
     ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'TALAGO | Book Top Tours, Activities & Experiences Worldwide',
-    description:
-      'Discover and book top-rated tours, unique activities, and unforgettable experiences worldwide — Egypt, Red Sea, Nile Valley, and beyond.',
-    images: [`${baseUrl}/og/default.jpg`],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+    authors: [{ name: 'TALAGO' }],
+    creator: 'TALAGO',
+    publisher: 'TALAGO',
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false,
+    },
+    openGraph: {
+      title: siteTitle,
+      description: siteDescription,
+      url: baseUrl,
+      siteName: 'TALAGO',
+      locale: 'en_US',
+      alternateLocale: ['de_DE', 'ru_RU', 'fr_FR', 'it_IT', 'pl_PL', 'es_ES', 'uk_UA'],
+      type: 'website',
+      images: [
+        {
+          url: ogImage,
+          secureUrl: ogImage,
+          width: 1200,
+          height: 630,
+          alt: ogImageAlt,
+          type: ogImage.endsWith('.png') ? 'image/png' : 'image/jpeg',
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: siteTitle,
+      description: siteDescription,
+      images: [ogImage],
+      creator: twitterHandle,
+    },
+    robots: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
     },
-  },
-};
+  };
+}
 
 export default function RootLayout({
   children,

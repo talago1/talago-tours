@@ -22,12 +22,12 @@ export const uk: typeof en = {
     activeExperiences: 'активних турів доступно',
     guestProofButton: 'Відгуки гостей',
     metrics: {
-      ratingValue: '4.9/5',
-      ratingLabel: 'Оцінка гостей',
-      bookingsValue: '300+',
-      bookingsLabel: 'Підтверджених бронювань',
+      ratingValue: 'З 2016',
+      ratingLabel: 'Досвід на Червоному морі',
+      bookingsValue: '100%',
+      bookingsLabel: 'Гарантія кращої ціни',
       conciergeValue: '24/7',
-      conciergeLabel: 'Особистий консьєрж',
+      conciergeLabel: 'Прямий WhatsApp-консьєрж'
     },
     concierge: {
       pick: 'Вибір консьєржа',
@@ -84,7 +84,7 @@ export const uk: typeof en = {
     pageTitle: 'Каталог вражень',
     pageDesc: 'Обирайте серед ексклюзивних морських чартерів і пустельних маршрутів, створених за найвищими стандартами гостинності.',
     browseAll: 'Переглянути всі враження',
-    verifiedGuests: '300+ перевірених гостей',
+    verifiedGuests: 'Перевірений місцевий оператор',
     all: 'Усі',
     sea: 'Морські',
     safari: 'Сафарі',
@@ -126,7 +126,7 @@ export const uk: typeof en = {
   },
   testimonials: {
     section: 'Перевірені відгуки',
-    heading: 'Чудово — 4.9 з 5 на основі 300+ бронювань',
+    heading: 'Перевірені відгуки гостей',
     verified: 'Підтверджене бронювання',
   },
   footer: {

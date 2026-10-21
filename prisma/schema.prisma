@@ -21,6 +21,18 @@ enum ReviewStatus {
   REJECTED
 }
 
+enum ReviewSource {
+  TALAGO
+  GETYOURGUIDE
+  VIATOR
+  TRIPADVISOR
+  SPUTNIK8
+  TRIPSTER
+  BOOKING_COM
+  GOOGLE
+  OTHER
+}
+
 enum BookingChannel {
   VIATOR
   GETYOURGUIDE
@@ -347,9 +359,29 @@ model Review {
   id           String       @id @default(cuid())
   tourId       String
   bookingId    String?      @unique
-  customerName String
+
+  // Display
+  customerName String          // legacy — prefer reviewerName below
+  reviewerName String?         // first name only for public display
+  country      String?         // ISO-3166-1 alpha-2 (e.g. "RU", "DE", "GB")
+
   rating       Int
-  comment      String?
+  comment      String?         // legacy field — alias of translatedText
+
+  // Source & provenance
+  source         ReviewSource  @default(TALAGO)
+  sourceUrl      String?       // direct link to the original review page
+  reviewDate     DateTime?     // original publication date (not createdAt)
+
+  // Multilingual content — never edit the original
+  originalText     String?  @db.Text  // raw review in original language
+  originalLanguage String?            // BCP-47 (e.g. "ru", "de", "en")
+  translatedText   String?  @db.Text  // machine translation (labeled on frontend)
+
+  // Visibility control
+  isSeeded   Boolean      @default(false) // true = seeded / test / placeholder
+  isVisible  Boolean      @default(true)  // only visible=true, seeded=false count
+
   status       ReviewStatus @default(PENDING)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -359,6 +391,8 @@ model Review {
 
   @@index([tourId])
   @@index([status])
+  @@index([tourId, isVisible, isSeeded]) // fast real-review queries
+  @@index([source])
   @@map("reviews")
 }
 
@@ -600,3 +634,15 @@ model AbandonedCheckout {
   @@map("abandoned_checkouts")
 }
 
+model TourRedirect {
+  id         String   @id @default(cuid())
+  sourceSlug String   @unique
+  targetSlug String
+  statusCode Int      @default(301)
+  reason     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([sourceSlug])
+  @@map("tour_redirects")
+}
