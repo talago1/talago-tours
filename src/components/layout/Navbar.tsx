@@ -9,6 +9,7 @@ import { supabaseClient } from '@/lib/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import NavLinks from './NavLinks';
 import NavActions from './NavActions';
+import GlobalSearch from './GlobalSearch';
 
 const LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
   { code: 'en', label: 'EN', native: 'English' },
@@ -56,7 +57,7 @@ export default function Navbar() {
   const userInitial = userEmail[0]?.toUpperCase() ?? '?';
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.06] backdrop-blur-xl bg-[#070F1E]/85 shadow-lg shadow-black/10">
+    <header className="sticky top-0 z-[100] border-b border-white/[0.06] backdrop-blur-xl bg-[#070F1E]/85 shadow-lg shadow-black/10">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 lg:px-10">
         {/* Logo */}
         <Link href="/" className="group flex items-center gap-2.5 transition-all hover:opacity-90">
@@ -73,6 +74,7 @@ export default function Navbar() {
             {(dict?.navbar as any)?.home || 'Home'}
           </Link>
           <NavLinks />
+          <GlobalSearch />
           <NavActions />
         </nav>
 

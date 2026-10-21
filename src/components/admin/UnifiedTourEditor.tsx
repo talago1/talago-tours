@@ -55,6 +55,7 @@ import {
   createDefaultLocalizedContent,
   calculateTourCompleteness
 } from '@/types/tourEditor';
+import { createEmptyMilestone } from '@/types/itinerary';
 import { TOUR_TEMPLATES, applyTemplateToTourData } from '@/lib/tourTemplates';
 
 // Sub-builders
@@ -115,6 +116,10 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importPreview, setImportPreview] = useState<Partial<TourEditorData> | null>(null);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
   const [translating, setTranslating] = useState(false);
   const [mediaPickerTarget, setMediaPickerTarget] = useState<'cover' | 'gallery' | null>(null);
 
@@ -569,6 +574,16 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               <Languages className="w-4 h-4 text-emerald-400" />
             )}
             <span>{translating ? 'Translating...' : 'AI Translate All'}</span>
+          </button>
+
+          {/* Import from Text */}
+          <button
+            type="button"
+            onClick={() => { setShowImportModal(true); setImportPreview(null); setImportErrors([]); setImportText(''); }}
+            className="flex items-center gap-1.5 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3.5 py-2 text-xs font-bold text-orange-300 hover:bg-orange-500/20 transition"
+          >
+            <FileText className="w-4 h-4 text-orange-400" />
+            Import
           </button>
 
           {/* Templates Library Button */}
@@ -2630,6 +2645,224 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Import from Text Modal ── */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowImportModal(false)} />
+          <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-orange-500/20 bg-[#0B1528] p-6 shadow-2xl">
+            {/* Header */}
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-black text-white">Import Trip from Text</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Paste structured trip text to auto-fill all editor fields. Review before saving.</p>
+              </div>
+              <button type="button" onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-white p-1 text-sm font-bold">✕</button>
+            </div>
+
+            {/* Template Example */}
+            {!importPreview && (
+              <details className="mb-4 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
+                <summary className="cursor-pointer px-4 py-3 text-xs font-bold text-[#00E5FF] hover:text-white transition">📋 See example template format</summary>
+                <pre className="px-4 pb-4 text-[10px] text-slate-400 leading-relaxed whitespace-pre-wrap font-mono select-all">{`TITLE: Red Sea Snorkeling & Boat Adventure
+DESTINATION: Hurghada
+CATEGORY: SNORKELING
+DURATION: 6
+PRICE: 45
+DESCRIPTION:
+Discover the vibrant coral reefs of the Red Sea on this full-day snorkeling and boat trip departing from Hurghada Marina. Suitable for all levels.
+
+HIGHLIGHTS:
+- Swim with colorful reef fish at two prime snorkel spots
+- Relax on a traditional wooden felucca boat
+- Light lunch and refreshments included on board
+- Professional bilingual guide (EN/DE)
+
+INCLUSIONS:
+- Hotel pickup and drop-off from Hurghada
+- Snorkeling equipment (mask, fins, vest)
+- Light lunch and soft drinks
+- Entry fees and marine park permit
+
+EXCLUSIONS:
+- Alcoholic beverages
+- Personal underwater photography
+- Tips (optional)
+
+ITINERARY:
+08:00 - Hotel pickup across Hurghada
+09:00 - Board boat at Hurghada Marina, safety briefing
+10:00 - First snorkeling spot: Giftun Island reef
+12:30 - Lunch on board
+13:30 - Second snorkeling spot: Orange Bay lagoon
+15:00 - Return to marina
+15:30 - Hotel drop-off
+
+CANCELLATION:
+Full refund for cancellations made 48 hours or more before the tour start time.`}</pre>
+              </details>
+            )}
+
+            {/* Textarea */}
+            {!importPreview && (
+              <>
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  rows={14}
+                  placeholder="Paste your trip text here using the format above..."
+                  className="w-full rounded-2xl border border-white/10 bg-[#060D1A] p-4 text-sm text-white placeholder-slate-500 focus:border-orange-500/40 focus:outline-none font-mono resize-y"
+                />
+                {importErrors.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/5 p-3 space-y-1">
+                    {importErrors.map((e, i) => <p key={i} className="text-xs text-red-300">⚠ {e}</p>)}
+                  </div>
+                )}
+                <div className="mt-4 flex items-center justify-end gap-3">
+                  <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-300 cursor-pointer hover:bg-white/10 transition">
+                    <FileText className="h-3.5 w-3.5" />
+                    Upload .txt File
+                    <input type="file" accept=".txt,.md" className="hidden" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => setImportText(ev.target?.result as string || '');
+                        reader.readAsText(file);
+                      }
+                    }} />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={!importText.trim()}
+                    onClick={() => {
+                      const text = importText;
+                      const errors: string[] = [];
+                      const get = (key: string) => {
+                        const m = text.match(new RegExp(`^${key}:\\s*(.+)$`, 'im'));
+                        return m ? m[1].trim() : '';
+                      };
+                      const getBlock = (key: string) => {
+                        const m = text.match(new RegExp(`^${key}:\\s*\\n([\\s\\S]*?)(?=\\n[A-Z]+:|$)`, 'im'));
+                        return m ? m[1].trim() : '';
+                      };
+                      const getBullets = (key: string) =>
+                        getBlock(key).split('\n').map(l => l.replace(/^[-*•]\s*/, '').trim()).filter(Boolean);
+                      const title = get('TITLE');
+                      const price = parseFloat(get('PRICE') || '0');
+                      const duration = parseFloat(get('DURATION') || '0');
+                      const category = get('CATEGORY').toUpperCase();
+                      const description = getBlock('DESCRIPTION');
+                      const highlights = getBullets('HIGHLIGHTS');
+                      const inclusions = getBullets('INCLUSIONS');
+                      const exclusions = getBullets('EXCLUSIONS');
+                      const cancellation = getBlock('CANCELLATION');
+                      // Parse itinerary lines like "HH:MM - Description"
+                      const itBlock = getBlock('ITINERARY');
+                      const itLines = itBlock.split('\n').map(l => l.trim()).filter(Boolean);
+                      const itinerary: ItineraryMilestone[] = itLines.map((line, idx) => {
+                        const m = line.match(/^(\d{1,2}:\d{2})\s*[-–]\s*(.+)/);
+                        const milestone = createEmptyMilestone();
+                        return {
+                          ...milestone,
+                          id: `imp-${idx}-${Date.now()}`,
+                          timeTag: m ? m[1] : `${idx + 1}`,
+                          title: {
+                            ...milestone.title,
+                            en: m ? m[2].trim() : line,
+                          },
+                        };
+                      });
+                      if (!title) errors.push('TITLE is required');
+                      if (!price) errors.push('PRICE is required (a number, e.g. 45)');
+                      if (!duration) errors.push('DURATION is required (hours, e.g. 6)');
+                      setImportErrors(errors);
+                      if (errors.length === 0) {
+                        const preview: Partial<TourEditorData> = {
+                          translations: {
+                            en: { ...createDefaultLocalizedContent(), title, description, highlights, inclusions, exclusions, cancellationPolicy: cancellation },
+                            de: createDefaultLocalizedContent(),
+                            ru: createDefaultLocalizedContent(),
+                            fr: createDefaultLocalizedContent(),
+                            it: createDefaultLocalizedContent(),
+                            pl: createDefaultLocalizedContent(),
+                            es: createDefaultLocalizedContent(),
+                            uk: createDefaultLocalizedContent(),
+                          } as any,
+                          adultPrice: price,
+                          basePriceUSD: price,
+                          durationHours: duration,
+                          category: category as any,
+                          highlights,
+                          inclusions,
+                          exclusions,
+                          itinerary,
+                        };
+                        setImportPreview(preview);
+                      }
+                    }}
+                    className="flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-xs font-black text-white hover:bg-orange-600 disabled:opacity-40 transition"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    Parse &amp; Preview
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Preview */}
+            {importPreview && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    <span className="text-xs font-bold text-emerald-300">Parsed successfully — review before applying</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><span className="text-slate-500">Title:</span> <span className="text-white font-medium">{(importPreview.translations as any)?.en?.title}</span></div>
+                    <div><span className="text-slate-500">Price:</span> <span className="text-white font-medium">${importPreview.adultPrice}</span></div>
+                    <div><span className="text-slate-500">Duration:</span> <span className="text-white font-medium">{importPreview.durationHours}h</span></div>
+                    <div><span className="text-slate-500">Category:</span> <span className="text-white font-medium">{importPreview.category}</span></div>
+                    <div><span className="text-slate-500">Highlights:</span> <span className="text-white font-medium">{importPreview.highlights?.length || 0} items</span></div>
+                    <div><span className="text-slate-500">Itinerary:</span> <span className="text-white font-medium">{importPreview.itinerary?.length || 0} stops</span></div>
+                  </div>
+                  {(importPreview.translations as any)?.en?.description && (
+                    <p className="text-xs text-slate-300 leading-relaxed border-t border-white/5 pt-2">{(importPreview.translations as any).en.description.substring(0, 200)}…</p>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <button type="button" onClick={() => setImportPreview(null)} className="text-xs font-bold text-slate-400 hover:text-white transition">
+                    ← Edit text
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setData((prev) => ({
+                        ...prev,
+                        ...importPreview,
+                        translations: {
+                          ...prev.translations,
+                          ...(importPreview.translations || {}),
+                        },
+                        highlights: importPreview.highlights || prev.highlights,
+                        inclusions: importPreview.inclusions || prev.inclusions,
+                        exclusions: importPreview.exclusions || prev.exclusions,
+                        itinerary: importPreview.itinerary || prev.itinerary,
+                      }));
+                      setIsDirty(true);
+                      setShowImportModal(false);
+                      setSaveSuccessMessage('Trip imported successfully! Review all fields, then save.');
+                    }}
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-400 px-5 py-2.5 text-xs font-black text-white hover:opacity-90 transition"
+                  >
+                    <Rocket className="h-3.5 w-3.5" />
+                    Apply to Editor
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

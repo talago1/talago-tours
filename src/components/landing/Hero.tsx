@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, MouseEvent } from 'react';
+import { useState, useRef, useEffect, useMemo, MouseEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -134,8 +134,8 @@ export default function Hero({
   const [heroError, setHeroError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [selectedDestination, setSelectedDestination] = useState('ALL');
-  const [selectedType, setSelectedType] = useState('ALL');
+  const [remoteTours, setRemoteTours] = useState<typeof popularTours>([]);
+  const [isSearchingTours, setIsSearchingTours] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Close search autosuggest on outside click
@@ -210,8 +210,6 @@ export default function Hero({
     setIsSearchFocused(false);
     const params = new URLSearchParams();
     if (searchQuery.trim()) params.set('search', searchQuery.trim());
-    if (selectedDestination && selectedDestination !== 'ALL') params.set('destination', selectedDestination);
-    if (selectedType && selectedType !== 'ALL') params.set('type', selectedType);
     const queryString = params.toString();
     router.push(`/tours${queryString ? `?${queryString}` : ''}`);
   };
@@ -226,6 +224,38 @@ export default function Hero({
 
   const q = searchQuery.toLowerCase().trim();
 
+  // Search across full active catalog in addition to initial local popular tours
+  useEffect(() => {
+    if (!q || q.length < 2) {
+      setRemoteTours([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearchingTours(true);
+        const res = await fetch(`/api/public/tours?search=${encodeURIComponent(q)}&limit=6`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = (data.tours || data.items || []).map((t: any) => {
+          const trans = t.translations as Record<string, { title?: string }> | null;
+          return {
+            title: t.title || trans?.en?.title || t.slug.replace(/-/g, ' '),
+            slug: t.slug,
+            category: t.category,
+            destinationName: t.destination?.name,
+            price: t.adultPrice || t.basePriceUSD || t.basePrice || t.priceAdult,
+          };
+        });
+        setRemoteTours(list);
+      } catch {
+        // Fallback to local
+      } finally {
+        setIsSearchingTours(false);
+      }
+    }, 220);
+    return () => clearTimeout(timer);
+  }, [q]);
+
   const matchingDestinations = searchDestinations
     .filter(
       (d) =>
@@ -239,14 +269,17 @@ export default function Hero({
     (c) => !q || c.label.toLowerCase().includes(q) || c.key.toLowerCase().includes(q)
   ).slice(0, 3);
 
-  const matchingTours = popularTours
-    .filter(
-      (t) =>
-        !q ||
-        t.title.toLowerCase().includes(q) ||
-        (t.destinationName && t.destinationName.toLowerCase().includes(q))
-    )
-    .slice(0, 4);
+  const matchingTours = useMemo(() => {
+    if (remoteTours.length > 0) return remoteTours.slice(0, 6);
+    return popularTours
+      .filter(
+        (t) =>
+          !q ||
+          t.title.toLowerCase().includes(q) ||
+          (t.destinationName && t.destinationName.toLowerCase().includes(q))
+      )
+      .slice(0, 6);
+  }, [remoteTours, popularTours, q]);
 
   const hasSuggestions =
     matchingDestinations.length > 0 || matchingCategories.length > 0 || matchingTours.length > 0;
@@ -581,14 +614,14 @@ export default function Hero({
         </div>
 
         {/* Global Floating Search Console */}
-        <div ref={searchContainerRef} className="relative mt-10 sm:mt-12">
+        <div ref={searchContainerRef} className="relative z-50 mt-10 sm:mt-12">
           <form
             onSubmit={handleSearchSubmit}
-            className="relative z-20 grid gap-2.5 rounded-[2rem] border border-white/15 bg-[#0B1528]/95 p-3 shadow-2xl shadow-black/80 backdrop-blur-2xl md:grid-cols-[1.6fr_1fr_1fr_auto] md:items-center md:gap-3 md:p-3.5"
+            className="relative z-20 flex flex-col gap-2 rounded-2xl sm:rounded-full border border-white/15 bg-[#0B1528]/95 p-2 shadow-2xl shadow-black/80 backdrop-blur-2xl transition-all focus-within:border-[#00E5FF]/60 focus-within:ring-2 focus-within:ring-[#00E5FF]/20 sm:flex-row sm:items-center sm:gap-3 sm:p-2.5"
           >
-            {/* 1. Free-Text Smart Search Input */}
-            <div className="relative flex items-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 transition-all duration-300 focus-within:border-[#00E5FF]/60 focus-within:bg-[#00E5FF]/5 hover:border-white/20">
-              <Search className="mr-3 h-4 w-4 shrink-0 text-[#00E5FF]" />
+            {/* Single Clean Smart Search Input */}
+            <div className="flex flex-1 items-center px-3 py-1.5 sm:px-4">
+              <Search className={`mr-3 h-5 w-5 shrink-0 transition-colors ${isSearchingTours ? 'text-[#00E5FF] animate-pulse' : 'text-[#00E5FF]'}`} />
               <input
                 type="text"
                 value={searchQuery}
@@ -597,79 +630,28 @@ export default function Hero({
                   setIsSearchFocused(true);
                 }}
                 onFocus={() => setIsSearchFocused(true)}
-                placeholder={(dict.hero.search as any)?.placeholder || 'Where to? Search destinations, tours, or activities...'}
-                className="w-full bg-transparent text-sm font-semibold text-white placeholder:text-slate-400 outline-none"
+                placeholder={(dict.hero.search as any)?.placeholder || 'Search destinations, tours, or activities...'}
+                className="w-full bg-transparent text-sm sm:text-base font-semibold text-white placeholder:text-slate-400 outline-none"
               />
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => {
+                    setSearchQuery('');
+                    setRemoteTours([]);
+                  }}
                   className="rounded-full p-1 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
                   aria-label="Clear search"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-4 w-4" />
                 </button>
               )}
             </div>
 
-            {/* 2. Destination Selector */}
-            <label className="group block rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 transition-all duration-300 hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/5">
-              <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                <MapPin className="h-3 w-3 text-[#00E5FF]" />
-                {dict.hero.search.destination}
-              </span>
-              <select
-                value={selectedDestination}
-                onChange={(e) => setSelectedDestination(e.target.value)}
-                className="mt-0.5 w-full cursor-pointer bg-transparent text-xs font-bold text-white outline-none"
-              >
-                <option value="ALL" className="bg-[#0B1528] text-white">
-                  {dict.hero.search.allDestinations}
-                </option>
-                {searchDestinations.map((dest) => (
-                  <option key={dest.slug} value={dest.slug} className="bg-[#0B1528] text-white">
-                    {dest.description || dest.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {/* 3. Adventure Category */}
-            <label className="group block rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 transition-all duration-300 hover:border-[#FFD700]/40 hover:bg-[#FFD700]/5">
-              <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                <Compass className="h-3 w-3 text-[#FFD700]" />
-                {dict.hero.search.adventureType}
-              </span>
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="mt-0.5 w-full cursor-pointer bg-transparent text-xs font-bold text-white outline-none"
-              >
-                <option value="ALL" className="bg-[#0B1528] text-white">
-                  {dict.hero.search.allExperiences}
-                </option>
-                <option value="SNORKELING" className="bg-[#0B1528] text-white">
-                  Snorkeling & Islands
-                </option>
-                <option value="BOAT_TRIP" className="bg-[#0B1528] text-white">
-                  {dict.hero.search.luxuryCruise || 'Yachts & Cruises'}
-                </option>
-                <option value="SAFARI" className="bg-[#0B1528] text-white">
-                  {dict.hero.search.quadSafari || 'Desert Safari'}
-                </option>
-                <option value="CULTURAL" className="bg-[#0B1528] text-white">
-                  {dict.hero.search.cultural || 'Culture & Temples'}
-                </option>
-                <option value="DIVING" className="bg-[#0B1528] text-white">
-                  {dict.hero.search.deepSea || 'Scuba Diving'}
-                </option>
-              </select>
-            </label>
-
-            {/* Search Submit Button */}
+            {/* Clean Submit Button */}
             <button
               type="submit"
-              className="group inline-flex h-full min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-6 py-3 text-xs font-black uppercase tracking-[0.18em] text-[#070F1E] shadow-xl shadow-[#00E5FF]/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[#00E5FF]/40"
+              className="group inline-flex shrink-0 items-center justify-center gap-2 rounded-xl sm:rounded-full bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-6 sm:px-8 py-3 text-xs sm:text-sm font-black uppercase tracking-[0.16em] text-[#070F1E] shadow-xl shadow-[#00E5FF]/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[#00E5FF]/40"
             >
               <span>{dict.hero.search.searchButton}</span>
               <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
@@ -678,7 +660,7 @@ export default function Hero({
 
           {/* Smart Autocomplete Dropdown */}
           {isSearchFocused && hasSuggestions && (
-            <div className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-white/15 bg-[#0B1528]/98 p-4 shadow-2xl shadow-black/90 backdrop-blur-2xl">
+            <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto rounded-2xl border border-white/15 bg-[#0B1528]/98 p-4 shadow-2xl shadow-black/95 backdrop-blur-2xl">
               <div className="grid gap-4 md:grid-cols-3">
                 {/* 1. Destinations */}
                 {matchingDestinations.length > 0 && (
@@ -693,7 +675,6 @@ export default function Hero({
                           <button
                             type="button"
                             onClick={() => {
-                              setSelectedDestination(dest.slug);
                               setIsSearchFocused(false);
                               router.push(`/tours?destination=${dest.slug}`);
                             }}
@@ -721,7 +702,6 @@ export default function Hero({
                           <button
                             type="button"
                             onClick={() => {
-                              setSelectedType(cat.key);
                               setIsSearchFocused(false);
                               router.push(`/tours?type=${cat.key}`);
                             }}
