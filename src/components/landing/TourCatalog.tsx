@@ -14,9 +14,10 @@ import { categoryMatchesGroup } from '@/utils/tourCategory';
 
 interface TourCatalogProps {
   tours: PublicTourCardData[];
+  totalActiveCount?: number;
 }
 
-export default function TourCatalog({ tours }: TourCatalogProps) {
+export default function TourCatalog({ tours, totalActiveCount }: TourCatalogProps) {
   const { dict } = useLanguage();
 
   const [activeDestination, setActiveDestination] = useState<string>('ALL');
@@ -231,7 +232,10 @@ export default function TourCatalog({ tours }: TourCatalogProps) {
             </button>
           ))}
           <span className="ml-auto text-xs font-medium text-slate-500">
-            {dict.catalog.xAvailable.replace('{total}', String(filteredTours.length))}
+            {dict.catalog.xAvailable.replace(
+              '{total}',
+              String(activeDestination === 'ALL' && activeCategory === 'ALL' && totalActiveCount ? totalActiveCount : filteredTours.length)
+            )}
           </span>
         </div>
 

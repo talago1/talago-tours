@@ -22,12 +22,12 @@ export const de: typeof en = {
     activeExperiences: 'aktive Erlebnisse verfügbar',
     guestProofButton: 'Bewertungen ansehen',
     metrics: {
-      ratingValue: '4,9/5',
-      ratingLabel: 'Luxus-Gästebewertung',
-      bookingsValue: '300+',
-      bookingsLabel: 'Verifizierte Buchungen',
+      ratingValue: 'Seit 2016',
+      ratingLabel: 'Lokaler Rotes-Meer-Experte',
+      bookingsValue: '100%',
+      bookingsLabel: 'Direkte Veranstalterpreise',
       conciergeValue: '24/7',
-      conciergeLabel: 'Privater Concierge'
+      conciergeLabel: 'Privater WhatsApp-Concierge'
     },
     concierge: {
       pick: 'Concierge-Tipp',
@@ -83,8 +83,8 @@ export const de: typeof en = {
     pageBadge: 'Signature Journeys',
     pageTitle: 'Erlebnisbibliothek',
     pageDesc: 'Stöbern Sie durch unsere individuell gestalteten Seecharter und Quad-Strecken durch die Wüste, ausgelegt auf Premium-Gastfreundschaft.',
-browseAll: 'Alle Erlebnisse',
-    verifiedGuests: '300+ verifizierte Gäste',
+    browseAll: 'Alle Erlebnisse',
+    verifiedGuests: 'Verifizierter lokaler Veranstalter',
     all: 'Alle',
     sea: 'Meer',
     safari: 'Safari',
@@ -126,7 +126,7 @@ browseAll: 'Alle Erlebnisse',
   },
   testimonials: {
     section: 'Verifizierte Bewertungen',
-    heading: 'Hervorragend - 4,9 von 5 basierend auf über 300 Buchungen',
+    heading: 'Verifizierte Gästebewertungen',
     verified: 'Verifizierte Buchung'
   },
   footer: {

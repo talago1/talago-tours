@@ -22,12 +22,12 @@ export const pl: typeof en = {
     activeExperiences: 'aktywnych doświadczeń w ofercie',
     guestProofButton: 'Opinie gości',
     metrics: {
-      ratingValue: '4.9/5',
-      ratingLabel: 'Ocena luksusu gości',
-      bookingsValue: '300+',
-      bookingsLabel: 'Potwierdzone rezerwacje',
+      ratingValue: 'Od 2016',
+      ratingLabel: 'Lokalny operator Morza Czerwonego',
+      bookingsValue: '100%',
+      bookingsLabel: 'Gwarancja najlepszej ceny',
       conciergeValue: '24/7',
-      conciergeLabel: 'Prywatny konsjerż'
+      conciergeLabel: 'Osobisty konsjerż WhatsApp'
     },
     concierge: {
       pick: 'Wybór konsjerża',
@@ -83,8 +83,8 @@ export const pl: typeof en = {
     pageBadge: 'Podróże Sygnowane',
     pageTitle: 'Biblioteka Doświadczeń',
     pageDesc: 'Przeglądaj nasze czartery morskie i trasy quadów po pustyni, zaprojektowane z myślą o gościach premium.',
-browseAll: 'Zobacz wszystkie doświadczenia',
-    verifiedGuests: '300+ zweryfikowanych gości',
+    browseAll: 'Zobacz wszystkie doświadczenia',
+    verifiedGuests: 'Zweryfikowany lokalny operator',
     all: 'Wszystkie',
     sea: 'Morze',
     safari: 'Safari',
@@ -126,7 +126,7 @@ browseAll: 'Zobacz wszystkie doświadczenia',
   },
   testimonials: {
     section: 'Zweryfikowane opinie',
-    heading: 'Doskonale - 4.9 na 5 na podstawie ponad 300 rezerwacji',
+    heading: 'Zweryfikowane opinie gości',
     verified: 'Zweryfikowana rezerwacja'
   },
   footer: {

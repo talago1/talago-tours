@@ -1,223 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
-import { validateCheckoutForm } from '@/utils/bookingValidation';
-import { generateBookingReference } from '@/utils/bookingReference';
-import { generateAccessToken } from '@/utils/bookingToken';
-import { calculateTotalPrice, calculateTieredPrice } from '@/utils/priceCalculator';
-import { enforceCapacity, CapacityExceededError } from '@/utils/capacityEngine';
-import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
-import { sanitizePlain, sanitizeEmail, sanitizePhone, sanitizeText } from '@/utils/sanitize';
+import { POST as initializePost } from '@/app/api/checkout/initialize/route';
 
-const LIMIT = 20;
-const WINDOW_MS = 10 * 60 * 1000;
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  const limit = rateLimit(clientKey(request, 'bookings-checkout'), LIMIT, WINDOW_MS);
-  if (!limit.allowed) {
-    return tooManyRequests(limit.retryAfterSeconds);
-  }
-
   try {
     const body = await request.json();
-    const tourId = body.tourId;
-    const zoneId = body.zoneId;
-    const hotelName = sanitizePlain(body.hotelName, 150);
-    const travelDate = body.travelDate;
-    const guestCount = body.guestCount;
-    const adultsCount = body.adultsCount;
-    const childrenCount = body.childrenCount;
-    const infantsCount = body.infantsCount;
-    const customerName = sanitizePlain(body.customerName, 100);
-    const customerEmail = sanitizeEmail(body.customerEmail);
-    const customerPhone = sanitizePhone(body.customerPhone);
-    const roomNumber = sanitizePlain(body.roomNumber, 50);
-    const pickupDirectives = sanitizeText(body.pickupDirectives, 500);
-    const flightNumbers = sanitizePlain(body.flightNumbers, 100);
-    const bedConfiguration = sanitizePlain(body.bedConfiguration, 100);
-    const specialRequirements = sanitizeText(body.specialRequirements, 1000);
-    const selectedAddons = body.selectedAddons;
-    const bookingAnswers = body.bookingAnswers;
 
-    const tour = await prisma.tour.findUnique({
-      where: { id: tourId },
-    });
-
-    if (!tour) {
-      return NextResponse.json(
-        { error: 'Tour not found', field: 'tourId' },
-        { status: 400 }
-      );
-    }
-
-    const zone = await prisma.zone.findUnique({
-      where: { id: zoneId },
-    });
-
-    if (!zone) {
-      return NextResponse.json(
-        { error: 'Pickup zone not found', field: 'zoneId' },
-        { status: 400 }
-      );
-    }
-
-    // Resolve effective guest count for legacy validation
-    const effectiveGuestCount =
-      adultsCount != null
-        ? (adultsCount ?? 0) + (childrenCount ?? 0) + (infantsCount ?? 0)
-        : guestCount;
-
-    const validationErrors = validateCheckoutForm({
-      tourId,
-      zoneId,
-      hotelName,
-      travelDate,
-      guestCount: effectiveGuestCount,
-      customerName,
-      customerEmail,
-      customerPhone,
-      // Remove maxCapacity cap — allow any number of guests
-    });
-
-    if (Object.keys(validationErrors).length > 0) {
-      const firstField = Object.keys(validationErrors)[0];
-      return NextResponse.json(
-        { error: validationErrors[firstField], field: firstField },
-        { status: 400 }
-      );
-    }
-
-    // Calculate price: use tiered if tier counts provided, else legacy
-    let totalPriceUSD: number;
-    if (adultsCount != null) {
-      totalPriceUSD = calculateTieredPrice({
-        adultPrice: tour.priceAdult ?? tour.adultPrice,
-        childPrice: tour.priceChild ?? tour.childPrice,
-        infantPrice: tour.infantPrice,
-        adultsCount: adultsCount ?? 0,
-        childrenCount: childrenCount ?? 0,
-        infantsCount: infantsCount ?? 0,
-        zoneTransferFee: zone.transferFee,
+    // If already in initialize format, pass through directly
+    if (body.formData) {
+      const initReq = new NextRequest(new URL('/api/checkout/initialize', request.url), {
+        method: 'POST',
+        headers: request.headers,
+        body: JSON.stringify(body),
       });
-    } else {
-      totalPriceUSD = calculateTotalPrice({
-        perPersonPrice: tour.adultPrice,
-        guestCount,
-        zoneTransferFee: zone.transferFee,
-      });
+      return initializePost(initReq);
     }
 
-    const bookingReference = generateBookingReference();
-    const normalizedEmail = customerEmail.trim().toLowerCase();
+    // Convert legacy flat body into authoritative initialize payload
+    const transformed = {
+      tourId: body.tourId,
+      departureDate: body.travelDate || body.departureDate,
+      adultsCount: body.adultsCount != null ? Number(body.adultsCount) : (body.guestCount || 1),
+      childrenCount: body.childrenCount != null ? Number(body.childrenCount) : 0,
+      infantsCount: body.infantsCount != null ? Number(body.infantsCount) : 0,
+      guestCount: body.guestCount || ((body.adultsCount || 1) + (body.childrenCount || 0) + (body.infantsCount || 0)),
+      selectedAddons: body.selectedAddons,
+      bookingAnswers: body.bookingAnswers,
+      promoCode: body.promoCode,
+      formData: {
+        leadName: body.customerName || body.leadName || '',
+        email: body.customerEmail || body.email || '',
+        phone: body.customerPhone || body.phone || '',
+        hotelName: body.hotelName || '',
+        pickupType: body.pickupType,
+        pickupLocationName: body.pickupLocationName || body.hotelName,
+        pickupAddress: body.pickupAddress,
+        roomNumber: body.roomNumber,
+        pickupDirectives: body.pickupDirectives,
+        flightNumbers: body.flightNumbers,
+        bedConfiguration: body.bedConfiguration,
+        specialRequirements: body.specialRequirements,
+        paymentScheme: body.paymentScheme || 'pay_on_arrival',
+        currency: body.currency || 'USD',
+        whatsappOptIn: body.whatsappOptIn !== undefined ? Boolean(body.whatsappOptIn) : true,
+      },
+    };
 
-    const result = await prisma.$transaction(async (tx) => {
-      // --- Atomic capacity check inside transaction ---
-      await enforceCapacity(
-        {
-          tourId,
-          date: new Date(travelDate + 'T00:00:00'),
-          requestedGuests: effectiveGuestCount,
-        },
-        tx,
-      );
-
-      const existingProfile = await tx.customerProfile.findUnique({
-        where: { email: normalizedEmail },
-      });
-
-      const now = new Date();
-      const profile = existingProfile
-        ? await tx.customerProfile.update({
-            where: { id: existingProfile.id },
-            data: {
-              name: customerName.trim(),
-              phone: customerPhone.trim(),
-              lastMagicLinkAt: now,
-            },
-          })
-        : await tx.customerProfile.create({
-            data: {
-              email: normalizedEmail,
-              name: customerName.trim(),
-              phone: customerPhone.trim(),
-              isShadow: true,
-              invitedAt: now,
-              lastMagicLinkAt: now,
-            },
-          });
-
-      const booking = await tx.booking.create({
-        data: {
-          bookingReference,
-          accessToken: generateAccessToken(),
-          tourId,
-          zoneId,
-          hotelName: hotelName?.trim() ?? '',
-          travelDate: new Date(travelDate + 'T00:00:00'),
-          guestCount: effectiveGuestCount,
-          adultsCount: adultsCount ?? 0,
-          childrenCount: childrenCount ?? 0,
-          infantsCount: infantsCount ?? 0,
-          totalPriceUSD,
-          customerName: customerName.trim(),
-          customerEmail: customerEmail.trim(),
-          customerPhone: customerPhone.trim(),
-          roomNumber: roomNumber?.trim() || null,
-          pickupDirectives: pickupDirectives?.trim() || null,
-          flightNumbers: flightNumbers?.trim() || null,
-          bedConfiguration: bedConfiguration?.trim() || null,
-          specialRequirements: specialRequirements?.trim() || null,
-          selectedAddons: selectedAddons || undefined,
-          bookingAnswers: bookingAnswers || undefined,
-          language: 'en',
-          status: 'PENDING',
-          customerProfileId: profile.id,
-        },
-      });
-
-      return { booking, shouldInvite: !existingProfile || existingProfile.isShadow };
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    const initReq = new NextRequest(new URL('/api/checkout/initialize', request.url), {
+      method: 'POST',
+      headers: request.headers,
+      body: JSON.stringify(transformed),
     });
-
-    // Auto-invite new / shadow guest to Supabase
-    if (result.shouldInvite) {
-      try {
-        const { supabaseAdmin } = await import('@/lib/supabase/server');
-        const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || request.nextUrl.origin;
-        await supabaseAdmin.auth.admin.inviteUserByEmail(normalizedEmail, {
-          redirectTo: `${siteUrl}/my-bookings`,
-        });
-      } catch (inviteErr) {
-        console.warn('Background auto-invite skipped or failed:', inviteErr);
-      }
-    }
-
-    return NextResponse.json(
-      { bookingReference: result.booking.bookingReference, accessToken: result.booking.accessToken },
-      { status: 200, headers: { 'cache-control': 'no-store, private' } }
-    );
-  } catch (error) {
-    if (error instanceof CapacityExceededError) {
-      return NextResponse.json(
-        { error: error.message, field: 'guestCount', code: 'CAPACITY_EXCEEDED' },
-        { status: 409 }
-      );
-    }
-    if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2034') {
-      return NextResponse.json(
-        {
-          error: 'This experience is experiencing high booking demand. Please try confirming again.',
-          field: 'guestCount',
-          code: 'CONCURRENCY_CONFLICT',
-        },
-        { status: 409 }
-      );
-    }
-    console.error('Checkout error:', error);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred. Please try again.' },
-      { status: 500 }
-    );
+    return initializePost(initReq);
+  } catch (err: any) {
+    console.error('[POST /api/bookings/checkout] delegation error:', err);
+    return NextResponse.json({ error: err?.message || 'Checkout failed' }, { status: 500 });
   }
 }

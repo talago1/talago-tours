@@ -308,21 +308,26 @@ export async function POST(request: NextRequest) {
     });
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Fire-and-forget: PDF boarding pass + WhatsApp + Telegram notifications
-    // These run after the atomic transaction succeeds and NEVER block the
-    // response returned to the guest.
+    // Notification dispatch: PDF boarding pass + WhatsApp + Telegram
+    // Bounded with Promise.race so serverless execution context stays alive
+    // until completion, while never blocking guest response longer than 4000ms.
     // ─────────────────────────────────────────────────────────────────────────
-    void (async () => {
-      try {
+    try {
+      const dispatchTask = async () => {
         const { generateAndStoreBoardingPassPdf } = await import('@/utils/pdfGenerator');
         const pdfUrl = await generateAndStoreBoardingPassPdf(result.booking.id);
 
         const { dispatchBookingNotifications } = await import('@/utils/notificationDispatcher');
         await dispatchBookingNotifications(result.booking.id, pdfUrl ?? undefined);
-      } catch (bgErr) {
-        console.error('[initialize] Background notification dispatch failed:', bgErr);
-      }
-    })();
+      };
+
+      await Promise.race([
+        dispatchTask(),
+        new Promise((resolve) => setTimeout(resolve, 4000)),
+      ]);
+    } catch (bgErr) {
+      console.error('[initialize] Notification dispatch failed:', bgErr);
+    }
 
     const responsePayload: InitializeResponse = {
       bookingId: result.booking.id,

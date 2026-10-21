@@ -22,12 +22,12 @@ export const ru: typeof en = {
     activeExperiences: 'активных впечатлений доступно',
     guestProofButton: 'Отзывы гостей',
     metrics: {
-      ratingValue: '4.9/5',
-      ratingLabel: 'Оценка гостей',
-      bookingsValue: '300+',
-      bookingsLabel: 'Подтвержденных броней',
+      ratingValue: 'С 2016',
+      ratingLabel: 'Опыт на Красном море',
+      bookingsValue: '100%',
+      bookingsLabel: 'Гарантия лучшей цены',
       conciergeValue: '24/7',
-      conciergeLabel: 'Личный консьерж'
+      conciergeLabel: 'Прямой WhatsApp-консьерж'
     },
     concierge: {
       pick: 'Выбор консьержа',
@@ -83,8 +83,8 @@ export const ru: typeof en = {
     pageBadge: 'Фирменные путешествия',
     pageTitle: 'Библиотека впечатлений',
     pageDesc: 'Выбирайте среди наших морских чартеров и маршрутов на квадроциклах по пустыне — для премиального отдыха.',
-browseAll: 'Все впечатления',
-    verifiedGuests: '300+ проверенных гостей',
+    browseAll: 'Все впечатления',
+    verifiedGuests: 'Проверенный местный оператор',
     all: 'Все',
     sea: 'Море',
     safari: 'Сафари',
@@ -126,7 +126,7 @@ browseAll: 'Все впечатления',
   },
   testimonials: {
     section: 'Проверенные отзывы',
-    heading: 'Превосходно - 4.9 из 5 на основе более 300 бронирований',
+    heading: 'Проверенные отзывы гостей',
     verified: 'Подтвержденная бронь'
   },
   footer: {

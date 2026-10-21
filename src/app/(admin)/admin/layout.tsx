@@ -17,6 +17,7 @@ import {
   X,
   LogOut,
   Image as ImageIcon,
+  Users,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: '/admin/destinations', label: 'Destinations', icon: Compass },
   { href: '/admin/media', label: 'Media Library', icon: ImageIcon },
   { href: '/admin/bookings', label: 'Bookings', icon: CalendarCheck },
+  { href: '/admin/partners', label: 'Partners', icon: Users },
   { href: '/admin/blog', label: 'Blog & Articles', icon: BookOpen },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },
   { href: '/admin/notifications', label: 'Notifications', icon: Bell },

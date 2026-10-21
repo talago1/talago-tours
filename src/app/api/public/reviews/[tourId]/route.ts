@@ -21,7 +21,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
         select: { ratingAverage: true, ratingCount: true },
       }),
       prisma.review.findMany({
-        where: { tourId, status: 'APPROVED' },
+        where: { tourId, status: 'APPROVED', isVisible: true, isSeeded: false },
         orderBy: { createdAt: 'desc' },
         take: 50,
         select: {

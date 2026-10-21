@@ -10,7 +10,7 @@ import Hero from '@/components/landing/Hero';
 import BentoGridUSPs from '@/components/landing/BentoGridUSPs';
 import TourCatalog from '@/components/landing/TourCatalog';
 import PopularDestinations from '@/components/landing/PopularDestinations';
-import Testimonials from '@/components/landing/Testimonials';
+import Testimonials, { LandingReview } from '@/components/landing/Testimonials';
 import FAQSection from '@/components/landing/FAQSection';
 import NewsletterBanner from '@/components/landing/NewsletterBanner';
 
@@ -26,7 +26,7 @@ export async function generateMetadata({
 }
 
 export default async function HomePage() {
-  const [tours, destinations, bannerSetting, activeTourCount] = await Promise.all([
+  const [tours, destinations, bannerSetting, activeTourCount, reviews] = await Promise.all([
     prisma.tour.findMany({
       where: { status: 'ACTIVE' },
       orderBy: [
@@ -35,7 +35,7 @@ export default async function HomePage() {
         { ratingCount: 'desc' },
         { createdAt: 'desc' },
       ],
-      take: 36,
+      take: 18,
       select: {
         id: true,
         slug: true,
@@ -68,7 +68,10 @@ export default async function HomePage() {
       },
     }),
     prisma.destination.findMany({
-      where: { isVisible: true },
+      where: {
+        isVisible: true,
+        tours: { some: { status: 'ACTIVE' } },
+      },
       orderBy: { name: 'asc' },
       select: {
         id: true,
@@ -84,11 +87,47 @@ export default async function HomePage() {
     }),
     prisma.systemSetting.findUnique({ where: { key: 'banners' } }),
     prisma.tour.count({ where: { status: 'ACTIVE' } }),
+    prisma.review.findMany({
+      where: {
+        status: 'APPROVED',
+        isVisible: true,
+        isSeeded: false,
+      },
+      // Use select instead of include to avoid loading all tour fields
+      select: {
+        id: true,
+        customerName: true,
+        rating: true,
+        comment: true,
+        country: true,
+        source: true,
+        createdAt: true,
+        tour: { select: { slug: true, translations: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 6,
+    }),
   ]);
 
   const bannerData = bannerSetting
     ? parseSettingValue<SystemSettings['banners']>(bannerSetting.value, DEFAULT_SYSTEM_SETTINGS.banners)
     : DEFAULT_SYSTEM_SETTINGS.banners;
+
+  const landingReviews: LandingReview[] = (reviews || [])
+    .filter((r) => r.comment && r.comment.trim().length > 0)
+    .map((r) => {
+      const trans = r.tour?.translations as Record<string, { title?: string }> | null;
+      return {
+        id: r.id,
+        customerName: r.customerName,
+        rating: r.rating,
+        comment: r.comment || '',
+        tourName: trans?.en?.title || r.tour?.slug,
+        createdAt: r.createdAt,
+        country: r.country,
+        source: r.source,
+      };
+    });
 
   // The hero's rotating card is built from real destinations rather than a
   // hardcoded list, so a destination added in the admin shows up here.
@@ -161,10 +200,10 @@ export default async function HomePage() {
         activeTourCount={activeTourCount}
         heroTranslations={bannerData.heroTranslations}
       />
-      <TourCatalog tours={tours} />
+      <TourCatalog tours={tours} totalActiveCount={activeTourCount} />
       <BentoGridUSPs />
       <PopularDestinations destinations={destinations} />
-      <Testimonials />
+      <Testimonials reviews={landingReviews} />
       <FAQSection />
       <NewsletterBanner />
     </div>

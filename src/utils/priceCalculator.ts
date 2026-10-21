@@ -25,7 +25,8 @@ export interface TieredPriceCalcParams {
 /** Per-tier calculation: adults × adultPrice + children × childPrice + infants × infantPrice + zone fee */
 export function calculateTieredPrice(params: TieredPriceCalcParams): number {
   const adultTotal = params.adultPrice * params.adultsCount;
-  const childTotal = (params.childPrice ?? 0) * params.childrenCount;
+  const effectiveChildPrice = params.childPrice != null ? params.childPrice : params.adultPrice;
+  const childTotal = effectiveChildPrice * params.childrenCount;
   const infantTotal = (params.infantPrice ?? 0) * params.infantsCount;
   const total = adultTotal + childTotal + infantTotal + params.zoneTransferFee;
   return Math.round(total * 100) / 100;
