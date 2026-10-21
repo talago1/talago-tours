@@ -106,12 +106,43 @@ export async function GET(request: NextRequest) {
     }
 
     const tours = await prisma.tour.findMany({
-      where: { status: 'ACTIVE' },
-      orderBy: { createdAt: 'desc' },
-      select: selectFields,
+      where: {
+        status: 'ACTIVE',
+      },
+      orderBy: [{ isFeatured: 'desc' }, { ratingAverage: 'desc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        slug: true,
+        translations: true,
+        adultPrice: true,
+        basePriceUSD: true,
+        basePrice: true,
+        durationHours: true,
+        coverImage: true,
+        thumbnailUrl: true,
+        category: true,
+        destination: { select: { id: true, name: true, slug: true } },
+      },
+      take: Math.min(Number(searchParams.get('limit') || 50), 50),
     });
 
-    return NextResponse.json({ tours });
+    // Apply search filter in-memory (translations is JSON, Prisma can't search inside it efficiently without raw SQL)
+    const search = (searchParams.get('search') || '').toLowerCase().trim();
+    const filtered = search
+      ? tours.filter((t) => {
+          const slug = t.slug?.toLowerCase() || '';
+          const trans = t.translations as any;
+          const enTitle = (trans?.en?.title || '').toLowerCase();
+          const destName = (t.destination?.name || '').toLowerCase();
+          return (
+            slug.includes(search) ||
+            enTitle.includes(search) ||
+            destName.includes(search)
+          );
+        })
+      : tours;
+
+    return NextResponse.json({ tours: filtered });
   } catch (err) {
     console.error('Public tours GET error:', err);
     return NextResponse.json({ tours: [] });
