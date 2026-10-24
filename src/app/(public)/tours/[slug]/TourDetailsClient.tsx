@@ -32,9 +32,11 @@ import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { supabaseClient } from '@/lib/supabase/client';
 import TourCard from '@/components/public/TourCard';
 import WriteReviewModal from '@/components/modals/WriteReviewModal';
 import type { PublicTour } from '@/types/publicTour';
+import { useRouter } from 'next/navigation';
 
 interface TourData {
   id: string;
@@ -630,6 +632,7 @@ function SidebarStepper({
 }
 
 export default function TourDetailsClient({ tour, reviews, relatedTours = [], modules }: Props) {
+  const router = useRouter();
   const { dict, language } = useLanguage();
   const { isWishlisted, toggleWishlist } = useWishlist();
   const [adultsCount, setAdultsCount] = useState(1);
@@ -712,6 +715,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
   const { formatPrice } = useCurrency();
 
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
+  const [isStartingReservation, setIsStartingReservation] = useState(false);
 
   const toggleAddon = (id: string) => {
     setSelectedAddons((prev) => {
@@ -744,7 +748,9 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
   const addonsQuery = selectedAddonIds.length > 0 ? `&addons=${encodeURIComponent(selectedAddonIds.join(','))}` : '';
   const reserveHref = `/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}${selectedTime ? `&time=${encodeURIComponent(selectedTime)}` : ''}${addonsQuery}`;
 
-  const recordBookingInterest = useCallback((source: string = 'BOOK_BUTTON') => {
+  const startReservation = useCallback(async (source: string = 'BOOK_BUTTON') => {
+    if (isStartingReservation) return;
+    setIsStartingReservation(true);
     try {
       if (typeof window === 'undefined') return;
       let sid = sessionStorage.getItem('talago_sid');
@@ -752,9 +758,13 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
         sid = 'sid_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
         sessionStorage.setItem('talago_sid', sid);
       }
-      fetch('/api/public/booking-interest', {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      await fetch('/api/public/booking-interest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           tourId: tour.id,
           tourSlug: tour.slug,
@@ -767,11 +777,14 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
           sessionId: sid,
           travelDate: selectedTime ? `Time: ${selectedTime}` : undefined,
         }),
-      }).catch(() => {});
+      });
     } catch {
-      // non-fatal
+      // Reservation logging must never block the customer from completing checkout.
+    } finally {
+      router.push(reserveHref);
+      setIsStartingReservation(false);
     }
-  }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, totalPrice, selectedTime]);
+  }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, totalPrice, selectedTime, reserveHref, router, isStartingReservation]);
 
   const whatToBringItems = localizedWhatToBringItems;
   const itineraryItems = localizedItineraryItems;
@@ -1455,14 +1468,15 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 </div>
               </div>
 
-              <Link
-                href={reserveHref}
-                onClick={() => recordBookingInterest('DESKTOP_PRIMARY_BOOK_NOW')}
-                className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98]"
+              <button
+                type="button"
+                onClick={() => void startReservation('DESKTOP_PRIMARY_BOOK_NOW')}
+                disabled={isStartingReservation}
+                className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98] disabled:cursor-wait disabled:opacity-70"
               >
-                {dict.tourDetails.bookNow || 'Book Now'} <span aria-hidden="true">→</span>
-              </Link>
-              <p className="mb-6 text-center text-xs text-slate-400">Choose guests, pickup details, and payment securely on the next step.</p>
+                {isStartingReservation ? 'Creating reservation...' : dict.tourDetails.bookNow || 'Book Now'} <span aria-hidden="true">→</span>
+              </button>
+              <p className="mb-6 text-center text-xs text-slate-400">Your reservation is saved pending confirmation. Complete guest, pickup, and payment details next.</p>
 
               <details className="group border-t border-white/10 pt-4">
                 <summary className="cursor-pointer list-none text-center text-xs font-bold text-slate-400 transition hover:text-[#00E5FF]">
@@ -1784,15 +1798,15 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
               </div>
               {selectedTime && <p className="mt-0.5 truncate text-[11px] font-medium text-cyan-200">{selectedTime}</p>}
             </div>
-            <Link href={reserveHref} onClick={() => recordBookingInterest('MOBILE_STICKY_BAR')} className="shrink-0">
-              <button
+            <button
                 type="button"
-                className="relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] via-[#00C2E0] to-[#00A3BF] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition-all hover:scale-105 active:scale-95"
+                onClick={() => void startReservation('MOBILE_STICKY_BAR')}
+                disabled={isStartingReservation}
+                className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] via-[#00C2E0] to-[#00A3BF] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition-all hover:scale-105 active:scale-95 disabled:cursor-wait disabled:opacity-70"
               >
-                <span>{dict.tourDetails.bookNow || 'Book Now'}</span>
+                <span>{isStartingReservation ? 'Saving...' : dict.tourDetails.bookNow || 'Book Now'}</span>
                 <span className="text-base leading-none">→</span>
               </button>
-            </Link>
           </div>
         </div>
 
