@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { MessageCircle, Send, X } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabase/client';
 
@@ -15,6 +15,9 @@ export default function LiveChatWidget() {
   const [sending, setSending] = useState(false);
   const [contact, setContact] = useState({ name: '', email: '' });
   const [contactSaved, setContactSaved] = useState(false);
+  const [hasUnreadAdminReply, setHasUnreadAdminReply] = useState(false);
+  const knownAdminMessageIds = useRef(new Set<string>());
+  const didLoadMessages = useRef(false);
 
   const startSession = useCallback(async (details = {}) => {
     const response = await fetch('/api/public/live-chat/session', {
@@ -28,8 +31,13 @@ export default function LiveChatWidget() {
     const response = await fetch('/api/public/live-chat/messages', { cache: 'no-store' });
     if (!response.ok) return;
     const payload = await response.json();
-    setMessages(payload.messages || []);
-  }, []);
+    const nextMessages = payload.messages || [];
+    const newAdminReply = didLoadMessages.current && nextMessages.some((message: ChatMessage) => message.sender === 'ADMIN' && !knownAdminMessageIds.current.has(message.id));
+    nextMessages.filter((message: ChatMessage) => message.sender === 'ADMIN').forEach((message: ChatMessage) => knownAdminMessageIds.current.add(message.id));
+    didLoadMessages.current = true;
+    setMessages(nextMessages);
+    if (newAdminReply && !open) setHasUnreadAdminReply(true);
+  }, [open]);
 
   useEffect(() => {
     void supabaseClient.auth.getSession().then(({ data: { session } }) => {
@@ -72,7 +80,7 @@ export default function LiveChatWidget() {
     <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 flex flex-col items-end lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]">
       {contactMenuOpen && !open && (
         <div className="mb-3 w-56 overflow-hidden rounded-lg border border-white/15 bg-[#0B1528] p-2 shadow-2xl shadow-black/50">
-          <button type="button" onClick={() => { setOpen(true); setContactMenuOpen(false); }} className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm font-bold text-white hover:bg-white/[0.06]">
+          <button type="button" onClick={() => { setOpen(true); setHasUnreadAdminReply(false); setContactMenuOpen(false); }} className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm font-bold text-white hover:bg-white/[0.06]">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-300 text-slate-950"><MessageCircle className="h-4 w-4" /></span>
             Chat on site
           </button>
@@ -108,6 +116,7 @@ export default function LiveChatWidget() {
       )}
       <button type="button" onClick={() => { if (open) setOpen(false); else setContactMenuOpen((value) => !value); }} className="relative flex h-12 w-12 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-300/25" aria-label="Contact TALAGO">
         {open || contactMenuOpen ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
+        {!open && hasUnreadAdminReply && <span className="absolute -left-1 -top-1 h-3 w-3 rounded-full border-2 border-[#070F1E] bg-rose-400" aria-label="New support reply" />}
         {!open && !contactMenuOpen && <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#070F1E] bg-[#25D366] text-[7px] font-black text-slate-950">WA</span>}
       </button>
     </div>

@@ -1,18 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Search, X } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import PublicTourCard, { type PublicTourCardData } from '@/components/tours/PublicTourCard';
-import { categoryMatchesGroup } from '@/utils/tourCategory';
+import TourSearchHeader from '@/components/public/TourSearchHeader';
+import { resolveCategoryFilter } from '@/utils/tourCategory';
 
 interface TourCatalogProps {
   tours: PublicTourCardData[];
   totalActiveCount?: number;
 }
-
-const EXPERIENCE_TYPES = ['Sea', 'Safari', 'Cultural', 'Spa'] as const;
 
 function tourSearchText(tour: PublicTourCardData) {
   const translations = tour.translations as Record<string, { title?: string; description?: string }> | null;
@@ -22,10 +22,16 @@ function tourSearchText(tour: PublicTourCardData) {
 /** The home catalog is the only search and filter surface on the home page. */
 export default function TourCatalog({ tours, totalActiveCount }: TourCatalogProps) {
   const { dict } = useLanguage();
-  const [query, setQuery] = useState('');
-  const [destination, setDestination] = useState('');
-  const [experience, setExperience] = useState('');
+  const searchParams = useSearchParams();
   const [visibleCount, setVisibleCount] = useState(12);
+  const query = searchParams.get('search') || '';
+  const destination = searchParams.get('destination') || '';
+  const type = searchParams.get('type') || '';
+  const duration = searchParams.get('duration') || '';
+  const rating = Number(searchParams.get('rating') || 0);
+  const maxPrice = Number(searchParams.get('maxPrice') || 0);
+  const pickupOnly = searchParams.get('pickup') === 'true';
+  const sort = searchParams.get('sort') || '';
 
   const destinations = useMemo(
     () => Array.from(new Map(tours.filter((tour) => tour.destination).map((tour) => [tour.destination!.slug, tour.destination!])).values()),
@@ -37,33 +43,36 @@ export default function TourCatalog({ tours, totalActiveCount }: TourCatalogProp
     const filtered = tours.filter((tour) => {
       if (normalizedQuery && !tourSearchText(tour).includes(normalizedQuery)) return false;
       if (destination && tour.destination?.slug !== destination) return false;
-      if (experience && !categoryMatchesGroup(tour.category, experience)) return false;
+      const categoryValues = resolveCategoryFilter(type);
+      if (categoryValues && !categoryValues.some((value) => tour.category?.toLowerCase().includes(value.toLowerCase()))) return false;
+      if (duration === 'quick' && (tour.durationHours || 0) > 2) return false;
+      if (duration === 'half' && ((tour.durationHours || 0) <= 2 || (tour.durationHours || 0) > 4)) return false;
+      if (duration === 'extended' && ((tour.durationHours || 0) <= 4 || (tour.durationHours || 0) > 8)) return false;
+      if (duration === 'fullday' && (tour.durationHours || 0) < 8) return false;
+      if (rating && (tour.ratingAverage || 0) < rating) return false;
+      if (maxPrice && (tour.priceAdult ?? tour.adultPrice ?? tour.basePriceUSD ?? tour.basePrice ?? 0) > maxPrice) return false;
+      if (pickupOnly && !tour.hotelPickupIncluded) return false;
       return true;
     });
 
-    return filtered.sort((a, b) =>
-      Number(Boolean(b.isBestSeller)) - Number(Boolean(a.isBestSeller))
-      || Number(Boolean(b.isFeatured)) - Number(Boolean(a.isFeatured))
-      || (b.ratingAverage || 0) - (a.ratingAverage || 0),
-    );
-  }, [destination, experience, query, tours]);
+    return filtered.sort((a, b) => {
+      if (sort === 'price_asc') return (a.priceAdult ?? a.adultPrice ?? a.basePriceUSD ?? a.basePrice ?? 0) - (b.priceAdult ?? b.adultPrice ?? b.basePriceUSD ?? b.basePrice ?? 0);
+      if (sort === 'price_desc') return (b.priceAdult ?? b.adultPrice ?? b.basePriceUSD ?? b.basePrice ?? 0) - (a.priceAdult ?? a.adultPrice ?? a.basePriceUSD ?? a.basePrice ?? 0);
+      if (sort === 'rating_desc') return (b.ratingAverage || 0) - (a.ratingAverage || 0);
+      return Number(Boolean(b.isBestSeller)) - Number(Boolean(a.isBestSeller)) || Number(Boolean(b.isFeatured)) - Number(Boolean(a.isFeatured)) || (b.ratingAverage || 0) - (a.ratingAverage || 0);
+    });
+  }, [destination, duration, maxPrice, pickupOnly, query, rating, searchParams, sort, tours, type]);
 
   const browseAllHref = useMemo(() => {
     const params = new URLSearchParams();
     if (query.trim()) params.set('search', query.trim());
     if (destination) params.set('destination', destination);
-    if (experience) params.set('type', experience.toUpperCase());
+    if (type) params.set('type', type);
     const suffix = params.toString();
     return suffix ? `/tours?${suffix}` : '/tours';
-  }, [destination, experience, query]);
-
-  const clearFilters = () => {
-    setQuery(''); setDestination(''); setExperience(''); setVisibleCount(12);
-  };
+  }, [destination, query, type]);
 
   const displayedTours = filteredTours.slice(0, visibleCount);
-  const hasFilters = Boolean(query || destination || experience);
-
   return (
     <section id="explore-trips" className="bg-[#070F1E] px-5 py-16 text-[#F8FAFC] sm:px-8 lg:px-10 lg:py-24">
       <div className="mx-auto max-w-7xl">
@@ -75,26 +84,8 @@ export default function TourCatalog({ tours, totalActiveCount }: TourCatalogProp
           {totalActiveCount ? <span className="text-sm text-slate-400">{dict.catalog.xAvailable.replace('{total}', String(totalActiveCount))}</span> : null}
         </div>
 
-        <div className="mb-8 rounded-lg border border-white/10 bg-[#0B1528] p-3 shadow-xl shadow-black/20">
-          <div className="grid gap-2 lg:grid-cols-[minmax(0,1.5fr)_minmax(150px,.75fr)_minmax(150px,.75fr)]">
-            <label className="flex min-h-11 items-center gap-2 rounded-md border border-white/10 bg-[#070F1E] px-3 text-sm text-slate-300 focus-within:border-cyan-300">
-              <Search className="h-4 w-4 shrink-0 text-cyan-300" />
-              <input value={query} onChange={(event) => { setQuery(event.target.value); setVisibleCount(12); }} placeholder="Search experiences" className="w-full bg-transparent outline-none placeholder:text-slate-500" />
-            </label>
-            <select value={destination} onChange={(event) => { setDestination(event.target.value); setVisibleCount(12); }} className="min-h-11 rounded-md border border-white/10 bg-[#070F1E] px-3 text-sm text-slate-200 outline-none focus:border-cyan-300">
-              <option value="">All destinations</option>
-              {destinations.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
-            </select>
-            <select value={experience} onChange={(event) => { setExperience(event.target.value); setVisibleCount(12); }} className="min-h-11 rounded-md border border-white/10 bg-[#070F1E] px-3 text-sm text-slate-200 outline-none focus:border-cyan-300">
-              <option value="">All experiences</option>
-              {EXPERIENCE_TYPES.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-          </div>
-
-          <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-400">
-            <span>{filteredTours.length} experience{filteredTours.length === 1 ? '' : 's'} found</span>
-            {hasFilters && <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 font-semibold text-cyan-200 hover:text-white"><X className="h-3.5 w-3.5" /> Clear filters</button>}
-          </div>
+        <div className="mb-8">
+          <TourSearchHeader destinations={destinations} totalCount={totalActiveCount || tours.length} filteredCount={filteredTours.length} />
         </div>
 
         {displayedTours.length > 0 ? (

@@ -240,6 +240,38 @@ export interface TourTranslationPayload {
 
 export type SupportedLanguage = 'de' | 'ru' | 'fr' | 'it' | 'pl' | 'es' | 'uk';
 
+export interface AiContentPageBlock {
+  heading: string;
+  body: string;
+  kind: 'TEXT' | 'FAQ';
+}
+
+export interface AiContentPage {
+  title: string;
+  intro: string;
+  blocks: AiContentPageBlock[];
+}
+
+export async function generateContentPage(promptBrief: string, pageLabel: string): Promise<AiContentPage> {
+  const prompt = `You write trustworthy, clear website content for TALAGO, a multilingual tourism marketplace connecting travellers with vetted independent local operators. Generate the ${pageLabel} page based on this brief/example: "${promptBrief}".
+
+Return only valid JSON with this exact shape:
+{"title":"short page title","intro":"concise introduction","blocks":[{"heading":"section heading","body":"useful paragraph text","kind":"TEXT"}]}
+
+Use 3 to 8 blocks. Use kind "FAQ" only when the block is a question and answer. Do not invent legal guarantees, prices, operators, or unsupported certifications.`;
+  const rawJson = await callGemini(prompt, true);
+  return JSON.parse(rawJson.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim()) as AiContentPage;
+}
+
+export async function translateContentPage(source: AiContentPage, targetLangs: SupportedLanguage[]): Promise<Record<SupportedLanguage, AiContentPage>> {
+  const prompt = `Translate this TALAGO tourism marketplace content into these languages: ${targetLangs.join(', ')}. Preserve the meaning, block order, block kind, and clear customer-friendly tone. Return only valid JSON keyed by language code. Each value must have title, intro, and blocks with heading, body, and kind.
+
+Source English content:
+${JSON.stringify(source, null, 2)}`;
+  const rawJson = await callGemini(prompt, true);
+  return JSON.parse(rawJson.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim()) as Record<SupportedLanguage, AiContentPage>;
+}
+
 export async function translateTourContent(
   source: TourTranslationPayload,
   targetLangs: SupportedLanguage[] = ['de', 'ru', 'fr', 'it', 'pl', 'es', 'uk'],
