@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { MessageCircle, Send, X } from 'lucide-react';
+import { supabaseClient } from '@/lib/supabase/client';
 
 type ChatMessage = { id: string; sender: 'VISITOR' | 'ADMIN'; body: string; createdAt: string };
 
@@ -30,7 +31,12 @@ export default function LiveChatWidget() {
     setMessages(payload.messages || []);
   }, []);
 
-  useEffect(() => { void startSession(); }, [startSession]);
+  useEffect(() => {
+    void supabaseClient.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user;
+      void startSession(user ? { name: user.user_metadata?.name, email: user.email } : {});
+    });
+  }, [startSession]);
   useEffect(() => {
     if (!ready) return;
     void loadMessages();

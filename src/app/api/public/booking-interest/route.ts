@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 import { sanitizePlain, sanitizePhone, sanitizeEmail } from '@/utils/sanitize';
+import { supabaseAdmin } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,9 +20,9 @@ export async function POST(request: NextRequest) {
 
     const requestedTourId = body.tourId ? sanitizePlain(body.tourId, 50) : null;
     const requestedTourSlug = body.tourSlug ? sanitizePlain(body.tourSlug, 100) : null;
-    const customerName = body.customerName ? sanitizePlain(body.customerName, 100) : null;
+    let customerName = body.customerName ? sanitizePlain(body.customerName, 100) : null;
     const customerPhone = body.customerPhone ? sanitizePhone(body.customerPhone) : null;
-    const customerEmail = body.customerEmail ? sanitizeEmail(body.customerEmail) : null;
+    let customerEmail = body.customerEmail ? sanitizeEmail(body.customerEmail) : null;
     const travelDate = body.travelDate ? sanitizePlain(body.travelDate, 30) : null;
     const adults = typeof body.adults === 'number' && body.adults >= 1 ? body.adults : 1;
     const children = typeof body.children === 'number' && body.children >= 0 ? body.children : 0;
@@ -33,6 +34,21 @@ export async function POST(request: NextRequest) {
 
     if (!requestedTourId && !requestedTourSlug) {
       return NextResponse.json({ error: 'Tour information is required' }, { status: 400 });
+    }
+
+    // A signed-in customer is the source of truth for the profile email. Do
+    // not let a browser claim another person's address just to place a draft
+    // reservation in their account.
+    const authHeader = request.headers.get('authorization');
+    const accessToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length).trim()
+      : null;
+    if (accessToken) {
+      const { data: { user } } = await supabaseAdmin.auth.getUser(accessToken);
+      if (user?.email) {
+        customerEmail = user.email.toLowerCase();
+        customerName = sanitizePlain(user.user_metadata?.name, 100) || customerName;
+      }
     }
 
     // Never create leads for a client-invented trip or use a client-supplied
@@ -129,7 +145,7 @@ export async function POST(request: NextRequest) {
         customerEmail ? `✉️ ${customerEmail}` : null,
       ].filter(Boolean).join(' | ');
 
-      const alertText = `🔔 *New Booking Interest!*\n\n` +
+      const alertText = `🔔 *New Pending Reservation!*\n\n` +
         `🏝️ *Tour:* ${tourTitle || tourSlug || tourId}\n` +
         `👤 *Guest:* ${guestDisplay}\n` +
         (contactInfo ? `📱 *Contact:* ${contactInfo}\n` : '') +

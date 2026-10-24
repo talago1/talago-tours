@@ -290,6 +290,7 @@ export default function CheckoutPage() {
   const { dict, language } = useLanguage();
   const { currency, formatPrice } = useCurrency();
   const tourId = params.tourId as string;
+  const reservationId = searchParams.get('reservation') || undefined;
 
   const [tour, setTour] = useState<TourDetails | null>(null);
   const [pageState, setPageState] = useState<PageState>('loading');
@@ -544,6 +545,7 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tourId: tour.id,
+          reservationId,
           departureDate,
           guestCount: adultsCount + childrenCount + infantsCount,
           adultsCount,
@@ -599,7 +601,7 @@ export default function CheckoutPage() {
   // guest totals and the active language, so all of them have to be listed
   // here — omitting them submits stale validation state when the guest
   // changes an answer, a pickup addon or the interface language.
-  }, [form, tour, departureDate, adultsCount, childrenCount, infantsCount, promoDiscount, bookingAnswers, selectedAddons, totalPayingGuests, language, dict, whatsappOptIn, currency]);
+  }, [form, tour, departureDate, adultsCount, childrenCount, infantsCount, promoDiscount, bookingAnswers, selectedAddons, totalPayingGuests, language, dict, whatsappOptIn, currency, reservationId]);
 
   const handleResume = useCallback(() => {
     if (resumeAccessToken) {

@@ -44,6 +44,19 @@ interface BookingItem {
   transaction: { status: string } | null;
 }
 
+interface ReservationItem {
+  id: string;
+  tourId: string | null;
+  tourTitle: string | null;
+  tourSlug: string | null;
+  adults: number;
+  children: number;
+  totalEstimatedPrice: number | null;
+  currency: string;
+  status: string;
+  createdAt: string;
+}
+
 function getTourTitle(translations: unknown, lang = 'en'): string {
   if (typeof translations === 'object' && translations !== null) {
     const t = translations as Record<string, { title?: string }>;
@@ -177,6 +190,7 @@ export default function MyBookingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [reservations, setReservations] = useState<ReservationItem[]>([]);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [reviewTarget, setReviewTarget] = useState<BookingItem | null>(null);
@@ -190,6 +204,7 @@ export default function MyBookingsPage() {
       if (!res.ok) throw new Error('Failed to load bookings');
       const data = await res.json();
       setBookings(data.bookings);
+      setReservations(data.reservations || []);
     } catch {
       setError('Could not load your bookings. Please try again.');
     } finally {
@@ -285,7 +300,7 @@ export default function MyBookingsPage() {
         </div>
       )}
 
-      {bookings.length === 0 && !error ? (
+      {bookings.length === 0 && reservations.length === 0 && !error ? (
         /* Empty State */
         <div className="flex flex-col items-center py-24 text-center">
           <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/5">
@@ -304,6 +319,24 @@ export default function MyBookingsPage() {
         </div>
       ) : (
         <div className="space-y-10">
+          {reservations.length > 0 && (
+            <section>
+              <h2 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
+                <Clock className="h-3.5 w-3.5" />
+                Pending confirmation ({reservations.length})
+              </h2>
+              <div className="space-y-3">
+                {reservations.map((reservation) => (
+                  <Link key={reservation.id} href={reservation.tourId ? `/checkout/${reservation.tourId}?reservation=${reservation.id}` : '/tours'} className="block rounded-2xl border border-cyan-300/25 bg-cyan-300/[0.05] p-5 transition hover:border-cyan-300/50 hover:bg-cyan-300/[0.08]">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0"><p className="truncate text-sm font-bold text-white">{reservation.tourTitle || 'Experience reservation'}</p><p className="mt-1 text-xs text-slate-400">Saved {new Date(reservation.createdAt).toLocaleDateString()} · {reservation.adults + reservation.children} guest{reservation.adults + reservation.children !== 1 ? 's' : ''}</p></div>
+                      <span className="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-bold uppercase text-cyan-100">Complete details</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
           {/* Upcoming */}
           {upcoming.length > 0 && (
             <section>
@@ -337,7 +370,7 @@ export default function MyBookingsPage() {
       )}
 
       {/* CTA */}
-      {bookings.length > 0 && (
+      {(bookings.length > 0 || reservations.length > 0) && (
         <div className="mt-14 text-center">
           <Link
             href="/tours"

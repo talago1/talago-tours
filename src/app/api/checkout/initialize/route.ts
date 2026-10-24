@@ -10,7 +10,7 @@ import { initiatePaymobSession } from '@/utils/paymob';
 import { validatePromoCode } from '@/utils/promo';
 import { computePriceBreakdown } from '@/utils/priceCalculator';
 import { PaymentScheme, type InitializeResponse } from '@/types/checkout';
-import { BookingStatus, Prisma } from '@prisma/client';
+import { BookingStatus, LeadStatus, Prisma } from '@prisma/client';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 import { sanitizePlain, sanitizeEmail, sanitizePhone, sanitizeText } from '@/utils/sanitize';
 import { normalizeCurrency, convertCurrency } from '@/utils/currency';
@@ -38,6 +38,9 @@ export async function POST(request: NextRequest) {
       formData,
       promoCode,
     } = body;
+    const requestedReservationId = typeof body.reservationId === 'string'
+      ? sanitizePlain(body.reservationId, 50)
+      : '';
 
     if (!tourId || !departureDate || !formData) {
       return NextResponse.json(
@@ -52,6 +55,7 @@ export async function POST(request: NextRequest) {
     // Phone-only booking: auto-derive a synthetic email if guest didn't provide one
     const isPhoneOnlyBooking = !rawEmail && !!phone;
     const email = rawEmail || deriveGuestEmail(phone || '');
+    const normalizedEmail = email.trim().toLowerCase();
     const hotelName = sanitizePlain(formData.hotelName, 150);
     const pickupType = sanitizePlain(formData.pickupType, 50);
     const pickupLocationName = sanitizePlain(formData.pickupLocationName, 150);
@@ -223,7 +227,6 @@ export async function POST(request: NextRequest) {
       }
 
       // Create or update CustomerProfile
-      const normalizedEmail = email.trim().toLowerCase();
       const existingProfile = await tx.customerProfile.findUnique({
         where: { email: normalizedEmail },
       });
@@ -310,17 +313,31 @@ export async function POST(request: NextRequest) {
     // A booking is only a conversion after its payment/confirmation state says so.
     // Online payment starts an in-progress lead; the verified webhook completes it.
     try {
-      const matchingLead = await prisma.bookingLead.findFirst({
-        where: {
-          tourId,
-          status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
-          OR: [
-            { customerEmail: email.trim().toLowerCase() },
-            { customerPhone: phone.trim() },
-          ],
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+      const activeLead = {
+        tourId,
+        bookingId: null,
+        status: { in: [LeadStatus.INTERESTED, LeadStatus.IN_PROGRESS, LeadStatus.CONTACTED] },
+      };
+      // A reservation from Book now carries its own id. It must belong to the
+      // same email address before checkout can convert it to a real booking.
+      const matchingLead = requestedReservationId
+        ? await prisma.bookingLead.findFirst({
+            where: {
+              ...activeLead,
+              id: requestedReservationId,
+              customerEmail: { equals: normalizedEmail, mode: 'insensitive' },
+            },
+          })
+        : await prisma.bookingLead.findFirst({
+            where: {
+              ...activeLead,
+              OR: [
+                { customerEmail: normalizedEmail },
+                { customerPhone: phone.trim() },
+              ],
+            },
+            orderBy: { createdAt: 'desc' },
+          });
       if (matchingLead) {
         await prisma.bookingLead.update({
           where: { id: matchingLead.id },
