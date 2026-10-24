@@ -16,3 +16,15 @@ export async function GET(request: NextRequest) {
   });
   return NextResponse.json({ conversations });
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const ids = Array.isArray(body.ids) ? body.ids.filter((id: unknown): id is string => typeof id === 'string' && id.length <= 80).slice(0, 100) : [];
+    if (ids.length === 0) return NextResponse.json({ error: 'Select at least one conversation.' }, { status: 400 });
+    const result = await prisma.liveChatConversation.deleteMany({ where: { id: { in: ids } } });
+    return NextResponse.json({ deleted: result.count });
+  } catch {
+    return NextResponse.json({ error: 'Unable to delete conversations' }, { status: 500 });
+  }
+}

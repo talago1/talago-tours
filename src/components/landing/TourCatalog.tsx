@@ -61,7 +61,7 @@ export default function TourCatalog({ tours, totalActiveCount }: TourCatalogProp
       if (sort === 'rating_desc') return (b.ratingAverage || 0) - (a.ratingAverage || 0);
       return Number(Boolean(b.isBestSeller)) - Number(Boolean(a.isBestSeller)) || Number(Boolean(b.isFeatured)) - Number(Boolean(a.isFeatured)) || (b.ratingAverage || 0) - (a.ratingAverage || 0);
     });
-  }, [destination, duration, maxPrice, pickupOnly, query, rating, searchParams, sort, tours, type]);
+  }, [destination, duration, maxPrice, pickupOnly, query, rating, sort, tours, type]);
 
   const browseAllHref = useMemo(() => {
     const params = new URLSearchParams();

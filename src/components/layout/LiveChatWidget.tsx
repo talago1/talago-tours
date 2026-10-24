@@ -16,6 +16,7 @@ export default function LiveChatWidget() {
   const [contact, setContact] = useState({ name: '', email: '' });
   const [contactSaved, setContactSaved] = useState(false);
   const [hasUnreadAdminReply, setHasUnreadAdminReply] = useState(false);
+  const [visibleAdminReply, setVisibleAdminReply] = useState<string | null>(null);
   const knownAdminMessageIds = useRef(new Set<string>());
   const didLoadMessages = useRef(false);
 
@@ -36,7 +37,12 @@ export default function LiveChatWidget() {
     nextMessages.filter((message: ChatMessage) => message.sender === 'ADMIN').forEach((message: ChatMessage) => knownAdminMessageIds.current.add(message.id));
     didLoadMessages.current = true;
     setMessages(nextMessages);
-    if (newAdminReply && !open) setHasUnreadAdminReply(true);
+    if (newAdminReply && !open) {
+      const latestReply = [...nextMessages].reverse().find((message: ChatMessage) => message.sender === 'ADMIN');
+      setHasUnreadAdminReply(true);
+      setVisibleAdminReply(latestReply?.body || 'You have a new message from TALAGO.');
+      window.setTimeout(() => setVisibleAdminReply(null), 10_000);
+    }
   }, [open]);
 
   useEffect(() => {
@@ -78,6 +84,11 @@ export default function LiveChatWidget() {
 
   return (
     <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 flex flex-col items-end lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]">
+      {visibleAdminReply && !open && (
+        <button type="button" onClick={() => { setOpen(true); setHasUnreadAdminReply(false); setVisibleAdminReply(null); setContactMenuOpen(false); }} className="mb-3 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-cyan-300/40 bg-[#0B1528] p-4 text-left shadow-2xl shadow-black/50 transition hover:border-cyan-200">
+          <div className="flex items-start gap-3"><span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-300 text-xs font-black text-slate-950">T</span><span className="min-w-0"><strong className="block text-sm font-black text-white">New message from TALAGO</strong><span className="mt-1 block max-h-12 overflow-hidden text-xs leading-5 text-slate-300">{visibleAdminReply}</span><span className="mt-2 block text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-200">Open chat to reply</span></span></div>
+        </button>
+      )}
       {contactMenuOpen && !open && (
         <div className="mb-3 w-56 overflow-hidden rounded-lg border border-white/15 bg-[#0B1528] p-2 shadow-2xl shadow-black/50">
           <button type="button" onClick={() => { setOpen(true); setHasUnreadAdminReply(false); setContactMenuOpen(false); }} className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm font-bold text-white hover:bg-white/[0.06]">
@@ -116,7 +127,7 @@ export default function LiveChatWidget() {
       )}
       <button type="button" onClick={() => { if (open) setOpen(false); else setContactMenuOpen((value) => !value); }} className="relative flex h-12 w-12 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-300/25" aria-label="Contact TALAGO">
         {open || contactMenuOpen ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
-        {!open && hasUnreadAdminReply && <span className="absolute -left-1 -top-1 h-3 w-3 rounded-full border-2 border-[#070F1E] bg-rose-400" aria-label="New support reply" />}
+        {!open && hasUnreadAdminReply && <span className="absolute -left-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-[#070F1E] bg-rose-400 px-1 text-[10px] font-black text-slate-950" aria-label="New support reply">1</span>}
         {!open && !contactMenuOpen && <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#070F1E] bg-[#25D366] text-[7px] font-black text-slate-950">WA</span>}
       </button>
     </div>
