@@ -1812,9 +1812,8 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
         )}
       </div>
 
-      {/* Mobile Sticky Bottom Booking Bar (Admin Controllable) */}
-      {modules?.stickyMobileBookingBar !== false && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#0B1528]/95 px-5 py-3.5 backdrop-blur-2xl shadow-2xl shadow-black lg:hidden">
+      {/* Booking must remain reachable throughout a trip page. */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#0B1528]/95 px-5 py-3.5 backdrop-blur-2xl shadow-2xl shadow-black lg:hidden">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
@@ -1838,8 +1837,9 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 )}
                 <span className="text-[11px] text-slate-400">{dict.tourDetails.perPerson}</span>
               </div>
+              {selectedTime && <p className="mt-0.5 truncate text-[11px] font-medium text-cyan-200">{selectedTime}</p>}
             </div>
-            <Link href={reserveHref} className="shrink-0">
+            <Link href={reserveHref} onClick={() => recordBookingInterest('MOBILE_STICKY_BAR')} className="shrink-0">
               <button
                 type="button"
                 className="relative inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] via-[#00C2E0] to-[#00A3BF] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition-all hover:scale-105 active:scale-95"
@@ -1850,10 +1850,10 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
             </Link>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Spacer for mobile sticky bar */}
-      {modules?.stickyMobileBookingBar !== false && <div className="h-20 lg:hidden" />}
+      <div className="h-24 lg:hidden" />
 
       {/* Write a Review Modal */}
       <WriteReviewModal
