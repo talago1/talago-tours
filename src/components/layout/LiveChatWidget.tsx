@@ -60,7 +60,7 @@ export default function LiveChatWidget() {
   };
 
   return (
-    <div className="fixed bottom-[calc(11rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 flex flex-col items-end lg:bottom-[calc(6rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]">
+    <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 flex flex-col items-end lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]">
       {open && (
         <section className="mb-3 flex h-[min(32rem,calc(100vh-14rem))] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-white/15 bg-[#0B1528] shadow-2xl shadow-black/50">
           <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
