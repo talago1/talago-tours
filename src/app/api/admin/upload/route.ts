@@ -132,11 +132,17 @@ function generateUniqueFilename(originalName: string, mimeType: string): string 
 async function uploadSingleFile(
   file: File,
   buffer: Buffer,
-  targetBucket: string = 'talago-tour-media'
+  targetBucket: string = 'talago-tour-media',
+  targetFolder?: string,
 ): Promise<UploadedFileResult> {
   const uniqueFilename = generateUniqueFilename(file.name, file.type);
   const bucketName = targetBucket === 'talago-media' ? 'talago-media' : 'talago-tour-media';
-  const prefix = bucketName === 'talago-tour-media' ? 'tours/' : 'general/';
+  const fallbackFolder = bucketName === 'talago-tour-media' ? 'tours' : 'general';
+  const requestedFolder = (targetFolder || fallbackFolder).trim().replace(/^\/+|\/+$/g, '');
+  const folder = requestedFolder && requestedFolder.split('/').every((segment) => /^[a-zA-Z0-9_-]+$/.test(segment))
+    ? requestedFolder
+    : fallbackFolder;
+  const prefix = `${folder}/`;
   const storagePath = `${prefix}${uniqueFilename}`;
 
   // 1. Try Supabase Storage if credentials are configured
@@ -230,6 +236,7 @@ export async function POST(
     const errors: UploadErrorItem[] = [];
     const settingsKey = formData.get('settingsKey');
     const targetBucket = (formData.get('bucket') as string) || 'talago-tour-media';
+    const targetFolder = formData.get('folder') as string | null;
 
     for (const file of files) {
       // Size is checked before reading the body: arrayBuffer() buffers the whole
@@ -252,7 +259,7 @@ export async function POST(
       }
 
       try {
-        const result = await uploadSingleFile(file, buffer, targetBucket);
+        const result = await uploadSingleFile(file, buffer, targetBucket, targetFolder || undefined);
         uploaded.push(result);
       } catch (err) {
         errors.push({

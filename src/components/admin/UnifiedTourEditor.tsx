@@ -2776,6 +2776,7 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                             'fitnessLevel', 'mobilityNotes', 'accessibilityNotes', 'emergencyContact',
                             'cancellationPolicy', 'requirements', 'faqItems', 'operatorName', 'operatorPhone',
                             'operatorEmail', 'internalNotes', 'metaTitle', 'metaDescription',
+                            'address', 'thumbnailUrl', 'videoUrl', 'imageAlt',
                           ];
                           for (const key of new Set(importableKeys)) {
                             if (own.call(source, key)) {
