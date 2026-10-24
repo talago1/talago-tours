@@ -1,21 +1,15 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo, MouseEvent } from 'react';
+import { useState, useRef, useEffect, MouseEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   Sparkles,
-  Compass,
-  MapPin,
   Star,
   ShieldCheck,
   CheckCircle2,
   Globe2,
-  Search,
-  Ticket,
-  X,
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -27,20 +21,6 @@ export interface HeroShowcaseDestination {
   price: string;
   rating: string;
   link: string;
-}
-
-export interface HeroSearchDestination {
-  slug: string;
-  name: string;
-  description?: string;
-}
-
-export interface HeroPopularTour {
-  title: string;
-  slug: string;
-  category?: string | null;
-  destinationName?: string;
-  price?: number | null;
 }
 
 export interface HeroProps {
@@ -81,10 +61,6 @@ export interface HeroProps {
 
   /** Destinations pulled from the database, shown in the rotating 3D card. */
   showcaseDestinations?: HeroShowcaseDestination[];
-  /** All destinations pulled from the database, used by the search dropdown. */
-  searchDestinations?: HeroSearchDestination[];
-  /** Sample active tours for instant autocomplete suggestions. */
-  popularTours?: HeroPopularTour[];
   /** Live count of bookable tours, rendered in the card footer. */
   activeTourCount?: number;
 
@@ -124,30 +100,11 @@ export default function Hero({
   heroMetric3Value,
   heroMetric3Label,
   showcaseDestinations = [],
-  searchDestinations = [],
-  popularTours = [],
   activeTourCount,
   heroTranslations,
 }: HeroProps) {
-  const router = useRouter();
   const { dict, language } = useLanguage();
   const [heroError, setHeroError] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [remoteTours, setRemoteTours] = useState<typeof popularTours>([]);
-  const [isSearchingTours, setIsSearchingTours] = useState(false);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
-
-  // Close search autosuggest on outside click
-  useEffect(() => {
-    function handleClickOutside(event: globalThis.MouseEvent) {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
-        setIsSearchFocused(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // 3D Card Interactive Tilt State
   const cardRef = useRef<HTMLDivElement>(null);
@@ -204,85 +161,6 @@ export default function Hero({
   const handleMouseEnter = () => {
     setIsHovering(true);
   };
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSearchFocused(false);
-    const params = new URLSearchParams();
-    if (searchQuery.trim()) params.set('search', searchQuery.trim());
-    const queryString = params.toString();
-    router.push(`/tours${queryString ? `?${queryString}` : ''}`);
-  };
-
-  const EXPERIENCE_CATEGORIES = [
-    { key: 'SNORKELING', label: 'Snorkeling & Coral Reefs', badge: 'Marine' },
-    { key: 'SAFARI', label: 'Desert Quad & Camel Safari', badge: 'Desert' },
-    { key: 'BOAT_TRIP', label: 'Private Yacht & Island Charters', badge: 'Cruise' },
-    { key: 'DIVING', label: 'Scuba Diving & Wreck Exploration', badge: 'Diving' },
-    { key: 'CULTURAL', label: 'Historical Itineraries & Temples', badge: 'Culture' },
-  ];
-
-  const q = searchQuery.toLowerCase().trim();
-
-  // Search across full active catalog in addition to initial local popular tours
-  useEffect(() => {
-    if (!q || q.length < 2) {
-      setRemoteTours([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      try {
-        setIsSearchingTours(true);
-        const res = await fetch(`/api/public/tours?search=${encodeURIComponent(q)}&limit=6`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const list = (data.tours || data.items || []).map((t: any) => {
-          const trans = t.translations as Record<string, { title?: string }> | null;
-          return {
-            title: t.title || trans?.en?.title || t.slug.replace(/-/g, ' '),
-            slug: t.slug,
-            category: t.category,
-            destinationName: t.destination?.name,
-            price: t.adultPrice || t.basePriceUSD || t.basePrice || t.priceAdult,
-          };
-        });
-        setRemoteTours(list);
-      } catch {
-        // Fallback to local
-      } finally {
-        setIsSearchingTours(false);
-      }
-    }, 220);
-    return () => clearTimeout(timer);
-  }, [q]);
-
-  const matchingDestinations = searchDestinations
-    .filter(
-      (d) =>
-        !q ||
-        d.name.toLowerCase().includes(q) ||
-        (d.description && d.description.toLowerCase().includes(q))
-    )
-    .slice(0, 4);
-
-  const matchingCategories = EXPERIENCE_CATEGORIES.filter(
-    (c) => !q || c.label.toLowerCase().includes(q) || c.key.toLowerCase().includes(q)
-  ).slice(0, 3);
-
-  const matchingTours = useMemo(() => {
-    if (remoteTours.length > 0) return remoteTours.slice(0, 6);
-    return popularTours
-      .filter(
-        (t) =>
-          !q ||
-          t.title.toLowerCase().includes(q) ||
-          (t.destinationName && t.destinationName.toLowerCase().includes(q))
-      )
-      .slice(0, 6);
-  }, [remoteTours, popularTours, q]);
-
-  const hasSuggestions =
-    matchingDestinations.length > 0 || matchingCategories.length > 0 || matchingTours.length > 0;
 
   const currentTrans = heroTranslations?.[language] || {};
   const heroDict = dict?.hero || ({} as any);
@@ -613,178 +491,6 @@ export default function Hero({
           </div>
         </div>
 
-        {/* Global Floating Search Console */}
-        <div ref={searchContainerRef} className="relative z-50 mt-10 sm:mt-12">
-          <form
-            onSubmit={handleSearchSubmit}
-            className="relative z-20 flex flex-col gap-2 rounded-2xl sm:rounded-full border border-white/15 bg-[#0B1528]/95 p-2 shadow-2xl shadow-black/80 backdrop-blur-2xl transition-all focus-within:border-[#00E5FF]/60 focus-within:ring-2 focus-within:ring-[#00E5FF]/20 sm:flex-row sm:items-center sm:gap-3 sm:p-2.5"
-          >
-            {/* Single Clean Smart Search Input */}
-            <div className="flex flex-1 items-center px-3 py-1.5 sm:px-4">
-              <Search className={`mr-3 h-5 w-5 shrink-0 transition-colors ${isSearchingTours ? 'text-[#00E5FF] animate-pulse' : 'text-[#00E5FF]'}`} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setIsSearchFocused(true);
-                }}
-                onFocus={() => setIsSearchFocused(true)}
-                placeholder={(dict.hero.search as any)?.placeholder || 'Search destinations, tours, or activities...'}
-                className="w-full bg-transparent text-sm sm:text-base font-semibold text-white placeholder:text-slate-400 outline-none"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setRemoteTours([]);
-                  }}
-                  className="rounded-full p-1 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
-                  aria-label="Clear search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Clean Submit Button */}
-            <button
-              type="submit"
-              className="group inline-flex shrink-0 items-center justify-center gap-2 rounded-xl sm:rounded-full bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-6 sm:px-8 py-3 text-xs sm:text-sm font-black uppercase tracking-[0.16em] text-[#070F1E] shadow-xl shadow-[#00E5FF]/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[#00E5FF]/40"
-            >
-              <span>{dict.hero.search.searchButton}</span>
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </button>
-          </form>
-
-          {/* Smart Autocomplete Dropdown */}
-          {isSearchFocused && hasSuggestions && (
-            <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto rounded-2xl border border-white/15 bg-[#0B1528]/98 p-4 shadow-2xl shadow-black/95 backdrop-blur-2xl">
-              <div className="grid gap-4 md:grid-cols-3">
-                {/* 1. Destinations */}
-                {matchingDestinations.length > 0 && (
-                  <div>
-                    <p className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#00E5FF]">
-                      <MapPin className="h-3 w-3" />
-                      Destinations
-                    </p>
-                    <ul className="space-y-1">
-                      {matchingDestinations.map((dest) => (
-                        <li key={dest.slug}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsSearchFocused(false);
-                              router.push(`/tours?destination=${dest.slug}`);
-                            }}
-                            className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-slate-200 transition-colors hover:bg-white/10 hover:text-white"
-                          >
-                            <span>{dest.name}</span>
-                            <span className="text-[10px] text-slate-400">Explore →</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* 2. Activities & Categories */}
-                {matchingCategories.length > 0 && (
-                  <div>
-                    <p className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#FFD700]">
-                      <Compass className="h-3 w-3" />
-                      Activities
-                    </p>
-                    <ul className="space-y-1">
-                      {matchingCategories.map((cat) => (
-                        <li key={cat.key}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsSearchFocused(false);
-                              router.push(`/tours?type=${cat.key}`);
-                            }}
-                            className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-slate-200 transition-colors hover:bg-white/10 hover:text-white"
-                          >
-                            <span>{cat.label}</span>
-                            <span className="rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] font-bold text-[#FFD700]">
-                              {cat.badge}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* 3. Experiences & Tours */}
-                {matchingTours.length > 0 && (
-                  <div>
-                    <p className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">
-                      <Ticket className="h-3 w-3" />
-                      Popular Tours
-                    </p>
-                    <ul className="space-y-1">
-                      {matchingTours.map((t) => (
-                        <li key={t.slug}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsSearchFocused(false);
-                              router.push(`/tours/${t.slug}`);
-                            }}
-                            className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-slate-200 transition-colors hover:bg-white/10 hover:text-white"
-                          >
-                            <span className="truncate pr-2">{t.title}</span>
-                            {t.price ? (
-                              <span className="shrink-0 text-[10px] font-bold text-emerald-400">
-                                from ${t.price}
-                              </span>
-                            ) : null}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              {/* Enter prompt */}
-              {searchQuery.trim() && (
-                <div className="mt-3 border-t border-white/10 pt-2.5 text-center text-xs text-slate-400">
-                  Press <kbd className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-white">Enter</kbd> to search for &ldquo;{searchQuery.trim()}&rdquo; across all tours & experiences
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Quick Destination Pills */}
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-bold text-slate-400">{dict.hero.search.quickExplore}</span>
-            {showcaseDestinations.map((dest) => (
-              <Link
-                key={dest.link}
-                href={dest.link}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]"
-              >
-                {dest.name}
-              </Link>
-            ))}
-            <Link
-              href="/tours?type=SAFARI"
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]"
-            >
-              Desert Safari
-            </Link>
-            <Link
-              href="/tours?type=SNORKELING"
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]"
-            >
-              Yachts & Islands
-            </Link>
-          </div>
-        </div>
       </div>
     </section>
   );

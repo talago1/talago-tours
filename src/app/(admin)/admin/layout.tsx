@@ -18,6 +18,7 @@ import {
   LogOut,
   Image as ImageIcon,
   Users,
+  MessageCircle,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { href: '/admin/destinations', label: 'Destinations', icon: Compass },
   { href: '/admin/media', label: 'Media Library', icon: ImageIcon },
   { href: '/admin/bookings', label: 'Bookings', icon: CalendarCheck },
+  { href: '/admin/leads', label: 'Booking Leads', icon: MessageCircle },
   { href: '/admin/partners', label: 'Partners', icon: Users },
   { href: '/admin/blog', label: 'Blog & Articles', icon: BookOpen },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },

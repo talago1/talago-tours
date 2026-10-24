@@ -307,6 +307,37 @@ export async function POST(request: NextRequest) {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
+    // A booking is only a conversion after its payment/confirmation state says so.
+    // Online payment starts an in-progress lead; the verified webhook completes it.
+    try {
+      const matchingLead = await prisma.bookingLead.findFirst({
+        where: {
+          tourId,
+          status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
+          OR: [
+            { customerEmail: email.trim().toLowerCase() },
+            { customerPhone: phone.trim() },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (matchingLead) {
+        await prisma.bookingLead.update({
+          where: { id: matchingLead.id },
+          data: {
+            bookingId: result.booking.id,
+            status: (paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? 'CONVERTED' : 'IN_PROGRESS') as any,
+            customerName: leadName.trim(),
+            customerEmail: email.trim(),
+            customerPhone: phone.trim(),
+            updatedAt: new Date(),
+          },
+        });
+      }
+    } catch (leadLinkErr) {
+      console.warn('[initialize] Lead linking non-fatal warning:', leadLinkErr);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Notification dispatch: PDF boarding pass + WhatsApp + Telegram
     // Bounded with Promise.race so serverless execution context stays alive

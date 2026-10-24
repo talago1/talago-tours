@@ -111,6 +111,7 @@ export default async function TourDetailPage({ params }: Props) {
       inclusions: true,
       exclusions: true,
       itinerary: true,
+      routeStops: true,
       whatToBring: true,
       pickupDescription: true,
       hotelPickupIncluded: true,
@@ -189,6 +190,7 @@ export default async function TourDetailPage({ params }: Props) {
         inclusions: true,
         exclusions: true,
         itinerary: true,
+        routeStops: true,
         whatToBring: true,
         pickupDescription: true,
         hotelPickupIncluded: true,
@@ -334,6 +336,19 @@ export default async function TourDetailPage({ params }: Props) {
       labels: opt.labels && typeof opt.labels === 'object' ? opt.labels : undefined,
       descriptions: opt.descriptions && typeof opt.descriptions === 'object' ? opt.descriptions : undefined,
     }));
+  const routeStops = Array.isArray(tour.routeStops)
+    ? (tour.routeStops as Array<Record<string, unknown>>)
+        .filter((stop) => typeof stop === 'object' && stop !== null)
+        .map((stop, index) => ({
+          id: String(stop.id || `route-${index}`),
+          name: String(stop.name || ''),
+          description: typeof stop.description === 'string' ? stop.description : '',
+          order: Number(stop.order ?? index + 1),
+          durationMinutes: typeof stop.durationMinutes === 'number' ? stop.durationMinutes : undefined,
+        }))
+        .filter((stop) => stop.name)
+        .sort((a, b) => a.order - b.order)
+    : [];
 
   // Real reviews ONLY: relation entries already filtered to isVisible=true, isSeeded=false, status=APPROVED.
   // JSON reviews column is legacy and may contain seeded data — exclude it entirely from counts.
@@ -548,6 +563,7 @@ export default async function TourDetailPage({ params }: Props) {
           inclusions: tour.inclusions as string[],
           exclusions: tour.exclusions as string[],
           itinerary: safeParseItinerary(tour.itinerary),
+          routeStops,
           whatToBring: String(tour.whatToBring ?? ''),
           pickupDescription: tour.pickupDescription,
           hotelPickupIncluded: tour.hotelPickupIncluded,

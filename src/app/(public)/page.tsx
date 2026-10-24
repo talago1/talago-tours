@@ -61,12 +61,12 @@ export default async function HomePage() {
         isVip: true,
         isNew: true,
         customBadge: true,
+        hotelPickupIncluded: true,
         destinationId: true,
         destination: {
           select: { id: true, name: true, slug: true },
         },
       },
-      take: 24,
     }),
     prisma.destination.findMany({
       where: {
@@ -144,12 +144,6 @@ export default async function HomePage() {
       link: `/tours?destination=${d.slug}`,
     }));
 
-  // Every destination that has at least one published tour, for the hero's
-  // search dropdown (which previously listed two hardcoded, unused slugs).
-  const searchDestinations = destinations
-    .filter((d) => d._count.tours > 0)
-    .map((d) => ({ slug: d.slug, name: d.name, description: d.description || undefined }));
-
   return (
     <div className="min-h-screen bg-[#070F1E]">
       <Hero
@@ -185,18 +179,6 @@ export default async function HomePage() {
         heroMetric3Value={bannerData.heroMetric3Value}
         heroMetric3Label={bannerData.heroMetric3Label}
         showcaseDestinations={showcaseDestinations}
-        searchDestinations={searchDestinations}
-        popularTours={tours.slice(0, 15).map((t) => {
-          const trans = t.translations as Record<string, { title?: string }> | null;
-          const title = trans?.en?.title || t.slug.replace(/-/g, ' ');
-          return {
-            title,
-            slug: t.slug,
-            category: t.category,
-            destinationName: t.destination?.name,
-            price: t.adultPrice || t.priceAdult,
-          };
-        })}
         activeTourCount={activeTourCount}
         heroTranslations={bannerData.heroTranslations}
       />

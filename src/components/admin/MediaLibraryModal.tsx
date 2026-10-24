@@ -44,6 +44,7 @@ export default function MediaLibraryModal({
 }: MediaLibraryModalProps) {
   const [activeTab, setActiveTab] = useState<'browse' | 'upload'>('browse');
   const [bucket, setBucket] = useState<'all' | 'talago-tour-media' | 'talago-media'>(initialBucket);
+  const [folder, setFolder] = useState('tours');
   const [search, setSearch] = useState('');
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,25 +52,30 @@ export default function MediaLibraryModal({
   const [makeCover, setMakeCover] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState(0);
 
   const fetchMedia = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (bucket !== 'all') params.set('bucket', bucket);
+      if (bucket !== 'all' && folder.trim()) params.set('folder', folder.trim());
       if (search.trim()) params.set('search', search.trim());
-      params.set('limit', '300');
+      params.set('limit', '100');
+      params.set('offset', String(offset));
       const res = await fetch(`/api/admin/media?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setItems(data.items || []);
+        setItems((previous) => offset === 0 ? (data.items || []) : [...previous, ...(data.items || [])]);
+        setTotal(Number(data.total || 0));
       }
     } catch (err) {
       console.error('[MediaLibraryModal] Fetch error:', err);
     } finally {
       setLoading(false);
     }
-  }, [bucket, search]);
+  }, [bucket, folder, search, offset]);
 
   useEffect(() => {
     if (isOpen) {
@@ -79,6 +85,10 @@ export default function MediaLibraryModal({
       setMakeCover(false);
     }
   }, [isOpen, fetchMedia]);
+
+  useEffect(() => {
+    setOffset(0);
+  }, [bucket, folder, search]);
 
   const toggleSelect = (url: string) => {
     if (!multiple) {
@@ -101,6 +111,7 @@ export default function MediaLibraryModal({
       const formData = new FormData();
       fileArray.forEach((f) => formData.append('files', f));
       formData.append('bucket', bucket === 'talago-media' ? 'talago-media' : 'talago-tour-media');
+      formData.append('folder', folder.trim() || (bucket === 'talago-media' ? 'general' : 'tours'));
 
       const res = await fetch('/api/admin/upload', {
         method: 'POST',
@@ -150,7 +161,7 @@ export default function MediaLibraryModal({
             <div>
               <h2 className="text-lg font-black text-white">{title}</h2>
               <p className="text-xs text-slate-400">
-                Centralized Supabase Storage ({items.length} items found)
+                Centralized media library ({total} items found)
               </p>
             </div>
           </div>
@@ -212,7 +223,10 @@ export default function MediaLibraryModal({
               </button>
               <button
                 type="button"
-                onClick={() => setBucket('talago-tour-media')}
+                onClick={() => {
+                  setBucket('talago-tour-media');
+                  setFolder((current) => current || 'tours');
+                }}
                 className={`rounded-lg px-3 py-1 text-xs font-bold transition-all ${
                   bucket === 'talago-tour-media'
                     ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/30'
@@ -223,7 +237,10 @@ export default function MediaLibraryModal({
               </button>
               <button
                 type="button"
-                onClick={() => setBucket('talago-media')}
+                onClick={() => {
+                  setBucket('talago-media');
+                  setFolder((current) => current || 'general');
+                }}
                 className={`rounded-lg px-3 py-1 text-xs font-bold transition-all ${
                   bucket === 'talago-media'
                     ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
@@ -233,6 +250,20 @@ export default function MediaLibraryModal({
                 🌐 General & Blogs
               </button>
             </div>
+
+            {bucket !== 'all' && (
+              <div className="relative min-w-[180px]">
+                <FolderOpen className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="text"
+                  value={folder}
+                  onChange={(e) => setFolder(e.target.value.replace(/[^a-zA-Z0-9_/-]/g, ''))}
+                  placeholder={bucket === 'talago-media' ? 'general/blogs' : 'tours/red-sea'}
+                  aria-label="Media folder"
+                  className="w-full rounded-xl border border-white/10 bg-[#060D1A] py-1.5 pl-8 pr-3 text-xs text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
+                />
+              </div>
+            )}
 
             {/* Search Input */}
             <div className="relative min-w-[240px]">
@@ -253,6 +284,31 @@ export default function MediaLibraryModal({
           {activeTab === 'upload' ? (
             /* Upload Dropzone */
             <div className="flex h-full flex-col items-center justify-center">
+              <div className="mb-4 flex w-full max-w-lg flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#060D1A] p-3">
+                <select
+                  value={bucket === 'talago-media' ? 'talago-media' : 'talago-tour-media'}
+                  onChange={(e) => {
+                    const nextBucket = e.target.value as 'talago-tour-media' | 'talago-media';
+                    setBucket(nextBucket);
+                    setFolder(nextBucket === 'talago-media' ? 'general' : 'tours');
+                  }}
+                  className="rounded-lg border border-white/10 bg-[#0B1528] px-2 py-1.5 text-xs font-bold text-white outline-none"
+                >
+                  <option value="talago-tour-media">Tours</option>
+                  <option value="talago-media">General</option>
+                </select>
+                <div className="relative min-w-[200px] flex-1">
+                  <FolderOpen className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="text"
+                    value={folder}
+                    onChange={(e) => setFolder(e.target.value.replace(/[^a-zA-Z0-9_/-]/g, ''))}
+                    placeholder="tours/red-sea"
+                    aria-label="Upload folder"
+                    className="w-full rounded-lg border border-white/10 bg-[#0B1528] py-1.5 pl-8 pr-3 text-xs text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
+                  />
+                </div>
+              </div>
               <label
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -281,9 +337,9 @@ export default function MediaLibraryModal({
                   {uploading ? 'Uploading to Supabase...' : 'Click or Drag images here'}
                 </p>
                 <p className="text-xs text-slate-400 mb-4">
-                  Target bucket:{' '}
+                  Target:{' '}
                   <span className="font-mono text-[#00E5FF]">
-                    {bucket === 'talago-media' ? 'talago-media' : 'talago-tour-media'}
+                    {bucket === 'talago-media' ? 'talago-media' : 'talago-tour-media'}/{folder || (bucket === 'talago-media' ? 'general' : 'tours')}
                   </span>
                 </p>
                 <span className="rounded-xl bg-[#00E5FF] px-4 py-2 text-xs font-black text-[#070F1E] shadow-lg shadow-[#00E5FF]/20">
@@ -317,6 +373,7 @@ export default function MediaLibraryModal({
             </div>
           ) : (
             /* Media Grid */
+            <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
               {items.map((item) => {
                 const isSelected = selectedUrls.includes(item.url);
@@ -369,6 +426,14 @@ export default function MediaLibraryModal({
                 );
               })}
             </div>
+            {items.length < total && (
+              <div className="mt-6 flex justify-center">
+                <button type="button" onClick={() => setOffset(items.length)} className="rounded-lg border border-white/15 px-4 py-2 text-xs font-bold text-slate-200 hover:border-cyan-300/40 hover:text-cyan-200">
+                  Load more media ({total - items.length} remaining)
+                </button>
+              </div>
+            )}
+            </>
           )}
         </div>
 

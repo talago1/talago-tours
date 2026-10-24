@@ -345,6 +345,7 @@ model Booking {
 
   transaction Transaction?
   reviews Review[]
+  lead BookingLead?
 
   @@index([tourId])
   @@index([bookingReference])
@@ -645,4 +646,43 @@ model TourRedirect {
 
   @@index([sourceSlug])
   @@map("tour_redirects")
+}
+
+enum LeadStatus {
+  INTERESTED
+  IN_PROGRESS
+  CONTACTED
+  CONVERTED
+  ABANDONED
+}
+
+model BookingLead {
+  id                  String      @id @default(cuid())
+  tourId              String?
+  tourSlug            String?
+  tourTitle           String?
+  customerName        String?
+  customerEmail       String?
+  customerPhone       String?
+  travelDate          String?
+  adults              Int         @default(1)
+  children            Int         @default(0)
+  totalEstimatedPrice Float?
+  currency            String      @default("USD")
+  status              LeadStatus  @default(INTERESTED)
+  source              String      @default("BOOK_BUTTON") // "BOOK_BUTTON", "CHECKOUT_FORM", "INQUIRY", "STICKY_BAR"
+  sessionId           String?
+  notes               String?
+  bookingId           String?     @unique
+  booking             Booking?    @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@index([tourId])
+  @@index([status])
+  @@index([customerEmail])
+  @@index([customerPhone])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("booking_leads")
 }

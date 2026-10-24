@@ -46,6 +46,7 @@ export interface PublicTourCardData {
   isFeatured?: boolean | null;
   isNew?: boolean | null;
   customBadge?: string | null;
+  hotelPickupIncluded?: boolean | null;
   destination: { name: string; slug: string } | null;
 }
 
