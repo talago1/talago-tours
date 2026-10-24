@@ -1,12 +1,7 @@
-import type { Metadata } from 'next';
-import FAQPageComponent from './FAQPage';
+import ManagedContentPage from '@/components/public/ManagedContentPage';
 
-export const metadata: Metadata = {
-  title: 'FAQ — Frequently Asked Questions',
-  description:
-    'Answers to common questions about booking tours and experiences with TALAGO — payments, pickup, cancellation, languages and support.',
-  alternates: { canonical: '/faq' },
-  openGraph: { siteName: 'TALAGO' },
-};
+export const dynamic = 'force-dynamic';
 
-export default FAQPageComponent;
+export default function FAQPage() {
+  return <ManagedContentPage slug="faq" />;
+}

@@ -28,6 +28,8 @@ const NAV_ITEMS = [
   { href: '/admin/media', label: 'Media Library', icon: ImageIcon },
   { href: '/admin/bookings', label: 'Bookings', icon: CalendarCheck },
   { href: '/admin/leads', label: 'Booking Leads', icon: MessageCircle },
+  { href: '/admin/inbox', label: 'Live Inbox', icon: MessageCircle },
+  { href: '/admin/content', label: 'Content Studio', icon: BookOpen },
   { href: '/admin/partners', label: 'Partners', icon: Users },
   { href: '/admin/blog', label: 'Blog & Articles', icon: BookOpen },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },

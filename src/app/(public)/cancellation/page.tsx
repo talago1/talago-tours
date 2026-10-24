@@ -1,11 +1,7 @@
-import type { Metadata } from 'next';
-import CancellationContent from './CancellationContent';
+import ManagedContentPage from '@/components/public/ManagedContentPage';
 
-export const metadata: Metadata = {
-  title: 'Cancellation Policy — TALAGO',
-  description: 'TALAGO flexible cancellation and refund policy for tour bookings.',
-};
+export const dynamic = 'force-dynamic';
 
-export default function CancellationPolicyPage() {
-  return <CancellationContent />;
+export default function CancellationPage() {
+  return <ManagedContentPage slug="cancellation" />;
 }
