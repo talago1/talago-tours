@@ -1,12 +1,21 @@
 import { prisma } from '@/lib/prisma';
 import { parseSettingValue, serializeSettingValue } from '@/lib/systemSettings';
+import { LANGUAGES, type LanguageCode } from '@/lib/i18n';
+import { resolveServerLanguage } from '@/lib/i18n.server';
 
 export type ContentBlock = { id: string; heading: string; body: string; visible: boolean; kind: 'TEXT' | 'FAQ' };
-export type ManagedContentPage = { slug: string; label: string; title: string; intro: string; visible: boolean; blocks: ContentBlock[] };
+export type LocalizedContentPage = { title: string; intro: string; blocks: ContentBlock[] };
+export type ManagedContentPage = { slug: string; label: string; visible: boolean; translations: Partial<Record<LanguageCode, LocalizedContentPage>> };
 
 const page = (slug: string, label: string, title: string, intro: string, blocks: Array<[string, string, ('TEXT' | 'FAQ')?]>): ManagedContentPage => ({
-  slug, label, title, intro, visible: true,
-  blocks: blocks.map(([heading, body, kind], index) => ({ id: `${slug}-${index + 1}`, heading, body, kind: kind || 'TEXT', visible: true })),
+  slug, label, visible: true,
+  translations: {
+    en: {
+      title,
+      intro,
+      blocks: blocks.map(([heading, body, kind], index) => ({ id: `${slug}-${index + 1}`, heading, body, kind: kind || 'TEXT', visible: true })),
+    },
+  },
 });
 
 export const DEFAULT_CONTENT_PAGES: ManagedContentPage[] = [
@@ -45,8 +54,27 @@ export const DEFAULT_CONTENT_PAGES: ManagedContentPage[] = [
 function normalise(pages: unknown): ManagedContentPage[] {
   if (!Array.isArray(pages)) return DEFAULT_CONTENT_PAGES;
   return DEFAULT_CONTENT_PAGES.map((fallback) => {
-    const item = pages.find((value): value is Partial<ManagedContentPage> => Boolean(value && typeof value === 'object' && (value as ManagedContentPage).slug === fallback.slug));
-    return item ? { ...fallback, ...item, slug: fallback.slug, label: fallback.label, blocks: Array.isArray(item.blocks) ? item.blocks : fallback.blocks } : fallback;
+    const item = pages.find((value): value is Record<string, unknown> => Boolean(value && typeof value === 'object' && (value as { slug?: unknown }).slug === fallback.slug));
+    if (!item) return fallback;
+
+    const legacyEnglish = {
+      title: typeof item.title === 'string' ? item.title : fallback.translations.en?.title || '',
+      intro: typeof item.intro === 'string' ? item.intro : fallback.translations.en?.intro || '',
+      blocks: Array.isArray(item.blocks) ? item.blocks as ContentBlock[] : fallback.translations.en?.blocks || [],
+    };
+    const rawTranslations = item.translations && typeof item.translations === 'object' ? item.translations as Record<string, unknown> : {};
+    const translations: Partial<Record<LanguageCode, LocalizedContentPage>> = { ...fallback.translations, en: legacyEnglish };
+    for (const language of LANGUAGES) {
+      const candidate = rawTranslations[language];
+      if (!candidate || typeof candidate !== 'object') continue;
+      const localized = candidate as Partial<LocalizedContentPage>;
+      translations[language] = {
+        title: typeof localized.title === 'string' ? localized.title : legacyEnglish.title,
+        intro: typeof localized.intro === 'string' ? localized.intro : legacyEnglish.intro,
+        blocks: Array.isArray(localized.blocks) ? localized.blocks as ContentBlock[] : legacyEnglish.blocks,
+      };
+    }
+    return { slug: fallback.slug, label: fallback.label, visible: item.visible !== false, translations };
   });
 }
 
@@ -55,9 +83,11 @@ export async function getManagedContentPages(): Promise<ManagedContentPage[]> {
   return record ? normalise(parseSettingValue(record.value, DEFAULT_CONTENT_PAGES)) : DEFAULT_CONTENT_PAGES;
 }
 
-export async function getManagedContentPage(slug: string): Promise<ManagedContentPage> {
+export async function getManagedContentPage(slug: string, language: LanguageCode = resolveServerLanguage()): Promise<ManagedContentPage & LocalizedContentPage> {
   const pages = await getManagedContentPages();
-  return pages.find((item) => item.slug === slug) || DEFAULT_CONTENT_PAGES[0];
+  const page = pages.find((item) => item.slug === slug) || DEFAULT_CONTENT_PAGES[0];
+  const english = page.translations.en || { title: page.label, intro: '', blocks: [] };
+  return { ...page, ...(page.translations[language] || english) };
 }
 
 export async function saveManagedContentPages(pages: ManagedContentPage[]) {
