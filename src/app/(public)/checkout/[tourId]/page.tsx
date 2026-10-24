@@ -389,13 +389,9 @@ export default function CheckoutPage() {
           title = data.slug ?? 'Tour';
         }
 
-        const zonesList: ZoneOption[] = Array.isArray(data.availableZones) && data.availableZones.length > 0
-          ? data.availableZones
-          : [
-              { id: 'zone-hurghada-city', name: 'Hurghada City Hotels / Center', transferFee: 0 },
-              { id: 'zone-sahl-makadi', name: 'Sahl Hasheesh & Makadi Bay', transferFee: 5 },
-              { id: 'zone-gouna-soma-safaga', name: 'El Gouna, Soma Bay & Safaga', transferFee: 10 },
-            ];
+        // Pickup zones come only from the tour destination's admin-managed Zone records.
+        // Do not invent fallback zones on checkout: a price must always be traceable.
+        const zonesList: ZoneOption[] = Array.isArray(data.availableZones) ? data.availableZones : [];
         setAvailableZones(zonesList);
         if (zonesList.length > 0) {
           setSelectedZoneId(zonesList[0].id);
@@ -1388,6 +1384,15 @@ export default function CheckoutPage() {
                       </p>
                     </div>
                   </label>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-slate-400">{dict.checkout.paymentOptions}</p>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {tour.allowPayAtLocation && <button type="button" onClick={() => handleSchemeChange(PaymentScheme.PAY_ON_ARRIVAL)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold transition ${scheme === PaymentScheme.PAY_ON_ARRIVAL ? 'border-[#FF5B00] bg-[#FF5B00]/10 text-white' : 'border-white/10 text-slate-300 hover:border-white/25'}`}>{dict.checkout.payArrival}</button>}
+                    {tour.allowFullOnline !== false && <button type="button" onClick={() => handleSchemeChange(PaymentScheme.FULL_ONLINE)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold transition ${scheme === PaymentScheme.FULL_ONLINE ? 'border-[#06B6D4] bg-[#06B6D4]/10 text-white' : 'border-white/10 text-slate-300 hover:border-white/25'}`}>{dict.checkout.payOnline}</button>}
+                    {tour.allowDeposit && <button type="button" onClick={() => handleSchemeChange(PaymentScheme.DEPOSIT_ONLINE)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold transition ${scheme === PaymentScheme.DEPOSIT_ONLINE ? 'border-[#EAB308] bg-[#EAB308]/10 text-white' : 'border-white/10 text-slate-300 hover:border-white/25'}`}>{dict.checkout.secureDeposit.replace('20%', `${tour.depositPercentage}%`)}</button>}
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between border-t border-white/10 pt-6">

@@ -18,7 +18,6 @@ import {
   Building2,
   UserRound,
   Baby,
-  Maximize2,
   Sparkles,
   Heart,
   Smartphone,
@@ -240,18 +239,6 @@ function HeroSlider({
         ))}
         <div className="absolute inset-0 bg-gradient-to-t from-[#070F1E] via-[#070F1E]/20 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#070F1E] to-transparent" />
-
-        {/* View All Photos Button Badge */}
-        <div className="absolute bottom-6 right-6 z-10">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); openLightbox(current); }}
-            className="flex items-center gap-2 rounded-full border border-white/20 bg-[#0B1528]/90 px-4 py-2.5 text-xs font-bold text-white shadow-2xl backdrop-blur-md transition-all hover:bg-[#00E5FF] hover:text-[#070F1E] hover:scale-105"
-          >
-            <Maximize2 className="h-4 w-4 text-[#00E5FF]" />
-            <span>{dict.tourDetails?.sameAsAdult ? (dict.tourDetails as any).viewAllPhotos || 'View Full Photos' : 'View Full Photos'} ({images.length})</span>
-          </button>
-        </div>
 
         {images.length > 1 && (
           <>
@@ -790,7 +777,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
     <>
       {/* ── Persistent Desktop Sticky Booking Header Bar ── */}
       <div
-        className={`fixed top-0 left-0 right-0 z-40 hidden lg:block border-b border-white/10 bg-[#0B1528]/95 px-8 py-3 backdrop-blur-2xl shadow-xl shadow-black/40 transition-all duration-300 ${
+        className={`fixed top-[73px] left-0 right-0 z-[90] hidden lg:block border-b border-white/10 bg-[#0B1528]/95 px-8 py-3 backdrop-blur-2xl shadow-xl shadow-black/40 transition-all duration-300 ${
           'translate-y-0 opacity-100'
         }`}
       >
@@ -1502,7 +1489,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
 
           {/* ----- RIGHT: Desktop Booking Widget + Payment Action Drawer ----- */}
           <aside className="hidden lg:block">
-            <div className="sticky top-28 rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] p-6 shadow-2xl shadow-black/20 backdrop-blur-xl">
+            <div className="sticky top-44 rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] p-6 shadow-2xl shadow-black/20 backdrop-blur-xl">
               {/* Price */}
               <div className="mb-6">
                 <p className="text-sm font-black uppercase tracking-[0.22em] text-slate-500">{dict.tourDetails.from}</p>
@@ -1521,6 +1508,15 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                   <span className="text-sm text-slate-400">{dict.tourDetails.perPerson}</span>
                 </div>
               </div>
+
+              <Link
+                href={reserveHref}
+                onClick={() => recordBookingInterest('DESKTOP_PRIMARY_BOOK_NOW')}
+                className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {dict.tourDetails.bookNow || 'Book Now'} <span aria-hidden="true">→</span>
+              </Link>
+              <p className="mb-6 text-center text-xs text-slate-400">Choose guests, pickup details, and payment securely on the next step.</p>
 
               {/* Pickup Time Slot Selector */}
               {tour.pickupTimes && tour.pickupTimes.length > 0 && (

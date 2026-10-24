@@ -13,7 +13,7 @@ export default function FloatingConciergeWidget() {
   const whatsappUrl = `https://wa.me/${whatsappNumber.replace('+', '')}?text=${defaultMessage}`;
 
   return (
-    <div className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-[calc(1.5rem+env(safe-area-inset-right))] z-50 flex flex-col items-end">
+    <div className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 flex flex-col items-end lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]">
       {/* Expanded Concierge Quick Card */}
       {isOpen && (
         <div className="mb-4 w-72 sm:w-80 rounded-3xl border border-white/15 bg-[#0B1528]/95 p-5 shadow-2xl shadow-black/80 backdrop-blur-2xl transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">

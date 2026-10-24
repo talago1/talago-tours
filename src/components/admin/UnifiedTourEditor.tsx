@@ -1454,6 +1454,19 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
+                    Customer-Facing Duration
+                  </label>
+                  <input
+                    type="text"
+                    value={data.durationDisplay || ''}
+                    onChange={(e) => updateData({ durationDisplay: e.target.value })}
+                    placeholder="e.g. 7 hours, Full day, 2 days / 1 night"
+                    className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
+                  />
+                  <p className="mt-1 text-xs text-slate-400">Use this for the exact duration shown to travellers; the numeric duration is used for scheduling.</p>
+                </div>
               </div>
             )}
 
@@ -1902,6 +1915,21 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
 
             {activeSection === 'activities' && (
               <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
+                    Main Activities
+                  </label>
+                  <p className="text-xs text-slate-400 mb-2">Comma-separated activity tags used for discovery and the tour summary.</p>
+                  <input
+                    type="text"
+                    value={(data.activityTypes || []).join(', ')}
+                    onChange={(e) => updateData({
+                      activityTypes: e.target.value.split(',').map((item) => item.trim()).filter(Boolean),
+                    })}
+                    placeholder="e.g. Snorkeling, Desert safari, Cultural sightseeing"
+                    className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
+                  />
+                </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                     Key Highlights / Selling Points ({activeLang.toUpperCase()})
