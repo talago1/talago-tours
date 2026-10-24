@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, MapPin } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 
 interface DestinationData {
   id: string;
@@ -84,6 +85,7 @@ export default function PopularDestinations({ destinations }: PopularDestination
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       className="object-cover opacity-60"
+                      unoptimized={isSupabaseStorageImage(dest.imageUrl)}
                     />
                   )}
                   <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full border-[20px] border-white/5" />

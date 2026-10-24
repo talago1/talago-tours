@@ -28,6 +28,7 @@ import {
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
 import Image from 'next/image';
+import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useWishlist } from '@/context/WishlistContext';
@@ -234,6 +235,7 @@ function HeroSlider({
               priority={i === 0}
               loading={i === 0 ? undefined : 'lazy'}
               className="object-cover transition-transform duration-500 group-hover:scale-105"
+              unoptimized={isSupabaseStorageImage(img)}
             />
           </div>
         ))}
@@ -338,6 +340,7 @@ function HeroSlider({
               fill
               sizes="95vw"
               className="rounded-lg object-contain shadow-2xl transition-all duration-300"
+              unoptimized={isSupabaseStorageImage(images[lightboxIndex])}
             />
 
             {images.length > 1 && (
@@ -372,7 +375,7 @@ function HeroSlider({
                     idx === lightboxIndex ? 'border-[#00E5FF] scale-105 opacity-100 shadow-lg' : 'border-transparent opacity-50 hover:opacity-100'
                   }`}
                 >
-                  <Image src={img} alt={`Thumbnail ${idx + 1}`} fill sizes="80px" className="object-cover" />
+                  <Image src={img} alt={`Thumbnail ${idx + 1}`} fill sizes="80px" className="object-cover" unoptimized={isSupabaseStorageImage(img)} />
                 </button>
               ))}
             </div>

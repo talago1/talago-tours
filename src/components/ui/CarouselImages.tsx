@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { ImageIcon } from 'lucide-react';
+import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 
 interface CarouselImagesProps {
   images: string[];
@@ -66,6 +67,7 @@ export default function CarouselImages({
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             priority={priority && i === 0}
+            unoptimized={isSupabaseStorageImage(url)}
             // Slides other than the first are only revealed on hover, so they
             // must not compete with the rest of the page for bandwidth.
             loading={priority && i === 0 ? undefined : 'lazy'}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 import { useLanguage } from '@/context/LanguageContext';
 import Link from 'next/link';
 import { MapPin, Compass, ChevronRight, Star, Search } from 'lucide-react';
@@ -106,6 +107,7 @@ function CoverImage({ src, alt, sizes, className, loading, ...rest }: CoverImage
       sizes={sizes}
       className={className}
       loading={loading}
+      unoptimized={isSupabaseStorageImage(src)}
       onError={() => setFailed(true)}
       {...rest}
     />
