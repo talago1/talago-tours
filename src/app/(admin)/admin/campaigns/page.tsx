@@ -172,7 +172,7 @@ export default function AdminCampaignsPage() {
   const totalRedemptions = campaigns.reduce((sum, c) => sum + (c.usedCount || 0), 0);
 
   return (
-    <main className="min-h-screen bg-[#070F1E] px-6 py-8 text-[#F8FAFC] lg:px-10">
+    <main className="min-h-screen bg-[#070F1E] px-4 py-5 text-[#F8FAFC] sm:px-6 sm:py-8 lg:px-10">
       <div className="mx-auto max-w-7xl">
         {/* Navigation Breadcrumb */}
         <div className="mb-8">

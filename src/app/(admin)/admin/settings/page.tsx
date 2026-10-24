@@ -381,7 +381,7 @@ export default function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#070F1E] px-6 py-8 lg:px-10">
+      <main className="min-h-screen bg-[#070F1E] px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
         <div className="mx-auto max-w-5xl">
           <div className="flex items-center justify-center py-32">
             <Loader2 className="h-8 w-8 animate-spin text-[#00E5FF]" />
@@ -392,7 +392,7 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#070F1E] px-6 py-8 text-[#F8FAFC] lg:px-10">
+    <main className="min-h-screen bg-[#070F1E] px-4 py-5 text-[#F8FAFC] sm:px-6 sm:py-8 lg:px-10">
       <div className="mx-auto max-w-5xl">
         {/* Header */}
         <div className="mb-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">

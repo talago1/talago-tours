@@ -7,6 +7,7 @@ import { Star, Clock, MapPin, ArrowRight } from 'lucide-react';
 import type { PublicTour } from '@/types/publicTour';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 
 interface TourCardProps {
   tour: PublicTour;
@@ -47,6 +48,7 @@ export default function TourCard({ tour, priority }: TourCardProps) {
               sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
               className="object-cover transition-transform duration-500 group-hover:scale-110"
               priority={priority}
+              unoptimized={isSupabaseStorageImage(tour.thumbnailUrl)}
               onError={() => setImgError(true)}
             />
           ) : (

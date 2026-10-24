@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 const Navbar = dynamic(() => import('@/components/layout/Navbar'), { ssr: false });
 const FooterContent = dynamic(() => import('@/components/layout/FooterContent'), { ssr: false });
 const FooterBrandColumn = dynamic(() => import('@/components/layout/FooterContent').then(m => m.FooterBrandColumn), { ssr: false });
-const FloatingConciergeWidget = dynamic(() => import('@/components/layout/FloatingConciergeWidget'), { ssr: false });
+const LiveChatWidget = dynamic(() => import('@/components/layout/LiveChatWidget'), { ssr: false });
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
 
@@ -66,8 +66,7 @@ export default async function PublicRouteLayout({ children }: { children: React.
       {/* ─── Main Content ─── */}
       <main className="flex-1">{children}</main>
 
-      {/* ─── Floating VIP Concierge WhatsApp Widget ─── */}
-      <FloatingConciergeWidget />
+      <LiveChatWidget />
 
       {/* ─── Premium Footer ─── */}
       <footer className="border-t border-white/[0.06] bg-gradient-to-b from-[#0B1528] to-[#070F1E]">

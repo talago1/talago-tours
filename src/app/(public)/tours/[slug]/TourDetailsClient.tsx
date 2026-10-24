@@ -18,7 +18,6 @@ import {
   Building2,
   UserRound,
   Baby,
-  Maximize2,
   Sparkles,
   Heart,
   Smartphone,
@@ -29,6 +28,7 @@ import {
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
 import Image from 'next/image';
+import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useWishlist } from '@/context/WishlistContext';
@@ -235,23 +235,12 @@ function HeroSlider({
               priority={i === 0}
               loading={i === 0 ? undefined : 'lazy'}
               className="object-cover transition-transform duration-500 group-hover:scale-105"
+              unoptimized={isSupabaseStorageImage(img)}
             />
           </div>
         ))}
         <div className="absolute inset-0 bg-gradient-to-t from-[#070F1E] via-[#070F1E]/20 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#070F1E] to-transparent" />
-
-        {/* View All Photos Button Badge */}
-        <div className="absolute bottom-6 right-6 z-10">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); openLightbox(current); }}
-            className="flex items-center gap-2 rounded-full border border-white/20 bg-[#0B1528]/90 px-4 py-2.5 text-xs font-bold text-white shadow-2xl backdrop-blur-md transition-all hover:bg-[#00E5FF] hover:text-[#070F1E] hover:scale-105"
-          >
-            <Maximize2 className="h-4 w-4 text-[#00E5FF]" />
-            <span>{dict.tourDetails?.sameAsAdult ? (dict.tourDetails as any).viewAllPhotos || 'View Full Photos' : 'View Full Photos'} ({images.length})</span>
-          </button>
-        </div>
 
         {images.length > 1 && (
           <>
@@ -351,6 +340,7 @@ function HeroSlider({
               fill
               sizes="95vw"
               className="rounded-lg object-contain shadow-2xl transition-all duration-300"
+              unoptimized={isSupabaseStorageImage(images[lightboxIndex])}
             />
 
             {images.length > 1 && (
@@ -385,7 +375,7 @@ function HeroSlider({
                     idx === lightboxIndex ? 'border-[#00E5FF] scale-105 opacity-100 shadow-lg' : 'border-transparent opacity-50 hover:opacity-100'
                   }`}
                 >
-                  <Image src={img} alt={`Thumbnail ${idx + 1}`} fill sizes="80px" className="object-cover" />
+                  <Image src={img} alt={`Thumbnail ${idx + 1}`} fill sizes="80px" className="object-cover" unoptimized={isSupabaseStorageImage(img)} />
                 </button>
               ))}
             </div>
@@ -788,63 +778,6 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
 
   return (
     <>
-      {/* ── Persistent Desktop Sticky Booking Header Bar ── */}
-      <div
-        className={`fixed top-0 left-0 right-0 z-40 hidden lg:block border-b border-white/10 bg-[#0B1528]/95 px-8 py-3 backdrop-blur-2xl shadow-xl shadow-black/40 transition-all duration-300 ${
-          'translate-y-0 opacity-100'
-        }`}
-      >
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
-          <div className="flex items-center gap-3.5 min-w-0">
-            {tour.images?.[0] && (
-              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-white/10">
-                <Image
-                  src={tour.images[0]}
-                  alt={localizedTitle}
-                  fill
-                  className="object-cover"
-                  sizes="44px"
-                />
-              </div>
-            )}
-            <div className="min-w-0">
-              <h4 className="truncate text-sm font-black text-white">{localizedTitle}</h4>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="flex items-center gap-1 text-[#FFD700] font-bold">
-                  ★ {tour.ratingAverage.toFixed(1)}
-                  <span className="text-slate-500 font-normal">({tour.ratingCount})</span>
-                </span>
-                <span>·</span>
-                <span className="flex items-center gap-1 text-slate-300">
-                  <Clock className="h-3 w-3 text-[#00E5FF]" />
-                  {tour.duration}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6 shrink-0">
-            <div className="text-right">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-                {totalGuests} {totalGuests === 1 ? 'Guest' : 'Guests'} Total
-              </p>
-              <p className="text-xl font-black text-white">
-                {formatPrice(totalPrice, { round: true })}
-              </p>
-            </div>
-
-            <Link
-              href={reserveHref}
-              onClick={() => recordBookingInterest('DESKTOP_STICKY_BAR')}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-6 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 transition-all hover:scale-105 active:scale-95"
-            >
-              <span>{selectedTime ? `${dict.tourDetails.bookNow || 'Book Now'} · ${selectedTime}` : (dict.tourDetails.bookNow || 'Book Now')}</span>
-              <span>→</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-
       {/* Hero Slider */}
       <HeroSlider
         images={tour.images}
@@ -1502,7 +1435,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
 
           {/* ----- RIGHT: Desktop Booking Widget + Payment Action Drawer ----- */}
           <aside className="hidden lg:block">
-            <div className="sticky top-28 rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] p-6 shadow-2xl shadow-black/20 backdrop-blur-xl">
+            <div className="sticky top-44 rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] p-6 shadow-2xl shadow-black/20 backdrop-blur-xl">
               {/* Price */}
               <div className="mb-6">
                 <p className="text-sm font-black uppercase tracking-[0.22em] text-slate-500">{dict.tourDetails.from}</p>
@@ -1522,6 +1455,21 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 </div>
               </div>
 
+              <Link
+                href={reserveHref}
+                onClick={() => recordBookingInterest('DESKTOP_PRIMARY_BOOK_NOW')}
+                className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {dict.tourDetails.bookNow || 'Book Now'} <span aria-hidden="true">→</span>
+              </Link>
+              <p className="mb-6 text-center text-xs text-slate-400">Choose guests, pickup details, and payment securely on the next step.</p>
+
+              <details className="group border-t border-white/10 pt-4">
+                <summary className="cursor-pointer list-none text-center text-xs font-bold text-slate-400 transition hover:text-[#00E5FF]">
+                  <span className="group-open:hidden">Customize guests, pickup, or add-ons</span>
+                  <span className="hidden group-open:inline">Hide booking preferences</span>
+                </summary>
+                <div className="pt-5">
               {/* Pickup Time Slot Selector */}
               {tour.pickupTimes && tour.pickupTimes.length > 0 && (
                 <div className="mb-6">
@@ -1674,8 +1622,8 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 </div>
               )}
 
-              {/* Payment Option Selector — Dynamic Action Drawer */}
-              <div className="mb-6 space-y-3">
+              {/* Payment is selected in checkout so the selected method is always applied to the booking. */}
+              {false && <div className="mb-6 space-y-3">
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{dict.tourDetails.paymentMethod}</p>
 
                 {/* Full Online */}
@@ -1745,7 +1693,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                     </div>
                   </button>
                 )}
-              </div>
+              </div>}
 
               {/* Price breakdown */}
               <div className="mb-6 space-y-2 border-t border-white/10 pt-5">
@@ -1777,16 +1725,13 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 )}
               </div>
 
-              {/* CTA */}
-              <Link href={reserveHref}>
-                <Button variant="primary" size="lg" fullWidth>{dict.tourDetails.reserveNow}</Button>
-              </Link>
-
               {/* Trust footer */}
               <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500">
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
                 {dict.tourDetails.secureBooking}
               </div>
+                </div>
+              </details>
             </div>
           </aside>
         </div>

@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 import { MapPin, ArrowLeft } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
 import PublicTourCard from '@/components/tours/PublicTourCard';
@@ -177,6 +178,7 @@ export default async function DestinationPage({
               priority
               className="object-cover opacity-40"
               sizes="100vw"
+              unoptimized={isSupabaseStorageImage(dest.imageUrl)}
             />
           ) : (
             <div className="h-full w-full bg-gradient-to-br from-[#0B1528] via-[#070F1E] to-[#0B1528]" />

@@ -28,6 +28,8 @@ const NAV_ITEMS = [
   { href: '/admin/media', label: 'Media Library', icon: ImageIcon },
   { href: '/admin/bookings', label: 'Bookings', icon: CalendarCheck },
   { href: '/admin/leads', label: 'Booking Leads', icon: MessageCircle },
+  { href: '/admin/inbox', label: 'Live Inbox', icon: MessageCircle },
+  { href: '/admin/content', label: 'Content Studio', icon: BookOpen },
   { href: '/admin/partners', label: 'Partners', icon: Users },
   { href: '/admin/blog', label: 'Blog & Articles', icon: BookOpen },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },
@@ -41,7 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#070F1E] text-[#F8FAFC]">
+    <div className="min-h-screen overflow-x-clip bg-[#070F1E] text-[#F8FAFC]">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -113,7 +115,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="min-w-0 lg:pl-64">
         {/* Mobile header */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-[#070F1E]/80 px-4 py-3 backdrop-blur-xl lg:hidden">
           <button
@@ -122,11 +124,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#00E5FF] text-xs font-black text-[#070F1E]">
               T
             </div>
-            <span className="text-2xl font-black uppercase tracking-[0.34em] text-white">TALAGO</span>
+            <span className="truncate text-2xl font-black uppercase tracking-[0.34em] text-white">TALAGO</span>
             <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40" />
           </div>
           <div className="w-9" />

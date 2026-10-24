@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 import { supabaseClient } from '@/lib/supabase/client';
 import {
   CalendarDays,
@@ -89,6 +90,7 @@ function BookingCard({
               fill
               sizes="64px"
               className="object-cover transition-transform duration-500 group-hover:scale-110"
+              unoptimized={isSupabaseStorageImage(booking.tour.coverImage)}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-[#0B1528]">
