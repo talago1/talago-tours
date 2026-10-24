@@ -479,10 +479,10 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   const nextSection = currentIndex < displayedSections.length - 1 ? displayedSections[currentIndex + 1] : null;
 
   return (
-    <div className="min-h-screen bg-[#070F1E] text-slate-100 flex flex-col font-sans pb-16">
+    <div className="min-h-screen overflow-x-clip bg-[#070F1E] pb-16 font-sans text-slate-100 flex flex-col">
       {/* Top Authoritative Header */}
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0B1528]/95 backdrop-blur px-6 py-4 flex flex-wrap items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 bg-[#0B1528]/95 px-4 py-4 shadow-xl backdrop-blur sm:px-6">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <button
             type="button"
             onClick={() => router.push('/admin/tours')}
@@ -492,9 +492,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
             All Tours
           </button>
 
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-black text-white tracking-wide">
+              <h1 className="truncate text-lg font-black tracking-wide text-white">
                 {currentLocale.title || 'Untitled Experience'}
               </h1>
               <span
@@ -509,14 +509,14 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 {data.status}
               </span>
             </div>
-            <p className="text-xs text-slate-400 font-mono">
+            <p className="truncate text-xs font-mono text-slate-400">
               slug: /{data.slug || 'generating-slug...'}
             </p>
           </div>
         </div>
 
         {/* Global Controls & Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
           {/* Quick Mode Toggle */}
           <button
             type="button"
@@ -544,13 +544,13 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
           </div>
 
           {/* Language Switcher */}
-          <div className="flex items-center rounded-xl border border-white/10 bg-[#070F1E] p-1">
+          <div className="flex max-w-full overflow-x-auto rounded-xl border border-white/10 bg-[#070F1E] p-1">
             {ALL_LANGUAGES.map((lang) => (
               <button
                 key={lang.code}
                 type="button"
                 onClick={() => setActiveLang(lang.code)}
-                className={`rounded-lg px-2 py-1 text-xs font-bold transition flex items-center gap-1 ${
+                className={`flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold transition ${
                   activeLang === lang.code
                     ? 'bg-[#00E5FF] text-[#070F1E]'
                     : 'text-slate-400 hover:text-white'
@@ -624,7 +624,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
 
       {/* Notifications Bar */}
       {saveSuccessMessage && (
-        <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-6 py-2.5 flex items-center justify-between text-xs text-emerald-300">
+        <div className="flex items-center justify-between border-b border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-300 sm:px-6">
           <div className="flex items-center gap-2 font-medium">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             {saveSuccessMessage}
@@ -634,7 +634,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
       )}
 
       {errorMessage && (
-        <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-2.5 flex items-center justify-between text-xs text-red-300">
+        <div className="flex items-center justify-between border-b border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-300 sm:px-6">
           <div className="flex items-center gap-2 font-medium">
             <AlertCircle className="w-4 h-4 text-red-400" />
             {errorMessage}
@@ -646,8 +646,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
       {/* Main Split Layout: Left Grouped Nav + Right Editor Panel */}
       <div className="max-w-[1700px] w-full mx-auto px-4 md:px-6 mt-6 flex-1 flex flex-col md:flex-row gap-6">
         {/* Left Sections Sidebar */}
-        <aside className="w-full md:w-80 flex-shrink-0">
-          <div className="sticky top-24 rounded-2xl border border-white/10 bg-[#0B1528] p-3 shadow-xl flex flex-col max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <aside className="w-full shrink-0 md:w-80">
+          <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-3 shadow-xl md:sticky md:top-24 md:flex md:max-h-[calc(100vh-8rem)] md:flex-col md:overflow-y-auto">
             <div className="px-3 py-2 border-b border-white/5 mb-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 {quickMode ? 'Fast Path Configuration' : 'Master 27 Sections'}
@@ -657,7 +657,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </p>
             </div>
 
-            <nav className="space-y-1">
+            <nav className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:block md:space-y-1">
               {displayedSections.map((sec) => {
                 const isActive = activeSection === sec.id;
                 return (
@@ -665,13 +665,13 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     key={sec.id}
                     type="button"
                     onClick={() => setActiveSection(sec.id)}
-                    className={`w-full text-left rounded-xl px-3 py-2 text-xs font-bold transition flex items-center justify-between group ${
+                    className={`flex w-full min-w-0 items-center justify-between gap-1 rounded-xl px-3 py-2 text-left text-xs font-bold transition ${
                       isActive
                         ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20 font-black'
                         : 'text-slate-300 hover:bg-white/5 hover:text-white'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 truncate">
+                    <div className="min-w-0 truncate">
                       <span className="truncate">{sec.shortLabel}</span>
                     </div>
                     {sec.isEssential && (
@@ -693,18 +693,18 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
         </aside>
 
         {/* Right Section Content Panel */}
-        <main className="flex-1 rounded-2xl border border-white/10 bg-[#0B1528] p-6 md:p-8 shadow-2xl min-h-[600px] flex flex-col justify-between">
+        <main className="flex min-w-0 flex-1 flex-col justify-between rounded-2xl border border-white/10 bg-[#0B1528] p-4 shadow-2xl min-h-[600px] sm:p-6 md:p-8">
           <div>
             {/* Section Header */}
             {(() => {
               const currentMeta = TOUR_EDITOR_SECTIONS.find((s) => s.id === activeSection);
               return (
-                <div className="border-b border-white/10 pb-5 mb-6 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h2 className="text-xl font-black text-white flex items-center gap-2">
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-5">
+                  <div className="min-w-0">
+                    <h2 className="flex items-center gap-2 text-xl font-black text-white">
                       {currentMeta?.title}
                     </h2>
-                    <p className="text-xs text-slate-400 mt-1">{currentMeta?.description}</p>
+                    <p className="mt-1 text-xs text-slate-400">{currentMeta?.description}</p>
                   </div>
                   <div className="flex items-center gap-2 text-xs font-semibold bg-white/5 px-3 py-1.5 rounded-full border border-white/5 text-slate-300">
                     <Globe className="w-3.5 h-3.5 text-[#00E5FF]" />
@@ -2582,12 +2582,12 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
           </div>
 
           {/* Bottom Section Navigator */}
-          <div className="border-t border-white/10 pt-5 mt-8 flex items-center justify-between">
+          <div className="mt-8 flex items-center justify-between gap-2 border-t border-white/10 pt-5">
             {prevSection ? (
               <button
                 type="button"
                 onClick={() => setActiveSection(prevSection.id)}
-                className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white transition"
+                className="flex max-w-[40%] truncate items-center gap-1.5 text-xs font-bold text-slate-400 transition hover:text-white"
               >
                 ← {prevSection.shortLabel}
               </button>
@@ -2603,7 +2603,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               <button
                 type="button"
                 onClick={() => setActiveSection(nextSection.id)}
-                className="flex items-center gap-1.5 text-xs font-bold text-[#00E5FF] hover:text-cyan-300 transition"
+                className="flex max-w-[40%] truncate items-center gap-1.5 text-xs font-bold text-[#00E5FF] transition hover:text-cyan-300"
               >
                 {nextSection.shortLabel} →
               </button>
