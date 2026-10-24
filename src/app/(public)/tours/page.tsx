@@ -97,7 +97,7 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
     where.hotelPickupIncluded = true;
   }
 
-  const [totalCount, allTours] = await Promise.all([
+  const [totalCount, allTours, destinations] = await Promise.all([
     prisma.tour.count({ where: { status: 'ACTIVE' } }),
     prisma.tour.findMany({
       where,
@@ -134,6 +134,11 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
         },
       },
     }),
+    prisma.destination.findMany({
+      where: { isVisible: true, tours: { some: { status: 'ACTIVE' } } },
+      orderBy: { name: 'asc' },
+      select: { name: true, slug: true },
+    }),
   ]);
 
   // Multi-entity search matching: tour titles/excerpts, destination name, or category
@@ -157,6 +162,7 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
   return (
     <div id="catalog" className="scroll-mt-8">
       <TourSearchHeaderWrapper
+        destinations={destinations}
         totalCount={totalCount}
         filteredCount={filteredCount}
       />
