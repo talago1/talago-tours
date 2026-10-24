@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
+import { sanitizeEmail, sanitizePlain, sanitizeText } from '@/utils/sanitize';
 
 // 5 contact form submissions per IP per 10 minutes
 const LIMIT = 5;
@@ -25,9 +26,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Sanitize inputs — strip control characters and truncate
-    const safeName = String(name).trim().replace(/[\u0000-\u001F\u007F]/g, '').slice(0, 200);
-    const safeEmail = String(email).trim().toLowerCase().slice(0, 254);
-    const safeMessage = String(message).trim().replace(/[\u0000-\u001F\u007F]/g, '').slice(0, 2000);
+    const safeName = sanitizePlain(name, 200);
+    const safeEmail = sanitizeEmail(email);
+    const safeMessage = sanitizeText(message, 2000);
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(safeEmail)) {

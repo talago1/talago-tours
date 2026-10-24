@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 import { parseSettingValue, serializeSettingValue } from '@/lib/systemSettings';
+import { sanitizeEmail, sanitizePlain, sanitizeText } from '@/utils/sanitize';
 
 // 5 partner submissions per IP per 10 minutes
 const LIMIT = 5;
@@ -45,7 +46,13 @@ export async function POST(request: NextRequest) {
       message,
     } = body;
 
-    if (!companyName || !contactName || !email || !phone || !country) {
+    const safeCompanyName = sanitizePlain(companyName, 150);
+    const safeContactName = sanitizePlain(contactName, 150);
+    const safeEmail = sanitizeEmail(email);
+    const safePhone = sanitizePlain(phone, 50);
+    const safeCountry = sanitizePlain(country, 100);
+
+    if (!safeCompanyName || !safeContactName || !safeEmail || !safePhone || !safeCountry) {
       return NextResponse.json(
         { error: 'Company name, contact name, email, phone, and country are required.' },
         { status: 400 },
@@ -53,22 +60,22 @@ export async function POST(request: NextRequest) {
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(String(email).trim())) {
+    if (!emailRegex.test(safeEmail)) {
       return NextResponse.json({ error: 'Invalid email address.' }, { status: 400 });
     }
 
     const newApp: PartnerApplication = {
       id: `app_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      companyName: String(companyName).trim().slice(0, 150),
-      contactName: String(contactName).trim().slice(0, 150),
-      email: String(email).trim().toLowerCase().slice(0, 200),
-      phone: String(phone).trim().slice(0, 50),
-      country: String(country).trim().slice(0, 100),
-      city: String(city || '').trim().slice(0, 100),
-      category: String(category || 'General Tours').trim().slice(0, 100),
-      website: website ? String(website).trim().slice(0, 200) : undefined,
-      fleetSize: fleetSize ? String(fleetSize).trim().slice(0, 50) : undefined,
-      message: String(message || '').trim().slice(0, 2000),
+      companyName: safeCompanyName,
+      contactName: safeContactName,
+      email: safeEmail,
+      phone: safePhone,
+      country: safeCountry,
+      city: sanitizePlain(city, 100),
+      category: sanitizePlain(category || 'General Tours', 100),
+      website: sanitizePlain(website, 200) || undefined,
+      fleetSize: sanitizePlain(fleetSize, 50) || undefined,
+      message: sanitizeText(message, 2000),
       status: 'PENDING',
       createdAt: new Date().toISOString(),
     };
