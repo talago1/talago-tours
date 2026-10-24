@@ -7,6 +7,7 @@ type ChatMessage = { id: string; sender: 'VISITOR' | 'ADMIN'; body: string; crea
 
 export default function LiveChatWidget() {
   const [open, setOpen] = useState(false);
+  const [contactMenuOpen, setContactMenuOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
@@ -59,8 +60,22 @@ export default function LiveChatWidget() {
     } finally { setSending(false); }
   };
 
+  const whatsappUrl = 'https://wa.me/2010222434602?text=Hello%20TALAGO%20Marketplace%2C%20I%20need%20help%20with%20an%20experience.';
+
   return (
     <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 flex flex-col items-end lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]">
+      {contactMenuOpen && !open && (
+        <div className="mb-3 w-56 overflow-hidden rounded-lg border border-white/15 bg-[#0B1528] p-2 shadow-2xl shadow-black/50">
+          <button type="button" onClick={() => { setOpen(true); setContactMenuOpen(false); }} className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm font-bold text-white hover:bg-white/[0.06]">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-300 text-slate-950"><MessageCircle className="h-4 w-4" /></span>
+            Chat on site
+          </button>
+          <a href={whatsappUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white hover:bg-white/[0.06]">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366] text-[10px] font-black text-slate-950">WA</span>
+            Chat on WhatsApp
+          </a>
+        </div>
+      )}
       {open && (
         <section className="mb-3 flex h-[min(32rem,calc(100vh-14rem))] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-white/15 bg-[#0B1528] shadow-2xl shadow-black/50">
           <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
@@ -85,8 +100,9 @@ export default function LiveChatWidget() {
           )}
         </section>
       )}
-      <button type="button" onClick={() => setOpen((value) => !value)} className="flex h-12 w-12 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-300/25" aria-label="Open live chat">
-        <MessageCircle className="h-5 w-5" />
+      <button type="button" onClick={() => { if (open) setOpen(false); else setContactMenuOpen((value) => !value); }} className="relative flex h-12 w-12 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-300/25" aria-label="Contact TALAGO">
+        {open || contactMenuOpen ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
+        {!open && !contactMenuOpen && <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#070F1E] bg-[#25D366] text-[7px] font-black text-slate-950">WA</span>}
       </button>
     </div>
   );
