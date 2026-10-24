@@ -91,6 +91,9 @@ export async function POST(request: NextRequest) {
 
     let lead;
     let isNewNotificationNeeded = false;
+    let isNewReservation = false;
+    const existingChatToken = request.cookies.get('talago_live_chat')?.value;
+    const chatToken = existingChatToken || crypto.randomUUID();
 
     if (existingLead) {
       lead = await prisma.bookingLead.update({
@@ -135,6 +138,30 @@ export async function POST(request: NextRequest) {
         },
       });
       isNewNotificationNeeded = true;
+      isNewReservation = true;
+    }
+
+    const reservationReference = `RES-${lead.id.slice(-8).toUpperCase()}`;
+
+    // Book now is the customer's explicit initial reservation action. Mirror
+    // it into the live inbox so the marketplace team can respond immediately.
+    // The browser's existing chat token keeps that conversation visible to the
+    // same visitor when the team replies.
+    if (isNewReservation) {
+      const reservationMessage = `[${reservationReference}] New reservation interest: ${tourTitle}. Guests: ${adults} adult${adults === 1 ? '' : 's'}${children > 0 ? `, ${children} child${children === 1 ? '' : 'ren'}` : ''}.${totalEstimatedPrice ? ` Estimated value: ${totalEstimatedPrice} ${currency}.` : ''}`;
+      try {
+        const conversation = await prisma.liveChatConversation.upsert({
+          where: { visitorToken: chatToken },
+          create: { visitorToken: chatToken, visitorName: customerName || undefined, visitorEmail: customerEmail || undefined, visitorPhone: customerPhone || undefined, lastPagePath: `/tours/${tourSlug}` },
+          update: { visitorName: customerName || undefined, visitorEmail: customerEmail || undefined, visitorPhone: customerPhone || undefined, lastPagePath: `/tours/${tourSlug}`, status: 'OPEN', lastMessageAt: new Date() },
+          select: { id: true },
+        });
+        await prisma.liveChatMessage.create({ data: { conversationId: conversation.id, sender: 'VISITOR', body: reservationMessage } });
+      } catch (chatError) {
+        // The reservation itself must remain available even if inbox logging
+        // is temporarily unavailable.
+        console.error('[booking-interest] inbox mirror failed:', chatError);
+      }
     }
 
     // Trigger Admin Notification for the interest event
@@ -146,6 +173,7 @@ export async function POST(request: NextRequest) {
       ].filter(Boolean).join(' | ');
 
       const alertText = `🔔 *New Pending Reservation!*\n\n` +
+        `🧾 *Reference:* ${reservationReference}\n` +
         `🏝️ *Tour:* ${tourTitle || tourSlug || tourId}\n` +
         `👤 *Guest:* ${guestDisplay}\n` +
         (contactInfo ? `📱 *Contact:* ${contactInfo}\n` : '') +
@@ -185,7 +213,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       leadId: lead.id,
+      reservationReference,
       status: lead.status,
+    }, {
+      headers: existingChatToken ? undefined : {
+        'Set-Cookie': `talago_live_chat=${chatToken}; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`,
+      },
     });
   } catch (err) {
     console.error('Failed to record booking interest:', err);

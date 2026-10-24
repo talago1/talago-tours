@@ -39,3 +39,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { conver
   const conversation = await prisma.liveChatConversation.update({ where: { id: params.conversationId }, data: { status } });
   return NextResponse.json({ conversation });
 }
+
+export async function DELETE(_: NextRequest, { params }: { params: { conversationId: string } }) {
+  try {
+    await prisma.liveChatConversation.delete({ where: { id: params.conversationId } });
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+  }
+}
