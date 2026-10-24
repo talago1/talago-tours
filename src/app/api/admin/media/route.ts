@@ -22,7 +22,8 @@ const GENERAL_BUCKET = 'talago-media';
 
 /**
  * Recursively fetches all items from a Supabase storage bucket folder
- * across multiple 100-item pages so no older files ever disappear.
+ * across multiple 100-item pages so no older files ever disappear. Pagination
+ * is applied only to the response, never to storage discovery.
  */
 async function listAllBucketFiles(supabaseAdmin: any, bucket: string, prefix: string = ''): Promise<any[]> {
   const allFiles: any[] = [];
@@ -51,10 +52,6 @@ async function listAllBucketFiles(supabaseAdmin: any, bucket: string, prefix: st
       currentOffset += batchSize;
     }
 
-    // Safety guard to avoid memory starvation up to 5,000 files
-    if (currentOffset >= 5000) {
-      break;
-    }
   }
 
   return allFiles;

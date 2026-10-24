@@ -364,6 +364,14 @@ export default function CheckoutPage() {
     if (queryInfants) setInfantsCount(Math.max(0, parseInt(queryInfants, 10)));
     const queryTime = searchParams.get('time') || searchParams.get('pickupTime');
     if (queryTime) setForm((prev) => ({ ...prev, pickupTime: queryTime }));
+    const queryAddons = searchParams.get('addons');
+    if (queryAddons) {
+      const map: Record<string, boolean> = {};
+      queryAddons.split(',').map((id) => id.trim()).filter(Boolean).forEach((id) => {
+        map[id] = true;
+      });
+      setSelectedAddons(map);
+    }
   }, [searchParams]);
 
   useEffect(() => {

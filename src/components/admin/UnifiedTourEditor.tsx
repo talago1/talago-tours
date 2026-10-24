@@ -35,6 +35,7 @@ import {
   BadgeAlert,
   Languages,
   Loader2,
+  Download,
 } from 'lucide-react';
 
 import type {
@@ -354,6 +355,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
         adultPrice: data.adultPrice,
         originalPrice: data.originalPrice || undefined,
         privatePrice: typeof data.privatePrice === 'number' && data.privatePrice > 0 ? data.privatePrice : undefined,
+        costPerPerson: typeof data.costPerPerson === 'number' && data.costPerPerson > 0 ? data.costPerPerson : undefined,
         durationHours: data.durationHours || 1,
         maxCapacity: data.maxCapacity || 10,
         coverImage: data.coverImage || undefined,
@@ -2658,7 +2660,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="text-lg font-black text-white">Import Trip from Text</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Paste structured trip text to auto-fill all editor fields. Review before saving.</p>
+                <p className="text-xs text-slate-400 mt-0.5">Paste structured text or import the complete JSON template. Review every field before saving.</p>
               </div>
               <button type="button" onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-white p-1 text-sm font-bold">✕</button>
             </div>
@@ -2706,6 +2708,17 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
               </details>
             )}
 
+            {!importPreview && (
+              <a
+                href="/templates/talago-trip-template.json"
+                download
+                className="mb-4 inline-flex items-center gap-2 rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-xs font-bold text-cyan-200 transition hover:bg-cyan-400/20"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download complete JSON template
+              </a>
+            )}
+
             {/* Textarea */}
             {!importPreview && (
               <>
@@ -2713,7 +2726,7 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
                   rows={14}
-                  placeholder="Paste your trip text here using the format above..."
+                  placeholder="Paste structured trip text or the downloaded JSON template here..."
                   className="w-full rounded-2xl border border-white/10 bg-[#060D1A] p-4 text-sm text-white placeholder-slate-500 focus:border-orange-500/40 focus:outline-none font-mono resize-y"
                 />
                 {importErrors.length > 0 && (
@@ -2724,8 +2737,8 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                 <div className="mt-4 flex items-center justify-end gap-3">
                   <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-300 cursor-pointer hover:bg-white/10 transition">
                     <FileText className="h-3.5 w-3.5" />
-                    Upload .txt File
-                    <input type="file" accept=".txt,.md" className="hidden" onChange={(e) => {
+                    Upload text or JSON
+                    <input type="file" accept=".txt,.md,.json,application/json" className="hidden" onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
                         const reader = new FileReader();
@@ -2740,6 +2753,59 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                     onClick={() => {
                       const text = importText;
                       const errors: string[] = [];
+                      const trimmedText = text.trim();
+
+                      // JSON templates preserve every supported editor field, including
+                      // nested itinerary, options, booking questions and translations.
+                      if (trimmedText.startsWith('{')) {
+                        try {
+                          const source = JSON.parse(trimmedText);
+                          if (!source || typeof source !== 'object' || Array.isArray(source)) {
+                            throw new Error('The JSON template must contain one trip object.');
+                          }
+
+                          const defaults = createDefaultTourEditorData();
+                          const preview: Partial<TourEditorData> = {};
+                          const own = Object.prototype.hasOwnProperty;
+                          const importableKeys: Array<keyof TourEditorData> = [
+                            ...(Object.keys(defaults) as Array<keyof TourEditorData>),
+                            'originalPrice', 'privatePrice', 'costPerPerson', 'customBadge', 'region',
+                            'durationDisplay', 'pickupDescription', 'meetingPointName', 'meetingPointAddress',
+                            'meetingPointLat', 'meetingPointLng', 'meetingPointLandmark', 'meetingPointInstructions',
+                            'meetingPointMapUrl', 'meetingPointImageUrl', 'vehicleType', 'boatType', 'transferNotes',
+                            'fitnessLevel', 'mobilityNotes', 'accessibilityNotes', 'emergencyContact',
+                            'cancellationPolicy', 'requirements', 'faqItems', 'operatorName', 'operatorPhone',
+                            'operatorEmail', 'internalNotes', 'metaTitle', 'metaDescription',
+                          ];
+                          for (const key of new Set(importableKeys)) {
+                            if (own.call(source, key)) {
+                              (preview as Record<string, unknown>)[key] = source[key];
+                            }
+                          }
+
+                          if (source.translations && typeof source.translations === 'object' && !Array.isArray(source.translations)) {
+                            preview.translations = {
+                              ...defaults.translations,
+                              ...source.translations,
+                            } as TourEditorData['translations'];
+                          }
+
+                          const english = preview.translations?.en;
+                          if (!english?.title?.trim()) errors.push('translations.en.title is required');
+                          if (!english?.description?.trim()) errors.push('translations.en.description is required');
+                          if (typeof preview.adultPrice !== 'number' || preview.adultPrice <= 0) errors.push('adultPrice is required and must be greater than zero');
+                          if (typeof preview.durationHours !== 'number' || preview.durationHours <= 0) errors.push('durationHours is required and must be greater than zero');
+                          if (typeof preview.maxCapacity !== 'number' || preview.maxCapacity <= 0) errors.push('maxCapacity is required and must be greater than zero');
+
+                          setImportErrors(errors);
+                          if (errors.length === 0) setImportPreview(preview);
+                          return;
+                        } catch (error) {
+                          setImportErrors([error instanceof Error ? error.message : 'Invalid JSON template.']);
+                          return;
+                        }
+                      }
+
                       const get = (key: string) => {
                         const m = text.match(new RegExp(`^${key}:\\s*(.+)$`, 'im'));
                         return m ? m[1].trim() : '';

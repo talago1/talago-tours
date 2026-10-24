@@ -51,6 +51,8 @@ export default function MediaLibraryModal({
   const [makeCover, setMakeCover] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState(0);
 
   const fetchMedia = useCallback(async () => {
     setLoading(true);
@@ -58,18 +60,20 @@ export default function MediaLibraryModal({
       const params = new URLSearchParams();
       if (bucket !== 'all') params.set('bucket', bucket);
       if (search.trim()) params.set('search', search.trim());
-      params.set('limit', '300');
+      params.set('limit', '100');
+      params.set('offset', String(offset));
       const res = await fetch(`/api/admin/media?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setItems(data.items || []);
+        setItems((previous) => offset === 0 ? (data.items || []) : [...previous, ...(data.items || [])]);
+        setTotal(Number(data.total || 0));
       }
     } catch (err) {
       console.error('[MediaLibraryModal] Fetch error:', err);
     } finally {
       setLoading(false);
     }
-  }, [bucket, search]);
+  }, [bucket, search, offset]);
 
   useEffect(() => {
     if (isOpen) {
@@ -79,6 +83,10 @@ export default function MediaLibraryModal({
       setMakeCover(false);
     }
   }, [isOpen, fetchMedia]);
+
+  useEffect(() => {
+    setOffset(0);
+  }, [bucket, search]);
 
   const toggleSelect = (url: string) => {
     if (!multiple) {
@@ -150,7 +158,7 @@ export default function MediaLibraryModal({
             <div>
               <h2 className="text-lg font-black text-white">{title}</h2>
               <p className="text-xs text-slate-400">
-                Centralized Supabase Storage ({items.length} items found)
+                Centralized media library ({total} items found)
               </p>
             </div>
           </div>
@@ -317,6 +325,7 @@ export default function MediaLibraryModal({
             </div>
           ) : (
             /* Media Grid */
+            <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
               {items.map((item) => {
                 const isSelected = selectedUrls.includes(item.url);
@@ -369,6 +378,14 @@ export default function MediaLibraryModal({
                 );
               })}
             </div>
+            {items.length < total && (
+              <div className="mt-6 flex justify-center">
+                <button type="button" onClick={() => setOffset(items.length)} className="rounded-lg border border-white/15 px-4 py-2 text-xs font-bold text-slate-200 hover:border-cyan-300/40 hover:text-cyan-200">
+                  Load more media ({total - items.length} remaining)
+                </button>
+              </div>
+            )}
+            </>
           )}
         </div>
 

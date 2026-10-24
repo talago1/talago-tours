@@ -53,6 +53,7 @@ interface TourData {
   inclusions: string[];
   exclusions: string[];
   itinerary: any[];
+  routeStops?: Array<{ id: string; name: string; description?: string; order: number; durationMinutes?: number }>;
   whatToBring: string;
   pickupDescription: string | null;
   pickupTime?: string | null;
@@ -498,6 +499,26 @@ function ItineraryTimeline({ itinerary, language = 'en' }: { itinerary: any[]; l
   );
 }
 
+function RouteStops({ stops }: { stops: NonNullable<TourData['routeStops']> }) {
+  if (!stops.length) return null;
+  return (
+    <div className="mt-6 border-t border-white/10 pt-5">
+      <h3 className="mb-3 text-sm font-bold text-white">Route</h3>
+      <ol className="space-y-3">
+        {stops.map((stop, index) => (
+          <li key={stop.id} className="flex gap-3 text-sm text-slate-300">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-400/15 text-xs font-bold text-cyan-200">{index + 1}</span>
+            <div>
+              <p className="font-semibold text-white">{stop.name}</p>
+              {stop.description && <p className="mt-0.5 leading-6 text-slate-400">{stop.description}</p>}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 // ---------- Checklist ----------
 function Checklist({ items, icon }: { items: string[]; icon: 'check' | 'x' }) {
   if (!items || items.length === 0) return null;
@@ -630,7 +651,6 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
   const [selectedTime, setSelectedTime] = useState<string>(tour.pickupTimes?.[0] || '');
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [wishAnim, setWishAnim] = useState(false);
-
   // Resolve localized translations from parent with fallback cascade
   const translations = tour.translations;
   const langTranslation = (translations?.[language] as any) || {};
@@ -734,11 +754,97 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
   const addonsQuery = selectedAddonIds.length > 0 ? `&addons=${encodeURIComponent(selectedAddonIds.join(','))}` : '';
   const reserveHref = `/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}${selectedTime ? `&time=${encodeURIComponent(selectedTime)}` : ''}${addonsQuery}`;
 
+  const recordBookingInterest = useCallback((source: string = 'BOOK_BUTTON') => {
+    try {
+      if (typeof window === 'undefined') return;
+      let sid = sessionStorage.getItem('talago_sid');
+      if (!sid) {
+        sid = 'sid_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+        sessionStorage.setItem('talago_sid', sid);
+      }
+      fetch('/api/public/booking-interest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tourId: tour.id,
+          tourSlug: tour.slug,
+          tourTitle: localizedTitle,
+          adults: adultsCount,
+          children: childrenCount,
+          totalEstimatedPrice: totalPrice,
+          currency: 'USD',
+          source,
+          sessionId: sid,
+          travelDate: selectedTime ? `Time: ${selectedTime}` : undefined,
+        }),
+      }).catch(() => {});
+    } catch {
+      // non-fatal
+    }
+  }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, totalPrice, selectedTime]);
+
   const whatToBringItems = localizedWhatToBringItems;
   const itineraryItems = localizedItineraryItems;
 
   return (
     <>
+      {/* ── Persistent Desktop Sticky Booking Header Bar ── */}
+      <div
+        className={`fixed top-0 left-0 right-0 z-40 hidden lg:block border-b border-white/10 bg-[#0B1528]/95 px-8 py-3 backdrop-blur-2xl shadow-xl shadow-black/40 transition-all duration-300 ${
+          'translate-y-0 opacity-100'
+        }`}
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
+          <div className="flex items-center gap-3.5 min-w-0">
+            {tour.images?.[0] && (
+              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-white/10">
+                <Image
+                  src={tour.images[0]}
+                  alt={localizedTitle}
+                  fill
+                  className="object-cover"
+                  sizes="44px"
+                />
+              </div>
+            )}
+            <div className="min-w-0">
+              <h4 className="truncate text-sm font-black text-white">{localizedTitle}</h4>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span className="flex items-center gap-1 text-[#FFD700] font-bold">
+                  ★ {tour.ratingAverage.toFixed(1)}
+                  <span className="text-slate-500 font-normal">({tour.ratingCount})</span>
+                </span>
+                <span>·</span>
+                <span className="flex items-center gap-1 text-slate-300">
+                  <Clock className="h-3 w-3 text-[#00E5FF]" />
+                  {tour.duration}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6 shrink-0">
+            <div className="text-right">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                {totalGuests} {totalGuests === 1 ? 'Guest' : 'Guests'} Total
+              </p>
+              <p className="text-xl font-black text-white">
+                {formatPrice(totalPrice, { round: true })}
+              </p>
+            </div>
+
+            <Link
+              href={reserveHref}
+              onClick={() => recordBookingInterest('DESKTOP_STICKY_BAR')}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-6 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 transition-all hover:scale-105 active:scale-95"
+            >
+              <span>{selectedTime ? `${dict.tourDetails.bookNow || 'Book Now'} · ${selectedTime}` : (dict.tourDetails.bookNow || 'Book Now')}</span>
+              <span>→</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* Hero Slider */}
       <HeroSlider
         images={tour.images}
@@ -1041,6 +1147,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
               {localizedItineraryItems.length > 0 && (
                 <Accordion title={dict.tourDetails.itinerary} defaultOpen>
                   <ItineraryTimeline itinerary={localizedItineraryItems} language={language} />
+                  <RouteStops stops={tour.routeStops || []} />
                 </Accordion>
               )}
 

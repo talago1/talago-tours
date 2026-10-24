@@ -1,29 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { Waves, Mountain, Compass, Sparkles, Star, ArrowDown } from 'lucide-react';
+import { Star, ArrowDown } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import type { SystemSettings } from '@/types/settings';
-
-const floatingIcons = [
-  { Icon: Waves,    color: 'text-[#06B6D4]', bg: 'bg-[#06B6D4]/10 border-[#06B6D4]/20', top: '18%', left: '8%',  delay: '0s',    size: 'h-10 w-10' },
-  { Icon: Mountain, color: 'text-[#EAB308]', bg: 'bg-[#EAB308]/10 border-[#EAB308]/20', top: '60%', left: '6%',  delay: '1.4s',  size: 'h-8  w-8'  },
-  { Icon: Compass,  color: 'text-[#A78BFA]', bg: 'bg-[#A78BFA]/10 border-[#A78BFA]/20', top: '25%', right: '7%', delay: '0.7s',  size: 'h-9  w-9'  },
-  { Icon: Sparkles, color: 'text-[#34D399]', bg: 'bg-[#34D399]/10 border-[#34D399]/20', top: '65%', right: '9%', delay: '2s',    size: 'h-7  w-7'  },
-];
-
-interface ToursHeroDestination {
-  name: string;
-  slug: string;
-}
 
 interface ToursHeroProps {
   totalCount: number;
   banners: SystemSettings['banners'];
-  destinations: ToursHeroDestination[];
 }
 
-export default function ToursHero({ totalCount, banners, destinations }: ToursHeroProps) {
+export default function ToursHero({ totalCount, banners }: ToursHeroProps) {
   const { dict } = useLanguage();
 
   // Admin overrides win; each one falls back to the translated default so an
@@ -36,9 +23,6 @@ export default function ToursHero({ totalCount, banners, destinations }: ToursHe
   const ratingValue = banners.toursHeroRatingValue?.trim() || '4.9/5';
   const ratingLabel = banners.toursHeroRatingLabel?.trim() || dict.catalog.verifiedGuests;
 
-  // Cap the pill row so a large destination table cannot overwhelm the hero.
-  const pills = destinations.slice(0, 5);
-
   return (
     <div className="relative overflow-hidden bg-[#070F1E] pb-10 pt-24 lg:pb-14 lg:pt-32">
       {/* Admin-uploaded background, if set */}
@@ -49,39 +33,10 @@ export default function ToursHero({ totalCount, banners, destinations }: ToursHe
         />
       )}
 
-      {/* Animated gradient background — doubles as the scrim when a photo is
-          set above, so headline text keeps its contrast either way. */}
+      {/* A restrained scrim keeps an optional admin image readable. */}
       <div className="pointer-events-none absolute inset-0">
         {background && <div className="absolute inset-0 bg-[#070F1E]/70" />}
-        <div className="absolute -left-40 -top-40 h-[600px] w-[600px] rounded-full bg-[#06B6D4]/[0.07] blur-[120px] animate-pulse" />
-        <div className="absolute -bottom-40 -right-32 h-[500px] w-[500px] rounded-full bg-[#EAB308]/[0.06] blur-[100px] animate-pulse" style={{ animationDelay: '1.5s' }} />
-        <div className="absolute left-1/2 top-1/3 h-[300px] w-[300px] -translate-x-1/2 rounded-full bg-[#A78BFA]/[0.04] blur-[80px] animate-pulse" style={{ animationDelay: '3s' }} />
-        {/* Grid overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage:
-              'linear-gradient(#06B6D4 1px, transparent 1px), linear-gradient(90deg, #06B6D4 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
-          }}
-        />
       </div>
-
-      {/* Floating category icons */}
-      {floatingIcons.map(({ Icon, color, bg, top, left, right, delay, size }) => (
-        <div
-          key={color + top}
-          className="pointer-events-none absolute hidden lg:flex"
-          style={{ top, left, right, animationDelay: delay }}
-        >
-          <div
-            className={`flex items-center justify-center rounded-2xl border p-3 backdrop-blur-sm ${bg} animate-bounce`}
-            style={{ animationDuration: '3.5s', animationDelay: delay }}
-          >
-            <Icon className={`${size} ${color}`} />
-          </div>
-        </div>
-      ))}
 
       <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
         {/* Top label */}
@@ -126,20 +81,6 @@ export default function ToursHero({ totalCount, banners, destinations }: ToursHe
               <strong className="font-black text-white">{ratingValue}</strong> · {ratingLabel}
             </span>
           </div>
-        </div>
-
-        {/* Destination pills — real filter links built from destinations that
-            actually have active tours, so they can never drift from the data. */}
-        <div className="mt-8 flex flex-wrap gap-2">
-          {pills.map((d) => (
-            <Link
-              key={d.slug}
-              href={`/tours?destination=${d.slug}`}
-              className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:border-[#06B6D4]/30 hover:text-[#06B6D4]"
-            >
-              {d.name}
-            </Link>
-          ))}
         </div>
       </div>
     </div>

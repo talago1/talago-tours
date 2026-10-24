@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
       adultPrice,
       originalPrice,
       privatePrice,
+      costPerPerson,
       priceAdult,
       childEnabled,
       childPrice,
@@ -369,6 +370,7 @@ export async function POST(request: NextRequest) {
         adultPrice: resolvedAdultPrice,
         priceAdult: resolvedAdultPrice,   // keep legacy alias in sync
         originalPrice: typeof originalPrice === 'number' && originalPrice > 0 ? originalPrice : null,
+        costPerPerson: typeof costPerPerson === 'number' && costPerPerson > 0 ? costPerPerson : null,
         pricePrivate: typeof privatePrice === 'number' && privatePrice > 0 ? privatePrice : null,
         childPrice: childEnabled ? childPrice : null,
         priceChild: childEnabled ? (childPrice ?? null) : null, // keep legacy alias in sync

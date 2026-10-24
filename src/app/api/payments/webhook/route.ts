@@ -139,6 +139,11 @@ export async function POST(request: NextRequest) {
         } satisfies WebhookResponse);
       }
 
+      await prisma.bookingLead.updateMany({
+        where: { bookingId: booking.id, status: { not: 'CONVERTED' } },
+        data: { status: 'CONVERTED' },
+      });
+
       return NextResponse.json({
         status: 'accepted',
         bookingReference: merchantOrderId,

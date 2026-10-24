@@ -97,7 +97,7 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
     where.hotelPickupIncluded = true;
   }
 
-  const [totalCount, allTours, destinations, modulesSetting] = await Promise.all([
+  const [totalCount, allTours] = await Promise.all([
     prisma.tour.count({ where: { status: 'ACTIVE' } }),
     prisma.tour.findMany({
       where,
@@ -134,12 +134,6 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
         },
       },
     }),
-    prisma.destination.findMany({
-      where: { isVisible: true },
-      orderBy: { name: 'asc' },
-      select: { name: true, slug: true },
-    }).catch(() => [] as { name: string; slug: string }[]),
-    prisma.systemSetting.findUnique({ where: { key: 'modules' } }),
   ]);
 
   // Multi-entity search matching: tour titles/excerpts, destination name, or category
@@ -160,17 +154,11 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
 
   const filteredCount = tours.length;
 
-  const modules = modulesSetting
-    ? parseSettingValue<SystemSettings['modules']>(modulesSetting.value, DEFAULT_SYSTEM_SETTINGS.modules)
-    : DEFAULT_SYSTEM_SETTINGS.modules;
-
   return (
     <div id="catalog" className="scroll-mt-8">
       <TourSearchHeaderWrapper
-        destinations={destinations}
         totalCount={totalCount}
         filteredCount={filteredCount}
-        modules={modules}
       />
       <div className="mt-8">
         <ToursGrid tours={tours} />
@@ -180,14 +168,9 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
 }
 
 export default async function ToursPage({ searchParams }: CatalogPageProps) {
-  const [totalCount, bannerSetting, heroDestinations] = await Promise.all([
+  const [totalCount, bannerSetting] = await Promise.all([
     prisma.tour.count({ where: { status: 'ACTIVE' } }),
     prisma.systemSetting.findUnique({ where: { key: 'banners' } }),
-    prisma.destination.findMany({
-      where: { isVisible: true, tours: { some: { status: 'ACTIVE' } } },
-      orderBy: { name: 'asc' },
-      select: { name: true, slug: true },
-    }),
   ]);
 
   const bannerData = bannerSetting
@@ -196,7 +179,7 @@ export default async function ToursPage({ searchParams }: CatalogPageProps) {
 
   return (
     <main className="min-h-screen bg-[#070F1E] text-[#F8FAFC]">
-      <ToursHero totalCount={totalCount} banners={bannerData} destinations={heroDestinations} />
+      <ToursHero totalCount={totalCount} banners={bannerData} />
 
       <div className="mx-auto max-w-7xl px-5 pb-20 pt-10 sm:px-8 lg:px-10 lg:pb-28">
         <Suspense
