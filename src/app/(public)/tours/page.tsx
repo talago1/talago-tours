@@ -29,6 +29,8 @@ function buildSort(orderBy: string | undefined): Record<string, 'asc' | 'desc'> 
     case 'price_desc':   return { adultPrice: 'desc' as const };
     case 'duration_asc': return { durationHours: 'asc'  as const };
     case 'duration_desc':return { durationHours: 'desc' as const };
+    case 'rating_desc':  return { ratingAverage: 'desc' as const };
+    case 'popular':      return { isBestSeller: 'desc' as const };
     default:             return { isBestSeller: 'desc' as const };
   }
 }
@@ -41,6 +43,10 @@ interface CatalogPageProps {
     category?: string;
     search?: string;
     sort?: string;
+    duration?: string;
+    rating?: string;
+    maxPrice?: string;
+    pickup?: string;
   };
 }
 
@@ -54,11 +60,41 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
   // `type` is canonical; `category` is accepted so older shared links keep working.
   const dbCategories = resolveCategoryFilter(filters.type ?? filters.category);
   if (dbCategories && dbCategories.length > 0) {
-    // `Tour.category` is a free-form string and the database already holds
-    // inconsistent casing ("Cultural" vs "cultural") plus stray whitespace
-    // ("Cultural "), so the lookup has to be case-insensitive or whole groups
-    // of tours silently vanish from their filter.
     where.category = { in: dbCategories, mode: 'insensitive' };
+  }
+
+  // Faceted duration filtering
+  if (filters.duration) {
+    if (filters.duration === 'quick') {
+      where.durationHours = { lte: 2 };
+    } else if (filters.duration === 'half') {
+      where.durationHours = { gt: 2, lte: 4 };
+    } else if (filters.duration === 'extended') {
+      where.durationHours = { gt: 4, lte: 8 };
+    } else if (filters.duration === 'fullday') {
+      where.durationHours = { gt: 8 };
+    }
+  }
+
+  // Faceted rating filtering
+  if (filters.rating) {
+    const minRating = parseFloat(filters.rating);
+    if (!isNaN(minRating)) {
+      where.ratingAverage = { gte: minRating };
+    }
+  }
+
+  // Faceted price ceiling filtering
+  if (filters.maxPrice) {
+    const max = parseFloat(filters.maxPrice);
+    if (!isNaN(max)) {
+      where.adultPrice = { lte: max };
+    }
+  }
+
+  // Faceted hotel pickup inclusion
+  if (filters.pickup === 'true' || filters.pickup === '1') {
+    where.hotelPickupIncluded = true;
   }
 
   const [totalCount, allTours, destinations] = await Promise.all([
@@ -99,20 +135,25 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
       },
     }),
     prisma.destination.findMany({
-      where: { isVisible: true },
+      where: { isVisible: true, tours: { some: { status: 'ACTIVE' } } },
       orderBy: { name: 'asc' },
       select: { name: true, slug: true },
-    }).catch(() => [] as { name: string; slug: string }[]),
+    }),
   ]);
 
-  // In-memory search filter for multilingual JSON fields
+  // Multi-entity search matching: tour titles/excerpts, destination name, or category
   const tours = filters.search
     ? allTours.filter((t) => {
-        const lower = filters.search!.toLowerCase();
-        const tData = t.translations as Record<string, { title?: string }>;
-        return Object.values(tData).some(
-          (entry) => entry?.title && entry.title.toLowerCase().includes(lower),
+        const lower = filters.search!.toLowerCase().trim();
+        const tData = (t.translations as Record<string, { title?: string; shortDescription?: string; overview?: string }>) || {};
+        const matchesTitleOrDesc = Object.values(tData).some(
+          (entry) =>
+            (entry?.title && entry.title.toLowerCase().includes(lower)) ||
+            (entry?.shortDescription && entry.shortDescription.toLowerCase().includes(lower)),
         );
+        const matchesDestination = t.destination?.name?.toLowerCase().includes(lower);
+        const matchesCategory = t.category?.toLowerCase().includes(lower);
+        return matchesTitleOrDesc || matchesDestination || matchesCategory;
       })
     : allTours;
 
@@ -133,14 +174,9 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
 }
 
 export default async function ToursPage({ searchParams }: CatalogPageProps) {
-  const [totalCount, bannerSetting, heroDestinations] = await Promise.all([
+  const [totalCount, bannerSetting] = await Promise.all([
     prisma.tour.count({ where: { status: 'ACTIVE' } }),
     prisma.systemSetting.findUnique({ where: { key: 'banners' } }),
-    prisma.destination.findMany({
-      where: { isVisible: true, tours: { some: { status: 'ACTIVE' } } },
-      orderBy: { name: 'asc' },
-      select: { name: true, slug: true },
-    }),
   ]);
 
   const bannerData = bannerSetting
@@ -149,7 +185,7 @@ export default async function ToursPage({ searchParams }: CatalogPageProps) {
 
   return (
     <main className="min-h-screen bg-[#070F1E] text-[#F8FAFC]">
-      <ToursHero totalCount={totalCount} banners={bannerData} destinations={heroDestinations} />
+      <ToursHero totalCount={totalCount} banners={bannerData} />
 
       <div className="mx-auto max-w-7xl px-5 pb-20 pt-10 sm:px-8 lg:px-10 lg:pb-28">
         <Suspense

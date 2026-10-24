@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 import { BookOpen, Clock, Search, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -114,6 +115,7 @@ export default function BlogClient({ initialPosts }: { initialPosts: BlogPostDat
                           fill
                           sizes="(max-width: 768px) 100vw, 33vw"
                           className="object-cover transition duration-500 group-hover:scale-105"
+                          unoptimized={isSupabaseStorageImage(post.coverImage)}
                         />
                       )}
                       <span className="absolute top-3 left-3 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-black uppercase text-[#00E5FF]">

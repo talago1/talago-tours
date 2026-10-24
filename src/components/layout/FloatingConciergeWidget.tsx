@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageCircle, X, Sparkles } from 'lucide-react';
+import { MessageCircle, X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function FloatingConciergeWidget() {
@@ -9,11 +9,11 @@ export default function FloatingConciergeWidget() {
   const [isOpen, setIsOpen] = useState(false);
 
   const whatsappNumber = '+2010222434602';
-  const defaultMessage = encodeURIComponent('Hello TALAGO Concierge! I would like to inquire about luxury yacht charters & safari experiences.');
+  const defaultMessage = encodeURIComponent('Hello TALAGO Concierge! I would like to inquire about booking tours & curated travel experiences.');
   const whatsappUrl = `https://wa.me/${whatsappNumber.replace('+', '')}?text=${defaultMessage}`;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 flex flex-col items-end lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]">
       {/* Expanded Concierge Quick Card */}
       {isOpen && (
         <div className="mb-4 w-72 sm:w-80 rounded-3xl border border-white/15 bg-[#0B1528]/95 p-5 shadow-2xl shadow-black/80 backdrop-blur-2xl transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
@@ -36,7 +36,7 @@ export default function FloatingConciergeWidget() {
           <div className="mt-3">
             <p className="text-sm font-bold text-white">Need personal assistance?</p>
             <p className="mt-1 text-xs leading-5 text-slate-300">
-              Our Egypt travel specialists are online to curate custom private yacht charters, desert safaris, and Nile experiences for you.
+              Our travel specialists are online 24/7 to curate custom private tours, activities, and unforgettable experiences for you worldwide.
             </p>
           </div>
 

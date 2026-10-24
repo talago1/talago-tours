@@ -35,6 +35,7 @@ import {
   BadgeAlert,
   Languages,
   Loader2,
+  Download,
 } from 'lucide-react';
 
 import type {
@@ -55,6 +56,7 @@ import {
   createDefaultLocalizedContent,
   calculateTourCompleteness
 } from '@/types/tourEditor';
+import { createEmptyMilestone } from '@/types/itinerary';
 import { TOUR_TEMPLATES, applyTemplateToTourData } from '@/lib/tourTemplates';
 
 // Sub-builders
@@ -115,6 +117,10 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importPreview, setImportPreview] = useState<Partial<TourEditorData> | null>(null);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
   const [translating, setTranslating] = useState(false);
   const [mediaPickerTarget, setMediaPickerTarget] = useState<'cover' | 'gallery' | null>(null);
 
@@ -349,6 +355,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
         adultPrice: data.adultPrice,
         originalPrice: data.originalPrice || undefined,
         privatePrice: typeof data.privatePrice === 'number' && data.privatePrice > 0 ? data.privatePrice : undefined,
+        costPerPerson: typeof data.costPerPerson === 'number' && data.costPerPerson > 0 ? data.costPerPerson : undefined,
         durationHours: data.durationHours || 1,
         maxCapacity: data.maxCapacity || 10,
         coverImage: data.coverImage || undefined,
@@ -472,10 +479,10 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   const nextSection = currentIndex < displayedSections.length - 1 ? displayedSections[currentIndex + 1] : null;
 
   return (
-    <div className="min-h-screen bg-[#070F1E] text-slate-100 flex flex-col font-sans pb-16">
+    <div className="min-h-screen overflow-x-clip bg-[#070F1E] pb-16 font-sans text-slate-100 flex flex-col">
       {/* Top Authoritative Header */}
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0B1528]/95 backdrop-blur px-6 py-4 flex flex-wrap items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 bg-[#0B1528]/95 px-4 py-4 shadow-xl backdrop-blur sm:px-6">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <button
             type="button"
             onClick={() => router.push('/admin/tours')}
@@ -485,9 +492,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
             All Tours
           </button>
 
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-black text-white tracking-wide">
+              <h1 className="truncate text-lg font-black tracking-wide text-white">
                 {currentLocale.title || 'Untitled Experience'}
               </h1>
               <span
@@ -502,14 +509,14 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 {data.status}
               </span>
             </div>
-            <p className="text-xs text-slate-400 font-mono">
+            <p className="truncate text-xs font-mono text-slate-400">
               slug: /{data.slug || 'generating-slug...'}
             </p>
           </div>
         </div>
 
         {/* Global Controls & Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
           {/* Quick Mode Toggle */}
           <button
             type="button"
@@ -537,13 +544,13 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
           </div>
 
           {/* Language Switcher */}
-          <div className="flex items-center rounded-xl border border-white/10 bg-[#070F1E] p-1">
+          <div className="flex max-w-full overflow-x-auto rounded-xl border border-white/10 bg-[#070F1E] p-1">
             {ALL_LANGUAGES.map((lang) => (
               <button
                 key={lang.code}
                 type="button"
                 onClick={() => setActiveLang(lang.code)}
-                className={`rounded-lg px-2 py-1 text-xs font-bold transition flex items-center gap-1 ${
+                className={`flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold transition ${
                   activeLang === lang.code
                     ? 'bg-[#00E5FF] text-[#070F1E]'
                     : 'text-slate-400 hover:text-white'
@@ -569,6 +576,16 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               <Languages className="w-4 h-4 text-emerald-400" />
             )}
             <span>{translating ? 'Translating...' : 'AI Translate All'}</span>
+          </button>
+
+          {/* Import from Text */}
+          <button
+            type="button"
+            onClick={() => { setShowImportModal(true); setImportPreview(null); setImportErrors([]); setImportText(''); }}
+            className="flex items-center gap-1.5 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3.5 py-2 text-xs font-bold text-orange-300 hover:bg-orange-500/20 transition"
+          >
+            <FileText className="w-4 h-4 text-orange-400" />
+            Import
           </button>
 
           {/* Templates Library Button */}
@@ -607,7 +624,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
 
       {/* Notifications Bar */}
       {saveSuccessMessage && (
-        <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-6 py-2.5 flex items-center justify-between text-xs text-emerald-300">
+        <div className="flex items-center justify-between border-b border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-300 sm:px-6">
           <div className="flex items-center gap-2 font-medium">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             {saveSuccessMessage}
@@ -617,7 +634,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
       )}
 
       {errorMessage && (
-        <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-2.5 flex items-center justify-between text-xs text-red-300">
+        <div className="flex items-center justify-between border-b border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-300 sm:px-6">
           <div className="flex items-center gap-2 font-medium">
             <AlertCircle className="w-4 h-4 text-red-400" />
             {errorMessage}
@@ -629,8 +646,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
       {/* Main Split Layout: Left Grouped Nav + Right Editor Panel */}
       <div className="max-w-[1700px] w-full mx-auto px-4 md:px-6 mt-6 flex-1 flex flex-col md:flex-row gap-6">
         {/* Left Sections Sidebar */}
-        <aside className="w-full md:w-80 flex-shrink-0">
-          <div className="sticky top-24 rounded-2xl border border-white/10 bg-[#0B1528] p-3 shadow-xl flex flex-col max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <aside className="w-full shrink-0 md:w-80">
+          <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-3 shadow-xl md:sticky md:top-24 md:flex md:max-h-[calc(100vh-8rem)] md:flex-col md:overflow-y-auto">
             <div className="px-3 py-2 border-b border-white/5 mb-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 {quickMode ? 'Fast Path Configuration' : 'Master 27 Sections'}
@@ -640,7 +657,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </p>
             </div>
 
-            <nav className="space-y-1">
+            <nav className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:block md:space-y-1">
               {displayedSections.map((sec) => {
                 const isActive = activeSection === sec.id;
                 return (
@@ -648,13 +665,13 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     key={sec.id}
                     type="button"
                     onClick={() => setActiveSection(sec.id)}
-                    className={`w-full text-left rounded-xl px-3 py-2 text-xs font-bold transition flex items-center justify-between group ${
+                    className={`flex w-full min-w-0 items-center justify-between gap-1 rounded-xl px-3 py-2 text-left text-xs font-bold transition ${
                       isActive
                         ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20 font-black'
                         : 'text-slate-300 hover:bg-white/5 hover:text-white'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 truncate">
+                    <div className="min-w-0 truncate">
                       <span className="truncate">{sec.shortLabel}</span>
                     </div>
                     {sec.isEssential && (
@@ -676,18 +693,18 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
         </aside>
 
         {/* Right Section Content Panel */}
-        <main className="flex-1 rounded-2xl border border-white/10 bg-[#0B1528] p-6 md:p-8 shadow-2xl min-h-[600px] flex flex-col justify-between">
+        <main className="flex min-w-0 flex-1 flex-col justify-between rounded-2xl border border-white/10 bg-[#0B1528] p-4 shadow-2xl min-h-[600px] sm:p-6 md:p-8">
           <div>
             {/* Section Header */}
             {(() => {
               const currentMeta = TOUR_EDITOR_SECTIONS.find((s) => s.id === activeSection);
               return (
-                <div className="border-b border-white/10 pb-5 mb-6 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h2 className="text-xl font-black text-white flex items-center gap-2">
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-5">
+                  <div className="min-w-0">
+                    <h2 className="flex items-center gap-2 text-xl font-black text-white">
                       {currentMeta?.title}
                     </h2>
-                    <p className="text-xs text-slate-400 mt-1">{currentMeta?.description}</p>
+                    <p className="mt-1 text-xs text-slate-400">{currentMeta?.description}</p>
                   </div>
                   <div className="flex items-center gap-2 text-xs font-semibold bg-white/5 px-3 py-1.5 rounded-full border border-white/5 text-slate-300">
                     <Globe className="w-3.5 h-3.5 text-[#00E5FF]" />
@@ -1437,6 +1454,19 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
+                    Customer-Facing Duration
+                  </label>
+                  <input
+                    type="text"
+                    value={data.durationDisplay || ''}
+                    onChange={(e) => updateData({ durationDisplay: e.target.value })}
+                    placeholder="e.g. 7 hours, Full day, 2 days / 1 night"
+                    className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
+                  />
+                  <p className="mt-1 text-xs text-slate-400">Use this for the exact duration shown to travellers; the numeric duration is used for scheduling.</p>
+                </div>
               </div>
             )}
 
@@ -1885,6 +1915,21 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
 
             {activeSection === 'activities' && (
               <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
+                    Main Activities
+                  </label>
+                  <p className="text-xs text-slate-400 mb-2">Comma-separated activity tags used for discovery and the tour summary.</p>
+                  <input
+                    type="text"
+                    value={(data.activityTypes || []).join(', ')}
+                    onChange={(e) => updateData({
+                      activityTypes: e.target.value.split(',').map((item) => item.trim()).filter(Boolean),
+                    })}
+                    placeholder="e.g. Snorkeling, Desert safari, Cultural sightseeing"
+                    className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
+                  />
+                </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                     Key Highlights / Selling Points ({activeLang.toUpperCase()})
@@ -2537,12 +2582,12 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
           </div>
 
           {/* Bottom Section Navigator */}
-          <div className="border-t border-white/10 pt-5 mt-8 flex items-center justify-between">
+          <div className="mt-8 flex items-center justify-between gap-2 border-t border-white/10 pt-5">
             {prevSection ? (
               <button
                 type="button"
                 onClick={() => setActiveSection(prevSection.id)}
-                className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white transition"
+                className="flex max-w-[40%] truncate items-center gap-1.5 text-xs font-bold text-slate-400 transition hover:text-white"
               >
                 ← {prevSection.shortLabel}
               </button>
@@ -2558,7 +2603,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               <button
                 type="button"
                 onClick={() => setActiveSection(nextSection.id)}
-                className="flex items-center gap-1.5 text-xs font-bold text-[#00E5FF] hover:text-cyan-300 transition"
+                className="flex max-w-[40%] truncate items-center gap-1.5 text-xs font-bold text-[#00E5FF] transition hover:text-cyan-300"
               >
                 {nextSection.shortLabel} →
               </button>
@@ -2630,6 +2675,289 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Import from Text Modal ── */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowImportModal(false)} />
+          <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-orange-500/20 bg-[#0B1528] p-6 shadow-2xl">
+            {/* Header */}
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-black text-white">Import Trip from Text</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Paste structured text or import the complete JSON template. Review every field before saving.</p>
+              </div>
+              <button type="button" onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-white p-1 text-sm font-bold">✕</button>
+            </div>
+
+            {/* Template Example */}
+            {!importPreview && (
+              <details className="mb-4 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
+                <summary className="cursor-pointer px-4 py-3 text-xs font-bold text-[#00E5FF] hover:text-white transition">📋 See example template format</summary>
+                <pre className="px-4 pb-4 text-[10px] text-slate-400 leading-relaxed whitespace-pre-wrap font-mono select-all">{`TITLE: Red Sea Snorkeling & Boat Adventure
+DESTINATION: Hurghada
+CATEGORY: SNORKELING
+DURATION: 6
+PRICE: 45
+DESCRIPTION:
+Discover the vibrant coral reefs of the Red Sea on this full-day snorkeling and boat trip departing from Hurghada Marina. Suitable for all levels.
+
+HIGHLIGHTS:
+- Swim with colorful reef fish at two prime snorkel spots
+- Relax on a traditional wooden felucca boat
+- Light lunch and refreshments included on board
+- Professional bilingual guide (EN/DE)
+
+INCLUSIONS:
+- Hotel pickup and drop-off from Hurghada
+- Snorkeling equipment (mask, fins, vest)
+- Light lunch and soft drinks
+- Entry fees and marine park permit
+
+EXCLUSIONS:
+- Alcoholic beverages
+- Personal underwater photography
+- Tips (optional)
+
+ITINERARY:
+08:00 - Hotel pickup across Hurghada
+09:00 - Board boat at Hurghada Marina, safety briefing
+10:00 - First snorkeling spot: Giftun Island reef
+12:30 - Lunch on board
+13:30 - Second snorkeling spot: Orange Bay lagoon
+15:00 - Return to marina
+15:30 - Hotel drop-off
+
+CANCELLATION:
+Full refund for cancellations made 48 hours or more before the tour start time.`}</pre>
+              </details>
+            )}
+
+            {!importPreview && (
+              <a
+                href="/templates/talago-trip-template.json"
+                download
+                className="mb-4 inline-flex items-center gap-2 rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-xs font-bold text-cyan-200 transition hover:bg-cyan-400/20"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download complete JSON template
+              </a>
+            )}
+
+            {/* Textarea */}
+            {!importPreview && (
+              <>
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  rows={14}
+                  placeholder="Paste structured trip text or the downloaded JSON template here..."
+                  className="w-full rounded-2xl border border-white/10 bg-[#060D1A] p-4 text-sm text-white placeholder-slate-500 focus:border-orange-500/40 focus:outline-none font-mono resize-y"
+                />
+                {importErrors.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/5 p-3 space-y-1">
+                    {importErrors.map((e, i) => <p key={i} className="text-xs text-red-300">⚠ {e}</p>)}
+                  </div>
+                )}
+                <div className="mt-4 flex items-center justify-end gap-3">
+                  <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-300 cursor-pointer hover:bg-white/10 transition">
+                    <FileText className="h-3.5 w-3.5" />
+                    Upload text or JSON
+                    <input type="file" accept=".txt,.md,.json,application/json" className="hidden" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => setImportText(ev.target?.result as string || '');
+                        reader.readAsText(file);
+                      }
+                    }} />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={!importText.trim()}
+                    onClick={() => {
+                      const text = importText;
+                      const errors: string[] = [];
+                      const trimmedText = text.trim();
+
+                      // JSON templates preserve every supported editor field, including
+                      // nested itinerary, options, booking questions and translations.
+                      if (trimmedText.startsWith('{')) {
+                        try {
+                          const source = JSON.parse(trimmedText);
+                          if (!source || typeof source !== 'object' || Array.isArray(source)) {
+                            throw new Error('The JSON template must contain one trip object.');
+                          }
+
+                          const defaults = createDefaultTourEditorData();
+                          const preview: Partial<TourEditorData> = {};
+                          const own = Object.prototype.hasOwnProperty;
+                          const importableKeys: Array<keyof TourEditorData> = [
+                            ...(Object.keys(defaults) as Array<keyof TourEditorData>),
+                            'originalPrice', 'privatePrice', 'costPerPerson', 'customBadge', 'region',
+                            'durationDisplay', 'pickupDescription', 'meetingPointName', 'meetingPointAddress',
+                            'meetingPointLat', 'meetingPointLng', 'meetingPointLandmark', 'meetingPointInstructions',
+                            'meetingPointMapUrl', 'meetingPointImageUrl', 'vehicleType', 'boatType', 'transferNotes',
+                            'fitnessLevel', 'mobilityNotes', 'accessibilityNotes', 'emergencyContact',
+                            'cancellationPolicy', 'requirements', 'faqItems', 'operatorName', 'operatorPhone',
+                            'operatorEmail', 'internalNotes', 'metaTitle', 'metaDescription',
+                            'address', 'thumbnailUrl', 'videoUrl', 'imageAlt',
+                          ];
+                          for (const key of new Set(importableKeys)) {
+                            if (own.call(source, key)) {
+                              (preview as Record<string, unknown>)[key] = source[key];
+                            }
+                          }
+
+                          if (source.translations && typeof source.translations === 'object' && !Array.isArray(source.translations)) {
+                            preview.translations = {
+                              ...defaults.translations,
+                              ...source.translations,
+                            } as TourEditorData['translations'];
+                          }
+
+                          const english = preview.translations?.en;
+                          if (!english?.title?.trim()) errors.push('translations.en.title is required');
+                          if (!english?.description?.trim()) errors.push('translations.en.description is required');
+                          if (typeof preview.adultPrice !== 'number' || preview.adultPrice <= 0) errors.push('adultPrice is required and must be greater than zero');
+                          if (typeof preview.durationHours !== 'number' || preview.durationHours <= 0) errors.push('durationHours is required and must be greater than zero');
+                          if (typeof preview.maxCapacity !== 'number' || preview.maxCapacity <= 0) errors.push('maxCapacity is required and must be greater than zero');
+
+                          setImportErrors(errors);
+                          if (errors.length === 0) setImportPreview(preview);
+                          return;
+                        } catch (error) {
+                          setImportErrors([error instanceof Error ? error.message : 'Invalid JSON template.']);
+                          return;
+                        }
+                      }
+
+                      const get = (key: string) => {
+                        const m = text.match(new RegExp(`^${key}:\\s*(.+)$`, 'im'));
+                        return m ? m[1].trim() : '';
+                      };
+                      const getBlock = (key: string) => {
+                        const m = text.match(new RegExp(`^${key}:\\s*\\n([\\s\\S]*?)(?=\\n[A-Z]+:|$)`, 'im'));
+                        return m ? m[1].trim() : '';
+                      };
+                      const getBullets = (key: string) =>
+                        getBlock(key).split('\n').map(l => l.replace(/^[-*•]\s*/, '').trim()).filter(Boolean);
+                      const title = get('TITLE');
+                      const price = parseFloat(get('PRICE') || '0');
+                      const duration = parseFloat(get('DURATION') || '0');
+                      const category = get('CATEGORY').toUpperCase();
+                      const description = getBlock('DESCRIPTION');
+                      const highlights = getBullets('HIGHLIGHTS');
+                      const inclusions = getBullets('INCLUSIONS');
+                      const exclusions = getBullets('EXCLUSIONS');
+                      const cancellation = getBlock('CANCELLATION');
+                      // Parse itinerary lines like "HH:MM - Description"
+                      const itBlock = getBlock('ITINERARY');
+                      const itLines = itBlock.split('\n').map(l => l.trim()).filter(Boolean);
+                      const itinerary: ItineraryMilestone[] = itLines.map((line, idx) => {
+                        const m = line.match(/^(\d{1,2}:\d{2})\s*[-–]\s*(.+)/);
+                        const milestone = createEmptyMilestone();
+                        return {
+                          ...milestone,
+                          id: `imp-${idx}-${Date.now()}`,
+                          timeTag: m ? m[1] : `${idx + 1}`,
+                          title: {
+                            ...milestone.title,
+                            en: m ? m[2].trim() : line,
+                          },
+                        };
+                      });
+                      if (!title) errors.push('TITLE is required');
+                      if (!price) errors.push('PRICE is required (a number, e.g. 45)');
+                      if (!duration) errors.push('DURATION is required (hours, e.g. 6)');
+                      setImportErrors(errors);
+                      if (errors.length === 0) {
+                        const preview: Partial<TourEditorData> = {
+                          translations: {
+                            en: { ...createDefaultLocalizedContent(), title, description, highlights, inclusions, exclusions, cancellationPolicy: cancellation },
+                            de: createDefaultLocalizedContent(),
+                            ru: createDefaultLocalizedContent(),
+                            fr: createDefaultLocalizedContent(),
+                            it: createDefaultLocalizedContent(),
+                            pl: createDefaultLocalizedContent(),
+                            es: createDefaultLocalizedContent(),
+                            uk: createDefaultLocalizedContent(),
+                          } as any,
+                          adultPrice: price,
+                          basePriceUSD: price,
+                          durationHours: duration,
+                          category: category as any,
+                          highlights,
+                          inclusions,
+                          exclusions,
+                          itinerary,
+                        };
+                        setImportPreview(preview);
+                      }
+                    }}
+                    className="flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-xs font-black text-white hover:bg-orange-600 disabled:opacity-40 transition"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    Parse &amp; Preview
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Preview */}
+            {importPreview && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    <span className="text-xs font-bold text-emerald-300">Parsed successfully — review before applying</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div><span className="text-slate-500">Title:</span> <span className="text-white font-medium">{(importPreview.translations as any)?.en?.title}</span></div>
+                    <div><span className="text-slate-500">Price:</span> <span className="text-white font-medium">${importPreview.adultPrice}</span></div>
+                    <div><span className="text-slate-500">Duration:</span> <span className="text-white font-medium">{importPreview.durationHours}h</span></div>
+                    <div><span className="text-slate-500">Category:</span> <span className="text-white font-medium">{importPreview.category}</span></div>
+                    <div><span className="text-slate-500">Highlights:</span> <span className="text-white font-medium">{importPreview.highlights?.length || 0} items</span></div>
+                    <div><span className="text-slate-500">Itinerary:</span> <span className="text-white font-medium">{importPreview.itinerary?.length || 0} stops</span></div>
+                  </div>
+                  {(importPreview.translations as any)?.en?.description && (
+                    <p className="text-xs text-slate-300 leading-relaxed border-t border-white/5 pt-2">{(importPreview.translations as any).en.description.substring(0, 200)}…</p>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <button type="button" onClick={() => setImportPreview(null)} className="text-xs font-bold text-slate-400 hover:text-white transition">
+                    ← Edit text
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setData((prev) => ({
+                        ...prev,
+                        ...importPreview,
+                        translations: {
+                          ...prev.translations,
+                          ...(importPreview.translations || {}),
+                        },
+                        highlights: importPreview.highlights || prev.highlights,
+                        inclusions: importPreview.inclusions || prev.inclusions,
+                        exclusions: importPreview.exclusions || prev.exclusions,
+                        itinerary: importPreview.itinerary || prev.itinerary,
+                      }));
+                      setIsDirty(true);
+                      setShowImportModal(false);
+                      setSaveSuccessMessage('Trip imported successfully! Review all fields, then save.');
+                    }}
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-400 px-5 py-2.5 text-xs font-black text-white hover:opacity-90 transition"
+                  >
+                    <Rocket className="h-3.5 w-3.5" />
+                    Apply to Editor
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

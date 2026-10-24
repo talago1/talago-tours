@@ -4,10 +4,50 @@ import { verifyPaymobEnv } from '@/lib/env';
 import { timingSafeEqual, createHmac } from 'crypto';
 import type { WebhookPayload, PaymentGatewayLog, WebhookResponse } from '@/types/payment';
 
-function computeHmac(obj: Record<string, unknown>, secret: string): string {
-  const keys = Object.keys(obj).sort();
-  const concat = keys.map((k) => `${k}=${obj[k]}`).join('&');
+// Paymob HMAC specification: these fields must appear in exactly this order.
+// See: https://developers.paymob.com/egypt/hmac-calculation
+const PAYMOB_HMAC_FIELDS = [
+  'amount_cents',
+  'created_at',
+  'currency',
+  'error_occured',
+  'has_parent_transaction',
+  'id',
+  'integration_id',
+  'is_3d_secure',
+  'is_auth',
+  'is_capture',
+  'is_refunded',
+  'is_standalone_payment',
+  'is_voided',
+  'order.id',
+  'owner',
+  'pending',
+  'source_data.pan',
+  'source_data.sub_type',
+  'source_data.type',
+  'success',
+] as const;
 
+function resolveField(obj: Record<string, unknown>, path: string): string {
+  const parts = path.split('.');
+  let value: unknown = obj;
+  for (const part of parts) {
+    if (value && typeof value === 'object') {
+      value = (value as Record<string, unknown>)[part];
+    } else {
+      value = undefined;
+      break;
+    }
+  }
+  if (value === undefined || value === null) return '';
+  return String(value);
+}
+
+function computeHmac(obj: Record<string, unknown>, secret: string): string {
+  const concat = PAYMOB_HMAC_FIELDS
+    .map((field) => resolveField(obj, field))
+    .join('');
   return createHmac('sha256', secret).update(concat).digest('hex');
 }
 
@@ -98,6 +138,11 @@ export async function POST(request: NextRequest) {
           reason: 'Booking already paid',
         } satisfies WebhookResponse);
       }
+
+      await prisma.bookingLead.updateMany({
+        where: { bookingId: booking.id, status: { not: 'CONVERTED' } },
+        data: { status: 'CONVERTED' },
+      });
 
       return NextResponse.json({
         status: 'accepted',

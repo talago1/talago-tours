@@ -69,6 +69,47 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Also sync to BookingLead table for unified admin lead management
+    try {
+      const existingLead = await prisma.bookingLead.findFirst({
+        where: {
+          tourId,
+          customerPhone: phone.trim(),
+          status: { in: ['INTERESTED', 'CONTACTED'] },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (existingLead) {
+        await prisma.bookingLead.update({
+          where: { id: existingLead.id },
+          data: {
+            customerName: name.trim(),
+            customerEmail: email?.trim() ?? existingLead.customerEmail,
+            travelDate: travelDate ?? existingLead.travelDate,
+            adults: guestCount,
+            source: 'CHECKOUT_FORM',
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        await prisma.bookingLead.create({
+          data: {
+            tourId,
+            customerName: name.trim(),
+            customerPhone: phone.trim(),
+            customerEmail: email?.trim() ?? null,
+            adults: guestCount,
+            travelDate: travelDate ?? null,
+            status: 'INTERESTED',
+            source: 'CHECKOUT_FORM',
+          },
+        });
+      }
+    } catch (leadErr) {
+      console.warn('[abandoned-checkout] BookingLead sync non-fatal:', leadErr);
+    }
+
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (err) {
     console.error('[abandoned-checkout] Error:', err);

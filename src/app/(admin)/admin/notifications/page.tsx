@@ -3,7 +3,7 @@ import NotificationDeliveryLog from '@/components/admin/notification-delivery-lo
 
 export default function AdminNotificationsPage() {
   return (
-    <main className="min-h-screen bg-[#070F1E] px-6 py-8 lg:px-10">
+    <main className="min-h-screen bg-[#070F1E] px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
       <div className="mx-auto max-w-7xl">
         {/* Header — aligned with other admin pages */}
         <div className="mb-10">

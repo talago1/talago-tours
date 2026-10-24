@@ -4,13 +4,33 @@ import { useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { MessageSquare, Mail, HelpCircle, Send, Loader2, CheckCircle2, Phone } from 'lucide-react';
 
-export default function SupportPage() {
+interface SupportPageProps {
+  contactSettings?: {
+    whatsappNumber?: string;
+    corporateEmail?: string;
+    phoneNumber?: string;
+    showContactChannels?: boolean;
+    showWhatsApp?: boolean;
+    showEmail?: boolean;
+    showPhone?: boolean;
+  };
+}
+
+export default function SupportPage({ contactSettings }: SupportPageProps) {
   const { dict } = useLanguage();
   const s = dict.support;
   const [formState, setFormState] = useState({ name: '', email: '', message: '' });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const showChannels = contactSettings?.showContactChannels !== false;
+  const showWhatsApp = contactSettings?.showWhatsApp !== false && Boolean(contactSettings?.whatsappNumber);
+  const showEmail = contactSettings?.showEmail !== false && Boolean(contactSettings?.corporateEmail);
+  const showPhone = Boolean(contactSettings?.showPhone && contactSettings?.phoneNumber);
+  const whatsappNum = contactSettings?.whatsappNumber || '+2010222434602';
+  const emailAddr = contactSettings?.corporateEmail || 'support@talago-tours.com';
+  const phoneNum = contactSettings?.phoneNumber || '';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,8 +89,8 @@ export default function SupportPage() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl px-6 py-20">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
+      <div className={`mx-auto px-6 py-20 ${showChannels ? 'max-w-6xl' : 'max-w-2xl'}`}>
+        <div className={showChannels ? 'grid grid-cols-1 gap-12 lg:grid-cols-2' : ''}>
           {/* Contact Form */}
           <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-8 shadow-2xl shadow-black/20">
             <div className="mb-6 flex items-center gap-3">
@@ -112,8 +132,8 @@ export default function SupportPage() {
                   {s.formMessageLabel}
                 </span>
                 <textarea
-                  rows={5}
                   required
+                  rows={5}
                   value={formState.message}
                   onChange={(e) => setFormState((p) => ({ ...p, message: e.target.value }))}
                   placeholder={s.formMessagePlaceholder}
@@ -142,80 +162,88 @@ export default function SupportPage() {
             </form>
           </div>
 
-          {/* Contact Channels */}
-          <div className="space-y-6">
-            {/* WhatsApp */}
-            <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-8 shadow-2xl shadow-black/20">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-400/10">
-                  <MessageSquare className="h-5 w-5 text-emerald-400" />
+          {/* Contact Channels (Admin Controlled) */}
+          {showChannels && (
+            <div className="space-y-6">
+              {/* WhatsApp */}
+              {showWhatsApp && (
+                <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-8 shadow-2xl shadow-black/20">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-400/10">
+                      <MessageSquare className="h-5 w-5 text-emerald-400" />
+                    </div>
+                    <h2 className="text-xl font-black text-white">{s.whatsappTitle}</h2>
+                  </div>
+                  <p className="mb-5 text-sm leading-6 text-slate-400">{s.whatsappDescription}</p>
+                  <a
+                    href={`https://wa.me/${whatsappNum.replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-black text-white transition-all hover:scale-[1.02]"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    {s.whatsappButton}
+                  </a>
                 </div>
-                <h2 className="text-xl font-black text-white">{s.whatsappTitle}</h2>
-              </div>
-              <p className="mb-5 text-sm leading-6 text-slate-400">{s.whatsappDescription}</p>
-              <a
-                href="https://wa.me/2010222434602"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-sm font-black text-white transition-all hover:scale-[1.02]"
-              >
-                <MessageSquare className="h-4 w-4" />
-                {s.whatsappButton}
-              </a>
-            </div>
+              )}
 
-            {/* Email */}
-            <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-8 shadow-2xl shadow-black/20">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FFD700]/10">
-                  <Mail className="h-5 w-5 text-[#FFD700]" />
+              {/* Email */}
+              {showEmail && (
+                <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-8 shadow-2xl shadow-black/20">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FFD700]/10">
+                      <Mail className="h-5 w-5 text-[#FFD700]" />
+                    </div>
+                    <h2 className="text-xl font-black text-white">{s.emailTitle}</h2>
+                  </div>
+                  <p className="mb-5 text-sm leading-6 text-slate-400">{s.emailDescription}</p>
+                  <a
+                    href={`mailto:${emailAddr}`}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-black text-slate-200 transition-all hover:border-[#FFD700]/40 hover:text-[#FFD700]"
+                  >
+                    <Mail className="h-4 w-4" />
+                    {emailAddr}
+                  </a>
                 </div>
-                <h2 className="text-xl font-black text-white">{s.emailTitle}</h2>
-              </div>
-              <p className="mb-5 text-sm leading-6 text-slate-400">{s.emailDescription}</p>
-              <a
-                href="mailto:tala.tour@outlook.com"
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-black text-slate-200 transition-all hover:border-[#FFD700]/40 hover:text-[#FFD700]"
-              >
-                <Mail className="h-4 w-4" />
-                tala.tour@outlook.com
-              </a>
-            </div>
+              )}
 
-            {/* FAQ */}
-            <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-8 shadow-2xl shadow-black/20">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-400/10">
-                  <HelpCircle className="h-5 w-5 text-violet-300" />
+              {/* FAQ */}
+              <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-8 shadow-2xl shadow-black/20">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-400/10">
+                    <HelpCircle className="h-5 w-5 text-violet-300" />
+                  </div>
+                  <h2 className="text-xl font-black text-white">{s.faqTitle}</h2>
                 </div>
-                <h2 className="text-xl font-black text-white">{s.faqTitle}</h2>
+                <p className="mb-5 text-sm leading-6 text-slate-400">{s.faqDescription}</p>
+                <a
+                  href="/faq"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-black text-slate-200 transition-all hover:border-violet-400/40 hover:text-violet-300"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                  {dict.faq.title}
+                </a>
               </div>
-              <p className="mb-5 text-sm leading-6 text-slate-400">{s.faqDescription}</p>
-              <a
-                href="/faq"
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-black text-slate-200 transition-all hover:border-violet-400/40 hover:text-violet-300"
-              >
-                <HelpCircle className="h-4 w-4" />
-                {dict.faq.title}
-              </a>
-            </div>
 
-            {/* Phone */}
-            <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-8 shadow-2xl shadow-black/20">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#00E5FF]/10">
-                  <Phone className="h-5 w-5 text-[#00E5FF]" />
+              {/* Direct Phone (Only if enabled and configured by admin) */}
+              {showPhone && (
+                <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-8 shadow-2xl shadow-black/20">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#00E5FF]/10">
+                      <Phone className="h-5 w-5 text-[#00E5FF]" />
+                    </div>
+                    <h2 className="text-xl font-black text-white">Direct Phone</h2>
+                  </div>
+                  <a
+                    href={`tel:${phoneNum.replace(/[^0-9+]/g, '')}`}
+                    className="text-2xl font-black text-white transition-all hover:text-[#00E5FF]"
+                  >
+                    {phoneNum}
+                  </a>
                 </div>
-                <h2 className="text-xl font-black text-white">Phone</h2>
-              </div>
-              <a
-                href="tel:+2010222434602"
-                className="text-2xl font-black text-white transition-all hover:text-[#00E5FF]"
-              >
-                +20 102 224 34602
-              </a>
+              )}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </main>

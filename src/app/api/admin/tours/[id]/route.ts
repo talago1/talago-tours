@@ -57,6 +57,7 @@ export async function PUT(
       adultPrice,
       originalPrice,
       privatePrice,
+      costPerPerson,
       childPrice,
       childMinAge,
       childMaxAge,
@@ -238,6 +239,10 @@ export async function PUT(
 
     if (originalPrice !== undefined) {
       updateData.originalPrice = originalPrice !== null && Number(originalPrice) > 0 ? Number(originalPrice) : null;
+    }
+
+    if (costPerPerson !== undefined) {
+      updateData.costPerPerson = costPerPerson !== null && Number(costPerPerson) > 0 ? Number(costPerPerson) : null;
     }
 
     if (privatePrice !== undefined) {
@@ -444,6 +449,12 @@ export async function PATCH(
     }
     if (body.originalPrice !== undefined) {
       updateData.originalPrice = body.originalPrice;
+    }
+    if (body.isFeatured !== undefined) {
+      updateData.isFeatured = Boolean(body.isFeatured);
+    }
+    if (body.isBestSeller !== undefined) {
+      updateData.isBestSeller = Boolean(body.isBestSeller);
     }
 
     const tour = await prisma.tour.update({

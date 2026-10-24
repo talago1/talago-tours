@@ -28,7 +28,7 @@ export async function recalculateTourRatings(
   tourId: string,
 ): Promise<RatingCalculationResult> {
   const approvedReviews = await tx.review.findMany({
-    where: { tourId, status: 'APPROVED' },
+    where: { tourId, status: 'APPROVED', isVisible: true, isSeeded: false },
     select: { rating: true },
   });
 

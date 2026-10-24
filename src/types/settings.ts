@@ -11,11 +11,16 @@ export interface SystemSettings {
   contact: {
     whatsappNumber: string;
     corporateEmail: string;
+    phoneNumber?: string;
     socialLinks: {
       instagram: string;
       facebook: string;
       twitter: string;
     };
+    showContactChannels?: boolean;
+    showWhatsApp?: boolean;
+    showEmail?: boolean;
+    showPhone?: boolean;
   };
   financial: {
     baseCurrency: string;
@@ -100,6 +105,20 @@ export interface SystemSettings {
     affiliates: boolean;
     applications: boolean;
     additionalCountries: boolean;
+    wishlist?: boolean;
+    showWishlistInNav?: boolean;
+    stickyMobileBookingBar?: boolean;
+    activityAtAGlance?: boolean;
+    facetedFilters?: boolean;
+  };
+  /** SEO & Open Graph — all values stored as absolute URLs for WhatsApp/Telegram/Facebook previews */
+  seo?: {
+    ogImage?: string;
+    ogImageAlt?: string;
+    faviconUrl?: string;
+    siteTitle?: string;
+    siteDescription?: string;
+    twitterHandle?: string;
   };
 }
 

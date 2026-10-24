@@ -3,12 +3,9 @@
 import { useState, useRef, useEffect, MouseEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   Sparkles,
-  Compass,
-  MapPin,
   Star,
   ShieldCheck,
   CheckCircle2,
@@ -24,12 +21,6 @@ export interface HeroShowcaseDestination {
   price: string;
   rating: string;
   link: string;
-}
-
-export interface HeroSearchDestination {
-  slug: string;
-  name: string;
-  description?: string;
 }
 
 export interface HeroProps {
@@ -70,8 +61,6 @@ export interface HeroProps {
 
   /** Destinations pulled from the database, shown in the rotating 3D card. */
   showcaseDestinations?: HeroShowcaseDestination[];
-  /** All destinations pulled from the database, used by the search dropdown. */
-  searchDestinations?: HeroSearchDestination[];
   /** Live count of bookable tours, rendered in the card footer. */
   activeTourCount?: number;
 
@@ -111,15 +100,11 @@ export default function Hero({
   heroMetric3Value,
   heroMetric3Label,
   showcaseDestinations = [],
-  searchDestinations = [],
   activeTourCount,
   heroTranslations,
 }: HeroProps) {
-  const router = useRouter();
   const { dict, language } = useLanguage();
   const [heroError, setHeroError] = useState(false);
-  const [selectedDestination, setSelectedDestination] = useState('ALL');
-  const [selectedType, setSelectedType] = useState('ALL');
 
   // 3D Card Interactive Tilt State
   const cardRef = useRef<HTMLDivElement>(null);
@@ -175,15 +160,6 @@ export default function Hero({
 
   const handleMouseEnter = () => {
     setIsHovering(true);
-  };
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const params = new URLSearchParams();
-    if (selectedDestination && selectedDestination !== 'ALL') params.set('destination', selectedDestination);
-    if (selectedType && selectedType !== 'ALL') params.set('type', selectedType);
-    const queryString = params.toString();
-    router.push(`/tours${queryString ? `?${queryString}` : ''}`);
   };
 
   const currentTrans = heroTranslations?.[language] || {};
@@ -267,46 +243,48 @@ export default function Hero({
   if (!showHero) return null;
 
   return (
-    <section className="relative overflow-hidden bg-[#070F1E] text-[#F8FAFC]">
-      {/* Background Image / Ambient Backdrop */}
-      {!heroError && heroBackgroundMobile && (
-        <Image
-          src={heroBackgroundMobile}
-          alt="Global luxury experiences and coastal landscapes"
-          fill
-          priority
-          unoptimized={isRemote(heroBackgroundMobile)}
-          sizes="100vw"
-          className="scale-105 object-cover object-center md:hidden"
+    <section className="relative z-30 overflow-visible bg-[#070F1E] text-[#F8FAFC]">
+      {/* Background Image / Ambient Backdrop Wrapped with overflow-hidden */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {!heroError && heroBackgroundMobile && (
+          <Image
+            src={heroBackgroundMobile}
+            alt="Global luxury experiences and coastal landscapes"
+            fill
+            priority
+            unoptimized={isRemote(heroBackgroundMobile)}
+            sizes="100vw"
+            className="scale-105 object-cover object-center md:hidden"
+          />
+        )}
+        {!heroError && (
+          <Image
+            src={heroBackground || '/talago-hero-red-sea-desert.png'}
+            alt="Global luxury experiences and coastal landscapes"
+            fill
+            priority
+            unoptimized={isRemote(heroBackground)}
+            sizes="100vw"
+            className={`scale-105 object-cover object-center ${heroBackgroundMobile ? 'hidden md:block' : ''}`}
+            onError={() => setHeroError(true)}
+          />
+        )}
+
+        {/* Adjustable Scrim (admin-controlled overlay) */}
+        <div
+          className="absolute inset-0 bg-[#070F1E]"
+          style={{ opacity: Math.min(Math.max(heroOverlayOpacity, 0), 95) / 100 }}
         />
-      )}
-      {!heroError && (
-        <Image
-          src={heroBackground || '/talago-hero-red-sea-desert.png'}
-          alt="Global luxury experiences and coastal landscapes"
-          fill
-          priority
-          unoptimized={isRemote(heroBackground)}
-          sizes="100vw"
-          className={`scale-105 object-cover object-center ${heroBackgroundMobile ? 'hidden md:block' : ''}`}
-          onError={() => setHeroError(true)}
-        />
-      )}
 
-      {/* Adjustable Scrim (admin-controlled overlay) */}
-      <div
-        className="absolute inset-0 bg-[#070F1E]"
-        style={{ opacity: Math.min(Math.max(heroOverlayOpacity, 0), 95) / 100 }}
-      />
+        {/* Cinematic Dark & Ambient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#070F1E] via-[#070F1E]/90 to-[#070F1E]/75" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#070F1E]/80 via-transparent to-[#070F1E]" />
 
-      {/* Cinematic Dark & Ambient Overlays */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#070F1E] via-[#070F1E]/90 to-[#070F1E]/75" />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#070F1E]/80 via-transparent to-[#070F1E]" />
-
-      {/* Glowing Ambient Light Orbs */}
-      <div className="pointer-events-none absolute -left-20 top-20 h-96 w-96 rounded-full bg-[#00E5FF]/10 blur-[120px]" />
-      <div className="pointer-events-none absolute right-10 top-1/4 h-96 w-96 rounded-full bg-[#FFD700]/10 blur-[130px]" />
-      <div className="pointer-events-none absolute bottom-10 left-1/3 h-80 w-80 rounded-full bg-[#06B6D4]/10 blur-[100px]" />
+        {/* Glowing Ambient Light Orbs */}
+        <div className="pointer-events-none absolute -left-20 top-20 h-96 w-96 rounded-full bg-[#00E5FF]/10 blur-[120px]" />
+        <div className="pointer-events-none absolute right-10 top-1/4 h-96 w-96 rounded-full bg-[#FFD700]/10 blur-[130px]" />
+        <div className="pointer-events-none absolute bottom-10 left-1/3 h-80 w-80 rounded-full bg-[#06B6D4]/10 blur-[100px]" />
+      </div>
 
       {/* Main Container - Compact and Balanced */}
       <div className="relative mx-auto max-w-7xl px-5 pt-28 pb-16 sm:px-8 lg:px-10 lg:pt-32 lg:pb-20">
@@ -513,99 +491,6 @@ export default function Hero({
           </div>
         </div>
 
-        {/* Global Floating Search Console */}
-        <div className="mt-10 sm:mt-12">
-          <form
-            onSubmit={handleSearchSubmit}
-            className="grid gap-3 rounded-[2rem] border border-white/15 bg-[#0B1528]/95 p-4 shadow-2xl shadow-black/80 backdrop-blur-2xl md:grid-cols-[1.2fr_1.1fr_auto] md:items-center md:gap-4 md:p-5"
-          >
-            {/* 1. Destination Selector */}
-            <label className="group block rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-all duration-300 hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/5">
-              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                <MapPin className="h-3.5 w-3.5 text-[#00E5FF]" />
-                {dict.hero.search.destination}
-              </span>
-              <select
-                value={selectedDestination}
-                onChange={(e) => setSelectedDestination(e.target.value)}
-                className="mt-1.5 w-full cursor-pointer bg-transparent text-sm font-bold text-white outline-none"
-              >
-                <option value="ALL" className="bg-[#0B1528] text-white">
-                  {dict.hero.search.allDestinations}
-                </option>
-                {searchDestinations.map((dest) => (
-                  <option key={dest.slug} value={dest.slug} className="bg-[#0B1528] text-white">
-                    {dest.description || dest.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {/* 2. Adventure Category */}
-            <label className="group block rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-all duration-300 hover:border-[#FFD700]/40 hover:bg-[#FFD700]/5">
-              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                <Compass className="h-3.5 w-3.5 text-[#FFD700]" />
-                {dict.hero.search.adventureType}
-              </span>
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="mt-1.5 w-full cursor-pointer bg-transparent text-sm font-bold text-white outline-none"
-              >
-                <option value="ALL" className="bg-[#0B1528] text-white">
-                  {dict.hero.search.allExperiences}
-                </option>
-                <option value="SEA" className="bg-[#0B1528] text-white">
-                  {dict.hero.search.luxuryCruise}
-                </option>
-                <option value="SAFARI" className="bg-[#0B1528] text-white">
-                  {dict.hero.search.quadSafari}
-                </option>
-                <option value="CULTURAL" className="bg-[#0B1528] text-white">
-                  {dict.hero.search.cultural}
-                </option>
-                <option value="DIVING" className="bg-[#0B1528] text-white">
-                  {dict.hero.search.deepSea}
-                </option>
-              </select>
-            </label>
-
-            {/* Search Submit Button */}
-            <button
-              type="submit"
-              className="group inline-flex h-full min-h-[52px] items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-6 py-3.5 text-xs font-black uppercase tracking-[0.18em] text-[#070F1E] shadow-xl shadow-[#00E5FF]/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-[#00E5FF]/40 md:min-h-[58px]"
-            >
-              <span>{dict.hero.search.searchButton}</span>
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </button>
-          </form>
-
-          {/* Quick Destination Pills */}
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-bold text-slate-400">{dict.hero.search.quickExplore}</span>
-            {showcaseDestinations.map((dest) => (
-              <Link
-                key={dest.link}
-                href={dest.link}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]"
-              >
-                {dest.name}
-              </Link>
-            ))}
-            <Link
-              href="/tours?type=SAFARI"
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]"
-            >
-              Desert Safari
-            </Link>
-            <Link
-              href="/tours?type=SNORKELING"
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-slate-300 transition-all hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF]"
-            >
-              Yachts & Islands
-            </Link>
-          </div>
-        </div>
       </div>
     </section>
   );

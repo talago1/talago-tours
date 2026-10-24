@@ -20,6 +20,51 @@ export interface MediaItemDto {
 const TOUR_BUCKET = 'talago-tour-media';
 const GENERAL_BUCKET = 'talago-media';
 
+function safeStorageFolder(value: string | null, fallback: string): string {
+  const candidate = (value || fallback).trim().replace(/^\/+|\/+$/g, '');
+  if (!candidate || candidate.split('/').some((segment) => !/^[a-zA-Z0-9_-]+$/.test(segment))) {
+    return fallback;
+  }
+  return candidate;
+}
+
+/**
+ * Recursively fetches all items from a Supabase storage bucket folder
+ * across multiple 100-item pages so no older files ever disappear. Pagination
+ * is applied only to the response, never to storage discovery.
+ */
+async function listAllBucketFiles(supabaseAdmin: any, bucket: string, prefix: string = ''): Promise<any[]> {
+  const allFiles: any[] = [];
+  const batchSize = 100;
+  let currentOffset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabaseAdmin.storage
+      .from(bucket)
+      .list(prefix, {
+        limit: batchSize,
+        offset: currentOffset,
+        sortBy: { column: 'created_at', order: 'desc' },
+      });
+
+    if (error || !Array.isArray(data) || data.length === 0) {
+      break;
+    }
+
+    allFiles.push(...data);
+
+    if (data.length < batchSize) {
+      hasMore = false;
+    } else {
+      currentOffset += batchSize;
+    }
+
+  }
+
+  return allFiles;
+}
+
 /**
  * GET /api/admin/media
  * Supports:
@@ -32,8 +77,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const tourId = searchParams.get('tourId');
   const bucketParam = searchParams.get('bucket') || 'all';
+  const requestedFolder = searchParams.get('folder');
   const searchQuery = (searchParams.get('search') || '').toLowerCase().trim();
-  const limit = Math.min(Number(searchParams.get('limit') || 100), 200);
+  const limit = Math.min(Number(searchParams.get('limit') || 200), 500);
   const offset = Number(searchParams.get('offset') || 0);
 
   // If specific tourId requested and no bucket override, return MediaAsset records for compatibility
@@ -55,37 +101,30 @@ export async function GET(request: NextRequest) {
 
       // 1. Tour Bucket
       if (bucketParam === 'all' || bucketParam === TOUR_BUCKET) {
-        // List in 'tours' prefix
-        const { data: tourFiles, error: tourErr } = await supabaseAdmin.storage
-          .from(TOUR_BUCKET)
-          .list('tours', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
-
-        if (!tourErr && Array.isArray(tourFiles)) {
-          for (const f of tourFiles) {
-            if (f.name === '.emptyFolderPlaceholder') continue;
-            const fullPath = `tours/${f.name}`;
-            const publicUrl = `${supabaseUrl}/storage/v1/object/public/${TOUR_BUCKET}/${fullPath}`;
-            items.push({
-              id: `${TOUR_BUCKET}/${fullPath}`,
-              name: f.name,
-              url: publicUrl,
-              bucket: TOUR_BUCKET,
-              path: fullPath,
-              sizeBytes: f.metadata?.size ?? 0,
-              mimeType: f.metadata?.mimetype ?? 'image/jpeg',
-              createdAt: f.created_at ?? new Date().toISOString(),
-            });
-          }
+        const tourFolder = safeStorageFolder(bucketParam === TOUR_BUCKET ? requestedFolder : null, 'tours');
+        // List every file in the selected catalog folder without a 100-file ceiling.
+        const tourFiles = await listAllBucketFiles(supabaseAdmin, TOUR_BUCKET, tourFolder);
+        for (const f of tourFiles) {
+          if (f.name === '.emptyFolderPlaceholder') continue;
+          const fullPath = `${tourFolder}/${f.name}`;
+          const publicUrl = `${supabaseUrl}/storage/v1/object/public/${TOUR_BUCKET}/${fullPath}`;
+          items.push({
+            id: `${TOUR_BUCKET}/${fullPath}`,
+            name: f.name,
+            url: publicUrl,
+            bucket: TOUR_BUCKET,
+            path: fullPath,
+            sizeBytes: f.metadata?.size ?? 0,
+            mimeType: f.metadata?.mimetype ?? 'image/jpeg',
+            createdAt: f.created_at ?? new Date().toISOString(),
+          });
         }
 
-        // Also check root of tour bucket
-        const { data: rootTourFiles } = await supabaseAdmin.storage
-          .from(TOUR_BUCKET)
-          .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
-
-        if (Array.isArray(rootTourFiles)) {
+        // Preserve older assets that were uploaded before catalog folders existed.
+        if (bucketParam === 'all') {
+          const rootTourFiles = await listAllBucketFiles(supabaseAdmin, TOUR_BUCKET, '');
           for (const f of rootTourFiles) {
-            if (f.name === '.emptyFolderPlaceholder' || f.name === 'tours') continue;
+            if (f.name === '.emptyFolderPlaceholder' || f.name === 'tours' || !f.id) continue;
             const publicUrl = `${supabaseUrl}/storage/v1/object/public/${TOUR_BUCKET}/${f.name}`;
             items.push({
               id: `${TOUR_BUCKET}/${f.name}`,
@@ -99,17 +138,33 @@ export async function GET(request: NextRequest) {
             });
           }
         }
+
       }
 
       // 2. General Bucket
       if (bucketParam === 'all' || bucketParam === GENERAL_BUCKET) {
-        const { data: genFiles, error: genErr } = await supabaseAdmin.storage
-          .from(GENERAL_BUCKET)
-          .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+        const generalFolder = safeStorageFolder(bucketParam === GENERAL_BUCKET ? requestedFolder : null, 'general');
+        const genFiles = await listAllBucketFiles(supabaseAdmin, GENERAL_BUCKET, generalFolder);
+        for (const f of genFiles) {
+          if (f.name === '.emptyFolderPlaceholder') continue;
+          const fullPath = `${generalFolder}/${f.name}`;
+          const publicUrl = `${supabaseUrl}/storage/v1/object/public/${GENERAL_BUCKET}/${fullPath}`;
+          items.push({
+            id: `${GENERAL_BUCKET}/${fullPath}`,
+            name: f.name,
+            url: publicUrl,
+            bucket: GENERAL_BUCKET,
+            path: fullPath,
+            sizeBytes: f.metadata?.size ?? 0,
+            mimeType: f.metadata?.mimetype ?? 'image/jpeg',
+            createdAt: f.created_at ?? new Date().toISOString(),
+          });
+        }
 
-        if (!genErr && Array.isArray(genFiles)) {
-          for (const f of genFiles) {
-            if (f.name === '.emptyFolderPlaceholder') continue;
+        if (bucketParam === 'all') {
+          const rootGeneralFiles = await listAllBucketFiles(supabaseAdmin, GENERAL_BUCKET, '');
+          for (const f of rootGeneralFiles) {
+            if (f.name === '.emptyFolderPlaceholder' || f.name === 'general' || !f.id) continue;
             const publicUrl = `${supabaseUrl}/storage/v1/object/public/${GENERAL_BUCKET}/${f.name}`;
             items.push({
               id: `${GENERAL_BUCKET}/${f.name}`,

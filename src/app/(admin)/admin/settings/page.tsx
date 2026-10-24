@@ -22,14 +22,17 @@ import {
   CreditCard,
   Package,
   Bot,
+  Search,
+  ExternalLink,
 } from 'lucide-react';
 import type { SystemSettings, SiteBanner, HeroLanguageTexts } from '@/types/settings';
 import { DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
 import NotificationSettingsDashboard from '@/components/admin/NotificationSettingsDashboard';
 import GlobalAssetStudio from '@/components/admin/GlobalAssetStudio';
 import AiKeyPoolManager from '@/components/admin/AiKeyPoolManager';
+import MarketplaceModulesDashboard from '@/components/admin/MarketplaceModulesDashboard';
 
-type ActiveSection = 'contact' | 'financial' | 'paymentMethods' | 'system' | 'banners' | 'notifications' | 'modules' | 'ai';
+type ActiveSection = 'contact' | 'financial' | 'paymentMethods' | 'system' | 'banners' | 'notifications' | 'modules' | 'ai' | 'seo';
 
 const HERO_LANGUAGES = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -47,6 +50,7 @@ const SECTIONS: { key: ActiveSection; label: string; icon: typeof Settings }[] =
   { key: 'paymentMethods', label: 'Payment Methods', icon: CreditCard },
   { key: 'system', label: 'System Toggles', icon: ToggleLeft },
   { key: 'banners', label: 'Hero & Banners', icon: ImageIcon },
+  { key: 'seo', label: 'SEO & Open Graph', icon: Search },
   { key: 'notifications', label: 'Notifications', icon: MessageSquare },
   { key: 'ai', label: 'AI Key Pool & Models', icon: Bot },
   { key: 'modules', label: 'Advanced Modules', icon: Package },
@@ -54,6 +58,16 @@ const SECTIONS: { key: ActiveSection; label: string; icon: typeof Settings }[] =
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
+  const [seoSettings, setSeoSettings] = useState({
+    ogImage: '',
+    ogImageAlt: 'TALAGO — World-Class Tours & Luxury Experiences',
+    faviconUrl: '',
+    siteTitle: '',
+    siteDescription: '',
+    twitterHandle: '@talago',
+  });
+  const [seoSaving, setSeoSaving] = useState(false);
+  const [seoSaved, setSeoSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -87,6 +101,10 @@ export default function AdminSettingsPage() {
               modules: { ...DEFAULT_SYSTEM_SETTINGS.modules, ...(data.settings.modules || {}) },
             };
             setSettings(merged);
+          }
+          // Load SEO settings separately
+          if (data.settings?.seo) {
+            setSeoSettings((prev) => ({ ...prev, ...data.settings.seo }));
           }
         }
       } catch {
@@ -123,11 +141,66 @@ export default function AdminSettingsPage() {
     }
   }
 
-  function updateContact(path: string, value: string) {
+  async function handleSeoSave() {
+    setSeoSaving(true);
+    setSeoSaved(false);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seo: seoSettings }),
+      });
+      if (!res.ok) throw new Error('Failed to save SEO settings');
+      setSeoSaved(true);
+      setTimeout(() => setSeoSaved(false), 3000);
+    } catch {
+      // silent — user sees no saved indicator
+    } finally {
+      setSeoSaving(false);
+    }
+  }
+
+  async function handleOgImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('files', file);
+    try {
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      const url = data.uploaded?.[0]?.url;
+      if (url) setSeoSettings((prev) => ({ ...prev, ogImage: url }));
+    } catch { /* silent */ }
+    if (e.target) e.target.value = '';
+  }
+
+  async function handleFaviconUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('files', file);
+    try {
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      const url = data.uploaded?.[0]?.url;
+      if (url) setSeoSettings((prev) => ({ ...prev, faviconUrl: url }));
+    } catch { /* silent */ }
+    if (e.target) e.target.value = '';
+  }
+
+  const ogUploadRef = useRef<HTMLInputElement>(null);
+  const faviconUploadRef = useRef<HTMLInputElement>(null);
+
+  function updateContact(path: string, value: any) {
     setSettings((prev) => {
-      const updated = { ...prev };
+      const updated = { ...prev, contact: { ...prev.contact } };
       if (path === 'whatsappNumber') updated.contact.whatsappNumber = value;
       if (path === 'corporateEmail') updated.contact.corporateEmail = value;
+      if (path === 'phoneNumber') updated.contact.phoneNumber = value;
+      if (path === 'showContactChannels') updated.contact.showContactChannels = value;
+      if (path === 'showWhatsApp') updated.contact.showWhatsApp = value;
+      if (path === 'showEmail') updated.contact.showEmail = value;
+      if (path === 'showPhone') updated.contact.showPhone = value;
       if (path.startsWith('social.')) {
         const key = path.split('.')[1] as keyof typeof updated.contact.socialLinks;
         updated.contact.socialLinks[key] = value;
@@ -308,7 +381,7 @@ export default function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#070F1E] px-6 py-8 lg:px-10">
+      <main className="min-h-screen bg-[#070F1E] px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
         <div className="mx-auto max-w-5xl">
           <div className="flex items-center justify-center py-32">
             <Loader2 className="h-8 w-8 animate-spin text-[#00E5FF]" />
@@ -319,7 +392,7 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#070F1E] px-6 py-8 text-[#F8FAFC] lg:px-10">
+    <main className="min-h-screen bg-[#070F1E] px-4 py-5 text-[#F8FAFC] sm:px-6 sm:py-8 lg:px-10">
       <div className="mx-auto max-w-5xl">
         {/* Header */}
         <div className="mb-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -400,27 +473,106 @@ export default function AdminSettingsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-5">
-                  <label className="block">
-                    <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                      <Phone className="h-3.5 w-3.5" /> WhatsApp Business Number
-                    </span>
-                    <input
-                      type="text"
-                      value={settings.contact.whatsappNumber}
-                      onChange={(e) => updateContact('whatsappNumber', e.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none focus:border-[#00E5FF]"
-                    />
-                  </label>
+                <div className="space-y-6">
+                  {/* Public Page Visibility Toggles */}
+                  <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5 space-y-4">
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-[#00E5FF]" />
+                      Public Support Page Channels Visibility
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Control which contact options are displayed on the public /support page. You can turn off the entire contact channels sidebar to display only the message form.
+                    </p>
+
+                    {/* Master Switch: Show Channels */}
+                    <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                      <div>
+                        <p className="text-xs font-bold text-white">Show Contact Channels Sidebar</p>
+                        <p className="text-[11px] text-slate-500">If disabled, only the message form is shown on /support</p>
+                      </div>
+                      <label className="relative inline-flex cursor-pointer items-center">
+                        <input
+                          type="checkbox"
+                          checked={settings.contact?.showContactChannels !== false}
+                          onChange={(e) => updateContact('showContactChannels', e.target.checked)}
+                          className="peer sr-only"
+                        />
+                        <div className="peer h-6 w-11 rounded-full bg-white/10 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#00E5FF] peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none" />
+                      </label>
+                    </div>
+
+                    {/* Individual Toggles */}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 border-t border-white/5 pt-3">
+                      <label className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-3 cursor-pointer">
+                        <span className="text-xs font-semibold text-slate-300">Show WhatsApp</span>
+                        <input
+                          type="checkbox"
+                          checked={settings.contact?.showWhatsApp !== false}
+                          onChange={(e) => updateContact('showWhatsApp', e.target.checked)}
+                          className="rounded text-[#00E5FF] focus:ring-0"
+                        />
+                      </label>
+
+                      <label className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-3 cursor-pointer">
+                        <span className="text-xs font-semibold text-slate-300">Show Email</span>
+                        <input
+                          type="checkbox"
+                          checked={settings.contact?.showEmail !== false}
+                          onChange={(e) => updateContact('showEmail', e.target.checked)}
+                          className="rounded text-[#00E5FF] focus:ring-0"
+                        />
+                      </label>
+
+                      <label className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-3 cursor-pointer">
+                        <span className="text-xs font-semibold text-slate-300">Show Phone</span>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(settings.contact?.showPhone)}
+                          onChange={(e) => updateContact('showPhone', e.target.checked)}
+                          className="rounded text-[#00E5FF] focus:ring-0"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Channel Inputs */}
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                        <Phone className="h-3.5 w-3.5 text-emerald-400" /> WhatsApp Concierge Number
+                      </span>
+                      <input
+                        type="text"
+                        value={settings.contact.whatsappNumber}
+                        onChange={(e) => updateContact('whatsappNumber', e.target.value)}
+                        placeholder="+2010222434602"
+                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none focus:border-[#00E5FF]"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                        <Mail className="h-3.5 w-3.5 text-[#FFD700]" /> Corporate Email
+                      </span>
+                      <input
+                        type="email"
+                        value={settings.contact.corporateEmail}
+                        onChange={(e) => updateContact('corporateEmail', e.target.value)}
+                        placeholder="support@talago-tours.com"
+                        className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none focus:border-[#00E5FF]"
+                      />
+                    </label>
+                  </div>
 
                   <label className="block">
                     <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                      <Mail className="h-3.5 w-3.5" /> Corporate Email
+                      <Phone className="h-3.5 w-3.5 text-[#00E5FF]" /> Direct Support Phone Number
                     </span>
                     <input
-                      type="email"
-                      value={settings.contact.corporateEmail}
-                      onChange={(e) => updateContact('corporateEmail', e.target.value)}
+                      type="text"
+                      value={settings.contact?.phoneNumber || ''}
+                      onChange={(e) => updateContact('phoneNumber', e.target.value)}
+                      placeholder="+20 102 224 34602"
                       className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none focus:border-[#00E5FF]"
                     />
                   </label>
@@ -1269,7 +1421,7 @@ export default function AdminSettingsPage() {
                                 banners: { ...prev.banners, toursHeroRatingLabel: e.target.value },
                               }))
                             }
-                            placeholder="Rating label: 300+ verified guests"
+                            placeholder="Rating label: e.g. Verified local operator"
                             className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                           />
                         </div>
@@ -1887,72 +2039,177 @@ export default function AdminSettingsPage() {
             )}
 
             {activeSection === 'modules' && (
-              <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
-                <div className="mb-6">
-                  <h2 className="text-lg font-black text-white">Advanced Modules</h2>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Optional marketplace features. All are disabled by default — enable only when the
-                    operational workflows behind them are ready.
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  {(
-                    [
-                      {
-                        key: 'partners',
-                        label: 'Partners',
-                        description: 'Public partner directory and co-branded listings.',
-                      },
-                      {
-                        key: 'supplierPortal',
-                        label: 'Supplier Portal',
-                        description: 'Third-party suppliers manage their own tours and availability.',
-                      },
-                      {
-                        key: 'affiliates',
-                        label: 'Affiliates',
-                        description: 'Affiliate tracking links, referrals and commission payouts.',
-                      },
-                      {
-                        key: 'applications',
-                        label: 'Applications',
-                        description: 'Accept and review partner/supplier onboarding applications.',
-                      },
-                      {
-                        key: 'additionalCountries',
-                        label: 'Additional Countries',
-                        description: 'Expand the catalog beyond Egypt to other countries.',
-                      },
-                    ] as const
-                  ).map((mod) => (
-                    <label
-                      key={mod.key}
-                      className="flex items-start gap-4 rounded-2xl border border-white/10 bg-[#070F1E] p-4"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={settings.modules?.[mod.key] === true}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            modules: { ...prev.modules, [mod.key]: e.target.checked },
-                          }))
-                        }
-                        className="mt-0.5 h-4 w-4 accent-[#00E5FF]"
-                      />
-                      <span>
-                        <span className="block text-sm font-bold text-white">{mod.label}</span>
-                        <span className="block text-xs text-slate-400">{mod.description}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <MarketplaceModulesDashboard settings={settings} setSettings={setSettings} />
             )}
 
             {activeSection === 'ai' && (
               <AiKeyPoolManager />
+            )}
+
+            {/* ─── SEO & Open Graph Panel ─── */}
+            {activeSection === 'seo' && (
+              <div className="space-y-6">
+                {/* Header card */}
+                <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
+                  <div className="mb-6 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#00E5FF]/10">
+                        <Search className="h-5 w-5 text-[#00E5FF]" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-black text-white">SEO &amp; Open Graph</h2>
+                        <p className="text-xs text-slate-500">Social share image, favicon &amp; site metadata — changes live within 60 seconds, no redeploy needed</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSeoSave}
+                      disabled={seoSaving}
+                      className="inline-flex items-center gap-2 rounded-full bg-[#FFD700] px-5 py-2.5 text-sm font-black text-[#070F1E] transition-all hover:scale-[1.02] disabled:opacity-60"
+                    >
+                      {seoSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      {seoSaving ? 'Saving...' : 'Save SEO'}
+                    </button>
+                  </div>
+
+                  {seoSaved && (
+                    <div className="mb-4 flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      SEO settings saved — changes will reflect within 60 seconds
+                    </div>
+                  )}
+
+                  <div className="space-y-6">
+                    {/* OG Image Upload */}
+                    <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5">
+                      <h3 className="mb-1 text-sm font-black text-white">Social Share Image (Open Graph)</h3>
+                      <p className="mb-4 text-xs text-slate-400">
+                        Shown when your site is shared on WhatsApp, Facebook, Telegram, and Twitter. Must be <strong className="text-slate-200">1200 × 630 px</strong>, JPEG or PNG.
+                      </p>
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                        {seoSettings.ogImage ? (
+                          <div className="relative shrink-0">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={seoSettings.ogImage}
+                              alt="OG preview"
+                              className="h-28 w-52 rounded-xl object-cover ring-1 ring-white/10"
+                            />
+                            <button
+                              onClick={() => setSeoSettings((p) => ({ ...p, ogImage: '' }))}
+                              className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex h-28 w-52 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5">
+                            <ImageIcon className="h-8 w-8 text-slate-600" />
+                          </div>
+                        )}
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => ogUploadRef.current?.click()}
+                            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-slate-200 transition hover:bg-white/10"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Upload New OG Image
+                          </button>
+                          <input ref={ogUploadRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleOgImageUpload} />
+                          {seoSettings.ogImage && (
+                            <a
+                              href={`https://opengraph.xyz/url/${encodeURIComponent('https://talago-tours.vercel.app')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-[#00E5FF] hover:underline"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              Preview on opengraph.xyz
+                            </a>
+                          )}
+                          <label className="text-xs text-slate-500 mt-1">OG Image Alt Text</label>
+                          <input
+                            value={seoSettings.ogImageAlt}
+                            onChange={(e) => setSeoSettings((p) => ({ ...p, ogImageAlt: e.target.value }))}
+                            placeholder="TALAGO — World-Class Tours & Luxury Experiences"
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-[#00E5FF]/50 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Favicon Upload */}
+                    <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5">
+                      <h3 className="mb-1 text-sm font-black text-white">Favicon</h3>
+                      <p className="mb-4 text-xs text-slate-400">
+                        The browser tab icon. Recommended: <strong className="text-slate-200">32 × 32 px</strong> PNG or ICO. Leave empty to use the default SVG icon.
+                      </p>
+                      <div className="flex items-center gap-4">
+                        {seoSettings.faviconUrl ? (
+                          <div className="relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={seoSettings.faviconUrl} alt="Favicon" className="h-10 w-10 rounded-lg object-contain ring-1 ring-white/10" />
+                            <button
+                              onClick={() => setSeoSettings((p) => ({ ...p, faviconUrl: '' }))}
+                              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white"
+                            >
+                              <Trash2 className="h-2.5 w-2.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-dashed border-white/20 bg-white/5">
+                            <ImageIcon className="h-5 w-5 text-slate-600" />
+                          </div>
+                        )}
+                        <button
+                          onClick={() => faviconUploadRef.current?.click()}
+                          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-slate-200 transition hover:bg-white/10"
+                        >
+                          <Upload className="h-4 w-4" />
+                          Upload Favicon
+                        </button>
+                        <input ref={faviconUploadRef} type="file" accept="image/png,image/x-icon,image/svg+xml" className="hidden" onChange={handleFaviconUpload} />
+                      </div>
+                    </div>
+
+                    {/* Site Metadata */}
+                    <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5 space-y-4">
+                      <h3 className="text-sm font-black text-white">Site Metadata Overrides</h3>
+                      <p className="text-xs text-slate-400">Override the default title and description. Leave blank to use the built-in defaults.</p>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-bold text-slate-300">Site Title (browser tab + OG title)</label>
+                        <input
+                          value={seoSettings.siteTitle}
+                          onChange={(e) => setSeoSettings((p) => ({ ...p, siteTitle: e.target.value }))}
+                          placeholder="TALAGO | Book Top Tours, Activities & Experiences Worldwide"
+                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#00E5FF]/50 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-bold text-slate-300">Site Description (meta + OG description)</label>
+                        <textarea
+                          value={seoSettings.siteDescription}
+                          onChange={(e) => setSeoSettings((p) => ({ ...p, siteDescription: e.target.value }))}
+                          placeholder="Discover and book top-rated tours, activities, and experiences worldwide..."
+                          rows={3}
+                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#00E5FF]/50 focus:outline-none resize-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-bold text-slate-300">Twitter / X Handle</label>
+                        <input
+                          value={seoSettings.twitterHandle}
+                          onChange={(e) => setSeoSettings((p) => ({ ...p, twitterHandle: e.target.value }))}
+                          placeholder="@talago"
+                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#00E5FF]/50 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>

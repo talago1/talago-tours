@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
+import { sanitizeEmail, sanitizePlain, sanitizeText } from '@/utils/sanitize';
 
 // 5 contact form submissions per IP per 10 minutes
 const LIMIT = 5;
@@ -25,9 +26,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Sanitize inputs — strip control characters and truncate
-    const safeName = String(name).trim().replace(/[\u0000-\u001F\u007F]/g, '').slice(0, 200);
-    const safeEmail = String(email).trim().toLowerCase().slice(0, 254);
-    const safeMessage = String(message).trim().replace(/[\u0000-\u001F\u007F]/g, '').slice(0, 2000);
+    const safeName = sanitizePlain(name, 200);
+    const safeEmail = sanitizeEmail(email);
+    const safeMessage = sanitizeText(message, 2000);
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(safeEmail)) {
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
             <h3 style="color:#555;margin-bottom:8px;">Message</h3>
             <div style="background:#f9f9f9;border-radius:6px;padding:16px;white-space:pre-wrap;color:#333;">${safeMessage}</div>
             <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
-            <p style="color:#aaa;font-size:12px;">Talago Tours · Egypt</p>
+            <p style="color:#aaa;font-size:12px;">TALAGO Experiences · Global Concierge & Support</p>
           </div>
         `,
       });

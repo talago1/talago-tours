@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 import { supabaseClient } from '@/lib/supabase/client';
 import {
   CalendarDays,
@@ -15,12 +16,15 @@ import {
   AlertCircle,
   User,
   Clock,
+  Star,
 } from 'lucide-react';
+import WriteReviewModal from '@/components/modals/WriteReviewModal';
 
 interface BookingItem {
   id: string;
   bookingReference: string;
   accessToken: string;
+  tourId: string;
   status: string;
   travelDate: string;
   guestCount: number;
@@ -30,6 +34,7 @@ interface BookingItem {
   amountDueOnArrival: number | null;
   amountPaidOnline: number | null;
   createdAt: string;
+  reviews?: { id: string; rating: number }[];
   tour: {
     slug: string;
     coverImage: string | null;
@@ -37,6 +42,19 @@ interface BookingItem {
     durationHours: number | null;
   } | null;
   transaction: { status: string } | null;
+}
+
+interface ReservationItem {
+  id: string;
+  tourId: string | null;
+  tourTitle: string | null;
+  tourSlug: string | null;
+  adults: number;
+  children: number;
+  totalEstimatedPrice: number | null;
+  currency: string;
+  status: string;
+  createdAt: string;
 }
 
 function getTourTitle(translations: unknown, lang = 'en'): string {
@@ -56,7 +74,13 @@ const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
   COMPLETED: { label: 'Completed', class: 'bg-sky-500/10 text-sky-300 border-sky-500/20' },
 };
 
-function BookingCard({ booking }: { booking: BookingItem }) {
+function BookingCard({
+  booking,
+  onOpenReview,
+}: {
+  booking: BookingItem;
+  onOpenReview?: (booking: BookingItem) => void;
+}) {
   const statusCfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.PENDING;
   const tourTitle = getTourTitle(booking.tour?.translations);
   const travelDate = new Date(booking.travelDate);
@@ -79,6 +103,7 @@ function BookingCard({ booking }: { booking: BookingItem }) {
               fill
               sizes="64px"
               className="object-cover transition-transform duration-500 group-hover:scale-110"
+              unoptimized={isSupabaseStorageImage(booking.tour.coverImage)}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-[#0B1528]">
@@ -122,7 +147,7 @@ function BookingCard({ booking }: { booking: BookingItem }) {
             )}
           </div>
 
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2.5">
             <div className="text-sm font-bold text-white">
               {currencySymbol}{Number(booking.totalPriceUSD).toFixed(2)}
               {amountDue > 0 && (
@@ -131,7 +156,29 @@ function BookingCard({ booking }: { booking: BookingItem }) {
                 </span>
               )}
             </div>
-            <ChevronRight className="h-4 w-4 text-slate-600 transition-transform group-hover:translate-x-1 group-hover:text-[#00E5FF]" />
+
+            <div className="flex items-center gap-2">
+              {booking.reviews && booking.reviews.length > 0 ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/20 px-2.5 py-1 text-[11px] font-bold text-[#FFD700]">
+                  <Star className="h-3 w-3 fill-[#FFD700]" />
+                  Reviewed
+                </span>
+              ) : (booking.status === 'CONFIRMED' || booking.status === 'COMPLETED') && onOpenReview ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onOpenReview(booking);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#00E5FF]/40 bg-[#00E5FF]/10 px-3 py-1 text-xs font-bold text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20 hover:scale-105"
+                >
+                  <Star className="h-3 w-3" />
+                  Leave a Review
+                </button>
+              ) : null}
+              <ChevronRight className="h-4 w-4 text-slate-600 transition-transform group-hover:translate-x-1 group-hover:text-[#00E5FF]" />
+            </div>
           </div>
         </div>
       </div>
@@ -143,8 +190,10 @@ export default function MyBookingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [reservations, setReservations] = useState<ReservationItem[]>([]);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<BookingItem | null>(null);
 
   const loadBookingsForSession = useCallback(async (token: string, userEmail: string) => {
     setEmail(userEmail);
@@ -155,6 +204,7 @@ export default function MyBookingsPage() {
       if (!res.ok) throw new Error('Failed to load bookings');
       const data = await res.json();
       setBookings(data.bookings);
+      setReservations(data.reservations || []);
     } catch {
       setError('Could not load your bookings. Please try again.');
     } finally {
@@ -250,7 +300,7 @@ export default function MyBookingsPage() {
         </div>
       )}
 
-      {bookings.length === 0 && !error ? (
+      {bookings.length === 0 && reservations.length === 0 && !error ? (
         /* Empty State */
         <div className="flex flex-col items-center py-24 text-center">
           <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/5">
@@ -269,6 +319,24 @@ export default function MyBookingsPage() {
         </div>
       ) : (
         <div className="space-y-10">
+          {reservations.length > 0 && (
+            <section>
+              <h2 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
+                <Clock className="h-3.5 w-3.5" />
+                Pending confirmation ({reservations.length})
+              </h2>
+              <div className="space-y-3">
+                {reservations.map((reservation) => (
+                  <Link key={reservation.id} href={reservation.tourId ? `/checkout/${reservation.tourId}?reservation=${reservation.id}` : '/tours'} className="block rounded-2xl border border-cyan-300/25 bg-cyan-300/[0.05] p-5 transition hover:border-cyan-300/50 hover:bg-cyan-300/[0.08]">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0"><p className="truncate text-sm font-bold text-white">{reservation.tourTitle || 'Experience reservation'}</p><p className="mt-1 text-xs text-slate-400">Saved {new Date(reservation.createdAt).toLocaleDateString()} · {reservation.adults + reservation.children} guest{reservation.adults + reservation.children !== 1 ? 's' : ''}</p></div>
+                      <span className="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-bold uppercase text-cyan-100">Complete details</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
           {/* Upcoming */}
           {upcoming.length > 0 && (
             <section>
@@ -277,7 +345,9 @@ export default function MyBookingsPage() {
                 Upcoming ({upcoming.length})
               </h2>
               <div className="space-y-3">
-                {upcoming.map(b => <BookingCard key={b.id} booking={b} />)}
+                {upcoming.map(b => (
+                  <BookingCard key={b.id} booking={b} onOpenReview={(target) => setReviewTarget(target)} />
+                ))}
               </div>
             </section>
           )}
@@ -289,8 +359,10 @@ export default function MyBookingsPage() {
                 <Clock className="h-3.5 w-3.5" />
                 Past & Cancelled ({past.length})
               </h2>
-              <div className="space-y-3 opacity-70">
-                {past.map(b => <BookingCard key={b.id} booking={b} />)}
+              <div className="space-y-3 opacity-90">
+                {past.map(b => (
+                  <BookingCard key={b.id} booking={b} onOpenReview={(target) => setReviewTarget(target)} />
+                ))}
               </div>
             </section>
           )}
@@ -298,7 +370,7 @@ export default function MyBookingsPage() {
       )}
 
       {/* CTA */}
-      {bookings.length > 0 && (
+      {(bookings.length > 0 || reservations.length > 0) && (
         <div className="mt-14 text-center">
           <Link
             href="/tours"
@@ -307,6 +379,25 @@ export default function MyBookingsPage() {
             Book Another Tour
           </Link>
         </div>
+      )}
+
+      {/* Write a Review Modal */}
+      {reviewTarget && (
+        <WriteReviewModal
+          isOpen={Boolean(reviewTarget)}
+          onClose={() => setReviewTarget(null)}
+          tourId={reviewTarget.tourId}
+          tourTitle={getTourTitle(reviewTarget.tour?.translations)}
+          initialBookingId={reviewTarget.bookingReference || reviewTarget.id}
+          initialCustomerName={email ? email.split('@')[0] : ''}
+          onSuccess={() => {
+            setBookings((prev) =>
+              prev.map((b) =>
+                b.id === reviewTarget.id ? { ...b, reviews: [{ id: 'new', rating: 5 }] } : b
+              )
+            );
+          }}
+        />
       )}
     </main>
   );

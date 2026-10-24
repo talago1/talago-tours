@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { User, Globe, LayoutDashboard, LogOut, ChevronDown, DollarSign } from 'lucide-react';
+import { User, Globe, LayoutDashboard, LogOut, ChevronDown, DollarSign, Heart } from 'lucide-react';
 import { useLanguage, type LanguageCode, languageLabels } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { useWishlist } from '@/context/WishlistContext';
 import { supabaseClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import type { Session } from '@supabase/supabase-js';
@@ -23,6 +24,7 @@ const LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
 export default function NavActions() {
   const { language, setLanguage, dict } = useLanguage();
   const { currency, setCurrency, symbols, supportedCurrencies } = useCurrency();
+  const { count } = useWishlist();
   const router = useRouter();
   const [langOpen, setLangOpen] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
@@ -132,6 +134,21 @@ export default function NavActions() {
         )}
       </div>
 
+      {/* ── Wishlist Link & Counter ── */}
+      <Link
+        href="/wishlist"
+        className="relative inline-flex items-center justify-center rounded-xl p-2 text-slate-300 transition-all hover:bg-white/[0.06] hover:text-[#00E5FF] group"
+        title="Saved Experiences"
+        aria-label="Wishlist"
+      >
+        <Heart className={`h-4 w-4 transition-transform group-hover:scale-110 ${count > 0 ? 'text-rose-400 fill-rose-400' : ''}`} />
+        {count > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white shadow-md shadow-rose-500/40">
+            {count > 99 ? '99+' : count}
+          </span>
+        )}
+      </Link>
+
       <div className="h-6 w-px bg-white/10" />
 
       {/* ── Auth: Logged In → Avatar Dropdown | Logged Out → Sign In button ── */}
@@ -178,13 +195,21 @@ export default function NavActions() {
           )}
         </div>
       ) : (
-        <Link
-          href="/auth"
-          className="inline-flex items-center gap-2 rounded-full border border-[#00E5FF]/25 bg-[#00E5FF]/10 px-5 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20 hover:shadow-lg hover:shadow-[#00E5FF]/10"
-        >
-          <User className="h-3.5 w-3.5" />
-          {dict.navbar.signInRegister}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/auth"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-300 transition-colors hover:text-white"
+          >
+            <span>Sign In</span>
+          </Link>
+          <Link
+            href="/auth"
+            className="inline-flex items-center gap-2 rounded-full border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20 hover:scale-[1.02] hover:shadow-lg hover:shadow-[#00E5FF]/10"
+          >
+            <User className="h-3.5 w-3.5" />
+            <span>Register</span>
+          </Link>
+        </div>
       )}
     </div>
   );

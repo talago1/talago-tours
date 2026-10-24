@@ -37,10 +37,13 @@ interface BookingExportRow {
 // ---------------------------------------------------------------------------
 
 function escapeCSVField(value: string): string {
-  if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
-    return `"${value.replace(/"/g, '""')}"`;
+  // Spreadsheet applications treat leading formula characters as executable
+  // formulas. Customer-provided fields must remain literal text on export.
+  const safeValue = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  if (safeValue.includes(',') || safeValue.includes('"') || safeValue.includes('\n') || safeValue.includes('\r')) {
+    return `"${safeValue.replace(/"/g, '""')}"`;
   }
-  return value;
+  return safeValue;
 }
 
 function buildCSVHeader(columns: string[]): string {

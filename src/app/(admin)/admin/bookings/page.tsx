@@ -82,7 +82,7 @@ export default async function AdminBookingsPage() {
   });
 
   return (
-    <main className="min-h-screen bg-[#070F1E] px-6 py-8">
+    <main className="min-h-screen bg-[#070F1E] px-4 py-5 sm:px-6 sm:py-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8">
           <p className="text-xs font-black uppercase tracking-[0.28em] text-[#06B6D4]">

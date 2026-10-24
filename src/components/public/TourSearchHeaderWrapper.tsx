@@ -8,7 +8,11 @@ interface TourSearchHeaderWrapperProps {
   filteredCount: number;
 }
 
-export default function TourSearchHeaderWrapper({ destinations, totalCount, filteredCount }: TourSearchHeaderWrapperProps) {
+export default function TourSearchHeaderWrapper({
+  destinations,
+  totalCount,
+  filteredCount,
+}: TourSearchHeaderWrapperProps) {
   return (
     <TourSearchHeader
       destinations={destinations}

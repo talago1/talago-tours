@@ -21,6 +21,18 @@ enum ReviewStatus {
   REJECTED
 }
 
+enum ReviewSource {
+  TALAGO
+  GETYOURGUIDE
+  VIATOR
+  TRIPADVISOR
+  SPUTNIK8
+  TRIPSTER
+  BOOKING_COM
+  GOOGLE
+  OTHER
+}
+
 enum BookingChannel {
   VIATOR
   GETYOURGUIDE
@@ -333,6 +345,7 @@ model Booking {
 
   transaction Transaction?
   reviews Review[]
+  lead BookingLead?
 
   @@index([tourId])
   @@index([bookingReference])
@@ -347,9 +360,29 @@ model Review {
   id           String       @id @default(cuid())
   tourId       String
   bookingId    String?      @unique
-  customerName String
+
+  // Display
+  customerName String          // legacy — prefer reviewerName below
+  reviewerName String?         // first name only for public display
+  country      String?         // ISO-3166-1 alpha-2 (e.g. "RU", "DE", "GB")
+
   rating       Int
-  comment      String?
+  comment      String?         // legacy field — alias of translatedText
+
+  // Source & provenance
+  source         ReviewSource  @default(TALAGO)
+  sourceUrl      String?       // direct link to the original review page
+  reviewDate     DateTime?     // original publication date (not createdAt)
+
+  // Multilingual content — never edit the original
+  originalText     String?  @db.Text  // raw review in original language
+  originalLanguage String?            // BCP-47 (e.g. "ru", "de", "en")
+  translatedText   String?  @db.Text  // machine translation (labeled on frontend)
+
+  // Visibility control
+  isSeeded   Boolean      @default(false) // true = seeded / test / placeholder
+  isVisible  Boolean      @default(true)  // only visible=true, seeded=false count
+
   status       ReviewStatus @default(PENDING)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -359,6 +392,8 @@ model Review {
 
   @@index([tourId])
   @@index([status])
+  @@index([tourId, isVisible, isSeeded]) // fast real-review queries
+  @@index([source])
   @@map("reviews")
 }
 
@@ -600,3 +635,95 @@ model AbandonedCheckout {
   @@map("abandoned_checkouts")
 }
 
+model TourRedirect {
+  id         String   @id @default(cuid())
+  sourceSlug String   @unique
+  targetSlug String
+  statusCode Int      @default(301)
+  reason     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([sourceSlug])
+  @@map("tour_redirects")
+}
+
+enum LeadStatus {
+  INTERESTED
+  IN_PROGRESS
+  CONTACTED
+  CONVERTED
+  ABANDONED
+}
+
+model BookingLead {
+  id                  String      @id @default(cuid())
+  tourId              String?
+  tourSlug            String?
+  tourTitle           String?
+  customerName        String?
+  customerEmail       String?
+  customerPhone       String?
+  travelDate          String?
+  adults              Int         @default(1)
+  children            Int         @default(0)
+  totalEstimatedPrice Float?
+  currency            String      @default("USD")
+  status              LeadStatus  @default(INTERESTED)
+  source              String      @default("BOOK_BUTTON") // "BOOK_BUTTON", "CHECKOUT_FORM", "INQUIRY", "STICKY_BAR"
+  sessionId           String?
+  notes               String?
+  bookingId           String?     @unique
+  booking             Booking?    @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@index([tourId])
+  @@index([status])
+  @@index([customerEmail])
+  @@index([customerPhone])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("booking_leads")
+}
+
+enum LiveChatStatus {
+  OPEN
+  CLOSED
+}
+
+enum LiveChatSender {
+  VISITOR
+  ADMIN
+}
+
+model LiveChatConversation {
+  id           String         @id @default(cuid())
+  visitorToken String         @unique
+  visitorName  String?
+  visitorEmail String?
+  visitorPhone String?
+  lastPagePath String?
+  status       LiveChatStatus @default(OPEN)
+  lastMessageAt DateTime      @default(now())
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  messages     LiveChatMessage[]
+
+  @@index([status, lastMessageAt])
+  @@index([visitorEmail])
+  @@map("live_chat_conversations")
+}
+
+model LiveChatMessage {
+  id             String             @id @default(cuid())
+  conversationId String
+  sender         LiveChatSender
+  body           String             @db.Text
+  readAt         DateTime?
+  createdAt      DateTime           @default(now())
+  conversation   LiveChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("live_chat_messages")
+}

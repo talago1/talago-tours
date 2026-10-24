@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 import { ChefHat, ShieldCheck, Ship, Users, Compass } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -58,6 +59,7 @@ export default function AboutPage({ aboutPhilosophyImage }: AboutPageProps) {
                     fill
                     sizes="(max-width: 1024px) calc(100vw - 40px), 432px"
                     className="rounded-[2rem] object-cover"
+                    unoptimized={isSupabaseStorageImage(aboutPhilosophyImage)}
                     onError={() => setImageError(true)}
                   />
                 </div>

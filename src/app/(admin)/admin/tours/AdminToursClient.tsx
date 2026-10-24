@@ -14,7 +14,8 @@ import {
   MapPin,
   Image as ImageIcon,
   Check,
-  AlertCircle
+  AlertCircle,
+  Flame
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,8 @@ interface Tour {
   maxCapacity: number;
   durationHours: number;
   destination: { name: string };
+  isFeatured?: boolean;
+  isBestSeller?: boolean;
   allowDeposit?: boolean;
   depositPercentage?: number;
   allowPayAtLocation?: boolean;
@@ -56,6 +59,7 @@ interface Tour {
   showExcerptOnCard?: boolean;
   ratingAverage?: number;
   ratingCount?: number;
+  tourOptions?: Array<{ id: string; title?: string; name?: string; labels?: Record<string, string>; price: number; priceType?: string }> | null;
 }
 
 interface AdminToursClientProps {
@@ -191,6 +195,32 @@ function TourPreviewModal({
             </div>
           </div>
 
+          {tour.tourOptions && tour.tourOptions.length > 0 && (
+            <div className="border-t border-white/10 pt-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#00E5FF]">
+                Tour Options & Upgrades ({tour.tourOptions.length})
+              </span>
+              <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {tour.tourOptions.map((opt) => (
+                  <div
+                    key={opt.id}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3 text-xs"
+                  >
+                    <div>
+                      <p className="font-bold text-white">{opt.labels?.en || opt.title || opt.name || 'Option'}</p>
+                      <p className="text-[10px] text-slate-400 capitalize">
+                        {opt.priceType === 'per_person' ? 'Per Guest' : 'Per Booking'}
+                      </p>
+                    </div>
+                    <span className="font-mono font-bold text-[#00E5FF]">
+                      {opt.price > 0 ? `+$${opt.price}` : 'Included'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="pt-2 flex justify-end">
             <a
               href={`/admin/tours/${tour.id}`}
@@ -251,6 +281,46 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
     }
   }
 
+  async function handleToggleFeatured(tour: Tour) {
+    const newFeatured = !tour.isFeatured;
+    try {
+      const res = await fetch(`/api/admin/tours/${tour.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isFeatured: newFeatured }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update featured state');
+      }
+      setTours((prev) =>
+        prev.map((t) => (t.id === tour.id ? { ...t, isFeatured: newFeatured } : t))
+      );
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update featured state');
+    }
+  }
+
+  async function handleToggleBestSeller(tour: Tour) {
+    const newBestSeller = !tour.isBestSeller;
+    try {
+      const res = await fetch(`/api/admin/tours/${tour.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isBestSeller: newBestSeller }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update best seller state');
+      }
+      setTours((prev) =>
+        prev.map((t) => (t.id === tour.id ? { ...t, isBestSeller: newBestSeller } : t))
+      );
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update best seller state');
+    }
+  }
+
   async function handleDelete(tourId: string, tourTitle?: string) {
     if (!confirm(`Are you sure you want to delete "${tourTitle || 'this experience'}"?`)) return;
 
@@ -302,7 +372,7 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
   });
 
   return (
-    <main className="min-h-screen bg-[#070F1E] px-6 py-8 text-[#F8FAFC] lg:px-10">
+    <main className="min-h-screen bg-[#070F1E] px-4 py-5 text-[#F8FAFC] sm:px-6 sm:py-8 lg:px-10">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -392,6 +462,36 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
                   >
                     <span className={`h-1.5 w-1.5 rounded-full ${tour.status === 'ACTIVE' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                     {tour.status}
+                  </button>
+
+                  {/* Featured on Homepage Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => handleToggleFeatured(tour)}
+                    title="Toggle Featured on Homepage"
+                    className={`absolute left-3 bottom-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-all backdrop-blur-sm ${
+                      tour.isFeatured
+                        ? 'bg-[#EAB308] text-[#070F1E] shadow-lg shadow-[#EAB308]/30 font-bold'
+                        : 'bg-[#070F1E]/80 text-slate-400 hover:text-white border border-white/10'
+                    }`}
+                  >
+                    <Star className={`h-3 w-3 ${tour.isFeatured ? 'fill-[#070F1E]' : ''}`} />
+                    {tour.isFeatured ? 'Featured' : 'Feature'}
+                  </button>
+
+                  {/* Best Seller Badge Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => handleToggleBestSeller(tour)}
+                    title="Toggle Best Seller badge"
+                    className={`absolute right-3 bottom-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-all backdrop-blur-sm ${
+                      tour.isBestSeller
+                        ? 'bg-amber-500 text-[#070F1E] shadow-lg shadow-amber-500/30 font-bold'
+                        : 'bg-[#070F1E]/80 text-slate-400 hover:text-white border border-white/10'
+                    }`}
+                  >
+                    <Flame className={`h-3 w-3 ${tour.isBestSeller ? 'fill-[#070F1E]' : ''}`} />
+                    {tour.isBestSeller ? 'Best Seller' : 'Badge'}
                   </button>
                 </div>
 

@@ -1,4 +1,4 @@
-export const SETTINGS_KEYS = ['contact', 'financial', 'system', 'paymentMethods', 'banners', 'modules'] as const;
+export const SETTINGS_KEYS = ['contact', 'financial', 'system', 'paymentMethods', 'banners', 'modules', 'seo'] as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[number];
 
@@ -21,8 +21,13 @@ export function serializeSettingValue(value: unknown): string {
 export const DEFAULT_SETTINGS = {
   contact: {
     whatsappNumber: '+2010222434602',
-    corporateEmail: 'tala.tour@outlook.com',
+    corporateEmail: 'support@talago-tours.com',
+    phoneNumber: '',
     socialLinks: { instagram: '', facebook: '', twitter: '' },
+    showContactChannels: true,
+    showWhatsApp: true,
+    showEmail: true,
+    showPhone: false,
   },
   financial: {
     baseCurrency: 'USD',
@@ -92,6 +97,17 @@ export const DEFAULT_SETTINGS = {
     assets: [] as { id: string; label: string; url: string; section: string }[],
     heroTranslations: {} as Record<string, any>,
   },
+  // SEO & Open Graph — controls the site-wide OG image, favicon, and social metadata.
+  // ogImage / faviconUrl must be absolute URLs (https://...) so WhatsApp/Telegram/Facebook
+  // can fetch them from Vercel's CDN without the "insecure resource" warning.
+  seo: {
+    ogImage: '',           // 1200×630 — absolute URL
+    ogImageAlt: 'TALAGO — World-Class Tours & Luxury Experiences',
+    faviconUrl: '',        // 32×32 PNG or ICO — absolute URL; falls back to /icon.svg
+    siteTitle: '',         // overrides the default <title> template if set
+    siteDescription: '',   // overrides the default meta description if set
+    twitterHandle: '@talago',
+  },
   // Advanced marketplace modules are intentionally OFF by default. TALAGO ships as a
   // single-operator tours platform; these stay dormant until explicitly enabled.
   modules: {
@@ -100,6 +116,11 @@ export const DEFAULT_SETTINGS = {
     affiliates: false,
     applications: false,
     additionalCountries: false,
+    wishlist: true,
+    showWishlistInNav: true,
+    stickyMobileBookingBar: true,
+    activityAtAGlance: true,
+    facetedFilters: true,
   },
 };
 

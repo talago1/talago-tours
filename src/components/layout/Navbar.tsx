@@ -9,6 +9,7 @@ import { supabaseClient } from '@/lib/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import NavLinks from './NavLinks';
 import NavActions from './NavActions';
+import GlobalSearch from './GlobalSearch';
 
 const LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
   { code: 'en', label: 'EN', native: 'English' },
@@ -56,7 +57,7 @@ export default function Navbar() {
   const userInitial = userEmail[0]?.toUpperCase() ?? '?';
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.06] backdrop-blur-xl bg-[#070F1E]/85 shadow-lg shadow-black/10">
+    <header className="sticky top-0 z-[100] border-b border-white/[0.06] backdrop-blur-xl bg-[#070F1E]/85 shadow-lg shadow-black/10">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 lg:px-10">
         {/* Logo */}
         <Link href="/" className="group flex items-center gap-2.5 transition-all hover:opacity-90">
@@ -73,6 +74,7 @@ export default function Navbar() {
             {(dict?.navbar as any)?.home || 'Home'}
           </Link>
           <NavLinks />
+          <GlobalSearch />
           <NavActions />
         </nav>
 
@@ -127,6 +129,19 @@ export default function Navbar() {
                 className="flex items-center rounded-xl px-4 py-3 text-base font-bold text-slate-200 transition-all hover:bg-white/5 hover:text-[#00E5FF]"
               >
                 {dict.navbar.faq}
+              </Link>
+              <Link
+                href="/partners"
+                className="flex items-center justify-between rounded-xl px-4 py-3 text-base font-bold text-slate-200 transition-all hover:bg-white/5 hover:text-[#00E5FF]"
+              >
+                <span>Partner with Us</span>
+                <span className="rounded-full bg-[#EAB308]/10 px-2 py-0.5 text-[10px] font-bold text-[#EAB308]">Supplier</span>
+              </Link>
+              <Link
+                href="/support"
+                className="flex items-center rounded-xl px-4 py-3 text-base font-bold text-slate-200 transition-all hover:bg-white/5 hover:text-[#00E5FF]"
+              >
+                {dict.footer?.contactUs || 'Concierge & Support'}
               </Link>
             </nav>
 

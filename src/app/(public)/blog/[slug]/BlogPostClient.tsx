@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 import Link from 'next/link';
 import { ArrowLeft, Clock, Share2, Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -95,6 +96,7 @@ export default function BlogPostClient({ post, relatedPosts }: Props) {
               priority
               sizes="(max-width: 896px) calc(100vw - 40px), 896px"
               className="object-cover"
+              unoptimized={isSupabaseStorageImage(post.coverImage)}
             />
           </div>
         </div>
@@ -130,6 +132,7 @@ export default function BlogPostClient({ post, relatedPosts }: Props) {
                         fill
                         sizes="(max-width: 640px) calc(100vw - 40px), 232px"
                         className="object-cover transition group-hover:scale-105"
+                        unoptimized={isSupabaseStorageImage(r.coverImage)}
                       />
                     )}
                   </div>
