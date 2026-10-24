@@ -1850,7 +1850,6 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
             </Link>
           </div>
         </div>
-      </div>
 
       {/* Spacer for mobile sticky bar */}
       <div className="h-24 lg:hidden" />
