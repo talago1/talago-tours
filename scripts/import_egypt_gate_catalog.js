@@ -60,7 +60,7 @@ function categoryFrom(sourceCategories = []) {
 }
 
 function makeSourceNote(tour) {
-  return `[Egypt Gate import] source=${tour.url}; sourceId=${tour.id}; syncedAt=${new Date().toISOString()}`;
+  return `[Authorized catalogue import] sourceId=${tour.id}; syncedAt=${new Date().toISOString()}`;
 }
 
 function sourceItinerary(items) {
@@ -79,14 +79,15 @@ function sourceItinerary(items) {
 }
 
 function localizedContent(tour) {
-  const description = cleanText(tour.description || tour.summary);
+  const withoutSourceLinks = (value) => cleanText(value).replace(/https?:\/\/[^\s]+/gi, '').trim();
+  const description = withoutSourceLinks(tour.description || tour.summary);
   const highlights = Array.isArray(tour.highlights) ? tour.highlights.filter(Boolean) : [];
   const inclusions = Array.isArray(tour.included) ? tour.included.filter(Boolean) : [];
   const exclusions = Array.isArray(tour.excluded) ? tour.excluded.filter(Boolean) : [];
   const before = Array.isArray(tour.knowBeforeYouGo) ? tour.knowBeforeYouGo.filter(Boolean) : [];
   const cancellation = cleanText(tour.cancellation?.policy);
   const base = {
-    title: cleanText(tour.name), description, cardExcerpt: cleanText(tour.summary),
+    title: cleanText(tour.name), description, cardExcerpt: withoutSourceLinks(tour.summary),
     highlights, inclusions, exclusions, whatToBring: before.join('\n'),
     importantInfo: before.join('\n'), pickupDescription: '', cancellationPolicy: cancellation,
     cancellationPolicies: cancellation ? [cancellation] : [], meetingPointInstructions: '',
@@ -158,12 +159,15 @@ async function importTour(tour, destinations, existingTours) {
   const content = localizedContent(tour);
   const sourceText = [tour.description, tour.summary, ...(tour.included || [])].join(' ').toLowerCase();
   const sourceNote = makeSourceNote(tour);
+  const mediaPayload = exact?.galleryImages?.length
+    ? {}
+    : { coverImage: tour.image || galleries[0] || null, thumbnailUrl: tour.image || galleries[0] || null, galleryImages: galleries };
   const payload = {
     type: tour.price?.unit === 'per_item' ? 'PRIVATE' : 'SHARED',
     basePriceUSD: price, basePrice: price, adultPrice: price, priceAdult: price,
     durationHours: parseDuration(tour.duration), duration: cleanText(tour.duration), maxCapacity: 30,
     zoneId: zone.id, destinationId: destination.id, countryCode: 'EG', city: sourceDestination.name, timezone: 'Africa/Cairo',
-    coverImage: tour.image || galleries[0] || null, thumbnailUrl: tour.image || galleries[0] || null, galleryImages: galleries,
+    ...mediaPayload,
     highlights: content.en.highlights, inclusions: content.en.inclusions, exclusions: content.en.exclusions,
     category: categoryFrom(tour.categories), secondaryCategories: Array.isArray(tour.categories) ? tour.categories : [],
     tags: Array.isArray(tour.categories) ? tour.categories : [], activityTypes: Array.isArray(tour.categories) ? tour.categories : [], ratingAverage: Number(tour.rating || 0), ratingCount: Number(tour.reviewCount || 0),
@@ -200,7 +204,7 @@ async function main() {
     return response.tour;
   });
   const destinations = new Map((await fetchJson(`${API}/destinations`)).destinations.map((item) => [item.slug, item]));
-  const existing = await prisma.tour.findMany({ select: { id: true, slug: true, destinationId: true, translations: true, internalNotes: true, status: true } });
+  const existing = await prisma.tour.findMany({ select: { id: true, slug: true, destinationId: true, translations: true, internalNotes: true, status: true, coverImage: true, thumbnailUrl: true, galleryImages: true } });
   const existingTours = existing.map((item) => ({ ...item, title: cleanText(item.translations?.en?.title) }));
   const report = [];
   for (const detail of details) report.push(await importTour(detail, destinations, existingTours));
