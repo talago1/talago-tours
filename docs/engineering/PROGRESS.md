@@ -87,6 +87,14 @@ Session Date: 2026-10-26
 ### Batch I: Viewport & Safe-Area Safety (TAL-S3)
 - Updated sticky mobile booking bar in `TourDetailsClient.tsx` with iOS safe-area insets (`pb-[max(0.875rem,env(safe-area-inset-bottom))]`) and `h-28` bottom spacer, preventing content overlap on small 375px screens.
 
+### Batch J: Structured Tour Availability (Phase 6b / TAL-AV1 to TAL-AV6)
+- **Database Schema (TAL-AV1)**: Added `TourAvailability` and `TourScheduleRule` models with unique constraints and cascade delete. Applied via Prisma.
+- **Admin APIs (TAL-AV2)**: Created authenticated `/api/admin/tours/[tourId]/availability` and `/api/admin/tours/[tourId]/schedule-rules` with upsert support.
+- **Public Calendar API (TAL-AV3)**: Created `/api/public/tours/[tourId]/availability?month=YYYY-MM` merging date overrides, schedule rules, and live booking counts.
+- **Admin Availability Builder UI (TAL-AV4)**: Added two-panel `AvailabilityBuilder.tsx` to `UnifiedTourEditor.tsx` for recurring rules and calendar date overrides.
+- **Date Picker Integrations (TAL-AV5)**: Wired real-time availability checks into `TourDetailsClient.tsx` sidebar date selector and `checkout/[tourId]/page.tsx` departure date input, enforcing cutoff hours and showing spot badges.
+- **Capacity Engine Enforcements (TAL-AV6)**: Updated `capacityEngine.ts` to consult `TourAvailability.capacityOverride` and immediately block non-available statuses (BLACKOUT, CLOSED, WEATHER_CANCELLED, PRIVATE_EVENT, SOLD_OUT).
+
 ---
 
 ## 3. Verification & Regressions Summary

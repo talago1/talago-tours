@@ -202,9 +202,9 @@ The editor has **27 named section IDs** (numbered 1-27 with 18a/18b as sub-items
 
 - **TAL-AV4** `[IMPLEMENTED & VERIFIED]` **Admin AvailabilityBuilder UI** (`src/components/admin/AvailabilityBuilder.tsx`): Two-panel admin component integrated into the `availability` section of `UnifiedTourEditor`. Panel 1 manages recurring schedule rules (inclusive and blackout). Panel 2 manages date-specific overrides (status, capacity, adult/child price, notes).
 
-- **TAL-AV5** `[OPEN]` **Date picker integration**: Wire `GET /api/public/tours/[tourId]/availability?month=YYYY-MM` into `TourDetailsClient.tsx` date picker to disable sold-out/closed/blackout dates visually and show remaining spots badge.
+- **TAL-AV5** `[IMPLEMENTED & VERIFIED]` **Date picker integration**: Wired `GET /api/public/tours/[tourId]/availability?month=YYYY-MM` into both `TourDetailsClient.tsx` sidebar date picker and `checkout/[tourId]/page.tsx` departure date input. Automatically enforces `cutoffHours` min date and provides real-time availability badges (remaining spots, sold-out, and blackout status warnings).
 
-- **TAL-AV6** `[OPEN]` **Capacity engine update**: Update `src/utils/capacityEngine.ts` and checkout/booking-interest capacity checks to also consult `TourAvailability.capacityOverride` when present instead of always using `Tour.maxCapacity`.
+- **TAL-AV6** `[IMPLEMENTED & VERIFIED]` **Capacity engine update**: Updated `src/utils/capacityEngine.ts` to consult `TourAvailability.capacityOverride` when present instead of defaulting to `Tour.maxCapacity`, and blocks bookings immediately on non-available statuses (BLACKOUT, CLOSED, WEATHER_CANCELLED, PRIVATE_EVENT, SOLD_OUT).
 
 ---
 
