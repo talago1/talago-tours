@@ -27,6 +27,18 @@ export async function POST(request: NextRequest, { params }: { params: { convers
     if (!conversation) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     const message = await prisma.liveChatMessage.create({ data: { conversationId: conversation.id, sender: LiveChatSender.ADMIN, body } });
     await prisma.liveChatConversation.update({ where: { id: conversation.id }, data: { status: LiveChatStatus.OPEN, lastMessageAt: new Date() } });
+
+    // TAL-C6: Record admin reply in NotificationLog for monitoring
+    await prisma.notificationLog.create({
+      data: {
+        bookingId: conversation.id,
+        channel: 'ADMIN_CHAT_REPLY',
+        recipient: conversation.visitorEmail || conversation.visitorPhone || conversation.visitorName || 'Visitor',
+        status: 'SENT',
+        messageId: message.id,
+      },
+    }).catch(() => {});
+
     return NextResponse.json({ message }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Unable to send message' }, { status: 500 });

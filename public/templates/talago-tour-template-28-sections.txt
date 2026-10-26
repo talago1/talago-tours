@@ -1,6 +1,17 @@
 # TALAGO TOURS — COMPLETE 28-SECTION TOUR AUTHORING TEMPLATE
 # Fill out the sections below and paste this entire document into Admin > Tours > Import Tour Description.
 # All 28 sections will be parsed, validated, and mapped directly into the form.
+#
+# MULTI-LANGUAGE TRANSLATION (TAL-T8):
+# The parser populates English (translations.en.*) by default. Other languages
+# (de, ru, fr, it, pl, es) can be translated after import via the "Multi-Language Translations"
+# tab in the Tour Editor or using the AI Auto-Translate feature.
+#
+# N/A VALUES & REQUIRED FIELDS (TAL-T9):
+# Optional fields (e.g. CUSTOM_BADGE, REGION, DISPATCH_NOTES, VIDEO_URL) accept "N/A" and
+# will be safely omitted. Required fields (TITLE, ADULT_PRICE, SLUG, ZONE) must have real values
+# and will produce validation errors if set to "N/A".
+#
 
 ### 1. BASIC INFORMATION
 TITLE: Giftun Island & Orange Bay Luxury Snorkeling Cruise

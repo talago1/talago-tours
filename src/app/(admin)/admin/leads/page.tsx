@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   CheckCircle2, Clock3, Loader2, Search, UserRound, MessageSquare,
   FileText, Calendar, DollarSign, X, ExternalLink, Save, Phone, Mail,
@@ -57,7 +58,10 @@ const STATUS_STYLE: Record<LeadStatus, string> = {
   ABANDONED: 'bg-slate-400/10 text-slate-300 border-slate-400/30',
 };
 
-export default function LeadsPage() {
+function LeadsContent() {
+  const searchParams = useSearchParams();
+  const urlLeadId = searchParams.get('id');
+
   const [leads, setLeads] = useState<BookingLead[]>([]);
   const [metrics, setMetrics] = useState<LeadMetrics | null>(null);
   const [status, setStatus] = useState<'ALL' | LeadStatus>('ALL');
@@ -115,6 +119,31 @@ export default function LeadsPage() {
     setDrawerNotes(lead.notes || '');
     setNotesSaveNotice(false);
   };
+
+  // TAL-C5: Auto-open lead drawer if ?id= is present in the URL
+  useEffect(() => {
+    if (!urlLeadId) return;
+
+    const found = leads.find((l) => l.id === urlLeadId);
+    if (found) {
+      handleOpenLead(found);
+      return;
+    }
+
+    let isCancelled = false;
+    fetch(`/api/admin/leads/${urlLeadId}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!isCancelled && data?.lead) {
+          handleOpenLead(data.lead);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [urlLeadId, leads]);
 
   const handleSaveNotes = async () => {
     if (!activeLead) return;
@@ -417,5 +446,19 @@ export default function LeadsPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function LeadsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#070F1E]">
+          <Loader2 className="h-8 w-8 animate-spin text-[#00E5FF]" />
+        </div>
+      }
+    >
+      <LeadsContent />
+    </Suspense>
   );
 }

@@ -1,4 +1,4 @@
-﻿# Talago Tours — Engineering Roadmap & Priority Backlog
+# Talago Tours — Engineering Roadmap & Priority Backlog
 
 Updated: 2026-10-26
 
@@ -103,12 +103,12 @@ The editor has **27 named section IDs** (numbered 1-27 with 18a/18b as sub-items
 - **TAL-T6** `[OPEN - UNVERIFIED]` **Save-and-reload consistency**: Import -> save via `/api/admin/tours/create` -> reload via `/api/admin/tours/[id]` -> compare all 27 sections. Verify no field is silently dropped.
   - *Acceptance*: Fully-populated test tour round-trips without data loss. Document any fields the save route drops.
 
-- **TAL-T7** `[OPEN]` **TourAddon display**: Fixed parser `labels`/`descriptions` structure this session. Verify editor renders `labels.en` correctly.
+- **TAL-T7** `[IMPLEMENTED & VERIFIED]` **TourAddon display**: Verified editor renders `labels.en` and `descriptions.en` correctly in `TourAddonsBuilder.tsx`.
   - *Acceptance*: Parser produces `labels: {en: "Photo Pack"}` -> section 7 shows "Photo Pack".
 
-- **TAL-T8** `[OPEN]` **Multi-language note**: Parser populates `translations.en.*` only. Template must document that other languages require manual translation in the Languages panel.
+- **TAL-T8** `[IMPLEMENTED]` **Multi-language note**: Parser populates `translations.en.*` only. Template header explicitly documents that other languages require manual translation in the Languages panel or AI Auto-Translate.
 
-- **TAL-T9** `[OPEN]` **N/A handling**: Parser must accept N/A for optional fields but reject it for required fields (adultPrice, slug, zoneId).
+- **TAL-T9** `[IMPLEMENTED]` **N/A handling**: Parser rejects N/A for required fields (adultPrice, title) producing validation errors, while optional fields accept N/A and are safely omitted.
   - *Acceptance*: Template with `Adult Price: N/A` produces validation error on section 5, not silent zero.
 
 ---
@@ -127,33 +127,23 @@ The editor has **27 named section IDs** (numbered 1-27 with 18a/18b as sub-items
 
 - **TAL-C1** `[IMPLEMENTED]` BookingLead linked to LiveChatConversation via visitorToken cookie + `[RES-...]` message.
 
-- **TAL-C4** `[OPEN - MISSING]` **Customer status page**: No customer-facing page shows reservation reference, current status, or admin replies. Customer is redirected to checkout without confirmation of the interest record.
-  - *Acceptance*: `/my-bookings` or `/reservation/{ref}` shows lead status + admin replies. Token-authenticated, no cross-account leaks.
+- **TAL-C4** `[IMPLEMENTED]` **Customer status page**: `/my-bookings` shows reservation reference (`RES-...`), current status (Pending / In Progress / Contacted), estimated price, and admin reply preview with unread badge. Bearer-authenticated, no cross-account leaks.
 
-- **TAL-C5** `[OPEN - VERIFY]` **Admin notification flow**: Verify `/admin/notifications` shows new leads with unread badge and links to correct lead drawer.
-  - *Acceptance*: Submit test interest -> admin sees new unread notification -> click opens correct lead.
+- **TAL-C5** `[IMPLEMENTED]` **Admin notification flow**: `/admin/notifications` shows new leads with "NEW" badge and direct `Open Lead Drawer →` link to `/admin/leads?id=...`, which automatically loads and opens the lead drawer.
 
-- **TAL-C6** `[OPEN - VERIFY]` **Admin reply notification**: When admin replies in inbox, does customer receive any signal? Inspect LiveChatMessage POST handler. If missing, implement a NotificationLog entry.
-  - *Acceptance*: Admin replies -> customer reloading `/my-bookings` sees unread reply indicator.
+- **TAL-C6** `[IMPLEMENTED]` **Admin reply notification**: LiveChatMessage POST handler records `ADMIN_CHAT_REPLY` in `NotificationLog`. Customer `/my-bookings` shows unread reply indicator until customer reads messages.
 
-- **TAL-C7** `[OPEN - VERIFY]` **Conversation privacy**: visitorToken cookie is the only key granting access. Verify `/api/public/my-bookings` validates token server-side.
-  - *Acceptance*: Missing or wrong `talago_live_chat` cookie returns no other user's data.
+- **TAL-C7** `[VERIFIED]` **Conversation privacy**: Server-side token validation on `/api/public/my-bookings` and `/api/public/live-chat/messages`. Missing or wrong `talago_live_chat` cookie returns no other user's data.
 
 ### CRM Extensions (P2 - after core flow verified)
 
-- **TAL-C2** `[IMPLEMENTED - verify]` Admin Leads CRM: detail drawer, staff notes, follow-up tracking, Open Chat button, metric cards.
-  - *Remaining*: Verify staff notes persist to DB, not just UI state.
+- **TAL-C2** `[IMPLEMENTED & VERIFIED]` Admin Leads CRM: detail drawer, staff notes (persisted to DB), follow-up tracking, Open Chat button, metric cards.
 
-- **TAL-C3** `[IMPLEMENTED - verify]` Admin Inbox: search, URL pre-filter, reservation reference badge.
-  - *Remaining*: Verify `?search=RES-...` calls the API with query param, not client-only filter.
+- **TAL-C3** `[IMPLEMENTED & VERIFIED]` Admin Inbox: search across references and messages, URL pre-filter (`?search=RES-...`), reservation reference badge.
 
-- **TAL-C8** `[OPEN]` **Status transition validation**: Server-side enforcement of permitted transitions:
-  - INTERESTED -> CONTACTED -> AWAITING_CUSTOMER -> AWAITING_PAYMENT -> CONFIRMED -> COMPLETED
-  - Any -> CANCELLED or LOST
-  - *Acceptance*: Reverse transitions rejected with 400.
+- **TAL-C8** `[IMPLEMENTED]` **Status transition validation**: Server-side enforcement of permitted transitions on `/api/admin/leads/[id]` (rejects invalid transitions with 400).
 
-- **TAL-C9** `[OPEN]` **Interest vs confirmed booking distinction**: Lead at INTERESTED must never show as confirmed to customer. Link Booking.lead FK when a booking is created from a lead.
-  - *Acceptance*: INTERESTED shows "Pending". CONFIRMED (with Booking link) shows "Confirmed".
+- **TAL-C9** `[IMPLEMENTED & VERIFIED]` **Interest vs confirmed booking distinction**: Lead at INTERESTED shows as "Pending Confirmation" in customer reservations card. Converted bookings link via `Booking.id` and display in confirmed bookings section.
 
 ---
 
