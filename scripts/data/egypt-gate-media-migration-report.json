@@ -1,0 +1,78 @@
+{
+  "mode": "apply",
+  "offset": 0,
+  "limit": 10,
+  "totalImportedTours": 162,
+  "selectedTours": 10,
+  "toursWithErrors": 2,
+  "imagesCopied": 161,
+  "report": [
+    {
+      "slug": "egypt-gate-cairo-alexandria-day-tour-from-cairo",
+      "sourceImages": 21,
+      "copiedImages": 21,
+      "errors": []
+    },
+    {
+      "slug": "egypt-gate-cairo-cairo-citadel-old-cairo-khan-el-khalili-private-tour",
+      "sourceImages": 20,
+      "copiedImages": 20,
+      "errors": []
+    },
+    {
+      "slug": "egypt-gate-cairo-cairo-night-dinner-cruise-experience",
+      "sourceImages": 7,
+      "copiedImages": 7,
+      "errors": []
+    },
+    {
+      "slug": "egypt-gate-cairo-cairo-to-fayoum-pyramids-day-tour",
+      "sourceImages": 18,
+      "copiedImages": 14,
+      "errors": [
+        "The operation was aborted due to timeout",
+        "The operation was aborted due to timeout",
+        "The operation was aborted due to timeout",
+        "The operation was aborted due to timeout"
+      ]
+    },
+    {
+      "slug": "egypt-gate-cairo-cairo-to-st-anthony-st-paul-monasteries-tour",
+      "sourceImages": 15,
+      "copiedImages": 15,
+      "errors": []
+    },
+    {
+      "slug": "egypt-gate-cairo-egyptian-civilization-museum-citadel-old-cairo-khan-el-khalili-tour",
+      "sourceImages": 19,
+      "copiedImages": 19,
+      "errors": []
+    },
+    {
+      "slug": "egypt-gate-cairo-egyptian-museum-cairo-citadel-khan-el-khalili-private-tour",
+      "sourceImages": 20,
+      "copiedImages": 19,
+      "errors": [
+        "The operation was aborted due to timeout"
+      ]
+    },
+    {
+      "slug": "egypt-gate-cairo-egyptian-museum-giza-pyramids-khan-el-khalili-private-tour",
+      "sourceImages": 17,
+      "copiedImages": 17,
+      "errors": []
+    },
+    {
+      "slug": "egypt-gate-cairo-egyptian-museum-private-half-day-guided-tour",
+      "sourceImages": 20,
+      "copiedImages": 20,
+      "errors": []
+    },
+    {
+      "slug": "egypt-gate-cairo-giza-pyramids-desert-quad-bike-adventure",
+      "sourceImages": 9,
+      "copiedImages": 9,
+      "errors": []
+    }
+  ]
+}

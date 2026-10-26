@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           bookingReference: true,
+          customerName: true,
           // The caller is already authenticated via Supabase and scoped to their
           // own email, so handing them their own access token is what lets the
           // detail page stay token-gated instead of falling back to the id.
@@ -93,7 +94,53 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    return NextResponse.json({ bookings, reservations, email: user.email }, { headers: NO_STORE });
+    // Derive reservation reference and fetch latest admin reply for each lead
+    const chatToken = request.cookies.get('talago_live_chat')?.value;
+
+    const enrichedReservations = await Promise.all(
+      reservations.map(async (r) => {
+        const reservationReference = `RES-${r.id.slice(-8).toUpperCase()}`;
+
+        // Fetch latest admin reply from conversation linked by visitorToken cookie
+        let lastAdminMessage: string | null = null;
+        let lastAdminMessageAt: string | null = null;
+        let hasUnreadAdminReply = false;
+
+        if (chatToken) {
+          try {
+            const conversation = await prisma.liveChatConversation.findUnique({
+              where: { visitorToken: chatToken },
+              select: {
+                messages: {
+                  where: { sender: 'ADMIN' },
+                  orderBy: { createdAt: 'desc' },
+                  take: 1,
+                  select: { body: true, createdAt: true, readAt: true },
+                },
+              },
+            });
+            const lastMsg = conversation?.messages[0];
+            if (lastMsg) {
+              lastAdminMessage = lastMsg.body;
+              lastAdminMessageAt = lastMsg.createdAt.toISOString();
+              hasUnreadAdminReply = lastMsg.readAt === null;
+            }
+          } catch {
+            // Non-blocking — inbox preview is best-effort
+          }
+        }
+
+        return {
+          ...r,
+          reservationReference,
+          lastAdminMessage,
+          lastAdminMessageAt,
+          hasUnreadAdminReply,
+        };
+      })
+    );
+
+    return NextResponse.json({ bookings, reservations: enrichedReservations, email: user.email }, { headers: NO_STORE });
   } catch (error) {
     console.error('[api/public/my-bookings] GET error:', error);
     return NextResponse.json({ error: 'Failed to load bookings' }, { status: 500, headers: NO_STORE });

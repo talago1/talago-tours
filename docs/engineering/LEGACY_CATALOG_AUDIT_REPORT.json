@@ -1,0 +1,10 @@
+{
+  "auditedAt": "2026-10-26T14:43:04.101Z",
+  "note": "Dry-run guidelines based on previous TRIP_DATA_AUDIT.md and safety rules",
+  "principles": [
+    "Never execute hard DELETE queries on Tour table if foreign keys to Booking or Review exist.",
+    "Always set tour status = ARCHIVED instead of dropping rows.",
+    "Preserve all user-created bookings, transactions, and customer profiles.",
+    "Require verified database backup in scripts/backups/ before any batch modification."
+  ]
+}

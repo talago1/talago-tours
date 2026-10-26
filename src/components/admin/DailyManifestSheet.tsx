@@ -232,15 +232,62 @@ export default function DailyManifestSheet() {
                 key={group.tourId}
                 className="rounded-xl border border-gray-200 bg-white shadow-sm print:shadow-none print:border-gray-300 print:break-inside-avoid"
               >
-                <div className="border-b border-gray-100 px-4 py-3 print:border-gray-300">
-                  <h2 className="text-sm font-bold text-gray-900 print:text-black">
-                    {group.tourTitle}
-                  </h2>
-                  <p className="text-xs text-gray-500 print:text-gray-700">
-                    {group.tourType === 'SHARED' ? 'Shared Tour' : 'Private Tour'} &mdash;{' '}
-                    {group.manifestItems.length} booking{group.manifestItems.length !== 1 ? 's' : ''},{' '}
-                    {group.totalPassengers} passenger{group.totalPassengers !== 1 ? 's' : ''}
-                  </p>
+                <div className="border-b border-gray-100 px-4 py-3 print:border-gray-300 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-bold text-gray-900 print:text-black">
+                        {group.tourTitle}
+                      </h2>
+                      {group.capacityStatus === 'OVERBOOKED' && (
+                        <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">OVERBOOKED</span>
+                      )}
+                      {group.capacityStatus === 'SOLD_OUT' && (
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700">SOLD OUT</span>
+                      )}
+                      {group.capacityStatus === 'SELLING_FAST' && (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">SELLING FAST</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 print:text-gray-700 mt-0.5">
+                      {group.tourType === 'SHARED' ? 'Shared Tour' : 'Private Tour'} &mdash;{' '}
+                      {group.manifestItems.length} booking{group.manifestItems.length !== 1 ? 's' : ''},{' '}
+                      {group.totalPassengers} passenger{group.totalPassengers !== 1 ? 's' : ''}
+                      {group.maxCapacity ? ` (${group.availableSpots} of ${group.maxCapacity} spots left)` : ''}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 print:hidden">
+                    {group.maxCapacity ? (
+                      <div className="w-32 hidden md:block">
+                        <div className="flex justify-between text-[11px] text-gray-500 mb-1">
+                          <span>{group.totalPassengers}/{group.maxCapacity} Pax</span>
+                          <span>{group.capacityPercent}%</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              (group.capacityPercent ?? 0) >= 100
+                                ? 'bg-red-500'
+                                : (group.capacityPercent ?? 0) >= 80
+                                  ? 'bg-amber-500'
+                                  : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${Math.min(100, group.capacityPercent ?? 0)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <a
+                      href={`/admin/operations/dispatch?tourId=${group.tourId}&date=${selectedDate}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                    >
+                      <span>Dispatch Trip</span>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </a>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">

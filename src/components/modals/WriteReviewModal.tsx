@@ -9,6 +9,7 @@ interface WriteReviewModalProps {
   tourId: string;
   tourTitle: string;
   initialBookingId?: string;
+  initialBookingAccessToken?: string;
   initialCustomerName?: string;
   onSuccess?: () => void;
 }
@@ -19,13 +20,13 @@ export default function WriteReviewModal({
   tourId,
   tourTitle,
   initialBookingId = '',
+  initialBookingAccessToken = '',
   initialCustomerName = '',
   onSuccess,
 }: WriteReviewModalProps) {
   const [rating, setRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [customerName, setCustomerName] = useState(initialCustomerName);
-  const [bookingId, setBookingId] = useState(initialBookingId);
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,8 +43,8 @@ export default function WriteReviewModal({
       return;
     }
 
-    if (!bookingId.trim()) {
-      setError('Please provide your Booking Reference or Booking ID.');
+    if (!initialBookingId || !initialBookingAccessToken) {
+      setError('This review must be opened from one of your verified bookings.');
       return;
     }
 
@@ -60,7 +61,8 @@ export default function WriteReviewModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tourId,
-          bookingId: bookingId.trim(),
+          bookingId: initialBookingId,
+          bookingAccessToken: initialBookingAccessToken,
           customerName: customerName.trim(),
           rating,
           comment: comment.trim(),
@@ -184,35 +186,21 @@ export default function WriteReviewModal({
               {/* Guest Name */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                  Your Name
+                  Name on verified booking
                 </label>
                 <input
                   type="text"
                   required
                   value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="e.g. Sarah Jenkins"
+                  readOnly
+                  aria-readonly="true"
                   className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none focus:border-[#00E5FF]"
                 />
               </div>
 
-              {/* Booking Reference */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Booking Reference or ID
-                  </label>
-                  <span className="text-[10px] text-slate-500">From confirmation email / ticket</span>
-                </div>
-                <input
-                  type="text"
-                  required
-                  value={bookingId}
-                  onChange={(e) => setBookingId(e.target.value)}
-                  placeholder="e.g. TLG-20260530-0001"
-                  className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-2.5 text-sm font-mono text-white placeholder:text-slate-500 outline-none focus:border-[#00E5FF]"
-                />
-              </div>
+              <p className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-xs text-emerald-100">
+                This review is linked to your verified booking and will be moderated before publication.
+              </p>
 
               {/* Comment */}
               <div>

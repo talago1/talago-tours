@@ -1,697 +1,698 @@
 {
-  "generatedAt": "2026-10-24T06:53:23.339Z",
+  "generatedAt": "2026-10-24T06:59:04.806Z",
   "mode": "apply",
   "counts": {
-    "created-draft": 162
+    "updated": 138,
+    "created-draft": 24
   },
   "report": [
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "seascope-submarine-tour",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-seascope-submarine-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "private-boat-trip",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-private-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "desert-buggy-bike-excursion",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-desert-buggy-bike-excursion"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "romantic-sunset-dinner-cruise",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-romantic-sunset-dinner-cruise"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "airport-transfer",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-airport-transfer"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "ras-mohamed-and-white-island-diving-and-snorkeling-trip",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-ras-mohamed-and-white-island-diving-and-snorkeling-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "ras-mohamed-white-island-snorkeling-tour",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-ras-mohamed-white-island-snorkeling-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "nightlife-tour",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-nightlife-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "desert-quad-bike-excursion",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-desert-quad-bike-excursion"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "cairo-excursion-by-bus",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-cairo-excursion-by-bus"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "city-sightseeing-tour",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-city-sightseeing-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "dolphin-house-snorkeling-boat-trip",
       "talagoSlug": "egypt-gate-hurghada-dolphin-house-snorkeling-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "mahmya-island-snorkeling-boat-trip",
       "talagoSlug": "egypt-gate-hurghada-mahmya-island-snorkeling-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "dolphin-park-excursion",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-dolphin-park-excursion"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "grand-egyptian-museum-pyramids",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-grand-egyptian-museum-pyramids"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "hula-hula-island-snorkeling-boat-trip",
       "talagoSlug": "egypt-gate-hurghada-hula-hula-island-snorkeling-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "nefertari-snorkeling-cruise-with-submarine",
       "talagoSlug": "egypt-gate-hurghada-nefertari-snorkeling-cruise-with-submarine"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "liberty-catamaran-excursion",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-liberty-catamaran-excursion"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "tiran-island-snorkeling-boat-trip",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-tiran-island-snorkeling-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "water-sports-adventure",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-water-sports-adventure"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "ras-mohammed-white-island-engy-queen-yacht",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-ras-mohammed-white-island-engy-queen-yacht"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "aqua-park-excursion",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-aqua-park-excursion"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "private-speed-boat-dolphin-house",
       "talagoSlug": "egypt-gate-hurghada-private-speed-boat-dolphin-house"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "private-speed-boat-escape-magawish-island",
       "talagoSlug": "egypt-gate-hurghada-private-speed-boat-escape-magawish-island"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "bianca-island-snorkeling-boat-trip",
       "talagoSlug": "egypt-gate-hurghada-bianca-island-snorkeling-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "desert-buggy-camel-dinner-show",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-desert-buggy-camel-dinner-show"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "salt-cave-with-sauna-massage-mask",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-salt-cave-with-sauna-massage-mask"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "luxury-private-sunset-dinner-cruise",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-luxury-private-sunset-dinner-cruise"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "marlin-caviar-beach-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-marlin-caviar-beach-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "orange-bay-island-pirates-sailing-boat-trip",
       "talagoSlug": "egypt-gate-hurghada-orange-bay-island-pirates-sailing-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "orange-bay-island-snorkeling-boat-trip",
       "talagoSlug": "egypt-gate-hurghada-orange-bay-island-snorkeling-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "panorama-semi-submarine-sea-trip",
       "talagoSlug": "egypt-gate-hurghada-panorama-semi-submarine-sea-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "orange-bay-island-elite-vip-snorkeling-boat-trip",
       "talagoSlug": "egypt-gate-hurghada-orange-bay-island-elite-vip-snorkeling-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "sea-scope-submarine-boat-experience",
       "talagoSlug": "egypt-gate-hurghada-sea-scope-submarine-boat-experience"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "turkish-hammam-35-min-massage",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-turkish-hammam-35-min-massage"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "eden-island-snorkeling-boat-trip",
       "talagoSlug": "egypt-gate-hurghada-eden-island-snorkeling-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "massage-sauna-with-mask",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-massage-sauna-with-mask"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "paradise-island-snorkeling-boat-trip",
       "talagoSlug": "egypt-gate-hurghada-paradise-island-snorkeling-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "st-catherine-monastery-excursion",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-st-catherine-monastery-excursion"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "ras-mohammed-white-island-pirates-boat-trip",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-ras-mohammed-white-island-pirates-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "black-pearl-boat-trip",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-black-pearl-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "desert-quad-bike-camel-dinner-show",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-desert-quad-bike-camel-dinner-show"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "ras-mohamed-national-park-excursion-bus",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-ras-mohamed-national-park-excursion-bus"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "farsha-cafe-transfer",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-farsha-cafe-transfer"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "desert-buggy-bike-sunset-excursion",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-desert-buggy-bike-sunset-excursion"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "super-desert-safari-quad-buggy-camel-jeep-bbq-dinner-show",
       "talagoSlug": "egypt-gate-hurghada-super-desert-safari-quad-buggy-camel-jeep-bbq-dinner-show"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "turkish-hammam-with-sauna-steam-foam-massage-mask",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-turkish-hammam-with-sauna-steam-foam-massage-mask"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "buddha-bar-nightclub-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-buddha-bar-nightclub-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "nunus-lounge-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-nunus-lounge-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "dahab-excursion",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-dahab-excursion"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "electric-bike-rental",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-electric-bike-rental"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "quad-bike-safari-camel-ride-and-bedouin-village-tour",
       "talagoSlug": "egypt-gate-hurghada-quad-bike-safari-camel-ride-and-bedouin-village-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "petra-day-trip-by-ferry",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-petra-day-trip-by-ferry"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "turkish-hammam-with-foam-bath-massage",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-turkish-hammam-with-foam-bath-massage"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "space-nightclub-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-space-nightclub-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "ras-mohammed-white-island-elite-vip-boat-trip",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-ras-mohammed-white-island-elite-vip-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "museum-tour",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-museum-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "vibe-night-club-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-vibe-night-club-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "cairo-day-trip-by-plane",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-cairo-day-trip-by-plane"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "extreme-adventure",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-extreme-adventure"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "hard-rock-cafe-nightclub-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-hard-rock-cafe-nightclub-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "swimming-with-dolphins",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-swimming-with-dolphins"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "old-market-transfer",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-old-market-transfer"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "dolphin-world-show-with-walrus",
       "talagoSlug": "egypt-gate-hurghada-dolphin-world-show-with-walrus"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "la-dolce-vita-desert-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-la-dolce-vita-desert-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "electric-scooter-rental",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-electric-scooter-rental"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "kalimera-beach-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-kalimera-beach-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "cairo-transfer",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-cairo-transfer"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "salt-cave-sauna-steam",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-salt-cave-sauna-steam"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "mount-moses-excursion",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-mount-moses-excursion"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "taj-mahal-nightclub-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-taj-mahal-nightclub-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "naama-bay-transfer",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-naama-bay-transfer"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "bus-stop-nightclub-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-bus-stop-nightclub-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "desert-quad-bike-sunrise-excursion",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-desert-quad-bike-sunrise-excursion"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "gopro-camera-rental",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-gopro-camera-rental"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "luxor-day-trip-by-plane",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-luxor-day-trip-by-plane"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "dahab-transfer",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-dahab-transfer"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "wifi-router-rental",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-wifi-router-rental"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "desert-quad-bike-sunset-excursion",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-desert-quad-bike-sunset-excursion"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "soho-square-transfer",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-soho-square-transfer"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "desert-buggy-bike-sunrise-excursion",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-desert-buggy-bike-sunrise-excursion"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "the-echo-temple-desert-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-the-echo-temple-desert-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "del-mar-beach-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-del-mar-beach-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "ras-mohammed-white-island-premium-boat-trip",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-ras-mohammed-white-island-premium-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "tiran-island-diving-and-snorkeling-trip",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-tiran-island-diving-and-snorkeling-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "kitesurfing-tour",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-kitesurfing-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "horse-riding-adventure",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-horse-riding-adventure"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "united-submarine-boat-experience",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-united-submarine-boat-experience"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "private-glass-bottom-boat",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-private-glass-bottom-boat"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "private-speed-boat-trip-with-snorkeling",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-private-speed-boat-trip-with-snorkeling"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "soho-square-sharm-el-sheikh-night-tour",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-soho-square-sharm-el-sheikh-night-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "premium-super-safari-luxury-desert",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-premium-super-safari-luxury-desert"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "quad-bike-safari-dinner-and-oriental-show",
       "talagoSlug": "egypt-gate-hurghada-quad-bike-safari-dinner-and-oriental-show"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "giza-pyramids-sound-light-show-hotel-transfers",
       "talagoSlug": "egypt-gate-cairo-giza-pyramids-sound-light-show-hotel-transfers"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "voyage-friday-yacht-party",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-voyage-friday-yacht-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "egyptian-museum-private-half-day-guided-tour",
       "talagoSlug": "egypt-gate-cairo-egyptian-museum-private-half-day-guided-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "transfer-to-and-from-senzo-mall",
       "talagoSlug": "egypt-gate-hurghada-transfer-to-and-from-senzo-mall"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "papas-beach-club",
       "talagoSlug": "egypt-gate-hurghada-papas-beach-club"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "jerusalem-bethlehem-dead-sea-tour",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-jerusalem-bethlehem-dead-sea-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "little-buddha-hurghada-nightclub",
       "talagoSlug": "egypt-gate-hurghada-little-buddha-hurghada-nightclub"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "old-cairo-khan-el-khalili-private-half-day-tour",
       "talagoSlug": "egypt-gate-cairo-old-cairo-khan-el-khalili-private-half-day-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "hurghada-to-luxor-valley-of-the-queens-tour",
       "talagoSlug": "egypt-gate-hurghada-hurghada-to-luxor-valley-of-the-queens-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "private-transfer-to-and-from-hurghada-museum",
       "talagoSlug": "egypt-gate-hurghada-private-transfer-to-and-from-hurghada-museum"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "hurghada-airport-transfer",
       "talagoSlug": "egypt-gate-hurghada-hurghada-airport-transfer"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "cairo-pyramids-museum-by-plane",
       "talagoSlug": "egypt-gate-hurghada-cairo-pyramids-museum-by-plane"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "giza-pyramids-desert-quad-bike-adventure",
       "talagoSlug": "egypt-gate-cairo-giza-pyramids-desert-quad-bike-adventure"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "dolphin-world-show-swimming-with-dolphins",
       "talagoSlug": "egypt-gate-hurghada-dolphin-world-show-swimming-with-dolphins"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "golden-booda-hurghada-nightclub",
       "talagoSlug": "egypt-gate-hurghada-golden-booda-hurghada-nightclub"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "transfer-to-and-from-hurghada-new-marina",
       "talagoSlug": "egypt-gate-hurghada-transfer-to-and-from-hurghada-new-marina"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "alexandria-day-tour-from-cairo",
       "talagoSlug": "egypt-gate-cairo-alexandria-day-tour-from-cairo"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "cairo-citadel-old-cairo-khan-el-khalili-private-tour",
       "talagoSlug": "egypt-gate-cairo-cairo-citadel-old-cairo-khan-el-khalili-private-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "luxor-sunrise-balloon-kings-temples",
       "talagoSlug": "egypt-gate-hurghada-luxor-sunrise-balloon-kings-temples"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "luxor-valley-of-the-queens-mini-group",
       "talagoSlug": "egypt-gate-hurghada-luxor-valley-of-the-queens-mini-group"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "transfer-to-and-from-hurghada-city-center",
       "talagoSlug": "egypt-gate-hurghada-transfer-to-and-from-hurghada-city-center"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "grand-egyptian-museum-pyramids-private-limousine",
       "talagoSlug": "egypt-gate-hurghada-grand-egyptian-museum-pyramids-private-limousine"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "luxor-valley-of-the-kings-mini-group",
       "talagoSlug": "egypt-gate-hurghada-luxor-valley-of-the-kings-mini-group"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "private-speed-boat-orange-bay-island",
       "talagoSlug": "egypt-gate-hurghada-private-speed-boat-orange-bay-island"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "cairo-pyramids-and-museum-mini-group-tour",
       "talagoSlug": "egypt-gate-hurghada-cairo-pyramids-and-museum-mini-group-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "sphinx-hurghada-club-and-lounge",
       "talagoSlug": "egypt-gate-hurghada-sphinx-hurghada-club-and-lounge"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "giza-pyramids-sphinx-nile-river-felucca-tour",
       "talagoSlug": "egypt-gate-cairo-giza-pyramids-sphinx-nile-river-felucca-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "grand-port-mosque-hurghada-transfer",
       "talagoSlug": "egypt-gate-hurghada-grand-port-mosque-hurghada-transfer"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "cairo-night-dinner-cruise-experience",
       "talagoSlug": "egypt-gate-cairo-cairo-night-dinner-cruise-experience"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "private-speed-boat-hula-hula-island",
       "talagoSlug": "egypt-gate-hurghada-private-speed-boat-hula-hula-island"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "stargazing-safari-atv-jeep-camel-ride-bbq-dinner-show",
       "talagoSlug": "egypt-gate-hurghada-stargazing-safari-atv-jeep-camel-ride-bbq-dinner-show"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "cairo-to-st-anthony-st-paul-monasteries-tour",
       "talagoSlug": "egypt-gate-cairo-cairo-to-st-anthony-st-paul-monasteries-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "giza-pyramids-great-sphinx-half-day-private-tour",
       "talagoSlug": "egypt-gate-cairo-giza-pyramids-great-sphinx-half-day-private-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "scuba-diving-experience",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-scuba-diving-experience"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "orange-bay-magawish-island-boat-trip",
       "talagoSlug": "egypt-gate-hurghada-orange-bay-magawish-island-boat-trip"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "egyptian-museum-giza-pyramids-khan-el-khalili-private-tour",
       "talagoSlug": "egypt-gate-cairo-egyptian-museum-giza-pyramids-khan-el-khalili-private-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "elements-hurghada-nightclub-party",
       "talagoSlug": "egypt-gate-hurghada-elements-hurghada-nightclub-party"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "cairo-pyramids-museum-tour",
       "talagoSlug": "egypt-gate-hurghada-cairo-pyramids-museum-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "grand-egyptian-museum-pyramid",
       "talagoSlug": "egypt-gate-hurghada-grand-egyptian-museum-pyramid"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "transfer-to-and-from-sand-city",
       "talagoSlug": "egypt-gate-hurghada-transfer-to-and-from-sand-city"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "egyptian-museum-cairo-citadel-khan-el-khalili-private-tour",
       "talagoSlug": "egypt-gate-cairo-egyptian-museum-cairo-citadel-khan-el-khalili-private-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "private-old-market-farsha-cafe-tour",
       "talagoSlug": "egypt-gate-sharm-el-sheikh-private-old-market-farsha-cafe-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "egyptian-civilization-museum-citadel-old-cairo-khan-el-khalili-tour",
       "talagoSlug": "egypt-gate-cairo-egyptian-civilization-museum-citadel-old-cairo-khan-el-khalili-tour"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "grand-aquarium-entry-ticket",
       "talagoSlug": "egypt-gate-hurghada-grand-aquarium-entry-ticket"
     },
     {
-      "action": "created-draft",
+      "action": "updated",
       "sourceSlug": "scuba-diving-boat-trip",
       "talagoSlug": "egypt-gate-hurghada-scuba-diving-boat-trip"
     },

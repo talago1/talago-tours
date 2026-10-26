@@ -15,6 +15,7 @@ export interface ReviewData {
 
 export interface ReviewSubmissionPayload {
   bookingId: string;
+  bookingAccessToken: string;
   tourId: string;
   customerName: string;
   rating: number;

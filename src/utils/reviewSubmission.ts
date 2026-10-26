@@ -30,7 +30,7 @@ export class ReviewSubmissionError extends Error {
 
 interface ReviewCreateDelegate {
   create(args: {
-    data: ReviewSubmissionPayload & { status: 'PENDING' };
+    data: Omit<ReviewSubmissionPayload, 'bookingAccessToken'> & { status: 'PENDING' };
     select: { id: true; status: true; createdAt: true };
   }): Promise<{ id: string; status: string; createdAt: Date }>;
 }
@@ -42,6 +42,7 @@ export interface SubmitVerifiedReviewDependencies {
   verifyEligibility?: (
     bookingId: string,
     tourId: string,
+    bookingAccessToken: string,
   ) => Promise<EligibilityResult>;
 }
 
@@ -54,6 +55,10 @@ export function validateReviewSubmissionPayload(body: unknown): ValidationResult
 
   if (!payload.bookingId || typeof payload.bookingId !== 'string') {
     return { error: 'bookingId is required.' };
+  }
+
+  if (!payload.bookingAccessToken || typeof payload.bookingAccessToken !== 'string') {
+    return { error: 'bookingAccessToken is required.' };
   }
 
   if (!payload.tourId || typeof payload.tourId !== 'string') {
@@ -86,6 +91,7 @@ export function validateReviewSubmissionPayload(body: unknown): ValidationResult
   return {
     data: {
       bookingId: payload.bookingId,
+      bookingAccessToken: payload.bookingAccessToken,
       tourId: payload.tourId,
       customerName,
       rating,
@@ -100,7 +106,7 @@ export async function submitVerifiedReview(
 ): Promise<SubmittedReviewResult> {
   const prismaClient = dependencies.prismaClient ?? prisma;
   const verifyEligibility = dependencies.verifyEligibility ?? verifyBookingEligibility;
-  const eligibility = await verifyEligibility(payload.bookingId, payload.tourId);
+  const eligibility = await verifyEligibility(payload.bookingId, payload.tourId, payload.bookingAccessToken);
 
   if (!eligibility.eligible) {
     throw new ReviewSubmissionError(
@@ -110,15 +116,16 @@ export async function submitVerifiedReview(
   }
 
   const actualBookingId = eligibility.resolvedBookingId || payload.bookingId;
+  const { bookingAccessToken: _bookingAccessToken, ...reviewData } = payload;
 
   try {
     const review = await prismaClient.review.create({
       data: {
+        ...reviewData,
         bookingId: actualBookingId,
-        tourId: payload.tourId,
-        customerName: payload.customerName,
-        rating: payload.rating,
-        comment: payload.comment,
+        // The public display name belongs to the verified booking, not a
+        // browser-provided identity claim.
+        customerName: eligibility.customerName ?? payload.customerName,
         status: 'PENDING',
       },
       select: {

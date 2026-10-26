@@ -1,16 +1,18 @@
 import { prisma } from '@/lib/prisma';
+import { isPlausibleAccessToken } from './bookingToken';
 
 export interface EligibilityResult {
   eligible: boolean;
   error?: string;
   statusCode?: number;
   resolvedBookingId?: string;
+  customerName?: string;
 }
 
 /**
  * Verifies that a booking is eligible for a review submission.
  * A booking is eligible when:
- * - It exists (by ID or bookingReference)
+ * - It is addressed by its internal id and matching secret access token
  * - Its status is CONFIRMED or COMPLETED
  * - The provided tourId matches the booking's tourId
  * - No Review row already exists for this bookingId
@@ -18,32 +20,29 @@ export interface EligibilityResult {
 export async function verifyBookingEligibility(
   bookingId: string,
   tourId: string,
+  bookingAccessToken: string,
 ): Promise<EligibilityResult> {
+  if (!isPlausibleAccessToken(bookingAccessToken)) {
+    return { eligible: false, error: 'A valid booking access token is required.', statusCode: 401 };
+  }
+
   const booking = await prisma.booking.findFirst({
     where: {
-      OR: [
-        { id: bookingId },
-        { bookingReference: bookingId },
-      ],
+      id: bookingId,
+      tourId,
+      accessToken: bookingAccessToken,
     },
     select: {
       id: true,
       tourId: true,
+      customerName: true,
       status: true,
       reviews: { select: { id: true } },
     },
   });
 
   if (!booking) {
-    return { eligible: false, error: 'Booking not found with this ID or Reference.', statusCode: 404 };
-  }
-
-  if (booking.tourId !== tourId) {
-    return {
-      eligible: false,
-      error: 'The provided tourId does not match this booking.',
-      statusCode: 403,
-    };
+    return { eligible: false, error: 'Booking access could not be verified.', statusCode: 403 };
   }
 
   if (booking.status !== 'CONFIRMED' && booking.status !== 'COMPLETED') {
@@ -62,5 +61,5 @@ export async function verifyBookingEligibility(
     };
   }
 
-  return { eligible: true };
+  return { eligible: true, resolvedBookingId: booking.id, customerName: booking.customerName };
 }

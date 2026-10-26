@@ -17,6 +17,10 @@ export interface DailyTourManifest {
   tourTitle: string;
   tourType: 'SHARED' | 'PRIVATE';
   totalPassengers: number;
+  maxCapacity?: number;
+  availableSpots?: number;
+  capacityPercent?: number;
+  capacityStatus?: 'OPEN' | 'SELLING_FAST' | 'SOLD_OUT' | 'OVERBOOKED';
   manifestItems: ManifestItem[];
 }
 

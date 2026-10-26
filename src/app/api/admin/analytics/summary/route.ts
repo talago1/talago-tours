@@ -177,7 +177,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response, {
       headers: {
-        'Cache-Control': 'public, max-age=0, s-maxage=900',
+        // This route is admin-only. Never allow a shared cache to retain
+        // business metrics outside the authenticated request context.
+        'Cache-Control': 'private, no-store',
       },
     });
   } catch (error) {

@@ -1,12 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Clock3, Loader2, Search, UserRound } from 'lucide-react';
+import {
+  CheckCircle2, Clock3, Loader2, Search, UserRound, MessageSquare,
+  FileText, Calendar, DollarSign, X, ExternalLink, Save, Phone, Mail,
+} from 'lucide-react';
+import Link from 'next/link';
 
 type LeadStatus = 'INTERESTED' | 'IN_PROGRESS' | 'CONTACTED' | 'CONVERTED' | 'ABANDONED';
 
 type BookingLead = {
   id: string;
+  tourId?: string | null;
   tourTitle?: string | null;
   tourSlug?: string | null;
   customerName?: string | null;
@@ -19,8 +24,20 @@ type BookingLead = {
   currency: string;
   status: LeadStatus;
   source: string;
+  notes?: string | null;
   createdAt: string;
-  booking?: { bookingReference: string; status: string } | null;
+  booking?: { id: string; bookingReference: string; status: string } | null;
+};
+
+type LeadMetrics = {
+  totalLeads: number;
+  interested: number;
+  inProgress: number;
+  contacted: number;
+  converted: number;
+  abandoned: number;
+  conversionRate: number;
+  totalEstimatedValue: number;
 };
 
 const STATUSES: Array<{ id: 'ALL' | LeadStatus; label: string }> = [
@@ -33,19 +50,26 @@ const STATUSES: Array<{ id: 'ALL' | LeadStatus; label: string }> = [
 ];
 
 const STATUS_STYLE: Record<LeadStatus, string> = {
-  INTERESTED: 'bg-cyan-400/10 text-cyan-200',
-  IN_PROGRESS: 'bg-amber-400/10 text-amber-200',
-  CONTACTED: 'bg-violet-400/10 text-violet-200',
-  CONVERTED: 'bg-emerald-400/10 text-emerald-200',
-  ABANDONED: 'bg-slate-400/10 text-slate-300',
+  INTERESTED: 'bg-cyan-400/10 text-cyan-200 border-cyan-400/30',
+  IN_PROGRESS: 'bg-amber-400/10 text-amber-200 border-amber-400/30',
+  CONTACTED: 'bg-violet-400/10 text-violet-200 border-violet-400/30',
+  CONVERTED: 'bg-emerald-400/10 text-emerald-200 border-emerald-400/30',
+  ABANDONED: 'bg-slate-400/10 text-slate-300 border-slate-400/30',
 };
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<BookingLead[]>([]);
+  const [metrics, setMetrics] = useState<LeadMetrics | null>(null);
   const [status, setStatus] = useState<'ALL' | LeadStatus>('ALL');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Selected Lead Drawer
+  const [activeLead, setActiveLead] = useState<BookingLead | null>(null);
+  const [drawerNotes, setDrawerNotes] = useState('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [notesSaveNotice, setNotesSaveNotice] = useState(false);
 
   const loadLeads = useCallback(async () => {
     setLoading(true);
@@ -57,6 +81,7 @@ export default function LeadsPage() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Unable to load booking leads.');
       setLeads(payload.leads || []);
+      if (payload.metrics) setMetrics(payload.metrics);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load booking leads.');
     } finally {
@@ -79,92 +104,318 @@ export default function LeadsPage() {
       setError('The lead status could not be saved.');
       return;
     }
-    setLeads((current) => current.map((lead) => lead.id === id ? { ...lead, status: nextStatus } : lead));
+    setLeads((current) => current.map((lead) => (lead.id === id ? { ...lead, status: nextStatus } : lead)));
+    if (activeLead && activeLead.id === id) {
+      setActiveLead((prev) => (prev ? { ...prev, status: nextStatus } : null));
+    }
+  };
+
+  const handleOpenLead = (lead: BookingLead) => {
+    setActiveLead(lead);
+    setDrawerNotes(lead.notes || '');
+    setNotesSaveNotice(false);
+  };
+
+  const handleSaveNotes = async () => {
+    if (!activeLead) return;
+    setIsSavingNotes(true);
+    try {
+      const res = await fetch(`/api/admin/leads/${activeLead.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: drawerNotes }),
+      });
+      if (res.ok) {
+        setLeads((current) =>
+          current.map((l) => (l.id === activeLead.id ? { ...l, notes: drawerNotes } : l))
+        );
+        setActiveLead((prev) => (prev ? { ...prev, notes: drawerNotes } : null));
+        setNotesSaveNotice(true);
+        setTimeout(() => setNotesSaveNotice(false), 3000);
+      }
+    } catch {
+      alert('Failed to save notes.');
+    } finally {
+      setIsSavingNotes(false);
+    }
   };
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
-      <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-white/10 pb-6">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-300">Customer follow-up</p>
-          <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">Booking Leads</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-400">Interest is not a confirmed booking. A lead becomes confirmed only after the related booking is confirmed.</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-300">Customer Relationship Management</p>
+          <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">Booking Leads &amp; Inquiries</h1>
+          <p className="mt-2 max-w-2xl text-xs sm:text-sm text-slate-400">
+            Every &quot;Book&quot; click generates an inquiry reference (RES-...) and mirrors into the Live Inbox for instant follow-up.
+          </p>
         </div>
+
         <div className="relative w-full sm:w-72">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search traveler or trip"
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] py-2.5 pl-10 pr-3 text-sm text-white outline-none transition focus:border-cyan-300/60"
+            placeholder="Search traveler, tour, or RES-..."
+            className="w-full rounded-xl border border-white/10 bg-[#0B1528] py-2.5 pl-10 pr-3 text-xs text-white outline-none transition focus:border-cyan-300/60"
           />
         </div>
       </div>
 
-      <div className="mb-5 flex flex-wrap gap-2">
+      {/* Metrics Cards */}
+      {metrics && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Leads</p>
+            <p className="text-2xl font-black text-white mt-1">{metrics.totalLeads}</p>
+            <p className="text-[10px] text-cyan-300 mt-1">{metrics.conversionRate}% conversion rate</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">New Interests</p>
+            <p className="text-2xl font-black text-cyan-300 mt-1">{metrics.interested}</p>
+            <p className="text-[10px] text-slate-500 mt-1">Awaiting contact</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">In Follow-up</p>
+            <p className="text-2xl font-black text-amber-300 mt-1">{metrics.inProgress + metrics.contacted}</p>
+            <p className="text-[10px] text-slate-500 mt-1">In progress &amp; contacted</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pipeline Est. Value</p>
+            <p className="text-2xl font-black text-emerald-300 mt-1">${metrics.totalEstimatedValue.toLocaleString()}</p>
+            <p className="text-[10px] text-emerald-400/80 mt-1">{metrics.converted} confirmed bookings</p>
+          </div>
+        </div>
+      )}
+
+      {/* Status Filter Tabs */}
+      <div className="flex flex-wrap gap-2">
         {STATUSES.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => setStatus(item.id)}
-            className={`rounded-lg px-3 py-2 text-xs font-bold transition ${status === item.id ? 'bg-cyan-300 text-slate-950' : 'bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]'}`}
+            className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+              status === item.id ? 'bg-cyan-300 text-slate-950 shadow-md shadow-cyan-300/10' : 'bg-[#0B1528] border border-white/10 text-slate-300 hover:bg-white/5'
+            }`}
           >
             {item.label}
           </button>
         ))}
       </div>
 
-      {error && <p className="mb-4 rounded-lg border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</p>}
+      {error && <p className="rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-xs text-red-200">{error}</p>}
 
-      <div className="overflow-x-auto rounded-lg border border-white/10 bg-[#0B1528]">
-        <table className="w-full min-w-[850px] text-left text-sm">
-          <thead className="border-b border-white/10 text-xs uppercase tracking-wide text-slate-500">
+      {/* Leads Table */}
+      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#0B1528] shadow-xl">
+        <table className="w-full min-w-[900px] text-left text-xs">
+          <thead className="border-b border-white/10 text-[10px] uppercase tracking-wider text-slate-400 bg-white/[0.02]">
             <tr>
-              <th className="px-4 py-3">Traveler</th>
-              <th className="px-4 py-3">Trip</th>
-              <th className="px-4 py-3">Details</th>
-              <th className="px-4 py-3">Created</th>
-              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3.5">Reference &amp; Guest</th>
+              <th className="px-4 py-3.5">Tour &amp; Destination</th>
+              <th className="px-4 py-3.5">Booking Details</th>
+              <th className="px-4 py-3.5">Created</th>
+              <th className="px-4 py-3.5">Status</th>
+              <th className="px-4 py-3.5 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-white/[0.06]">
             {loading ? (
-              <tr><td colSpan={5} className="px-4 py-14 text-center text-slate-400"><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />Loading leads</td></tr>
-            ) : leads.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-14 text-center text-slate-400"><UserRound className="mx-auto mb-2 h-5 w-5" />No leads match these filters.</td></tr>
-            ) : leads.map((lead) => (
-              <tr key={lead.id} className="border-b border-white/[0.06] last:border-0">
-                <td className="px-4 py-4">
-                  <p className="font-semibold text-white">{lead.customerName || 'Anonymous visitor'}</p>
-                  <p className="mt-1 text-xs text-slate-400">{lead.customerEmail || lead.customerPhone || 'No contact details supplied'}</p>
-                </td>
-                <td className="px-4 py-4">
-                  <p className="font-medium text-slate-200">{lead.tourTitle || lead.tourSlug || 'Trip not specified'}</p>
-                  {lead.booking && <p className="mt-1 text-xs text-emerald-300">Booking {lead.booking.bookingReference}</p>}
-                </td>
-                <td className="px-4 py-4 text-xs text-slate-400">
-                  <p>{lead.adults} adults{lead.children ? `, ${lead.children} children` : ''}</p>
-                  {lead.travelDate && <p className="mt-1">{lead.travelDate}</p>}
-                  {lead.totalEstimatedPrice != null && <p className="mt-1">{lead.totalEstimatedPrice} {lead.currency}</p>}
-                </td>
-                <td className="px-4 py-4 text-xs text-slate-400">{new Date(lead.createdAt).toLocaleString()}</td>
-                <td className="px-4 py-4">
-                  <select
-                    value={lead.status}
-                    onChange={(event) => updateStatus(lead.id, event.target.value as LeadStatus)}
-                    className={`rounded-md border-0 px-2.5 py-1.5 text-xs font-bold outline-none ${STATUS_STYLE[lead.status]}`}
-                    aria-label={`Change status for ${lead.tourTitle || 'lead'}`}
-                  >
-                    {STATUSES.filter((item): item is { id: LeadStatus; label: string } => item.id !== 'ALL').map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                  </select>
-                  {lead.status === 'CONVERTED' && <CheckCircle2 className="mt-2 h-4 w-4 text-emerald-300" />}
-                  {lead.status === 'IN_PROGRESS' && <Clock3 className="mt-2 h-4 w-4 text-amber-300" />}
+              <tr>
+                <td colSpan={6} className="px-4 py-16 text-center text-slate-400">
+                  <Loader2 className="mx-auto mb-2 h-6 w-6 animate-spin text-cyan-300" />
+                  Loading booking inquiries…
                 </td>
               </tr>
-            ))}
+            ) : leads.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-16 text-center text-slate-400">
+                  <UserRound className="mx-auto mb-2 h-8 w-8 text-slate-600" />
+                  No leads match the selected filter.
+                </td>
+              </tr>
+            ) : (
+              leads.map((lead) => {
+                const ref = `RES-${lead.id.slice(-8).toUpperCase()}`;
+                return (
+                  <tr
+                    key={lead.id}
+                    onClick={() => handleOpenLead(lead)}
+                    className="hover:bg-white/[0.03] cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[10px] font-bold text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 px-2 py-0.5 rounded">
+                          {ref}
+                        </span>
+                      </div>
+                      <p className="font-bold text-white text-sm mt-1">{lead.customerName || 'Anonymous Traveler'}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        {lead.customerEmail || lead.customerPhone || 'Contact pending in chat'}
+                      </p>
+                    </td>
+
+                    <td className="px-4 py-4 max-w-xs">
+                      <p className="font-semibold text-slate-200 truncate">{lead.tourTitle || lead.tourSlug || 'Trip inquiry'}</p>
+                      {lead.booking && (
+                        <p className="mt-1 text-[11px] text-emerald-300 font-medium">
+                          ✓ Booking #{lead.booking.bookingReference}
+                        </p>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-4 text-slate-400">
+                      <p className="text-white font-medium">{lead.adults} adults{lead.children ? `, ${lead.children} kids` : ''}</p>
+                      {lead.travelDate && <p className="text-[11px] text-slate-400 mt-0.5">{lead.travelDate}</p>}
+                      {lead.totalEstimatedPrice != null && (
+                        <p className="text-[11px] text-[#00E5FF] font-bold mt-0.5">${lead.totalEstimatedPrice} {lead.currency}</p>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-4 text-slate-400 font-mono text-[11px]">
+                      {new Date(lead.createdAt).toLocaleDateString()} &middot; {new Date(lead.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </td>
+
+                    <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                      <select
+                        value={lead.status}
+                        onChange={(event) => updateStatus(lead.id, event.target.value as LeadStatus)}
+                        className={`rounded-lg border px-2.5 py-1.5 text-xs font-bold outline-none cursor-pointer ${STATUS_STYLE[lead.status]}`}
+                      >
+                        {STATUSES.filter((item): item is { id: LeadStatus; label: string } => item.id !== 'ALL').map((item) => (
+                          <option key={item.id} value={item.id} className="bg-[#0B1528] text-white">
+                            {item.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/admin/inbox?search=${encodeURIComponent(ref)}`}
+                          className="flex items-center gap-1 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1 text-xs font-bold text-cyan-300 hover:bg-cyan-400/20"
+                          title="Open in Live Inbox"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" /> Chat
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* Lead Detail Drawer */}
+      {activeLead && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setActiveLead(null)} />
+          <div className="relative z-10 w-full max-w-lg bg-[#0B1528] border-l border-white/10 p-6 overflow-y-auto space-y-6 shadow-2xl">
+            {/* Drawer Header */}
+            <div className="flex items-start justify-between border-b border-white/10 pb-4">
+              <div>
+                <span className="font-mono text-xs font-bold text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 px-2.5 py-1 rounded">
+                  RES-{activeLead.id.slice(-8).toUpperCase()}
+                </span>
+                <h2 className="text-lg font-black text-white mt-2">{activeLead.customerName || 'Anonymous Traveler'}</h2>
+                <p className="text-xs text-slate-400">Created {new Date(activeLead.createdAt).toLocaleString()}</p>
+              </div>
+              <button onClick={() => setActiveLead(null)} className="rounded-full p-1 text-slate-400 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/admin/inbox?search=${encodeURIComponent(`RES-${activeLead.id.slice(-8).toUpperCase()}`)}`}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 py-2.5 text-xs font-black text-slate-950 hover:brightness-110 shadow-lg shadow-cyan-400/10"
+              >
+                <MessageSquare className="h-4 w-4" /> Open Conversation in Inbox
+              </Link>
+              {activeLead.tourSlug && (
+                <Link
+                  href={`/tours/${activeLead.tourSlug}`}
+                  target="_blank"
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-bold text-slate-300 hover:bg-white/10"
+                  title="View Tour Page"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Link>
+              )}
+            </div>
+
+            {/* Traveler Contact */}
+            <div className="rounded-2xl border border-white/10 bg-[#060D1A] p-4 space-y-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Contact Information</p>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center gap-2 text-slate-300">
+                  <Mail className="h-3.5 w-3.5 text-cyan-300" />
+                  <span>{activeLead.customerEmail || 'No email provided yet'}</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  <Phone className="h-3.5 w-3.5 text-cyan-300" />
+                  <span>{activeLead.customerPhone || 'No phone provided yet'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Trip Details */}
+            <div className="rounded-2xl border border-white/10 bg-[#060D1A] p-4 space-y-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Trip &amp; Reservation</p>
+              <div className="space-y-1.5 text-xs">
+                <p className="text-white font-semibold">{activeLead.tourTitle || activeLead.tourSlug || 'Trip inquiry'}</p>
+                <div className="flex justify-between text-slate-400 pt-1">
+                  <span>Travel Date:</span>
+                  <span className="text-white font-medium">{activeLead.travelDate || 'Not specified'}</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Party Size:</span>
+                  <span className="text-white font-medium">{activeLead.adults} adults{activeLead.children ? `, ${activeLead.children} children` : ''}</span>
+                </div>
+                {activeLead.totalEstimatedPrice != null && (
+                  <div className="flex justify-between text-slate-400">
+                    <span>Estimated Total:</span>
+                    <span className="text-[#00E5FF] font-bold">${activeLead.totalEstimatedPrice} {activeLead.currency}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-slate-400">
+                  <span>Source Channel:</span>
+                  <span className="text-slate-300 uppercase text-[10px] font-mono">{activeLead.source}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Internal Staff Notes */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Internal Staff Notes</p>
+                {notesSaveNotice && <span className="text-[10px] text-emerald-400 font-bold">✓ Notes saved</span>}
+              </div>
+              <textarea
+                value={drawerNotes}
+                onChange={(e) => setDrawerNotes(e.target.value)}
+                rows={4}
+                placeholder="Add private operator notes, hotel details, preferred languages, or follow-up schedule..."
+                className="w-full rounded-xl border border-white/10 bg-[#060D1A] p-3 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-300"
+              />
+              <button
+                type="button"
+                disabled={isSavingNotes}
+                onClick={handleSaveNotes}
+                className="flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-bold text-white hover:bg-white/20 transition disabled:opacity-40"
+              >
+                {isSavingNotes ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                Save Internal Notes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

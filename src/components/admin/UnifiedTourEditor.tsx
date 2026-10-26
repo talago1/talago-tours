@@ -58,6 +58,7 @@ import {
 } from '@/types/tourEditor';
 import { createEmptyMilestone } from '@/types/itinerary';
 import { TOUR_TEMPLATES, applyTemplateToTourData } from '@/lib/tourTemplates';
+import { parseTourText, type TourTextParseResult } from '@/utils/tourTextParser';
 
 // Sub-builders
 import ItineraryBuilder from './ItineraryBuilder';
@@ -119,7 +120,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importText, setImportText] = useState('');
-  const [importPreview, setImportPreview] = useState<Partial<TourEditorData> | null>(null);
+  const [importPreview, setImportPreview] = useState<TourTextParseResult | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [translating, setTranslating] = useState(false);
   const [mediaPickerTarget, setMediaPickerTarget] = useState<'cover' | 'gallery' | null>(null);
@@ -2737,14 +2738,24 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
             )}
 
             {!importPreview && (
-              <a
-                href="/templates/talago-trip-template.json"
-                download
-                className="mb-4 inline-flex items-center gap-2 rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-xs font-bold text-cyan-200 transition hover:bg-cyan-400/20"
-              >
-                <Download className="h-3.5 w-3.5" />
-                Download complete JSON template
-              </a>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <a
+                  href="/templates/talago-tour-template-28-sections.txt"
+                  download
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#00E5FF]/40 bg-[#00E5FF]/10 px-3.5 py-2 text-xs font-bold text-[#00E5FF] transition hover:bg-[#00E5FF]/20"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download 28-Section Text Template (.txt)
+                </a>
+                <a
+                  href="/templates/talago-trip-template.json"
+                  download
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300 transition hover:bg-white/10"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  JSON Template
+                </a>
+              </div>
             )}
 
             {/* Textarea */}
@@ -2754,207 +2765,181 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
                   rows={14}
-                  placeholder="Paste structured trip text or the downloaded JSON template here..."
-                  className="w-full rounded-2xl border border-white/10 bg-[#060D1A] p-4 text-sm text-white placeholder-slate-500 focus:border-orange-500/40 focus:outline-none font-mono resize-y"
+                  placeholder="Paste your completed 28-section tour text here or upload the file..."
+                  className="w-full rounded-2xl border border-white/10 bg-[#060D1A] p-4 text-xs text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none font-mono resize-y"
                 />
                 {importErrors.length > 0 && (
-                  <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/5 p-3 space-y-1">
-                    {importErrors.map((e, i) => <p key={i} className="text-xs text-red-300">⚠ {e}</p>)}
+                  <div className="mt-3 rounded-xl border border-red-500/25 bg-red-500/10 p-3 space-y-1 max-h-40 overflow-y-auto">
+                    <p className="text-xs font-bold text-red-200">Validation Notice ({importErrors.length}):</p>
+                    {importErrors.map((e, i) => (
+                      <p key={i} className="text-xs text-red-300 font-mono">⚠ {e}</p>
+                    ))}
                   </div>
                 )}
-                <div className="mt-4 flex items-center justify-end gap-3">
-                  <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-300 cursor-pointer hover:bg-white/10 transition">
-                    <FileText className="h-3.5 w-3.5" />
-                    Upload text or JSON
-                    <input type="file" accept=".txt,.md,.json,application/json" className="hidden" onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (ev) => setImportText(ev.target?.result as string || '');
-                        reader.readAsText(file);
-                      }
-                    }} />
-                  </label>
-                  <button
-                    type="button"
-                    disabled={!importText.trim()}
-                    onClick={() => {
-                      const text = importText;
-                      const errors: string[] = [];
-                      const trimmedText = text.trim();
-
-                      // JSON templates preserve every supported editor field, including
-                      // nested itinerary, options, booking questions and translations.
-                      if (trimmedText.startsWith('{')) {
-                        try {
-                          const source = JSON.parse(trimmedText);
-                          if (!source || typeof source !== 'object' || Array.isArray(source)) {
-                            throw new Error('The JSON template must contain one trip object.');
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-[11px] text-slate-500">
+                    Supports Markdown headings (### 1. BASIC INFO) and key: value lines.
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-300 cursor-pointer hover:bg-white/10 transition">
+                      <FileText className="h-3.5 w-3.5" />
+                      Upload File
+                      <input
+                        type="file"
+                        accept=".txt,.md,.json,application/json"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => setImportText((ev.target?.result as string) || '');
+                            reader.readAsText(file);
                           }
-
-                          const defaults = createDefaultTourEditorData();
-                          const preview: Partial<TourEditorData> = {};
-                          const own = Object.prototype.hasOwnProperty;
-                          const importableKeys: Array<keyof TourEditorData> = [
-                            ...(Object.keys(defaults) as Array<keyof TourEditorData>),
-                            'originalPrice', 'privatePrice', 'costPerPerson', 'customBadge', 'region',
-                            'durationDisplay', 'pickupDescription', 'meetingPointName', 'meetingPointAddress',
-                            'meetingPointLat', 'meetingPointLng', 'meetingPointLandmark', 'meetingPointInstructions',
-                            'meetingPointMapUrl', 'meetingPointImageUrl', 'vehicleType', 'boatType', 'transferNotes',
-                            'fitnessLevel', 'mobilityNotes', 'accessibilityNotes', 'emergencyContact',
-                            'cancellationPolicy', 'requirements', 'faqItems', 'operatorName', 'operatorPhone',
-                            'operatorEmail', 'internalNotes', 'metaTitle', 'metaDescription',
-                            'address', 'thumbnailUrl', 'videoUrl', 'imageAlt',
-                          ];
-                          for (const key of new Set(importableKeys)) {
-                            if (own.call(source, key)) {
-                              (preview as Record<string, unknown>)[key] = source[key];
-                            }
-                          }
-
-                          if (source.translations && typeof source.translations === 'object' && !Array.isArray(source.translations)) {
-                            preview.translations = {
-                              ...defaults.translations,
-                              ...source.translations,
-                            } as TourEditorData['translations'];
-                          }
-
-                          const english = preview.translations?.en;
-                          if (!english?.title?.trim()) errors.push('translations.en.title is required');
-                          if (!english?.description?.trim()) errors.push('translations.en.description is required');
-                          if (typeof preview.adultPrice !== 'number' || preview.adultPrice <= 0) errors.push('adultPrice is required and must be greater than zero');
-                          if (typeof preview.durationHours !== 'number' || preview.durationHours <= 0) errors.push('durationHours is required and must be greater than zero');
-                          if (typeof preview.maxCapacity !== 'number' || preview.maxCapacity <= 0) errors.push('maxCapacity is required and must be greater than zero');
-
-                          setImportErrors(errors);
-                          if (errors.length === 0) setImportPreview(preview);
-                          return;
-                        } catch (error) {
-                          setImportErrors([error instanceof Error ? error.message : 'Invalid JSON template.']);
-                          return;
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={!importText.trim()}
+                      onClick={() => {
+                        const result = parseTourText(importText);
+                        if (result.errors.length > 0) {
+                          setImportErrors(result.errors.map((e) => `[${e.section}] ${e.field}: ${e.message}`));
+                          setImportPreview(null);
+                        } else {
+                          setImportErrors([]);
+                          setImportPreview(result);
                         }
-                      }
-
-                      const get = (key: string) => {
-                        const m = text.match(new RegExp(`^${key}:\\s*(.+)$`, 'im'));
-                        return m ? m[1].trim() : '';
-                      };
-                      const getBlock = (key: string) => {
-                        const m = text.match(new RegExp(`^${key}:\\s*\\n([\\s\\S]*?)(?=\\n[A-Z]+:|$)`, 'im'));
-                        return m ? m[1].trim() : '';
-                      };
-                      const getBullets = (key: string) =>
-                        getBlock(key).split('\n').map(l => l.replace(/^[-*•]\s*/, '').trim()).filter(Boolean);
-                      const title = get('TITLE');
-                      const price = parseFloat(get('PRICE') || '0');
-                      const duration = parseFloat(get('DURATION') || '0');
-                      const category = get('CATEGORY').toUpperCase();
-                      const description = getBlock('DESCRIPTION');
-                      const highlights = getBullets('HIGHLIGHTS');
-                      const inclusions = getBullets('INCLUSIONS');
-                      const exclusions = getBullets('EXCLUSIONS');
-                      const cancellation = getBlock('CANCELLATION');
-                      // Parse itinerary lines like "HH:MM - Description"
-                      const itBlock = getBlock('ITINERARY');
-                      const itLines = itBlock.split('\n').map(l => l.trim()).filter(Boolean);
-                      const itinerary: ItineraryMilestone[] = itLines.map((line, idx) => {
-                        const m = line.match(/^(\d{1,2}:\d{2})\s*[-–]\s*(.+)/);
-                        const milestone = createEmptyMilestone();
-                        return {
-                          ...milestone,
-                          id: `imp-${idx}-${Date.now()}`,
-                          timeTag: m ? m[1] : `${idx + 1}`,
-                          title: {
-                            ...milestone.title,
-                            en: m ? m[2].trim() : line,
-                          },
-                        };
-                      });
-                      if (!title) errors.push('TITLE is required');
-                      if (!price) errors.push('PRICE is required (a number, e.g. 45)');
-                      if (!duration) errors.push('DURATION is required (hours, e.g. 6)');
-                      setImportErrors(errors);
-                      if (errors.length === 0) {
-                        const preview: Partial<TourEditorData> = {
-                          translations: {
-                            en: { ...createDefaultLocalizedContent(), title, description, highlights, inclusions, exclusions, cancellationPolicy: cancellation },
-                            de: createDefaultLocalizedContent(),
-                            ru: createDefaultLocalizedContent(),
-                            fr: createDefaultLocalizedContent(),
-                            it: createDefaultLocalizedContent(),
-                            pl: createDefaultLocalizedContent(),
-                            es: createDefaultLocalizedContent(),
-                            uk: createDefaultLocalizedContent(),
-                          } as any,
-                          adultPrice: price,
-                          basePriceUSD: price,
-                          durationHours: duration,
-                          category: category as any,
-                          highlights,
-                          inclusions,
-                          exclusions,
-                          itinerary,
-                        };
-                        setImportPreview(preview);
-                      }
-                    }}
-                    className="flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-xs font-black text-white hover:bg-orange-600 disabled:opacity-40 transition"
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                    Parse &amp; Preview
-                  </button>
+                      }}
+                      className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-2.5 text-xs font-black text-[#070F1E] hover:brightness-110 disabled:opacity-40 transition shadow-lg shadow-[#00E5FF]/10"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      Parse &amp; Validate (28 Sections)
+                    </button>
+                  </div>
                 </div>
               </>
             )}
 
-            {/* Preview */}
+            {/* Preview Summary */}
             {importPreview && (
               <div className="space-y-4">
-                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    <span className="text-xs font-bold text-emerald-300">Parsed successfully — review before applying</span>
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-500/20 pb-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                      <div>
+                        <span className="text-sm font-bold text-emerald-200">
+                          Parsed Successfully ({importPreview.parsedSectionsCount} Sections Detected)
+                        </span>
+                        <p className="text-[11px] text-emerald-300/80">
+                          Health score: {importPreview.completeness}% completeness
+                        </p>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-bold text-emerald-300">
+                      Ready to Apply
+                    </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div><span className="text-slate-500">Title:</span> <span className="text-white font-medium">{(importPreview.translations as any)?.en?.title}</span></div>
-                    <div><span className="text-slate-500">Price:</span> <span className="text-white font-medium">${importPreview.adultPrice}</span></div>
-                    <div><span className="text-slate-500">Duration:</span> <span className="text-white font-medium">{importPreview.durationHours}h</span></div>
-                    <div><span className="text-slate-500">Category:</span> <span className="text-white font-medium">{importPreview.category}</span></div>
-                    <div><span className="text-slate-500">Highlights:</span> <span className="text-white font-medium">{importPreview.highlights?.length || 0} items</span></div>
-                    <div><span className="text-slate-500">Itinerary:</span> <span className="text-white font-medium">{importPreview.itinerary?.length || 0} stops</span></div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="rounded-xl bg-[#060D1A]/60 p-3">
+                      <p className="text-slate-500 text-[10px] font-bold uppercase">Title</p>
+                      <p className="font-semibold text-white truncate mt-0.5">{importPreview.data.translations?.en?.title || '—'}</p>
+                    </div>
+                    <div className="rounded-xl bg-[#060D1A]/60 p-3">
+                      <p className="text-slate-500 text-[10px] font-bold uppercase">Price</p>
+                      <p className="font-semibold text-[#00E5FF] mt-0.5">${importPreview.data.adultPrice} / adult</p>
+                    </div>
+                    <div className="rounded-xl bg-[#060D1A]/60 p-3">
+                      <p className="text-slate-500 text-[10px] font-bold uppercase">Duration & Capacity</p>
+                      <p className="font-semibold text-white mt-0.5">{importPreview.data.durationHours}h &middot; Max {importPreview.data.maxCapacity} guests</p>
+                    </div>
+                    <div className="rounded-xl bg-[#060D1A]/60 p-3">
+                      <p className="text-slate-500 text-[10px] font-bold uppercase">Category & Type</p>
+                      <p className="font-semibold text-white mt-0.5">{importPreview.data.category} &middot; {importPreview.data.type}</p>
+                    </div>
+                    <div className="rounded-xl bg-[#060D1A]/60 p-3">
+                      <p className="text-slate-500 text-[10px] font-bold uppercase">Location</p>
+                      <p className="font-semibold text-white mt-0.5">{importPreview.data.city}, {importPreview.data.countryCode}</p>
+                    </div>
+                    <div className="rounded-xl bg-[#060D1A]/60 p-3">
+                      <p className="text-slate-500 text-[10px] font-bold uppercase">Pickup</p>
+                      <p className="font-semibold text-white mt-0.5">{importPreview.data.pickupType} (incl: {String(importPreview.data.hotelPickupIncluded)})</p>
+                    </div>
                   </div>
-                  {(importPreview.translations as any)?.en?.description && (
-                    <p className="text-xs text-slate-300 leading-relaxed border-t border-white/5 pt-2">{(importPreview.translations as any).en.description.substring(0, 200)}…</p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1">
+                    <div className="flex items-center gap-1.5 text-slate-300">
+                      <Check className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>{importPreview.data.itinerary?.length || 0} Itinerary Stops</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-slate-300">
+                      <Check className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>{importPreview.data.routeStops?.length || 0} Waypoints</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-slate-300">
+                      <Check className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>{importPreview.data.addons?.length || 0} Add-on Upgrades</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-slate-300">
+                      <Check className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>{importPreview.data.faqItems?.length || 0} FAQs</span>
+                    </div>
+                  </div>
+
+                  {importPreview.warnings.length > 0 && (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                      <p className="font-bold mb-1">Optional Suggestions:</p>
+                      {importPreview.warnings.map((w, idx) => (
+                        <p key={idx} className="text-[11px] text-amber-300/90">&bull; [{w.section}] {w.message}</p>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <div className="flex items-center justify-between">
-                  <button type="button" onClick={() => setImportPreview(null)} className="text-xs font-bold text-slate-400 hover:text-white transition">
-                    ← Edit text
-                  </button>
+
+                <div className="flex items-center justify-between pt-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setData((prev) => ({
-                        ...prev,
-                        ...importPreview,
-                        translations: {
-                          ...prev.translations,
-                          ...(importPreview.translations || {}),
-                        },
-                        highlights: importPreview.highlights || prev.highlights,
-                        inclusions: importPreview.inclusions || prev.inclusions,
-                        exclusions: importPreview.exclusions || prev.exclusions,
-                        itinerary: importPreview.itinerary || prev.itinerary,
-                      }));
-                      setIsDirty(true);
-                      setShowImportModal(false);
-                      setSaveSuccessMessage('Trip imported successfully! Review all fields, then save.');
-                    }}
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-400 px-5 py-2.5 text-xs font-black text-white hover:opacity-90 transition"
+                    onClick={() => setImportPreview(null)}
+                    className="text-xs font-bold text-slate-400 hover:text-white transition"
                   >
-                    <Rocket className="h-3.5 w-3.5" />
-                    Apply to Editor
+                    &larr; Back to Text Input
                   </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setData((prev) => ({
+                          ...prev,
+                          ...importPreview.data,
+                          translations: {
+                            ...prev.translations,
+                            ...importPreview.data.translations,
+                          },
+                          highlights: importPreview.data.highlights.length > 0 ? importPreview.data.highlights : prev.highlights,
+                          inclusions: importPreview.data.inclusions.length > 0 ? importPreview.data.inclusions : prev.inclusions,
+                          exclusions: importPreview.data.exclusions.length > 0 ? importPreview.data.exclusions : prev.exclusions,
+                          itinerary: importPreview.data.itinerary.length > 0 ? importPreview.data.itinerary : prev.itinerary,
+                          routeStops: importPreview.data.routeStops.length > 0 ? importPreview.data.routeStops : prev.routeStops,
+                          addons: importPreview.data.addons.length > 0 ? importPreview.data.addons : prev.addons,
+                          bookingQuestions: importPreview.data.bookingQuestions.length > 0 ? importPreview.data.bookingQuestions : prev.bookingQuestions,
+                        }));
+                        setIsDirty(true);
+                        setShowImportModal(false);
+                        setSaveSuccessMessage('All 28 sections imported successfully! Review values then click Save.');
+                        // Open Media Picker so administrator can link photos right away
+                        if (!importPreview.data.coverImage) {
+                          setMediaPickerTarget('gallery');
+                        }
+                      }}
+                      className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-6 py-2.5 text-xs font-black text-[#070F1E] hover:brightness-110 transition shadow-lg shadow-[#00E5FF]/20"
+                    >
+                      <Rocket className="h-3.5 w-3.5" />
+                      Apply All 28 Sections to Editor
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

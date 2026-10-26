@@ -19,6 +19,13 @@ export const dynamic = 'force-dynamic';
 
 const LIMIT = 20;
 const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const PAYMENT_SCHEMES = new Set<string>(Object.values(PaymentScheme));
+
+function parseGuestTier(value: unknown, fallback: number): number | null {
+  if (value === undefined || value === null || value === '') return fallback;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 && parsed <= 100 ? parsed : null;
+}
 
 export async function POST(request: NextRequest) {
   const limit = rateLimit(clientKey(request, 'checkout-initialize'), LIMIT, WINDOW_MS);
@@ -81,10 +88,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (typeof paymentScheme !== 'string' || !PAYMENT_SCHEMES.has(paymentScheme)) {
+      return NextResponse.json(
+        { error: 'A valid payment scheme is required.', code: 'VALIDATION_ERROR' },
+        { status: 400 },
+      );
+    }
+
     // Resolve guest counts
-    const finalAdultsCount = adultsCount != null ? Number(adultsCount) : (guestCount || 1);
-    const finalChildrenCount = childrenCount != null ? Number(childrenCount) : 0;
-    const finalInfantsCount = infantsCount != null ? Number(infantsCount) : 0;
+    const finalAdultsCount = parseGuestTier(adultsCount, parseGuestTier(guestCount, 1) ?? -1);
+    const finalChildrenCount = parseGuestTier(childrenCount, 0);
+    const finalInfantsCount = parseGuestTier(infantsCount, 0);
+    if (finalAdultsCount === null || finalChildrenCount === null || finalInfantsCount === null) {
+      return NextResponse.json(
+        { error: 'Guest counts must be whole numbers between 0 and 100.', code: 'VALIDATION_ERROR' },
+        { status: 400 },
+      );
+    }
     const totalGuests = finalAdultsCount + finalChildrenCount + finalInfantsCount;
 
     // Resolve effective pickup configuration
@@ -100,6 +120,7 @@ export async function POST(request: NextRequest) {
       customerName: leadName || '',
       customerEmail: email || '',
       customerPhone: phone || '',
+      maxGuestCount: tour.maxCapacity,
       pickupType: effectivePickupType,
       requiresHotelPickup: tour.hotelPickupIncluded && effectivePickupType === 'hotel',
       allowPhoneOnly: isPhoneOnlyBooking,
@@ -383,7 +404,7 @@ export async function POST(request: NextRequest) {
       transactionId: result.transaction.id,
       amountPaidOnline,
       amountDueOnArrival,
-      scheme: paymentScheme,
+      scheme: paymentScheme as PaymentScheme,
       // The confirmation page is reached with the access token, not the id and
       // not the human-readable bookingReference.
       confirmationUrl: `/booking/${result.booking.accessToken}`,
@@ -402,7 +423,7 @@ export async function POST(request: NextRequest) {
         if (inviteError) {
           console.log('Supabase auto-invite notice:', inviteError.message);
         } else {
-          console.log('Sent auto-invite email to:', email);
+          console.log('Sent auto-invite email.');
         }
       } catch (err) {
         console.error('Supabase auto-invite background failure:', err);

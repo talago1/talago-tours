@@ -4,9 +4,30 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  const search = new URL(request.url).searchParams.get('status');
+  const { searchParams } = new URL(request.url);
+  const statusParam = searchParams.get('status');
+  const query = searchParams.get('search')?.trim() || '';
+
+  const where: any = {};
+
+  if (statusParam === 'CLOSED') {
+    where.status = 'CLOSED';
+  } else if (statusParam !== 'ALL') {
+    where.status = 'OPEN';
+  }
+
+  if (query) {
+    where.OR = [
+      { visitorName: { contains: query, mode: 'insensitive' } },
+      { visitorEmail: { contains: query, mode: 'insensitive' } },
+      { visitorPhone: { contains: query, mode: 'insensitive' } },
+      { lastPagePath: { contains: query, mode: 'insensitive' } },
+      { messages: { some: { body: { contains: query, mode: 'insensitive' } } } },
+    ];
+  }
+
   const conversations = await prisma.liveChatConversation.findMany({
-    where: search === 'CLOSED' ? { status: 'CLOSED' } : search === 'ALL' ? {} : { status: 'OPEN' },
+    where,
     orderBy: { lastMessageAt: 'desc' },
     take: 100,
     include: {
@@ -14,6 +35,7 @@ export async function GET(request: NextRequest) {
       _count: { select: { messages: { where: { sender: 'VISITOR', readAt: null } } } },
     },
   });
+
   return NextResponse.json({ conversations });
 }
 

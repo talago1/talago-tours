@@ -57,7 +57,7 @@ export async function buildManifest(
       status: { in: ['CONFIRMED', 'COMPLETED'] },
     },
     include: {
-      tour: { select: { translations: true, itinerary: true, type: true } },
+      tour: { select: { translations: true, itinerary: true, type: true, maxCapacity: true } },
     },
     orderBy: [{ zoneId: 'asc' }, { customerName: 'asc' }],
   });
@@ -66,17 +66,40 @@ export async function buildManifest(
   for (const booking of bookings) {
     const tourId = booking.tourId;
     if (!map.has(tourId)) {
+      const cap = booking.tour.maxCapacity ?? 0;
       map.set(tourId, {
         tourId,
         tourTitle: getTourTitle(booking.tour.translations),
         tourType: booking.tour.type,
         totalPassengers: 0,
+        maxCapacity: cap,
+        availableSpots: cap,
+        capacityPercent: 0,
+        capacityStatus: 'OPEN',
         manifestItems: [],
       });
     }
     const group = map.get(tourId)!;
     group.totalPassengers += booking.guestCount;
     group.manifestItems.push(mapToManifestItem(booking));
+  }
+
+  // Finalize capacity calculations
+  for (const group of map.values()) {
+    const cap = group.maxCapacity || 0;
+    if (cap > 0) {
+      group.availableSpots = Math.max(0, cap - group.totalPassengers);
+      group.capacityPercent = Math.min(200, Math.round((group.totalPassengers / cap) * 100));
+      if (group.totalPassengers > cap) {
+        group.capacityStatus = 'OVERBOOKED';
+      } else if (group.totalPassengers === cap) {
+        group.capacityStatus = 'SOLD_OUT';
+      } else if (group.totalPassengers >= cap * 0.8) {
+        group.capacityStatus = 'SELLING_FAST';
+      } else {
+        group.capacityStatus = 'OPEN';
+      }
+    }
   }
 
   const groups = Array.from(map.values()).sort((a, b) => a.tourTitle.localeCompare(b.tourTitle));
