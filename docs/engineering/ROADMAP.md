@@ -196,7 +196,7 @@ The editor has **27 named section IDs** (numbered 1-27 with 18a/18b as sub-items
 
 - **TAL-AV1** `[IMPLEMENTED & VERIFIED]` **Schema**: Added `TourAvailability` model (date-specific status, capacity override, price override, notes) and `TourScheduleRule` model (recurring day-of-week patterns, blackout ranges). Both with `@@unique([tourId, date])` / cascade delete. Prisma generated + `db:push` applied.
 
-- **TAL-AV2** `[IMPLEMENTED & VERIFIED]` **Admin API** (`/api/admin/tours/[tourId]/availability`, `/api/admin/tours/[tourId]/schedule-rules`): Auth-guarded GET/POST/DELETE for both models. Upserts on `(tourId, date)` unique key.
+- **TAL-AV2** `[IMPLEMENTED & VERIFIED]` **Admin API** (`/api/admin/tours/[id]/availability`, `/api/admin/tours/[id]/schedule-rules`): Auth-guarded GET/POST/DELETE for both models. Harmonized under `[id]` parameter to prevent Next.js dynamic path slug conflicts. Upserts on `(tourId, date)` unique key.
 
 - **TAL-AV3** `[IMPLEMENTED & VERIFIED]` **Public calendar API** (`/api/public/tours/[tourId]/availability?month=YYYY-MM`): Merges date overrides, schedule rules, and live booking capacity to return per-day `{ status, remaining, adultPrice }` for the requested month. Suitable for driving the booking date picker.
 
@@ -205,6 +205,8 @@ The editor has **27 named section IDs** (numbered 1-27 with 18a/18b as sub-items
 - **TAL-AV5** `[IMPLEMENTED & VERIFIED]` **Date picker integration**: Wired `GET /api/public/tours/[tourId]/availability?month=YYYY-MM` into both `TourDetailsClient.tsx` sidebar date picker and `checkout/[tourId]/page.tsx` departure date input. Automatically enforces `cutoffHours` min date and provides real-time availability badges (remaining spots, sold-out, and blackout status warnings).
 
 - **TAL-AV6** `[IMPLEMENTED & VERIFIED]` **Capacity engine update**: Updated `src/utils/capacityEngine.ts` to consult `TourAvailability.capacityOverride` when present instead of defaulting to `Tour.maxCapacity`, and blocks bookings immediately on non-available statuses (BLACKOUT, CLOSED, WEATHER_CANCELLED, PRIVATE_EVENT, SOLD_OUT).
+
+- **TAL-C10** `[IMPLEMENTED & VERIFIED]` **Ask a Question Flow**: Independent inquiry API `/api/public/tour-inquiry` producing `INQ-XXXXXXXX` tickets. Glassmorphism modal `AskQuestionModal.tsx` on desktop and mobile sticky bars. Mirrors to live chat and CRM without inflating booking capacity or conversion rates.
 
 ---
 
