@@ -224,4 +224,5 @@ The editor has **27 named section IDs** (numbered 1-27 with 18a/18b as sub-items
 | Tour performance report & Tx reconciliation | Integration | PASS |
 | Mobile sticky bar viewport safety | Visual/Layout | PASS |
 | Robots & Sitemap multi-language | Static/API | PASS |
+| Content CMS save-reload & i18n isolation | Script | PASS |
 
