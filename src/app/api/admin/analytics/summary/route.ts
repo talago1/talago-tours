@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       travelDate: { gte: startDate, lte: endDate },
     };
 
-    const [aggregation, channelGroups, tourGroups] = await Promise.all([
+    const [aggregation, channelGroups, tourGroups, transactionAggregation] = await Promise.all([
       prisma.booking.aggregate({
         where,
         _sum: { totalPriceUSD: true, guestCount: true },
@@ -102,9 +102,17 @@ export async function GET(request: NextRequest) {
         where,
         _sum: { totalPriceUSD: true, guestCount: true },
       }),
+      prisma.transaction.aggregate({
+        where: {
+          status: 'SUCCESS',
+          booking: where,
+        },
+        _sum: { amountPaidOnline: true },
+      }),
     ]);
 
     const grossRevenueUSD = aggregation._sum.totalPriceUSD ?? 0;
+    const onlineCapturedRevenueUSD = transactionAggregation._sum.amountPaidOnline ?? 0;
 
     const tourIds = tourGroups.map((g) => g.tourId);
     const tours = await prisma.tour.findMany({
@@ -173,6 +181,7 @@ export async function GET(request: NextRequest) {
       passengerCount,
       topTourTitle,
       channelBreakdown,
+      onlineCapturedRevenueUSD,
     };
 
     return NextResponse.json(response, {

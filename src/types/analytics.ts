@@ -6,6 +6,17 @@ export interface ChannelSummary {
   totalRevenueUSD: number;
 }
 
+export interface TourPerformanceItem {
+  tourId: string;
+  tourSlug: string;
+  tourTitle: string;
+  leadsCount: number;
+  confirmedBookingsCount: number;
+  conversionRate: number; // Percentage, e.g. 18.5
+  revenueUSD: number;
+  passengerCount: number;
+}
+
 export interface ExecutiveDashboardStats {
   grossRevenueUSD: number;
   grossRevenueEGP: number;
@@ -14,4 +25,6 @@ export interface ExecutiveDashboardStats {
   passengerCount: number;
   topTourTitle: string;
   channelBreakdown: ChannelSummary[];
+  onlineCapturedRevenueUSD?: number;
 }
+
