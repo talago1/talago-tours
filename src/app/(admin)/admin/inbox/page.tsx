@@ -151,11 +151,11 @@ export default function InboxPage() {
     }
   };
 
-  // Extract reservation reference RES-... from messages if present
+  // Extract reservation or inquiry reference RES-... or INQ-... from messages if present
   const reservationRefMatch = useMemo(() => {
     if (!messages.length) return null;
     for (const m of messages) {
-      const match = m.body.match(/\[(RES-[A-Z0-9]+)\]/);
+      const match = m.body.match(/\[((?:RES|INQ)-[A-Z0-9]+)\]/);
       if (match) return match[1];
     }
     return null;
@@ -185,7 +185,7 @@ export default function InboxPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search visitor, email, RES-..."
+              placeholder="Search visitor, email, RES-, INQ-..."
               className="w-full rounded-xl border border-white/10 bg-[#060D1A] py-1.5 pl-8 pr-7 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-300"
             />
             {search && (

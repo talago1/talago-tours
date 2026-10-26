@@ -82,12 +82,13 @@ async function main() {
       const isInternalCover = cover.includes(supabaseUrl) || cover.startsWith('/media');
       const gallery = tour.galleryImages || [];
       const externalGallery = gallery.filter((img) => !img.includes(supabaseUrl) && !img.startsWith('/media'));
-
       const isExternal = (!isInternalCover && cover.length > 0) || externalGallery.length > 0;
+
       const isLegacyImport = tour.slug.startsWith('egypt-gate-');
 
-      // SAFETY: Only archive legacy imported tours or unverified tours using external images
-      if (!isExternal && !isLegacyImport) {
+      // SAFETY: Strictly only archive legacy Egypt Gate imports (162 tours).
+      // Genuine curated Talago tours without bookings must NEVER be accidentally archived.
+      if (!isLegacyImport) {
         continue;
       }
 

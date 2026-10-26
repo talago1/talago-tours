@@ -28,6 +28,7 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  MessageSquare,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
@@ -39,6 +40,7 @@ import { useWishlist } from '@/context/WishlistContext';
 import { supabaseClient } from '@/lib/supabase/client';
 import TourCard from '@/components/public/TourCard';
 import WriteReviewModal from '@/components/modals/WriteReviewModal';
+import AskQuestionModal from '@/components/modals/AskQuestionModal';
 import type { PublicTour } from '@/types/publicTour';
 import { useRouter } from 'next/navigation';
 
@@ -676,6 +678,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
   }, [selectedDate, tour.id]);
 
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [questionModalOpen, setQuestionModalOpen] = useState(false);
   const [wishAnim, setWishAnim] = useState(false);
   // Resolve localized translations from parent with fallback cascade
   const translations = tour.translations;
@@ -1508,9 +1511,18 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 type="button"
                 onClick={() => void startReservation('DESKTOP_PRIMARY_BOOK_NOW')}
                 disabled={isStartingReservation}
-                className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98] disabled:cursor-wait disabled:opacity-70"
+                className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98] disabled:cursor-wait disabled:opacity-70"
               >
                 {isStartingReservation ? 'Creating reservation...' : dict.tourDetails.bookNow || 'Book Now'} <span aria-hidden="true">→</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setQuestionModalOpen(true)}
+                className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs font-bold text-slate-300 transition hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/[0.06] hover:text-[#00E5FF]"
+              >
+                <MessageSquare className="h-4 w-4 text-[#00E5FF]" />
+                <span>Ask a Question</span>
               </button>
               <p className="mb-6 text-center text-xs text-slate-400">Your reservation is saved pending confirmation. Complete guest, pickup, and payment details next.</p>
 
@@ -1903,7 +1915,17 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
               </div>
               {selectedTime && <p className="mt-0.5 truncate text-[11px] font-medium text-cyan-200">{selectedTime}</p>}
             </div>
-            <button
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setQuestionModalOpen(true)}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-[#00E5FF]"
+                title="Ask a Question"
+                aria-label="Ask a Question"
+              >
+                <MessageSquare className="h-4 w-4" />
+              </button>
+              <button
                 type="button"
                 onClick={() => void startReservation('MOBILE_STICKY_BAR')}
                 disabled={isStartingReservation}
@@ -1912,11 +1934,22 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 <span>{isStartingReservation ? 'Saving...' : dict.tourDetails.bookNow || 'Book Now'}</span>
                 <span className="text-base leading-none">→</span>
               </button>
+            </div>
           </div>
         </div>
 
       {/* Spacer for mobile sticky bar */}
       <div className="h-28 lg:hidden" />
+
+      {/* Ask a Question Modal */}
+      <AskQuestionModal
+        tourId={tour.id}
+        tourSlug={tour.slug}
+        tourTitle={localizedTitle}
+        isOpen={questionModalOpen}
+        onClose={() => setQuestionModalOpen(false)}
+        initialDate={selectedDate}
+      />
 
       {/* Write a Review Modal */}
       <WriteReviewModal

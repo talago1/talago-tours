@@ -20,13 +20,13 @@ import { TourAvailabilitySchema } from '@/utils/tourJsonSchemas';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tourId: string } },
+  { params }: { params: { id: string } },
 ) {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { tourId } = params;
+  const tourId = params.id;
 
   const [availability, scheduleRules] = await Promise.all([
     prisma.tourAvailability.findMany({
@@ -46,13 +46,13 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { tourId: string } },
+  { params }: { params: { id: string } },
 ) {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { tourId } = params;
+  const tourId = params.id;
   const body = await request.json();
 
   const parsed = TourAvailabilitySchema.safeParse({ ...body, tourId });
@@ -82,13 +82,13 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { tourId: string } },
+  { params }: { params: { id: string } },
 ) {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { tourId } = params;
+  const tourId = params.id;
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
 

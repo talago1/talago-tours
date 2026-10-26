@@ -95,25 +95,52 @@ Session Date: 2026-10-26
 - **Date Picker Integrations (TAL-AV5)**: Wired real-time availability checks into `TourDetailsClient.tsx` sidebar date selector and `checkout/[tourId]/page.tsx` departure date input, enforcing cutoff hours and showing spot badges.
 - **Capacity Engine Enforcements (TAL-AV6)**: Updated `capacityEngine.ts` to consult `TourAvailability.capacityOverride` and immediately block non-available statuses (BLACKOUT, CLOSED, WEATHER_CANCELLED, PRIVATE_EVENT, SOLD_OUT).
 
+### Batch K: Clean Catalog Soft-Archival Execution (TAL-D5 / Clean Catalog Reset)
+- **Catalog Retirement Audit & Dry-Run Report**:
+  - Inspected all 231 tours in the database: 162 legacy `egypt-gate-*` imports vs 69 curated Talago tours.
+  - Produced `docs/engineering/CATALOG_RETIREMENT_DRY_RUN_REPORT.md` and `.json`.
+  - Hardened safety boundary in `scripts/soft_archive_legacy_tours.cjs` to strictly isolate `egypt-gate-*` tours, protecting 24 active/inactive curated Talago tours without bookings from accidental archival.
+  - Executed `node scripts/soft_archive_legacy_tours.cjs --execute`, updating all 162 qualifying legacy Egypt Gate tours to `status = 'ARCHIVED'`.
+  - Zero database rows were deleted; all historical booking/review foreign keys and relations were preserved.
+
+### Batch L: Separate "Ask a Question" Inquiry Flow & Reference Generation (Section 4)
+- **Public Tour Inquiry API (`src/app/api/public/tour-inquiry/route.ts`)**:
+  - Generates distinct `INQ-XXXXXXXX` references without inflating tour booking capacity, confirmed reservations, or revenue metrics.
+  - Rate-limited and deduplicated within 5-minute windows; records `BookingLead` with `source: 'INQUIRY'`.
+  - Mirrors conversation into `LiveChatConversation`, logs `NotificationLog` (`TOUR_INQUIRY_ALERT`), and alerts via Telegram if configured.
+- **Tour Details Frontend Integration (`src/app/(public)/tours/[slug]/TourDetailsClient.tsx`)**:
+  - Added "Ask a Question" action in both the desktop booking sidebar and the mobile sticky action bar.
+  - Created `AskQuestionModal.tsx` with instant reference display and direct link to live chat.
+- **Admin CRM & Inbox Support (`src/app/(admin)/admin/leads/page.tsx` & `src/app/(admin)/admin/inbox/page.tsx`)**:
+  - Added purple "Question" inquiry badge distinguishing `INQ-...` questions from `RES-...` reservation intents.
+  - Enhanced inbox regex `\[((?:RES|INQ)-[A-Z0-9]+)\]` to extract and highlight inquiry tickets.
+  - Excluded `INQUIRY` source from `/api/admin/analytics/tours/route.ts` conversion rate metrics.
+
+### Batch M: Dynamic Route Slug Harmonization & Production Build
+- **Route Slug Reconciliation**: Resolved Next.js router conflict (`[tourId]` vs `[id]`) by placing availability and schedule-rules handlers under `src/app/api/admin/tours/[id]/`.
+- **Footer Copyright Verification**: Set footer copyright strictly to 2016 (`&copy; 2016 TALAGO Experiences Ltd. All rights reserved.`) in `src/app/(public)/layout.tsx`.
+- **Full Production Build (`npm run build`)**: Verified 80/80 static and dynamic routes compiled, optimized, and verified with zero errors.
+
 ---
 
 ## 3. Verification & Regressions Summary
 
+- **Production Build**: `npm run build` exited with code 0 (All 80 routes and API handlers compiled and statically optimized).
 - **TypeScript Static Verification**: `npx tsc --noEmit` exited with code 0 (ZERO errors across the entire codebase).
-- **ESLint Verification**: `npm run lint` exited with code 0 (ZERO errors; only explicitly permitted admin thumbnail warnings).
+- **ESLint Verification**: `npm run lint` exited with code 0.
 - **Template Verification**: `node scripts/test_tour_template.cjs` passed (28/28 section headings verified).
-- **Roundtrip Field Audit**: `node scripts/test_tour_roundtrip.cjs` verified 100% (91/91 fields across 26 sections).
-- **Safety Boundary**: Zero live database deletions executed; all business records and bookings preserved.
+- **Catalog Retirement Verification**: Exactly 162 untrusted Egypt Gate legacy tours retired to `ARCHIVED`; 69 curated Talago tours 100% preserved. Zero database rows dropped.
 
 ---
 
 ## 4. Exact Next Task & Continuations
 
 For any future session or operator:
-- Repository is clean, fully verified, and passing strict TypeScript + Next.js lint.
+- Repository is clean, fully verified, and passing strict TypeScript + Next.js build.
 - Operators can download the authoritative 28-section tour template from `/templates/talago-tour-template-28-sections.txt` or directly within the Tour Editor under the "Import from Text" tab.
 - Folders can be organized directly in `/admin/media` with responsive multi-selection on mobile/desktop, and images moved via the server-side `/api/admin/media/move` endpoint without client re-upload.
-- Admin leads in `/admin/leads` are cross-referenced with live inbox conversations in `/admin/inbox` using `RES-...` references.
+- Admin leads in `/admin/leads` and inquiries in `/admin/inbox` support both `RES-...` and `INQ-...` references.
 - Content studio in `/admin/content` provides AI translation, polishing, and FAQ drafting across all 8 configured languages with isolated persistence.
+
 
 

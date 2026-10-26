@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
 
     const leadWhere = {
       createdAt: { gte: startDate, lte: endDate },
+      source: { not: 'INQUIRY' },
     };
 
     const [bookingGroups, leadGroups, allTours] = await Promise.all([

@@ -266,7 +266,10 @@ function LeadsContent() {
               </tr>
             ) : (
               leads.map((lead) => {
-                const ref = `RES-${lead.id.slice(-8).toUpperCase()}`;
+                const isInquiry = lead.source === 'INQUIRY';
+                const ref = isInquiry
+                  ? `INQ-${lead.id.slice(-8).toUpperCase()}`
+                  : `RES-${lead.id.slice(-8).toUpperCase()}`;
                 return (
                   <tr
                     key={lead.id}
@@ -274,10 +277,19 @@ function LeadsContent() {
                     className="hover:bg-white/[0.03] cursor-pointer transition-colors"
                   >
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[10px] font-bold text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 px-2 py-0.5 rounded">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`font-mono text-[10px] font-bold border px-2 py-0.5 rounded ${
+                          isInquiry
+                            ? 'text-purple-300 bg-purple-400/10 border-purple-400/25'
+                            : 'text-cyan-300 bg-cyan-400/10 border-cyan-400/20'
+                        }`}>
                           {ref}
                         </span>
+                        {isInquiry && (
+                          <span className="text-[9px] font-black uppercase tracking-wider text-purple-300 bg-purple-400/15 px-1.5 py-0.5 rounded">
+                            Question
+                          </span>
+                        )}
                       </div>
                       <p className="font-bold text-white text-sm mt-1">{lead.customerName || 'Anonymous Traveler'}</p>
                       <p className="text-[11px] text-slate-400 mt-0.5">
@@ -345,38 +357,60 @@ function LeadsContent() {
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setActiveLead(null)} />
           <div className="relative z-10 w-full max-w-lg bg-[#0B1528] border-l border-white/10 p-6 overflow-y-auto space-y-6 shadow-2xl">
             {/* Drawer Header */}
-            <div className="flex items-start justify-between border-b border-white/10 pb-4">
-              <div>
-                <span className="font-mono text-xs font-bold text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 px-2.5 py-1 rounded">
-                  RES-{activeLead.id.slice(-8).toUpperCase()}
-                </span>
-                <h2 className="text-lg font-black text-white mt-2">{activeLead.customerName || 'Anonymous Traveler'}</h2>
-                <p className="text-xs text-slate-400">Created {new Date(activeLead.createdAt).toLocaleString()}</p>
-              </div>
-              <button onClick={() => setActiveLead(null)} className="rounded-full p-1 text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+            {(() => {
+              const isInquiry = activeLead.source === 'INQUIRY';
+              const activeRef = isInquiry
+                ? `INQ-${activeLead.id.slice(-8).toUpperCase()}`
+                : `RES-${activeLead.id.slice(-8).toUpperCase()}`;
 
-            {/* Quick Actions */}
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/admin/inbox?search=${encodeURIComponent(`RES-${activeLead.id.slice(-8).toUpperCase()}`)}`}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 py-2.5 text-xs font-black text-slate-950 hover:brightness-110 shadow-lg shadow-cyan-400/10"
-              >
-                <MessageSquare className="h-4 w-4" /> Open Conversation in Inbox
-              </Link>
-              {activeLead.tourSlug && (
-                <Link
-                  href={`/tours/${activeLead.tourSlug}`}
-                  target="_blank"
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-bold text-slate-300 hover:bg-white/10"
-                  title="View Tour Page"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </Link>
-              )}
-            </div>
+              return (
+                <>
+                  <div className="flex items-start justify-between border-b border-white/10 pb-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-mono text-xs font-bold border px-2.5 py-1 rounded ${
+                          isInquiry
+                            ? 'text-purple-300 bg-purple-400/10 border-purple-400/25'
+                            : 'text-cyan-300 bg-cyan-400/10 border-cyan-400/20'
+                        }`}>
+                          {activeRef}
+                        </span>
+                        {isInquiry && (
+                          <span className="text-[10px] font-black uppercase tracking-wider text-purple-300 bg-purple-400/15 px-2 py-0.5 rounded">
+                            Question / Inquiry
+                          </span>
+                        )}
+                      </div>
+                      <h2 className="text-lg font-black text-white mt-2">{activeLead.customerName || 'Anonymous Traveler'}</h2>
+                      <p className="text-xs text-slate-400">Created {new Date(activeLead.createdAt).toLocaleString()}</p>
+                    </div>
+                    <button onClick={() => setActiveLead(null)} className="rounded-full p-1 text-slate-400 hover:text-white">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/admin/inbox?search=${encodeURIComponent(activeRef)}`}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 py-2.5 text-xs font-black text-slate-950 hover:brightness-110 shadow-lg shadow-cyan-400/10"
+                    >
+                      <MessageSquare className="h-4 w-4" /> Open Conversation in Inbox
+                    </Link>
+                    {activeLead.tourSlug && (
+                      <Link
+                        href={`/tours/${activeLead.tourSlug}`}
+                        target="_blank"
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-bold text-slate-300 hover:bg-white/10"
+                        title="View Tour Page"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Link>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
 
             {/* Traveler Contact */}
             <div className="rounded-2xl border border-white/10 bg-[#060D1A] p-4 space-y-3">
