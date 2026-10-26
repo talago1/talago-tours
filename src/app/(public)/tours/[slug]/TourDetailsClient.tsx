@@ -24,6 +24,10 @@ import {
   Languages,
   Ban,
   AlertTriangle,
+  CalendarDays,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Link from 'next/link';
@@ -46,6 +50,7 @@ interface TourData {
   basePrice: number;
   duration: string;
   durationHours?: number | null;
+  cutoffHours?: number | null;
   maxCapacity: number;
   ratingAverage: number;
   ratingCount: number;
@@ -642,6 +647,34 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
     tour.allowPayAtLocation ? 'arrival' : (tour.allowFullOnline !== false ? 'full' : 'deposit')
   );
   const [selectedTime, setSelectedTime] = useState<string>(tour.pickupTimes?.[0] || '');
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [dateAvailability, setDateAvailability] = useState<{
+    status: string;
+    remaining: number;
+    adultPrice?: number;
+  } | null>(null);
+  const [dateAvailLoading, setDateAvailLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedDate || !tour.id) {
+      setDateAvailability(null);
+      return;
+    }
+    const [year, month] = selectedDate.split('-');
+    setDateAvailLoading(true);
+    fetch(`/api/public/tours/${tour.id}/availability?month=${year}-${month}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && data[selectedDate]) {
+          setDateAvailability(data[selectedDate]);
+        } else {
+          setDateAvailability(null);
+        }
+      })
+      .catch(() => setDateAvailability(null))
+      .finally(() => setDateAvailLoading(false));
+  }, [selectedDate, tour.id]);
+
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [wishAnim, setWishAnim] = useState(false);
   // Resolve localized translations from parent with fallback cascade
@@ -746,7 +779,8 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
 
   const selectedAddonIds = Object.keys(selectedAddons).filter((k) => selectedAddons[k]);
   const addonsQuery = selectedAddonIds.length > 0 ? `&addons=${encodeURIComponent(selectedAddonIds.join(','))}` : '';
-  const reserveHref = `/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}${selectedTime ? `&time=${encodeURIComponent(selectedTime)}` : ''}${addonsQuery}`;
+  const dateQuery = selectedDate ? `&date=${encodeURIComponent(selectedDate)}` : '';
+  const reserveHref = `/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}${selectedTime ? `&time=${encodeURIComponent(selectedTime)}` : ''}${dateQuery}${addonsQuery}`;
 
   const startReservation = useCallback(async (source: string = 'BOOK_BUTTON') => {
     if (isStartingReservation) return;
@@ -775,7 +809,9 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
           currency: 'USD',
           source,
           sessionId: sid,
-          travelDate: selectedTime ? `Time: ${selectedTime}` : undefined,
+          travelDate: selectedDate
+            ? (selectedTime ? `${selectedDate} ${selectedTime}` : selectedDate)
+            : (selectedTime ? `Time: ${selectedTime}` : undefined),
         }),
       });
     } catch {
@@ -784,7 +820,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
       router.push(reserveHref);
       setIsStartingReservation(false);
     }
-  }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, totalPrice, selectedTime, reserveHref, router, isStartingReservation]);
+  }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, totalPrice, selectedDate, selectedTime, reserveHref, router, isStartingReservation]);
 
   const whatToBringItems = localizedWhatToBringItems;
   const itineraryItems = localizedItineraryItems;
@@ -1484,7 +1520,76 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                   <span className="hidden group-open:inline">Hide booking preferences</span>
                 </summary>
                 <div className="pt-5">
-              {/* Pickup Time Slot Selector */}
+                  {/* Departure Date Selector */}
+                  <div className="mb-6">
+                    {(() => {
+                      const cutoff = tour.cutoffHours ?? 12;
+                      const minDate = new Date(Date.now() + cutoff * 3_600_000);
+                      const minDateStr = minDate.toISOString().slice(0, 10);
+                      const avStatus = dateAvailability?.status;
+                      const isUnavailable = avStatus && !['AVAILABLE'].includes(avStatus);
+                      const remaining = dateAvailability?.remaining ?? null;
+
+                      return (
+                        <div>
+                          <p className="mb-2.5 flex items-center gap-2 text-sm font-bold text-slate-300">
+                            <CalendarDays className="h-4 w-4 text-[#00E5FF]" />
+                            {dict.checkout?.departureDate || 'Select Date'}
+                          </p>
+                          <div
+                            className={`flex items-center gap-3 rounded-xl border px-3.5 py-2.5 transition-all focus-within:bg-white/[0.06] ${
+                              isUnavailable
+                                ? 'border-rose-500/40 bg-rose-900/10'
+                                : 'border-white/10 bg-white/[0.03] hover:border-white/20 focus-within:border-[#00E5FF]/40'
+                            }`}
+                          >
+                            <CalendarDays className={`h-4 w-4 shrink-0 ${isUnavailable ? 'text-rose-400' : 'text-slate-400'}`} />
+                            <input
+                              type="date"
+                              value={selectedDate}
+                              min={minDateStr}
+                              onChange={(e) => setSelectedDate(e.target.value)}
+                              className="flex-1 bg-transparent text-xs font-semibold text-white outline-none [color-scheme:dark]"
+                            />
+                            {dateAvailLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#00E5FF]" />}
+                          </div>
+                          {selectedDate && !dateAvailLoading && dateAvailability && (
+                            <div
+                              className={`mt-2 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-bold ${
+                                avStatus === 'AVAILABLE'
+                                  ? remaining !== null && remaining <= 5
+                                    ? 'border border-amber-500/30 bg-amber-900/20 text-amber-300'
+                                    : 'border border-emerald-500/30 bg-emerald-900/20 text-emerald-300'
+                                  : 'border border-rose-500/30 bg-rose-900/20 text-rose-300'
+                              }`}
+                            >
+                              {avStatus === 'AVAILABLE' ? (
+                                remaining !== null && remaining <= 5 ? (
+                                  <>
+                                    <AlertCircle className="h-3 w-3 shrink-0" /> Only {remaining} spot{remaining === 1 ? '' : 's'} left!
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="h-3 w-3 shrink-0" /> Available ({remaining !== null ? `${remaining} spots` : 'open'})
+                                  </>
+                                )
+                              ) : avStatus === 'SOLD_OUT' ? (
+                                <>
+                                  <AlertCircle className="h-3 w-3 shrink-0" /> Fully booked
+                                </>
+                              ) : (
+                                <>
+                                  <AlertCircle className="h-3 w-3 shrink-0" /> Not available on this date
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Pickup Time Slot Selector */}
               {tour.pickupTimes && tour.pickupTimes.length > 0 && (
                 <div className="mb-6">
                   <p className="mb-2.5 flex items-center gap-2 text-sm font-bold text-slate-300">
