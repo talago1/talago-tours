@@ -246,11 +246,25 @@ export default function AdminMediaPage() {
       setSelectedIds(new Set());
       await fetchMedia();
 
-      setBatchActionNotice({
-        message: `Successfully moved ${result.movedCount} file(s) to "${targetBatchFolder.name}".`,
-        type: 'success',
-      });
-      setTimeout(() => setBatchActionNotice(null), 4000);
+      if (Array.isArray(result.errors) && result.errors.length > 0) {
+        if (result.movedCount > 0) {
+          setBatchActionNotice({
+            message: `Partially moved ${result.movedCount} of ${result.totalRequested} file(s). ${result.errors.length} failed: ${result.errors.join('; ')}`,
+            type: 'error',
+          });
+        } else {
+          setBatchActionNotice({
+            message: `Failed to move all files: ${result.errors.join('; ')}`,
+            type: 'error',
+          });
+        }
+      } else {
+        setBatchActionNotice({
+          message: `Successfully moved ${result.movedCount} file(s) to "${targetBatchFolder.name}".`,
+          type: 'success',
+        });
+      }
+      setTimeout(() => setBatchActionNotice(null), 6000);
     } catch (err) {
       console.error('[AdminMedia] Batch move failed:', err);
       setBatchActionNotice({

@@ -1,10 +1,18 @@
 import { notFound } from 'next/navigation';
 import { getManagedContentPage } from '@/lib/contentPages';
+import { resolveServerLanguage, type SearchParamsLike } from '@/lib/i18n.server';
 import { HelpCircle, MessageCircle, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 
-export default async function ManagedContentPage({ slug }: { slug: string }) {
-  const page = await getManagedContentPage(slug);
+export default async function ManagedContentPage({
+  slug,
+  searchParams,
+}: {
+  slug: string;
+  searchParams?: SearchParamsLike;
+}) {
+  const language = resolveServerLanguage(searchParams);
+  const page = await getManagedContentPage(slug, language);
   if (!page.visible) notFound();
 
   const visibleBlocks = page.blocks.filter((block) => block.visible);

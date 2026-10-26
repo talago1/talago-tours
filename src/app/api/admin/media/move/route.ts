@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isAdminRequest } from '@/utils/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ async function getRegisteredPrefixes(): Promise<Set<string>> {
     const setting = await prisma.systemSetting.findUnique({ where: { key: 'media_folders' } });
     if (setting?.value) {
       const folders = JSON.parse(setting.value) as Array<{ bucket: string; prefix: string }>;
-      return new Set(folders.map((f) => `${f.bucket}:${f.prefix.replace(/\/+$/, '') + '/'}`)  );
+      return new Set(folders.map((f) => `${f.bucket}:${f.prefix.replace(/\/+$/, '') + '/'}`));
     }
   } catch {
     // Fall through to defaults
@@ -33,6 +34,9 @@ interface MoveItemPayload {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const items: MoveItemPayload[] = Array.isArray(body.items) ? body.items : [];
@@ -145,18 +149,28 @@ export async function POST(request: NextRequest) {
           const newPublicUrl = `${supabaseUrl}/storage/v1/object/public/${targetBucket}/${destinationPath}`;
 
           try {
-            // Rewrite coverImage references
+            // Rewrite coverImage and thumbnailUrl references
             await prisma.tour.updateMany({
               where: { coverImage: oldPublicUrl },
               data: { coverImage: newPublicUrl },
             });
+            await prisma.tour.updateMany({
+              where: { thumbnailUrl: oldPublicUrl },
+              data: { thumbnailUrl: newPublicUrl },
+            });
 
-            // Rewrite galleryImages references (requires raw SQL because Prisma cannot
-            // update individual array elements without replacing the whole array)
+            // Rewrite galleryImages references
             await prisma.$executeRaw`
               UPDATE "Tour"
               SET "galleryImages" = array_replace("galleryImages", ${oldPublicUrl}, ${newPublicUrl})
               WHERE ${oldPublicUrl} = ANY("galleryImages")
+            `;
+
+            // Rewrite legacy images array references
+            await prisma.$executeRaw`
+              UPDATE "Tour"
+              SET "images" = array_replace("images", ${oldPublicUrl}, ${newPublicUrl})
+              WHERE ${oldPublicUrl} = ANY("images")
             `;
           } catch (urlUpdateErr) {
             console.warn('[media/move] Tour URL rewrite failed for', item.name, urlUpdateErr);

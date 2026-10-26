@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isAdminRequest } from '@/utils/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +52,10 @@ async function saveStoredFolders(folders: FolderDef[]): Promise<void> {
  * GET /api/admin/media/folders
  * Returns all active folders across talago-tour-media and talago-media.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const folders = await getStoredFolders();
   return NextResponse.json({ folders });
 }
@@ -61,6 +65,9 @@ export async function GET() {
  * Creates a new media folder and persists it in system_settings.
  */
 export async function POST(request: NextRequest) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const rawName = typeof body.name === 'string' ? body.name.trim() : '';
@@ -131,6 +138,9 @@ export async function POST(request: NextRequest) {
  * Renames an existing folder.
  */
 export async function PATCH(request: NextRequest) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const { id, name } = body;
@@ -172,6 +182,9 @@ export async function PATCH(request: NextRequest) {
  * Deletes a folder and moves its files back to root.
  */
 export async function DELETE(request: NextRequest) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

@@ -263,11 +263,13 @@ model Tour {
   zone       Zone       @relation(fields: [zoneId], references: [id])
   destination Destination? @relation(fields: [destinationId], references: [id])
 
-  bookings      Booking[]
-  mediaAssets   MediaAsset[]
-  reviews       Json?
-  tourTimeSlots TourTimeSlot[]
-  reviewEntries Review[]
+  bookings        Booking[]
+  mediaAssets     MediaAsset[]
+  reviews         Json?
+  tourTimeSlots   TourTimeSlot[]
+  reviewEntries   Review[]
+  availability    TourAvailability[]
+  scheduleRules   TourScheduleRule[]
 }
 
 model Booking {
@@ -726,4 +728,66 @@ model LiveChatMessage {
 
   @@index([conversationId, createdAt])
   @@map("live_chat_messages")
+}
+
+// ─── Phase 6: Structured Tour Availability ────────────────────────────────────
+
+enum AvailabilityStatus {
+  AVAILABLE
+  SOLD_OUT
+  CLOSED
+  WEATHER_CANCELLED
+  PRIVATE_EVENT
+  BLACKOUT
+}
+
+/// Date-specific availability override for a tour.
+/// One row per (tourId, date). Falls back to tour.maxCapacity when absent.
+model TourAvailability {
+  id            String             @id @default(cuid())
+  tourId        String
+  /// Calendar date (UTC midnight) this rule applies to
+  date          DateTime           @db.Date
+  status        AvailabilityStatus @default(AVAILABLE)
+  /// Override capacity for this date (null = use tour.maxCapacity)
+  capacityOverride Int?
+  /// Override adult price for this date (null = use tour.adultPrice)
+  adultPriceOverride  Float?
+  /// Override child price for this date
+  childPriceOverride  Float?
+  /// Internal note visible only to admins
+  notes         String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@unique([tourId, date])
+  @@index([tourId, date])
+  @@index([tourId, status])
+  @@map("tour_availability")
+}
+
+/// Recurring schedule rule for a tour (which days of the week it runs).
+/// Multiple rules can exist per tour for complex patterns.
+model TourScheduleRule {
+  id          String   @id @default(cuid())
+  tourId      String
+  /// ISO day-of-week 1=Mon … 7=Sun (null = applies to all days)
+  dayOfWeek   Int?
+  /// If true, this is a blackout rule (tour does NOT run despite default)
+  isBlackout  Boolean  @default(false)
+  /// Optional date range this rule applies within (null = perpetual)
+  validFrom   DateTime? @db.Date
+  validUntil  DateTime? @db.Date
+  /// Departure time (HH:mm) for this rule
+  departureTime String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  @@index([tourId])
+  @@index([tourId, dayOfWeek])
+  @@map("tour_schedule_rules")
 }

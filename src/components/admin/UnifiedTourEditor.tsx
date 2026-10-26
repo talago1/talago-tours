@@ -65,6 +65,7 @@ import ItineraryBuilder from './ItineraryBuilder';
 import TourAddonsBuilder from './TourAddonsBuilder';
 import BookingQuestionsBuilder from './BookingQuestionsBuilder';
 import MediaOrganizer from './MediaOrganizer';
+import AvailabilityBuilder from './AvailabilityBuilder';
 import dynamic from 'next/dynamic';
 const MediaLibraryModalLazy = dynamic(() => import('./MediaLibraryModal'), { ssr: false });
 
@@ -1468,6 +1469,24 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   />
                   <p className="mt-1 text-xs text-slate-400">Use this for the exact duration shown to travellers; the numeric duration is used for scheduling.</p>
                 </div>
+
+                {/* Phase 6 — Structured Availability: only meaningful for saved tours */}
+                {data.id && (
+                  <div className="border-t border-white/10 pt-6">
+                    <h3 className="mb-1 text-sm font-bold text-white">Schedule &amp; Availability Management</h3>
+                    <p className="mb-4 text-xs text-slate-400">Set recurring schedule rules and date-specific overrides (capacity, pricing, blackouts).</p>
+                    <AvailabilityBuilder
+                      tourId={data.id}
+                      defaultCapacity={data.maxCapacity}
+                      defaultAdultPrice={data.adultPrice}
+                    />
+                  </div>
+                )}
+                {!data.id && (
+                  <p className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-slate-500">
+                    💡 Save the tour first to configure schedule rules and date-specific availability.
+                  </p>
+                )}
               </div>
             )}
 

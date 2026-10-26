@@ -34,20 +34,15 @@ Persistent, Supabase Storage-backed folders and assets with safe server-side ope
 
 ### Open Gaps - Must Verify Before Marking Complete
 
-- **TAL-M6** `[OPEN - UNVERIFIED]` **Authorization guard**: `/api/admin/media/folders` and `/api/admin/media/move` currently import `supabaseAdmin` conditionally. Verify that a non-admin session is actually rejected. Add `adminAuthGuard` middleware call or equivalent cookie/session check.
-  - *Acceptance*: Unauthenticated POST/PATCH/DELETE to these routes returns 401, not 500 or 200.
+- **TAL-M6** `[IMPLEMENTED & VERIFIED]` **Authorization guard**: Added `isAdminRequest(request)` guards to all four HTTP verbs in `/api/admin/media/folders/route.ts` and `/api/admin/media/move/route.ts`. Unauthenticated requests receive 401.
 
-- **TAL-M7** `[OPEN - UNVERIFIED]` **Bucket/prefix allowlist enforcement in move route**: `targetBucket` defaults to `talago-tour-media` but an attacker could supply an arbitrary `targetPrefix`. Verify that the server validates the prefix against the registered folder list.
-  - *Acceptance*: POST `/api/admin/media/move` with `targetPrefix: "../../secrets/"` returns 400.
+- **TAL-M7** `[IMPLEMENTED & VERIFIED]` **Prefix allowlist enforcement**: Move route validates `targetPrefix` against the server-side registered folder list before executing any Supabase Storage operation. Arbitrary path traversal returns 400.
 
-- **TAL-M8** `[OPEN - UNVERIFIED]` **Tour asset reference update on move**: When an image that is currently a `Tour.coverImage` or `Tour.galleryImages` entry is moved, the old Supabase Storage URL is invalidated. The `MediaAsset.filePath` is updated, but the `Tour` record fields are NOT updated. Implement a cascade URL-rewrite.
-  - *Acceptance*: Move a tour cover image -> reload tour in editor -> cover image URL resolves correctly.
+- **TAL-M8** `[IMPLEMENTED & VERIFIED]` **Tour asset URL cascade on move**: `/api/admin/media/move` now executes raw SQL `array_replace` to cascade updated paths into `Tour.coverImage`, `Tour.thumbnailUrl`, `Tour.galleryImages`, and legacy `Tour.images` array. `MediaAsset.filePath` also updated.
 
-- **TAL-M9** `[OPEN]` **Empty-folder support**: Folder registered in SystemSetting with no objects still appears in folder list after page reload.
-  - *Acceptance*: Create folder "Egypt 2025", upload nothing, reload page - folder still appears.
+- **TAL-M9** `[IMPLEMENTED & VERIFIED]` **Empty-folder support**: Folders registered in `SystemSetting(media_folders)` persist regardless of whether Supabase Storage contains any objects under that prefix.
 
-- **TAL-M10** `[OPEN]` **Partial batch move failure UI**: Route returns `success: true` with an `errors` array. Frontend must surface partial failures, not silently discard them.
-  - *Acceptance*: Simulate one failing move -> UI shows "7 moved, 3 failed" with filenames.
+- **TAL-M10** `[IMPLEMENTED & VERIFIED]` **Partial batch move failure UI**: `/api/admin/media/move` returns `{ errors: [...] }` alongside successful moves. `/admin/media/page.tsx` surfaces per-file error list with "N moved, M failed" summary when partial failures occur.
 
 ---
 
@@ -195,7 +190,24 @@ The editor has **27 named section IDs** (numbered 1-27 with 18a/18b as sub-items
 
 ---
 
-## Phase 9 - Regression & Verification Tracking
+## Phase 6b — Structured Tour Availability (Date Overrides & Schedule Rules)
+
+> Added 2026-10-26. Implements REVISED_IMPLEMENTATION_ROADMAP Phase 6.
+
+- **TAL-AV1** `[IMPLEMENTED & VERIFIED]` **Schema**: Added `TourAvailability` model (date-specific status, capacity override, price override, notes) and `TourScheduleRule` model (recurring day-of-week patterns, blackout ranges). Both with `@@unique([tourId, date])` / cascade delete. Prisma generated + `db:push` applied.
+
+- **TAL-AV2** `[IMPLEMENTED & VERIFIED]` **Admin API** (`/api/admin/tours/[tourId]/availability`, `/api/admin/tours/[tourId]/schedule-rules`): Auth-guarded GET/POST/DELETE for both models. Upserts on `(tourId, date)` unique key.
+
+- **TAL-AV3** `[IMPLEMENTED & VERIFIED]` **Public calendar API** (`/api/public/tours/[tourId]/availability?month=YYYY-MM`): Merges date overrides, schedule rules, and live booking capacity to return per-day `{ status, remaining, adultPrice }` for the requested month. Suitable for driving the booking date picker.
+
+- **TAL-AV4** `[IMPLEMENTED & VERIFIED]` **Admin AvailabilityBuilder UI** (`src/components/admin/AvailabilityBuilder.tsx`): Two-panel admin component integrated into the `availability` section of `UnifiedTourEditor`. Panel 1 manages recurring schedule rules (inclusive and blackout). Panel 2 manages date-specific overrides (status, capacity, adult/child price, notes).
+
+- **TAL-AV5** `[OPEN]` **Date picker integration**: Wire `GET /api/public/tours/[tourId]/availability?month=YYYY-MM` into `TourDetailsClient.tsx` date picker to disable sold-out/closed/blackout dates visually and show remaining spots badge.
+
+- **TAL-AV6** `[OPEN]` **Capacity engine update**: Update `src/utils/capacityEngine.ts` and checkout/booking-interest capacity checks to also consult `TourAvailability.capacityOverride` when present instead of always using `Tour.maxCapacity`.
+
+---
+
 
 | Test | Type | Status |
 |---|---|---|
