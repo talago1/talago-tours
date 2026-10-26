@@ -45,6 +45,7 @@ export default function MediaLibraryModal({
   const [activeTab, setActiveTab] = useState<'browse' | 'upload'>('browse');
   const [bucket, setBucket] = useState<'all' | 'talago-tour-media' | 'talago-media'>(initialBucket);
   const [folder, setFolder] = useState('tours');
+  const [availableFolders, setAvailableFolders] = useState<Array<{ id: string; name: string; prefix: string; bucket: string }>>([]);
   const [search, setSearch] = useState('');
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,6 +81,14 @@ export default function MediaLibraryModal({
   useEffect(() => {
     if (isOpen) {
       fetchMedia();
+      fetch('/api/admin/media/folders')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.folders && Array.isArray(data.folders)) {
+            setAvailableFolders(data.folders);
+          }
+        })
+        .catch(() => {});
     } else {
       setSelectedUrls([]);
       setMakeCover(false);
@@ -252,16 +261,25 @@ export default function MediaLibraryModal({
             </div>
 
             {bucket !== 'all' && (
-              <div className="relative min-w-[180px]">
-                <FolderOpen className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="text"
+              <div className="relative min-w-[200px]">
+                <FolderOpen className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                <select
                   value={folder}
-                  onChange={(e) => setFolder(e.target.value.replace(/[^a-zA-Z0-9_/-]/g, ''))}
-                  placeholder={bucket === 'talago-media' ? 'general/blogs' : 'tours/red-sea'}
+                  onChange={(e) => setFolder(e.target.value)}
                   aria-label="Media folder"
-                  className="w-full rounded-xl border border-white/10 bg-[#060D1A] py-1.5 pl-8 pr-3 text-xs text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
-                />
+                  className="w-full rounded-xl border border-white/10 bg-[#060D1A] py-1.5 pl-8 pr-3 text-xs text-white focus:border-[#00E5FF] focus:outline-none"
+                >
+                  <option value={bucket === 'talago-media' ? 'general' : 'tours'}>
+                    {bucket === 'talago-media' ? '📁 All General Photos' : '📁 All Tour Photos'}
+                  </option>
+                  {availableFolders
+                    .filter((f) => f.bucket === bucket)
+                    .map((f) => (
+                      <option key={f.id} value={f.prefix.replace(/\/+$/, '')}>
+                        📁 {f.name}
+                      </option>
+                    ))}
+                </select>
               </div>
             )}
 
@@ -298,15 +316,24 @@ export default function MediaLibraryModal({
                   <option value="talago-media">General</option>
                 </select>
                 <div className="relative min-w-[200px] flex-1">
-                  <FolderOpen className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-                  <input
-                    type="text"
+                  <FolderOpen className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                  <select
                     value={folder}
-                    onChange={(e) => setFolder(e.target.value.replace(/[^a-zA-Z0-9_/-]/g, ''))}
-                    placeholder="tours/red-sea"
+                    onChange={(e) => setFolder(e.target.value)}
                     aria-label="Upload folder"
-                    className="w-full rounded-lg border border-white/10 bg-[#0B1528] py-1.5 pl-8 pr-3 text-xs text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
-                  />
+                    className="w-full rounded-lg border border-white/10 bg-[#0B1528] py-1.5 pl-8 pr-3 text-xs text-white focus:border-[#00E5FF] focus:outline-none"
+                  >
+                    <option value={bucket === 'talago-media' ? 'general' : 'tours'}>
+                      {bucket === 'talago-media' ? '📁 All General Photos' : '📁 All Tour Photos'}
+                    </option>
+                    {availableFolders
+                      .filter((f) => bucket === 'all' || f.bucket === bucket)
+                      .map((f) => (
+                        <option key={f.id} value={f.prefix.replace(/\/+$/, '')}>
+                          📁 {f.name}
+                        </option>
+                      ))}
+                  </select>
                 </div>
               </div>
               <label

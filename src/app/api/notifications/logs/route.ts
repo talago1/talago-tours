@@ -26,9 +26,9 @@ export async function GET(request: NextRequest) {
     const data = rows.map((row) => ({
       id: row.id,
       bookingId: row.bookingId,
-      channel: row.channel as 'WHATSAPP' | 'EMAIL',
+      channel: row.channel,
       recipient: row.recipient,
-      status: row.status as 'SENT' | 'DELIVERED' | 'FAILED',
+      status: row.status,
       errorMessage: row.errorMessage,
       sentAt: row.sentAt.toISOString(),
       deliveredAt: null,

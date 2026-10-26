@@ -99,6 +99,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (err: any) {
     console.error('Failed to fetch admin leads:', err);
-    return NextResponse.json({ error: 'Failed to fetch leads', details: err?.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch leads' }, { status: 500 });
   }
 }

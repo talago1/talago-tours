@@ -83,7 +83,7 @@ export default async function PublicRouteLayout({ children }: { children: React.
           {/* Bottom Bar */}
           <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-white/[0.06] pt-8 sm:flex-row">
             <p className="text-xs text-slate-500">
-              &copy; {new Date().getFullYear()} TALAGO Experiences Ltd. All rights reserved.
+              &copy; 2016 TALAGO Experiences Ltd. All rights reserved.
             </p>
             {validLinks.length > 0 && (
               <div className="flex items-center gap-6">

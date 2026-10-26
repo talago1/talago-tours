@@ -24,6 +24,7 @@ interface BookingItem {
   id: string;
   bookingReference: string;
   accessToken: string;
+  customerName: string;
   tourId: string;
   status: string;
   travelDate: string;
@@ -55,6 +56,10 @@ interface ReservationItem {
   currency: string;
   status: string;
   createdAt: string;
+  reservationReference?: string;
+  lastAdminMessage?: string | null;
+  lastAdminMessageAt?: string | null;
+  hasUnreadAdminReply?: boolean;
 }
 
 function getTourTitle(translations: unknown, lang = 'en'): string {
@@ -73,6 +78,86 @@ const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
   CANCELLED: { label: 'Cancelled', class: 'bg-red-500/10 text-red-300 border-red-500/20' },
   COMPLETED: { label: 'Completed', class: 'bg-sky-500/10 text-sky-300 border-sky-500/20' },
 };
+
+// Customer-facing lead status labels — deliberately simpler than internal admin values
+const RESERVATION_STATUS_CONFIG: Record<string, { label: string; desc: string; class: string }> = {
+  INTERESTED:        { label: 'Pending', desc: 'Awaiting team confirmation', class: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/20' },
+  IN_PROGRESS:       { label: 'In Progress', desc: 'Our team is preparing your trip', class: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' },
+  CONTACTED:         { label: 'Team Contacted', desc: 'Our team has reached out', class: 'bg-blue-500/10 text-blue-300 border-blue-500/20' },
+  AWAITING_CUSTOMER: { label: 'Action Required', desc: 'Please reply to our message', class: 'bg-amber-500/10 text-amber-300 border-amber-500/20' },
+  AWAITING_PAYMENT:  { label: 'Ready to Pay', desc: 'Your booking is ready — payment required', class: 'bg-violet-500/10 text-violet-300 border-violet-500/20' },
+  CONFIRMED:         { label: 'Confirmed', desc: 'Your booking is confirmed', class: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' },
+  COMPLETED:         { label: 'Completed', desc: 'Trip completed', class: 'bg-sky-500/10 text-sky-300 border-sky-500/20' },
+  CANCELLED:         { label: 'Cancelled', desc: 'Booking was cancelled', class: 'bg-red-500/10 text-red-300 border-red-500/20' },
+  LOST:              { label: 'Closed', desc: 'Enquiry closed', class: 'bg-slate-500/10 text-slate-400 border-slate-500/20' },
+};
+
+function ReservationCard({ reservation }: { reservation: ReservationItem }) {
+  const cfg = RESERVATION_STATUS_CONFIG[reservation.status] ?? RESERVATION_STATUS_CONFIG.INTERESTED;
+  const ref = reservation.reservationReference ?? `RES-${reservation.id.slice(-8).toUpperCase()}`;
+  const currencySymbol = reservation.currency === 'EGP' ? 'EGP ' : '$';
+  const guestCount = reservation.adults + reservation.children;
+
+  return (
+    <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.04] p-5 space-y-3">
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold text-white">
+            {reservation.tourTitle || 'Tour Reservation'}
+          </p>
+          <p className="mt-0.5 text-xs font-mono font-semibold text-[#EAB308]">{ref}</p>
+        </div>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${cfg.class}`}>
+          {cfg.label}
+        </span>
+      </div>
+
+      {/* Meta */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+        <span className="flex items-center gap-1">
+          <User className="h-3 w-3" />
+          {guestCount} guest{guestCount !== 1 ? 's' : ''}
+        </span>
+        {reservation.totalEstimatedPrice != null && (
+          <span className="flex items-center gap-1">
+            <Ticket className="h-3 w-3" />
+            Est. {currencySymbol}{Number(reservation.totalEstimatedPrice).toFixed(2)}
+          </span>
+        )}
+        <span className="flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          {new Date(reservation.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+        </span>
+      </div>
+
+      {/* Status description */}
+      <p className="text-xs text-slate-400">{cfg.desc}</p>
+
+      {/* Admin reply preview */}
+      {reservation.lastAdminMessage && (
+        <div className={`rounded-xl border p-3 ${
+          reservation.hasUnreadAdminReply
+            ? 'border-[#00E5FF]/30 bg-[#00E5FF]/[0.07]'
+            : 'border-white/5 bg-white/[0.03]'
+        }`}>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Team Reply</span>
+            {reservation.hasUnreadAdminReply && (
+              <span className="rounded-full bg-[#00E5FF] px-1.5 py-0.5 text-[9px] font-black uppercase text-[#070F1E]">New</span>
+            )}
+          </div>
+          <p className="text-xs text-slate-300 line-clamp-2">{reservation.lastAdminMessage}</p>
+          {reservation.lastAdminMessageAt && (
+            <p className="mt-1 text-[10px] text-slate-500">
+              {new Date(reservation.lastAdminMessageAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function BookingCard({
   booking,
@@ -323,16 +408,11 @@ export default function MyBookingsPage() {
             <section>
               <h2 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
                 <Clock className="h-3.5 w-3.5" />
-                Pending confirmation ({reservations.length})
+                Reservation Requests ({reservations.length})
               </h2>
               <div className="space-y-3">
                 {reservations.map((reservation) => (
-                  <Link key={reservation.id} href={reservation.tourId ? `/checkout/${reservation.tourId}?reservation=${reservation.id}` : '/tours'} className="block rounded-2xl border border-cyan-300/25 bg-cyan-300/[0.05] p-5 transition hover:border-cyan-300/50 hover:bg-cyan-300/[0.08]">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0"><p className="truncate text-sm font-bold text-white">{reservation.tourTitle || 'Experience reservation'}</p><p className="mt-1 text-xs text-slate-400">Saved {new Date(reservation.createdAt).toLocaleDateString()} · {reservation.adults + reservation.children} guest{reservation.adults + reservation.children !== 1 ? 's' : ''}</p></div>
-                      <span className="shrink-0 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-bold uppercase text-cyan-100">Complete details</span>
-                    </div>
-                  </Link>
+                  <ReservationCard key={reservation.id} reservation={reservation} />
                 ))}
               </div>
             </section>
@@ -388,8 +468,9 @@ export default function MyBookingsPage() {
           onClose={() => setReviewTarget(null)}
           tourId={reviewTarget.tourId}
           tourTitle={getTourTitle(reviewTarget.tour?.translations)}
-          initialBookingId={reviewTarget.bookingReference || reviewTarget.id}
-          initialCustomerName={email ? email.split('@')[0] : ''}
+          initialBookingId={reviewTarget.id}
+          initialBookingAccessToken={reviewTarget.accessToken}
+          initialCustomerName={reviewTarget.customerName}
           onSuccess={() => {
             setBookings((prev) =>
               prev.map((b) =>

@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Terminal, MessageSquare, Mail, ChevronLeft, ChevronRight, RefreshCw, Phone } from 'lucide-react';
+import Link from 'next/link';
+import { Terminal, MessageSquare, Mail, ChevronLeft, ChevronRight, RefreshCw, Phone, Bell, ExternalLink, MessageCircle } from 'lucide-react';
 
 interface LogEntry {
   id: string;
   bookingId: string;
-  channel: 'WHATSAPP' | 'EMAIL';
+  channel: 'WHATSAPP' | 'EMAIL' | 'LEAD_INTEREST_ALERT' | 'ADMIN_CHAT_REPLY' | string;
   recipient: string;
-  status: 'SENT' | 'DELIVERED' | 'FAILED';
+  status: 'SENT' | 'DELIVERED' | 'FAILED' | 'LOGGED' | string;
   errorMessage: string | null;
   sentAt: string;
   deliveredAt: string | null;
@@ -43,6 +44,7 @@ const STATUS_DOT: Record<string, { color: string; label: string; glow: string }>
   SENT: { color: 'bg-teal-400', label: 'SENT', glow: 'rgba(45,212,191,0.3)' },
   DELIVERED: { color: 'bg-emerald-400', label: 'DELIVERED', glow: 'rgba(52,211,153,0.3)' },
   FAILED: { color: 'bg-rose-500', label: 'FAILED', glow: 'rgba(244,63,94,0.3)' },
+  LOGGED: { color: 'bg-cyan-400', label: 'NEW', glow: 'rgba(6,182,212,0.4)' },
 };
 
 function LogEvent({ log }: { log: LogEntry }) {
@@ -50,22 +52,45 @@ function LogEvent({ log }: { log: LogEntry }) {
   const country = guessCountryCode(log.recipient);
   const flag = COUNTRY_FLAG[country] || '';
 
+  const isLeadAlert = log.channel === 'LEAD_INTEREST_ALERT';
+  const isAdminReply = log.channel === 'ADMIN_CHAT_REPLY';
+
+  const channelLabel = isLeadAlert
+    ? 'New Reservation Lead'
+    : isAdminReply
+      ? 'Admin Chat Reply'
+      : log.channel === 'WHATSAPP'
+        ? 'WhatsApp'
+        : 'Email';
+
   return (
     <div className="group rounded-xl border border-white/[0.04] bg-white/[0.02] px-4 py-3 transition-all hover:border-white/[0.08] hover:bg-white/[0.03]">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           {/* Channel icon */}
           <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-            log.channel === 'WHATSAPP'
-              ? 'bg-emerald-500/10 text-emerald-400'
-              : 'bg-blue-500/10 text-blue-400'
+            isLeadAlert
+              ? 'bg-cyan-500/10 text-cyan-400'
+              : isAdminReply
+                ? 'bg-purple-500/10 text-purple-400'
+                : log.channel === 'WHATSAPP'
+                  ? 'bg-emerald-500/10 text-emerald-400'
+                  : 'bg-blue-500/10 text-blue-400'
           }`}>
-            {log.channel === 'WHATSAPP' ? <MessageSquare className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
+            {isLeadAlert ? (
+              <Bell className="h-4 w-4" />
+            ) : isAdminReply ? (
+              <MessageCircle className="h-4 w-4" />
+            ) : log.channel === 'WHATSAPP' ? (
+              <MessageSquare className="h-4 w-4" />
+            ) : (
+              <Mail className="h-4 w-4" />
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-white">
-                {log.channel === 'WHATSAPP' ? 'WhatsApp' : 'Email'}
+                {channelLabel}
               </span>
               {/* Country flag badge */}
               {flag && (
@@ -86,6 +111,30 @@ function LogEvent({ log }: { log: LogEntry }) {
               ) : null}
               {log.recipient}
             </div>
+
+            {/* TAL-C5: Direct link to lead drawer or conversation */}
+            {isLeadAlert && log.bookingId && (
+              <div className="mt-1.5">
+                <Link
+                  href={`/admin/leads?id=${log.bookingId}`}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#00E5FF] transition-colors hover:underline"
+                >
+                  Open Lead Drawer
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              </div>
+            )}
+            {isAdminReply && (
+              <div className="mt-1.5">
+                <Link
+                  href="/admin/inbox"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-purple-400 transition-colors hover:underline"
+                >
+                  View in Live Inbox
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              </div>
+            )}
           </div>
         </div>
         <div className="text-right">
@@ -186,6 +235,8 @@ export default function NotificationDeliveryLog() {
           className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 outline-none transition-all focus:border-[#06B6D4]/40"
         >
           <option value="" className="bg-[#0B1528] text-white">All Channels</option>
+          <option value="LEAD_INTEREST_ALERT" className="bg-[#0B1528] text-white">Lead Alerts</option>
+          <option value="ADMIN_CHAT_REPLY" className="bg-[#0B1528] text-white">Admin Replies</option>
           <option value="WHATSAPP" className="bg-[#0B1528] text-white">WhatsApp</option>
           <option value="EMAIL" className="bg-[#0B1528] text-white">Email</option>
         </select>
@@ -195,6 +246,7 @@ export default function NotificationDeliveryLog() {
           className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-300 outline-none transition-all focus:border-[#06B6D4]/40"
         >
           <option value="" className="bg-[#0B1528] text-white">All Statuses</option>
+          <option value="LOGGED" className="bg-[#0B1528] text-white">New / Logged</option>
           <option value="SENT" className="bg-[#0B1528] text-white">Sent</option>
           <option value="DELIVERED" className="bg-[#0B1528] text-white">Delivered</option>
           <option value="FAILED" className="bg-[#0B1528] text-white">Failed</option>

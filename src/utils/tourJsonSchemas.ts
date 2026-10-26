@@ -203,3 +203,51 @@ export function safeParsePickupOptions(value: unknown): PickupOption[] {
   const parsed = z.array(PickupOptionSchema).safeParse(value);
   return parsed.success ? parsed.data : [];
 }
+
+// ---------------------------------------------------------------------------
+// TourAvailability Schema (Phase 6)
+// Mirrors the Prisma model TourAvailability.
+// ---------------------------------------------------------------------------
+export const AvailabilityStatusEnum = z.enum([
+  'AVAILABLE',
+  'SOLD_OUT',
+  'CLOSED',
+  'WEATHER_CANCELLED',
+  'PRIVATE_EVENT',
+  'BLACKOUT',
+]);
+export type AvailabilityStatusType = z.infer<typeof AvailabilityStatusEnum>;
+
+export const TourAvailabilitySchema = z.object({
+  id: z.string().optional(),
+  tourId: z.string(),
+  /** ISO date string (YYYY-MM-DD) */
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+  status: AvailabilityStatusEnum.default('AVAILABLE'),
+  capacityOverride: z.number().int().nonnegative().nullable().optional(),
+  adultPriceOverride: z.number().nonnegative().nullable().optional(),
+  childPriceOverride: z.number().nonnegative().nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
+
+export type TourAvailabilityEntry = z.infer<typeof TourAvailabilitySchema>;
+
+// ---------------------------------------------------------------------------
+// TourScheduleRule Schema (Phase 6)
+// Mirrors the Prisma model TourScheduleRule.
+// ---------------------------------------------------------------------------
+export const TourScheduleRuleSchema = z.object({
+  id: z.string().optional(),
+  tourId: z.string(),
+  /** ISO 1=Mon … 7=Sun, null = all days */
+  dayOfWeek: z.number().int().min(1).max(7).nullable().optional(),
+  isBlackout: z.boolean().default(false),
+  validFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  /** HH:mm */
+  departureTime: z.string().optional().nullable(),
+  notes: z.string().nullable().optional(),
+});
+
+export type TourScheduleRuleEntry = z.infer<typeof TourScheduleRuleSchema>;
+

@@ -8,6 +8,24 @@ export const dynamic = 'force-dynamic';
 
 const LIMIT = 40;
 const WINDOW_MS = 10 * 60 * 1000;
+const MAX_INTEREST_GUESTS = 100;
+const MAX_ESTIMATED_PRICE = 1_000_000;
+
+function parseGuestCount(value: unknown, fallback: number, minimum: number): number | null {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < minimum || value > MAX_INTEREST_GUESTS) {
+    return null;
+  }
+  return value;
+}
+
+function parseEstimatedPrice(value: unknown): number | null | undefined {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > MAX_ESTIMATED_PRICE) {
+    return undefined;
+  }
+  return value;
+}
 
 export async function POST(request: NextRequest) {
   const limit = rateLimit(clientKey(request, 'booking-interest'), LIMIT, WINDOW_MS);
@@ -24,9 +42,9 @@ export async function POST(request: NextRequest) {
     const customerPhone = body.customerPhone ? sanitizePhone(body.customerPhone) : null;
     let customerEmail = body.customerEmail ? sanitizeEmail(body.customerEmail) : null;
     const travelDate = body.travelDate ? sanitizePlain(body.travelDate, 30) : null;
-    const adults = typeof body.adults === 'number' && body.adults >= 1 ? body.adults : 1;
-    const children = typeof body.children === 'number' && body.children >= 0 ? body.children : 0;
-    const totalEstimatedPrice = typeof body.totalEstimatedPrice === 'number' ? body.totalEstimatedPrice : null;
+    const adults = parseGuestCount(body.adults, 1, 1);
+    const children = parseGuestCount(body.children, 0, 0);
+    const totalEstimatedPrice = parseEstimatedPrice(body.totalEstimatedPrice);
     const currency = body.currency ? sanitizePlain(body.currency, 10).toUpperCase() : 'USD';
     const source = body.source ? sanitizePlain(body.source, 50) : 'BOOK_BUTTON';
     const sessionId = body.sessionId ? sanitizePlain(body.sessionId, 100) : null;
@@ -34,6 +52,18 @@ export async function POST(request: NextRequest) {
 
     if (!requestedTourId && !requestedTourSlug) {
       return NextResponse.json({ error: 'Tour information is required' }, { status: 400 });
+    }
+
+    if (adults === null || children === null || adults + children > MAX_INTEREST_GUESTS) {
+      return NextResponse.json({ error: `Guest counts must be whole numbers totaling at most ${MAX_INTEREST_GUESTS}.` }, { status: 400 });
+    }
+
+    if (totalEstimatedPrice === undefined) {
+      return NextResponse.json({ error: 'Estimated price must be a valid non-negative amount.' }, { status: 400 });
+    }
+
+    if (!/^[A-Z]{3}$/.test(currency)) {
+      return NextResponse.json({ error: 'Currency must be a three-letter ISO code.' }, { status: 400 });
     }
 
     // A signed-in customer is the source of truth for the profile email. Do
@@ -56,11 +86,11 @@ export async function POST(request: NextRequest) {
     const tour = requestedTourId
       ? await prisma.tour.findUnique({
           where: { id: requestedTourId },
-          select: { id: true, slug: true, translations: true, status: true },
+          select: { id: true, slug: true, translations: true, status: true, maxCapacity: true },
         })
       : await prisma.tour.findUnique({
           where: { slug: requestedTourSlug! },
-          select: { id: true, slug: true, translations: true, status: true },
+          select: { id: true, slug: true, translations: true, status: true, maxCapacity: true },
         });
 
     if (!tour || tour.status?.toUpperCase() !== 'ACTIVE') {
@@ -71,6 +101,40 @@ export async function POST(request: NextRequest) {
     const tourSlug = tour.slug;
     const tourTranslations = tour.translations as Record<string, { title?: string }> | null;
     const tourTitle = tourTranslations?.en?.title || tour.slug;
+
+    // TAL-O3: Overbooking prevention check
+    const requestedGuests = (adults || 1) + (children || 0);
+    if (travelDate && tour.maxCapacity && tour.maxCapacity > 0) {
+      const parsedDate = new Date(travelDate);
+      if (!isNaN(parsedDate.getTime())) {
+        const dayStart = new Date(parsedDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dayStart);
+        dayEnd.setDate(dayEnd.getDate() + 1);
+
+        const existingPax = await prisma.booking.aggregate({
+          where: {
+            tourId: tour.id,
+            travelDate: { gte: dayStart, lt: dayEnd },
+            status: { in: ['CONFIRMED', 'PENDING'] },
+          },
+          _sum: { guestCount: true },
+        });
+
+        const currentOccupancy = existingPax._sum.guestCount ?? 0;
+        const availableSpots = Math.max(0, tour.maxCapacity - currentOccupancy);
+
+        if (requestedGuests > availableSpots) {
+          return NextResponse.json({
+            error: availableSpots <= 0
+              ? `This experience is fully booked for ${parsedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+              : `Only ${availableSpots} spot${availableSpots === 1 ? '' : 's'} remaining for ${parsedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`,
+            code: 'CAPACITY_EXCEEDED',
+            availableSpots,
+          }, { status: 409 });
+        }
+      }
+    }
 
     // Deduplication check: recent active lead within last 10 minutes
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);

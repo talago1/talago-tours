@@ -101,7 +101,8 @@ export async function GET(request: NextRequest) {
 
       // 1. Tour Bucket
       if (bucketParam === 'all' || bucketParam === TOUR_BUCKET) {
-        const tourFolder = safeStorageFolder(bucketParam === TOUR_BUCKET ? requestedFolder : null, 'tours');
+        const candidateFolder = requestedFolder?.startsWith('tours') ? requestedFolder : (bucketParam === TOUR_BUCKET ? requestedFolder : null);
+        const tourFolder = safeStorageFolder(candidateFolder, 'tours');
         // List every file in the selected catalog folder without a 100-file ceiling.
         const tourFiles = await listAllBucketFiles(supabaseAdmin, TOUR_BUCKET, tourFolder);
         for (const f of tourFiles) {
@@ -121,7 +122,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Preserve older assets that were uploaded before catalog folders existed.
-        if (bucketParam === 'all') {
+        if (bucketParam === 'all' && !requestedFolder) {
           const rootTourFiles = await listAllBucketFiles(supabaseAdmin, TOUR_BUCKET, '');
           for (const f of rootTourFiles) {
             if (f.name === '.emptyFolderPlaceholder' || f.name === 'tours' || !f.id) continue;
@@ -143,7 +144,8 @@ export async function GET(request: NextRequest) {
 
       // 2. General Bucket
       if (bucketParam === 'all' || bucketParam === GENERAL_BUCKET) {
-        const generalFolder = safeStorageFolder(bucketParam === GENERAL_BUCKET ? requestedFolder : null, 'general');
+        const candidateGeneral = requestedFolder?.startsWith('general') ? requestedFolder : (bucketParam === GENERAL_BUCKET ? requestedFolder : null);
+        const generalFolder = safeStorageFolder(candidateGeneral, 'general');
         const genFiles = await listAllBucketFiles(supabaseAdmin, GENERAL_BUCKET, generalFolder);
         for (const f of genFiles) {
           if (f.name === '.emptyFolderPlaceholder') continue;
@@ -161,7 +163,7 @@ export async function GET(request: NextRequest) {
           });
         }
 
-        if (bucketParam === 'all') {
+        if (bucketParam === 'all' && !requestedFolder) {
           const rootGeneralFiles = await listAllBucketFiles(supabaseAdmin, GENERAL_BUCKET, '');
           for (const f of rootGeneralFiles) {
             if (f.name === '.emptyFolderPlaceholder' || f.name === 'general' || !f.id) continue;

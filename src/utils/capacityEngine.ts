@@ -94,11 +94,25 @@ export async function checkAvailability(
     };
   }
 
-  // Tour-level daily capacity check
-  const tour = await db.tour.findUnique({
-    where: { id: tourId },
-    select: { maxCapacity: true },
-  });
+  // Tour-level daily capacity check — also honours TourAvailability overrides
+  const [tour, dateOverride] = await Promise.all([
+    db.tour.findUnique({
+      where: { id: tourId },
+      select: { maxCapacity: true },
+    }),
+    // Look up an explicit date override for this calendar day (UTC midnight)
+    (db as PrismaClient).tourAvailability
+      ? (db as PrismaClient).tourAvailability.findUnique({
+          where: {
+            tourId_date: {
+              tourId,
+              date: new Date(`${date.toISOString().slice(0, 10)}T00:00:00.000Z`),
+            },
+          },
+          select: { status: true, capacityOverride: true },
+        }).catch(() => null)
+      : Promise.resolve(null),
+  ]);
 
   if (!tour) {
     return {
@@ -108,6 +122,19 @@ export async function checkAvailability(
       confirmedGuests: 0,
     };
   }
+
+  // If the date is explicitly blocked, reject immediately
+  if (dateOverride && ['BLACKOUT', 'CLOSED', 'WEATHER_CANCELLED', 'PRIVATE_EVENT'].includes(dateOverride.status)) {
+    return {
+      available: false,
+      remainingSeats: 0,
+      totalCapacity: dateOverride.capacityOverride ?? tour.maxCapacity,
+      confirmedGuests: 0,
+    };
+  }
+
+  // Effective capacity: prefer per-date override over tour default
+  const effectiveCapacity = dateOverride?.capacityOverride ?? tour.maxCapacity;
 
   const confirmedForDay = await db.booking.aggregate({
     where: {
@@ -119,15 +146,27 @@ export async function checkAvailability(
   });
 
   const confirmedGuests = confirmedForDay._sum.guestCount ?? 0;
-  const remainingSeats = Math.max(0, tour.maxCapacity - confirmedGuests);
+
+  // Also honour an explicit SOLD_OUT override
+  if (dateOverride?.status === 'SOLD_OUT') {
+    return {
+      available: false,
+      remainingSeats: 0,
+      totalCapacity: effectiveCapacity,
+      confirmedGuests,
+    };
+  }
+
+  const remainingSeats = Math.max(0, effectiveCapacity - confirmedGuests);
 
   return {
     available: remainingSeats >= requestedGuests,
     remainingSeats,
-    totalCapacity: tour.maxCapacity,
+    totalCapacity: effectiveCapacity,
     confirmedGuests,
   };
 }
+
 
 // ---------------------------------------------------------------------------
 // Enforcement — throws CapacityExceededError if capacity is exceeded.

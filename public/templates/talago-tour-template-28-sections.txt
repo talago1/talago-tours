@@ -1,0 +1,208 @@
+# TALAGO TOURS — COMPLETE 28-SECTION TOUR AUTHORING TEMPLATE
+# Fill out the sections below and paste this entire document into Admin > Tours > Import Tour Description.
+# All 28 sections will be parsed, validated, and mapped directly into the form.
+#
+# MULTI-LANGUAGE TRANSLATION (TAL-T8):
+# The parser populates English (translations.en.*) by default. Other languages
+# (de, ru, fr, it, pl, es) can be translated after import via the "Multi-Language Translations"
+# tab in the Tour Editor or using the AI Auto-Translate feature.
+#
+# N/A VALUES & REQUIRED FIELDS (TAL-T9):
+# Optional fields (e.g. CUSTOM_BADGE, REGION, DISPATCH_NOTES, VIDEO_URL) accept "N/A" and
+# will be safely omitted. Required fields (TITLE, ADULT_PRICE, SLUG, ZONE) must have real values
+# and will produce validation errors if set to "N/A".
+#
+
+### 1. BASIC INFORMATION
+TITLE: Giftun Island & Orange Bay Luxury Snorkeling Cruise
+SLUG: giftun-island-orange-bay-luxury-cruise
+CATEGORY: sea
+TYPE: SHARED
+BADGES: featured, best_seller, recommended, family_friendly
+CUSTOM_BADGE: Top Rated
+TAGS: snorkeling, orange bay, giftun island, yacht, buffet lunch
+CARD_EXCERPT: Sail across the crystalline Red Sea to Orange Bay on Giftun Island with 2 guided snorkel stops, seafood buffet lunch, and water sports.
+DESCRIPTION:
+Experience the ultimate Caribbean vibes of the Red Sea on this full-day luxury yacht cruise to Orange Bay on Giftun Island. Relax on powdery white sands, swim in warm turquoise waters, and discover vibrant coral gardens teeming with exotic marine life.
+Enjoy a freshly prepared open buffet lunch on board featuring seafood, grilled chicken, fresh salads, and chilled soft drinks throughout the day. Includes hotel pickup and return transfer from Hurghada resorts.
+
+### 2. DESTINATION & LOCATION
+COUNTRY: EG
+CITY: Hurghada
+REGION: Red Sea Governorate
+DESTINATION: hurghada
+ZONE: Hurghada City Center
+ADDRESS: Hurghada Marina Boulevard, Hurghada, Egypt
+LATITUDE: 27.2285
+LONGITUDE: 33.8415
+
+### 3. IMAGES & MEDIA
+COVER_IMAGE: https://images.unsplash.com/photo-1544551763-46a013bb70d5
+GALLERY_IMAGES:
+- https://images.unsplash.com/photo-1507525428034-b723cf961d3e
+- https://images.unsplash.com/photo-1512100356356-de1b84283e18
+- https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c
+VIDEO_URL: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+
+### 4. OPERATOR & OPERATIONS
+OPERATOR_NAME: Red Sea Blue Marine Watersports
+OPERATOR_PHONE: +20 100 123 4567
+OPERATOR_EMAIL: dispatch@redseablue.com
+DISPATCH_NOTES: Boat departs marina at 09:00 sharp. Captain Ahmed on channel 16.
+
+### 5. PRICING ENGINE
+ADULT_PRICE: 38
+BASE_PRICE_USD: 38
+ORIGINAL_PRICE: 50
+PRIVATE_PRICE: 350
+ALLOW_DEPOSIT: true
+DEPOSIT_PERCENTAGE: 20
+ALLOW_PAY_AT_LOCATION: true
+
+### 6. GUEST TYPES & AGE RULES
+CHILD_ENABLED: true
+CHILD_PRICE: 19
+CHILD_MIN_AGE: 4
+CHILD_MAX_AGE: 11
+INFANT_ENABLED: true
+INFANT_PRICE: 0
+INFANT_MIN_AGE: 0
+INFANT_MAX_AGE: 3
+
+### 7. ADD-ONS & UPGRADES
+- Professional Underwater Photo & Video Album | Price: 25 | Type: per_booking | High-resolution underwater photos delivered to your phone.
+- Fresh Seafood Platter Upgrade | Price: 15 | Type: per_person | Jumbo grilled prawns, calamari, and fresh catch of the day.
+- VIP Sun Deck Lounge Access | Price: 10 | Type: per_person | Reserved shaded sun-lounger with fresh fruit cocktails.
+
+### 8. AVAILABILITY & CAPACITY
+MAX_CAPACITY: 35
+MIN_GUESTS: 1
+CUTOFF_HOURS: 8
+INSTANT_CONFIRMATION: true
+
+### 9. SCHEDULE & PICKUP TIMES
+DURATION_HOURS: 7
+DURATION_DISPLAY: 7 hours
+PICKUP_TIMES: 07:45, 08:15
+
+### 10. HOTEL PICKUP & TRANSFERS
+HOTEL_PICKUP_INCLUDED: true
+PICKUP_TYPE: both
+PICKUP_DESCRIPTION:
+Complimentary pickup and drop-off from all hotels and resorts in Hurghada. For Makadi Bay, Sahl Hasheesh, El Gouna, and Soma Bay, a small transfer surcharge applies.
+
+### 11. MEETING POINT
+MEETING_POINT_NAME: Hurghada New Marina Main Gate
+MEETING_POINT_ADDRESS: Sheraton Road, Marina Promenade, Hurghada
+MEETING_POINT_LANDMARK: Beside Costa Coffee at the Marina entrance
+MEETING_POINT_INSTRUCTIONS: Look for our representative wearing a navy blue Talago Tours uniform holding a welcome clipboard.
+MEETING_POINT_LAT: 27.2285
+MEETING_POINT_LNG: 33.8415
+
+### 12. TRANSPORTATION DETAILS
+VEHICLE_TYPE: Air-conditioned modern tourist van
+BOAT_TYPE: 3-Deck Luxury Marine Cruiser with shaded salon and sun deck
+AIR_CONDITIONED: true
+TRANSFER_NOTES: Full life jackets, marine radar, first aid kit, and emergency oxygen available on board.
+
+### 13. ROUTE & WAYPOINTS
+- 1. Hurghada Marina Departure | Lat: 27.2285 | Lng: 33.8415 | Duration: 45 | Board the cruiser and receive safety briefing.
+- 2. Abu Ramada Coral Reef | Lat: 27.1645 | Lng: 33.9021 | Duration: 60 | First guided snorkeling stop at vibrant coral wall.
+- 3. Orange Bay Beach | Lat: 27.1950 | Lng: 33.9180 | Duration: 120 | 2 hours relaxing on the tropical sands with island swing.
+- 4. Magawish Reef | Lat: 27.1520 | Lng: 33.8840 | Duration: 45 | Second snorkel stop and banana boat water sports.
+
+### 14. ITINERARY TIMELINE
+08:00 - Hotel Pickup | Air-conditioned transfer from your resort lobby to the marina.
+09:00 - Cruise Departure | Set sail towards Giftun Island with welcome drinks.
+10:15 - First Snorkeling Stop | Explore Abu Ramada coral garden with marine guide.
+11:45 - Orange Bay Island Stay | Spend 2 hours enjoying the beach, swings, and sea lagoons.
+13:45 - Open Buffet Lunch | Fresh seafood, grilled meats, pasta, and salads served on board.
+14:45 - Second Snorkel Stop & Water Sports | Snorkel at Magawish reef followed by Banana Boat rides.
+16:00 - Return to Marina & Hotel Drop-off | Cruise back to Hurghada and transfer back to your hotel.
+
+### 15. ACTIVITIES & HIGHLIGHTS
+HIGHLIGHTS:
+- 2 hours of leisure time on the Caribbean-style beach of Orange Bay
+- 2 guided snorkeling stops at pristine coral reefs teeming with colorful fish
+- Open buffet lunch prepared fresh by onboard chef with soft drinks and mineral water
+- Banana boat and sofa tube water sports rides included
+- Complimentary professional snorkeling gear (mask, snorkel, fins, life jacket)
+
+### 16. INCLUDED FEATURES
+INCLUSIONS:
+- Round-trip hotel transfers in air-conditioned vehicle
+- Orange Bay Island entry ticket and national park conservation fee
+- Snorkeling equipment (mask, snorkel, fins, flotation vest)
+- Certified PADI snorkeling guide in the water
+- Open buffet lunch (chicken, fish, pasta, rice, 4 salad varieties, fruit)
+- Unlimited mineral water, soft drinks, tea, and coffee
+- Banana boat and water sofa rides
+
+### 17. EXCLUDED ITEMS
+EXCLUSIONS:
+- Personal underwater photo/video album (available as add-on)
+- Alcoholic beverages
+- Gratuities / tips for the boat crew (optional)
+- Surcharge for hotels in El Gouna, Makadi Bay, or Soma Bay ($5-10 per person)
+
+### 18. WHAT TO BRING
+WHAT_TO_BRING:
+- Swimwear and beach towel
+- Sunglasses and sun hat
+- High-SPF biodegradable sunscreen
+- Passport copy or photo on phone
+- Cash for personal expenses or crew tips
+
+### 18a. IMPORTANT INFORMATION
+IMPORTANT_INFO:
+- Wheelchair access is available on the main boat deck; island transfer boat requires stepping across.
+- Vegetarian and gluten-free meal options are available upon advance request.
+- Departure time is subject to weather and coastguard permissions.
+
+### 18b. FAQS
+Q: Do I need to know how to swim to join?
+A: No, life jackets and flotation vests are provided for all guests, and our snorkeling guides are in the water with life rings to assist beginners.
+Q: Can children join this cruise?
+A: Yes! This is a family-friendly excursion with gentle beach waters and child-sized life jackets available.
+Q: Is the Orange Bay island fee included?
+A: Yes, all national park conservation fees and island access permits are 100% included in the price.
+
+### 19. REQUIREMENTS & FITNESS
+FITNESS_LEVEL: EASY
+SWIMMING_REQUIRED: false
+MIN_AGE: 0
+REQUIREMENTS: Suitable for travelers of all ages. Guests with serious heart conditions or pregnant women beyond 6 months should consult their doctor.
+
+### 20. ACCESSIBILITY & SPECIAL NEEDS
+WHEELCHAIR_ACCESSIBLE: true
+STROLLER_ACCESSIBLE: true
+MOBILITY_NOTES: The yacht's main air-conditioned deck and restroom are accessible. Island transfer tenders may require a small step.
+
+### 21. SAFETY & GUIDELINES
+SAFETY_GUIDELINES:
+- Mandatory safety briefing before departure
+- Full marine safety equipment, emergency flares, life rafts, and oxygen on board
+- Guides stay in the water with life-buoys throughout all snorkeling sessions
+INSURANCE_INCLUDED: true
+EMERGENCY_CONTACT: +20 100 999 8877
+
+### 22. CANCELLATION POLICY
+FREE_CANCELLATION_HOURS: 24
+CANCELLATION_POLICY:
+Full 100% refund for cancellations made up to 24 hours before trip departure time. If the trip is cancelled by the coastguard due to bad weather, you will be offered a full refund or an alternative date.
+
+### 23. CUSTOM BOOKING QUESTIONS
+- Hotel Name & Room Number | Type: text | Required: yes
+- WhatsApp Phone Number | Type: phone | Required: yes
+- Dietary Preferences (Standard / Vegetarian / Gluten-Free) | Type: select | Required: no | Options: Standard, Vegetarian, Gluten-Free
+
+### 24. SEO & METADATA
+SEO_TITLE: Orange Bay & Giftun Island Snorkeling Cruise Hurghada
+SEO_DESCRIPTION: Book the #1 Orange Bay island cruise in Hurghada. Enjoy 2 snorkeling stops, seafood lunch, water sports, and white sand beach relaxation. Free 24h cancellation.
+KEYWORDS: orange bay hurghada, giftun island trip, red sea snorkeling, hurghada boat trips, giftun island cruise
+
+### 25. PUBLISHING & VISIBILITY
+STATUS: ACTIVE
+
+### 26. ADVANCED & OPERATIONS
+INTERNAL_NOTES: Operator is top-tier; VIP guest bookings receive front-deck reserved sunbeds.
