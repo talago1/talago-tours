@@ -140,6 +140,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // TAL-O3: Overbooking prevention check against existing bookings on departure date
+    if (tour.maxCapacity && tour.maxCapacity > 0 && departureDate) {
+      const dayStart = new Date(departureDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
+      const existingPax = await prisma.booking.aggregate({
+        where: {
+          tourId: tour.id,
+          travelDate: { gte: dayStart, lt: dayEnd },
+          status: { in: ['CONFIRMED', 'PENDING'] },
+        },
+        _sum: { guestCount: true },
+      });
+
+      const currentOccupancy = existingPax._sum.guestCount ?? 0;
+      const availableSpots = Math.max(0, tour.maxCapacity - currentOccupancy);
+
+      if (totalGuests > availableSpots) {
+        return NextResponse.json(
+          {
+            error: availableSpots <= 0
+              ? `This departure is fully booked for ${departureDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+              : `Only ${availableSpots} spot${availableSpots === 1 ? '' : 's'} remaining for ${departureDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`,
+            code: 'CAPACITY_EXCEEDED',
+            availableSpots,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const rawSelectedAddons = body.selectedAddons ?? formData.selectedAddons;
     const rawBookingAnswers = body.bookingAnswers ?? formData.bookingAnswers;
 

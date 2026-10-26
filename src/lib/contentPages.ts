@@ -53,29 +53,84 @@ export const DEFAULT_CONTENT_PAGES: ManagedContentPage[] = [
 
 function normalise(pages: unknown): ManagedContentPage[] {
   if (!Array.isArray(pages)) return DEFAULT_CONTENT_PAGES;
-  return DEFAULT_CONTENT_PAGES.map((fallback) => {
-    const item = pages.find((value): value is Record<string, unknown> => Boolean(value && typeof value === 'object' && (value as { slug?: unknown }).slug === fallback.slug));
-    if (!item) return fallback;
 
-    const legacyEnglish = {
-      title: typeof item.title === 'string' ? item.title : fallback.translations.en?.title || '',
-      intro: typeof item.intro === 'string' ? item.intro : fallback.translations.en?.intro || '',
-      blocks: Array.isArray(item.blocks) ? item.blocks as ContentBlock[] : fallback.translations.en?.blocks || [],
+  const mapBySlug = new Map<string, ManagedContentPage>();
+  for (const def of DEFAULT_CONTENT_PAGES) {
+    mapBySlug.set(def.slug, { ...def });
+  }
+
+  for (const raw of pages) {
+    if (!raw || typeof raw !== 'object') continue;
+    const item = raw as Record<string, unknown>;
+    const slug = typeof item.slug === 'string' ? item.slug.trim() : '';
+    if (!slug) continue;
+
+    const fallback = mapBySlug.get(slug) || {
+      slug,
+      label: typeof item.label === 'string' ? item.label : slug,
+      visible: true,
+      translations: { en: { title: '', intro: '', blocks: [] } },
     };
-    const rawTranslations = item.translations && typeof item.translations === 'object' ? item.translations as Record<string, unknown> : {};
-    const translations: Partial<Record<LanguageCode, LocalizedContentPage>> = { ...fallback.translations, en: legacyEnglish };
-    for (const language of LANGUAGES) {
-      const candidate = rawTranslations[language];
-      if (!candidate || typeof candidate !== 'object') continue;
-      const localized = candidate as Partial<LocalizedContentPage>;
-      translations[language] = {
-        title: typeof localized.title === 'string' ? localized.title : legacyEnglish.title,
-        intro: typeof localized.intro === 'string' ? localized.intro : legacyEnglish.intro,
-        blocks: Array.isArray(localized.blocks) ? localized.blocks as ContentBlock[] : legacyEnglish.blocks,
+
+    const rawTranslations = (item.translations && typeof item.translations === 'object')
+      ? item.translations as Record<string, unknown>
+      : {};
+
+    const cleanBlockList = (blocks: unknown[]): ContentBlock[] => {
+      return blocks.map((b, idx) => {
+        const blk = (b && typeof b === 'object') ? b as Record<string, unknown> : {};
+        return {
+          id: typeof blk.id === 'string' && blk.id ? blk.id : `${slug}-${Date.now()}-${idx}`,
+          heading: typeof blk.heading === 'string' ? blk.heading : '',
+          body: typeof blk.body === 'string' ? blk.body : '',
+          visible: blk.visible !== false,
+          kind: blk.kind === 'FAQ' ? 'FAQ' : 'TEXT',
+        };
+      });
+    };
+
+    const cleanTranslations: Partial<Record<LanguageCode, LocalizedContentPage>> = {};
+
+    // 1. English (primary)
+    const rawEn = (rawTranslations.en && typeof rawTranslations.en === 'object')
+      ? rawTranslations.en as Record<string, unknown>
+      : null;
+
+    const enTitle = typeof rawEn?.title === 'string' ? rawEn.title : (typeof item.title === 'string' ? item.title : fallback.translations.en?.title || '');
+    const enIntro = typeof rawEn?.intro === 'string' ? rawEn.intro : (typeof item.intro === 'string' ? item.intro : fallback.translations.en?.intro || '');
+    const enBlocksRaw = Array.isArray(rawEn?.blocks) ? rawEn.blocks : (Array.isArray(item.blocks) ? item.blocks : fallback.translations.en?.blocks || []);
+
+    cleanTranslations.en = {
+      title: enTitle,
+      intro: enIntro,
+      blocks: cleanBlockList(enBlocksRaw),
+    };
+
+    // 2. Other languages — only store if provided, do NOT inject English clones
+    for (const lang of LANGUAGES) {
+      if (lang === 'en') continue;
+      const rawLang = (rawTranslations[lang] && typeof rawTranslations[lang] === 'object')
+        ? rawTranslations[lang] as Record<string, unknown>
+        : null;
+
+      if (!rawLang) continue;
+
+      cleanTranslations[lang] = {
+        title: typeof rawLang.title === 'string' ? rawLang.title : '',
+        intro: typeof rawLang.intro === 'string' ? rawLang.intro : '',
+        blocks: Array.isArray(rawLang.blocks) ? cleanBlockList(rawLang.blocks) : [],
       };
     }
-    return { slug: fallback.slug, label: fallback.label, visible: item.visible !== false, translations };
-  });
+
+    mapBySlug.set(slug, {
+      slug,
+      label: typeof item.label === 'string' && item.label ? item.label : fallback.label,
+      visible: item.visible !== false,
+      translations: cleanTranslations,
+    });
+  }
+
+  return Array.from(mapBySlug.values());
 }
 
 export async function getManagedContentPages(): Promise<ManagedContentPage[]> {
@@ -83,11 +138,30 @@ export async function getManagedContentPages(): Promise<ManagedContentPage[]> {
   return record ? normalise(parseSettingValue(record.value, DEFAULT_CONTENT_PAGES)) : DEFAULT_CONTENT_PAGES;
 }
 
-export async function getManagedContentPage(slug: string, language: LanguageCode = resolveServerLanguage()): Promise<ManagedContentPage & LocalizedContentPage> {
+export async function getManagedContentPage(
+  slug: string,
+  language: LanguageCode = resolveServerLanguage(),
+): Promise<ManagedContentPage & LocalizedContentPage> {
   const pages = await getManagedContentPages();
   const page = pages.find((item) => item.slug === slug) || DEFAULT_CONTENT_PAGES[0];
   const english = page.translations.en || { title: page.label, intro: '', blocks: [] };
-  return { ...page, ...(page.translations[language] || english) };
+
+  if (language === 'en') {
+    return { ...page, ...english };
+  }
+
+  const localized = page.translations[language];
+  if (!localized) {
+    // Untranslated language cleanly falls back to English
+    return { ...page, ...english };
+  }
+
+  return {
+    ...page,
+    title: localized.title?.trim() ? localized.title : english.title,
+    intro: localized.intro?.trim() ? localized.intro : english.intro,
+    blocks: localized.blocks && localized.blocks.length > 0 ? localized.blocks : english.blocks,
+  };
 }
 
 export async function saveManagedContentPages(pages: ManagedContentPage[]) {

@@ -272,6 +272,42 @@ ${JSON.stringify(source, null, 2)}`;
   return JSON.parse(rawJson.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim()) as Record<SupportedLanguage, AiContentPage>;
 }
 
+export async function translateSingleLanguage(source: AiContentPage, targetLang: SupportedLanguage): Promise<AiContentPage> {
+  const prompt = `Translate this TALAGO tourism marketplace content into ${targetLang}. Preserve the meaning, block order, block kind, and natural tone for native speakers. Return only valid JSON with title, intro, and blocks array of {heading, body, kind}.
+
+Source English content:
+${JSON.stringify(source, null, 2)}`;
+  const rawJson = await callGemini(prompt, true);
+  return JSON.parse(rawJson.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim()) as AiContentPage;
+}
+
+export async function generateContentFaqs(pageTitle: string, intro: string): Promise<AiContentPageBlock[]> {
+  const prompt = `You write clear, helpful FAQs for TALAGO tourism marketplace for a page titled "${pageTitle}" with intro: "${intro}".
+Generate 3 to 5 relevant, realistic questions and answers for travellers.
+Return strictly valid JSON array of objects:
+[
+  { "heading": "Clear Question?", "body": "Clear, practical answer.", "kind": "FAQ" }
+]`;
+  const rawJson = await callGemini(prompt, true);
+  return JSON.parse(rawJson.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim()) as AiContentPageBlock[];
+}
+
+export async function rewriteContentBlock(text: string, mode: 'rewrite' | 'shorten' | 'expand'): Promise<string> {
+  const instruction = mode === 'shorten'
+    ? 'Make this content more concise and punchy while retaining all factual clarity.'
+    : mode === 'expand'
+      ? 'Expand this content with helpful details and a warm, professional, trustworthy marketplace tone.'
+      : 'Rewrite and polish this content to make it clear, engaging, and professional for tourists.';
+
+  const prompt = `You are an expert editorial writer for TALAGO tourism marketplace. ${instruction}
+Original text:
+"${text}"
+
+Return only the revised text paragraph. Do not include markdown fences, quotes, or conversational preamble.`;
+  const result = await callGemini(prompt, false);
+  return result.replace(/^["']|["']$/g, '').trim();
+}
+
 export async function translateTourContent(
   source: TourTranslationPayload,
   targetLangs: SupportedLanguage[] = ['de', 'ru', 'fr', 'it', 'pl', 'es', 'uk'],

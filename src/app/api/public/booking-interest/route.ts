@@ -86,11 +86,11 @@ export async function POST(request: NextRequest) {
     const tour = requestedTourId
       ? await prisma.tour.findUnique({
           where: { id: requestedTourId },
-          select: { id: true, slug: true, translations: true, status: true },
+          select: { id: true, slug: true, translations: true, status: true, maxCapacity: true },
         })
       : await prisma.tour.findUnique({
           where: { slug: requestedTourSlug! },
-          select: { id: true, slug: true, translations: true, status: true },
+          select: { id: true, slug: true, translations: true, status: true, maxCapacity: true },
         });
 
     if (!tour || tour.status?.toUpperCase() !== 'ACTIVE') {
@@ -101,6 +101,40 @@ export async function POST(request: NextRequest) {
     const tourSlug = tour.slug;
     const tourTranslations = tour.translations as Record<string, { title?: string }> | null;
     const tourTitle = tourTranslations?.en?.title || tour.slug;
+
+    // TAL-O3: Overbooking prevention check
+    const requestedGuests = (adults || 1) + (children || 0);
+    if (travelDate && tour.maxCapacity && tour.maxCapacity > 0) {
+      const parsedDate = new Date(travelDate);
+      if (!isNaN(parsedDate.getTime())) {
+        const dayStart = new Date(parsedDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dayStart);
+        dayEnd.setDate(dayEnd.getDate() + 1);
+
+        const existingPax = await prisma.booking.aggregate({
+          where: {
+            tourId: tour.id,
+            travelDate: { gte: dayStart, lt: dayEnd },
+            status: { in: ['CONFIRMED', 'PENDING'] },
+          },
+          _sum: { guestCount: true },
+        });
+
+        const currentOccupancy = existingPax._sum.guestCount ?? 0;
+        const availableSpots = Math.max(0, tour.maxCapacity - currentOccupancy);
+
+        if (requestedGuests > availableSpots) {
+          return NextResponse.json({
+            error: availableSpots <= 0
+              ? `This experience is fully booked for ${parsedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+              : `Only ${availableSpots} spot${availableSpots === 1 ? '' : 's'} remaining for ${parsedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`,
+            code: 'CAPACITY_EXCEEDED',
+            availableSpots,
+          }, { status: 409 });
+        }
+      }
+    }
 
     // Deduplication check: recent active lead within last 10 minutes
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
