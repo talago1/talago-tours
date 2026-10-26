@@ -84,6 +84,12 @@ async function main() {
       const externalGallery = gallery.filter((img) => !img.includes(supabaseUrl) && !img.startsWith('/media'));
 
       const isExternal = (!isInternalCover && cover.length > 0) || externalGallery.length > 0;
+      const isLegacyImport = tour.slug.startsWith('egypt-gate-');
+
+      // SAFETY: Only archive legacy imported tours or unverified tours using external images
+      if (!isExternal && !isLegacyImport) {
+        continue;
+      }
 
       candidates.push({
         id: tour.id,
