@@ -1772,7 +1772,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
       </div>
 
       {/* Booking must remain reachable throughout a trip page. */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#0B1528]/95 px-5 py-3.5 backdrop-blur-2xl shadow-2xl shadow-black lg:hidden">
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#0B1528]/95 px-5 pt-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] backdrop-blur-2xl shadow-2xl shadow-black lg:hidden">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
@@ -1811,7 +1811,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
         </div>
 
       {/* Spacer for mobile sticky bar */}
-      <div className="h-24 lg:hidden" />
+      <div className="h-28 lg:hidden" />
 
       {/* Write a Review Modal */}
       <WriteReviewModal
