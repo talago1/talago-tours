@@ -196,21 +196,18 @@ export async function POST(
       },
     }).catch(() => {});
 
-    // Send email notification to customer if email is available
+    // Send branded email notification to customer
     if (lead.customerEmail && process.env.RESEND_API_KEY) {
       try {
-        const { sendEmail } = await import('@/lib/email');
-        const subject = `Message from TALAGO Tours regarding ${lead.tourTitle || 'your experience'}`;
-        const html = `
-          <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#070F1E;color:#F8FAFC;border-radius:12px;">
-            <p style="font-size:12px;color:#00E5FF;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">TALAGO Tours · Customer Concierge</p>
-            <h2 style="color:#ffffff;margin-top:0;">New reply from our team</h2>
-            <p style="color:#94A3B8;font-size:13px;line-height:1.6;">Hello ${lead.customerName || 'Traveler'}, we have replied to your inquiry (${ref}):</p>
-            <div style="background:#0B1528;border-left:3px solid #00E5FF;padding:16px;border-radius:6px;margin:20px 0;font-size:14px;color:#F8FAFC;white-space:pre-wrap;">${messageText}</div>
-            <p style="color:#64748B;font-size:12px;">You can reply to this message directly in our live chat on the website or reply to this email.</p>
-          </div>
-        `;
-        await sendEmail({ to: lead.customerEmail, subject, html });
+        const { sendAdminReplyEmail } = await import('@/lib/email');
+        const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://talago.com';
+        await sendAdminReplyEmail(lead.customerEmail, {
+          customerName: lead.customerName || 'Traveler',
+          reference: ref,
+          tourName: lead.tourTitle || undefined,
+          adminMessage: messageText,
+          replyUrl: `${SITE_URL}/my-bookings`,
+        });
       } catch (emailErr) {
         console.warn('[lead/reply] Email notification non-fatal error:', emailErr);
       }

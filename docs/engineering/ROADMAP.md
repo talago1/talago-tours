@@ -210,6 +210,16 @@ The editor has **27 named section IDs** (numbered 1-27 with 18a/18b as sub-items
 
 ---
 
+## Phase 9 — Branded Email Infrastructure & Newsletter Campaign Engine
+
+> Added 2026-10-27. Implements direct marketing, automated customer notifications, and branded email communications.
+
+- **TAL-M1** `[IMPLEMENTED & VERIFIED]` **Branded Email Layout**: Upgraded `src/lib/email.ts` with dark luxury Talago branding (`#070F1E` / `#06B6D4` / `#EAB308`), responsive table structure, header logo, and transactional footer. Added `sendAdminReplyEmail` with reference badge and original query context.
+- **TAL-M2** `[IMPLEMENTED & VERIFIED]` **Payment Webhook Confirmation Email**: Integrated automatic customer booking confirmation email dispatch upon successful Paymob webhook event (`/api/payments/webhook`). Localizes tour title from multilingual translations with fallback to tour slug.
+- **TAL-M3** `[IMPLEMENTED & VERIFIED]` **Newsletter Blast API & Unsubscribe**: Auth-guarded `/api/admin/newsletter/blast` sends batched emails (10/batch with 300ms throttle and 10-minute cooldown) with optional embedded promo code deep links (`/tours?promo=CODE`). Built 1-click unsubscribe handler at `/api/newsletter/unsubscribe` updating subscriber state to inactive and rendering branded confirmation.
+- **TAL-M4** `[IMPLEMENTED & VERIFIED]` **Admin Campaign Newsletter UI**: Added tab switcher and newsletter composition studio to `/admin/campaigns` (`page.tsx`) showing live subscriber count, rich HTML textarea, promo code auto-attacher, and live sending progress/diagnostics.
+
+---
 
 | Test | Type | Status |
 |---|---|---|
@@ -230,4 +240,7 @@ The editor has **27 named section IDs** (numbered 1-27 with 18a/18b as sub-items
 | Customer journey end-to-end integration (7/7 steps) | Integration | PASS |
 | CRM & Live Chat bidirectional reply & sync | Integration | PASS |
 | Cover image asset & storage reference validation | Schema/API | PASS |
+| Newsletter blast & unsubscribe lifecycle | Integration | PASS |
+| Payment webhook confirmation email dispatch | Integration | PASS |
+| `npm run build` production release | Build | PASS |
 

@@ -14,6 +14,11 @@ import {
   Layers,
   X,
   Share2,
+  Mail,
+  Send,
+  Users,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -32,13 +37,14 @@ interface Campaign {
 }
 
 export default function AdminCampaignsPage() {
+  const [activeTab, setActiveTab] = useState<'codes' | 'newsletter'>('codes');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
-  // Form states
+  // Promo code form states
   const [code, setCode] = useState('');
   const [discountType, setDiscountType] = useState<'PERCENTAGE' | 'FIXED_AMOUNT'>('PERCENTAGE');
   const [discountValue, setDiscountValue] = useState('');
@@ -50,6 +56,16 @@ export default function AdminCampaignsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Newsletter blast states
+  const [blastSubject, setBlastSubject] = useState('');
+  const [blastBody, setBlastBody] = useState('');
+  const [blastPromoCode, setBlastPromoCode] = useState('');
+  const [blastPromoDiscount, setBlastPromoDiscount] = useState('');
+  const [blastSending, setBlastSending] = useState(false);
+  const [blastResult, setBlastResult] = useState<{ sent: number; failed: number; total: number; errors?: string[] } | null>(null);
+  const [blastError, setBlastError] = useState<string | null>(null);
+  const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
 
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
@@ -68,7 +84,38 @@ export default function AdminCampaignsPage() {
 
   useEffect(() => {
     fetchCampaigns();
+    // Fetch subscriber count for the newsletter tab
+    fetch('/api/admin/newsletter/blast')
+      .then((r) => r.json())
+      .then((d) => setSubscriberCount(d.activeSubscribers ?? null))
+      .catch(() => {});
   }, [fetchCampaigns]);
+
+  const handleBlast = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBlastError(null);
+    setBlastResult(null);
+    setBlastSending(true);
+    try {
+      const res = await fetch('/api/admin/newsletter/blast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: blastSubject,
+          html: blastBody,
+          promoCode: blastPromoCode || undefined,
+          promoDiscount: blastPromoDiscount || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send newsletter');
+      setBlastResult(data);
+    } catch (err) {
+      setBlastError(err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setBlastSending(false);
+    }
+  }, [blastSubject, blastBody, blastPromoCode, blastPromoDiscount]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -216,8 +263,167 @@ export default function AdminCampaignsPage() {
           </div>
         </div>
 
-        {/* KPI Summary Cards */}
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Tab Switcher */}
+        <div className="mb-8 flex gap-2 border-b border-white/10 pb-0">
+          <button
+            type="button"
+            onClick={() => setActiveTab('codes')}
+            className={`flex items-center gap-2 rounded-t-xl px-5 py-3 text-xs font-black uppercase tracking-wider transition-all ${
+              activeTab === 'codes'
+                ? 'border-b-2 border-[#EAB308] text-[#EAB308]'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Tag className="h-4 w-4" />
+            Promo Codes
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('newsletter')}
+            className={`flex items-center gap-2 rounded-t-xl px-5 py-3 text-xs font-black uppercase tracking-wider transition-all ${
+              activeTab === 'newsletter'
+                ? 'border-b-2 border-[#06B6D4] text-[#06B6D4]'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Mail className="h-4 w-4" />
+            Newsletter Blast
+            {subscriberCount !== null && (
+              <span className="ml-1 rounded-full bg-[#06B6D4]/20 px-2 py-0.5 text-[10px] font-black text-[#06B6D4]">
+                {subscriberCount} subs
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Newsletter Blast Panel */}
+        {activeTab === 'newsletter' && (
+          <div className="mb-8 space-y-6">
+            {/* Stats */}
+            <div className="flex items-center gap-4 rounded-2xl border border-[#06B6D4]/20 bg-[#06B6D4]/5 px-6 py-4">
+              <Users className="h-8 w-8 text-[#06B6D4] shrink-0" />
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-[#06B6D4]">Active Subscribers</p>
+                <p className="text-3xl font-black text-white">{subscriberCount ?? '—'}</p>
+                <p className="text-xs text-slate-500">Opted-in newsletter subscribers who will receive this blast</p>
+              </div>
+            </div>
+
+            {/* Result banner */}
+            {blastResult && (
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5">
+                <p className="text-sm font-black text-emerald-300">
+                  ✓ Newsletter sent — {blastResult.sent} delivered, {blastResult.failed} failed out of {blastResult.total}
+                </p>
+                {blastResult.errors && blastResult.errors.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-xs text-red-300">
+                    {blastResult.errors.map((e, i) => <li key={i}>• {e}</li>)}
+                  </ul>
+                )}
+              </div>
+            )}
+            {blastError && (
+              <div className="flex items-center gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4">
+                <AlertCircle className="h-5 w-5 shrink-0 text-red-400" />
+                <p className="text-sm text-red-300">{blastError}</p>
+              </div>
+            )}
+
+            {/* Compose form */}
+            <form onSubmit={handleBlast} className="rounded-3xl border border-white/10 bg-[#0B1528] p-6 space-y-5">
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <Mail className="h-5 w-5 text-[#06B6D4]" />
+                Compose Newsletter
+              </h3>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                  Subject Line *
+                </label>
+                <input
+                  type="text"
+                  required
+                  minLength={4}
+                  value={blastSubject}
+                  onChange={(e) => setBlastSubject(e.target.value)}
+                  placeholder="e.g. Exclusive Flash Sale — 20% Off All Egypt Tours This Weekend"
+                  className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#06B6D4]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                  Email Body (HTML or plain text) *
+                </label>
+                <textarea
+                  required
+                  minLength={20}
+                  rows={8}
+                  value={blastBody}
+                  onChange={(e) => setBlastBody(e.target.value)}
+                  placeholder={"<h2>Explore Egypt like never before</h2>\n<p>We have incredible new tours just for you...</p>"}
+                  className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 font-mono text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#06B6D4] resize-y"
+                />
+                <p className="mt-1.5 text-[11px] text-slate-500">
+                  Supports HTML. Your content will be wrapped in the TALAGO branded email template automatically.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-4">
+                <p className="text-xs font-black uppercase tracking-wider text-slate-400">Optional: Attach Promo Code</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1">Promo Code</label>
+                    <input
+                      type="text"
+                      value={blastPromoCode}
+                      onChange={(e) => setBlastPromoCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. SUMMER20"
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2.5 font-mono text-sm uppercase text-[#00E5FF] outline-none placeholder:text-slate-600 focus:border-[#00E5FF]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1">Discount Label</label>
+                    <input
+                      type="text"
+                      value={blastPromoDiscount}
+                      onChange={(e) => setBlastPromoDiscount(e.target.value)}
+                      placeholder="e.g. 20% off all tours"
+                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#00E5FF]"
+                    />
+                  </div>
+                </div>
+                {blastPromoCode && (
+                  <p className="text-[11px] text-slate-500">
+                    A styled promo block with a 1-click auto-apply link will be embedded in the email body.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                <p className="text-xs text-slate-500">
+                  {subscriberCount !== null ? `Will be sent to ${subscriberCount} subscribers.` : 'Loading subscriber count...'}
+                </p>
+                <button
+                  type="submit"
+                  disabled={blastSending || !blastSubject || !blastBody}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#06B6D4] px-6 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] hover:bg-[#22D3EE] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {blastSending ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</>
+                  ) : (
+                    <><Send className="h-4 w-4" /> Send Newsletter</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* KPI Summary Cards — shown only on codes tab */}
+        {activeTab === 'codes' && (
+          <>
+            <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-5 shadow-xl">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
@@ -447,6 +653,8 @@ export default function AdminCampaignsPage() {
             </table>
           </div>
         </section>
+          </>
+        )}
       </div>
 
       {/* Create Campaign Modal */}

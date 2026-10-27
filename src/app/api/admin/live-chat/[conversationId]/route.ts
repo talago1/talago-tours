@@ -56,21 +56,20 @@ export async function POST(request: NextRequest, { params }: { params: { convers
       },
     }).catch(() => {});
 
-    // Dispatch email notification to visitor if email is present
+    // Dispatch branded email notification to visitor if email is present
     if (conversation.visitorEmail && process.env.RESEND_API_KEY) {
       try {
-        const { sendEmail } = await import('@/lib/email');
-        const subject = 'New message from TALAGO Tours Concierge';
-        const html = `
-          <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#070F1E;color:#F8FAFC;border-radius:12px;">
-            <p style="font-size:12px;color:#00E5FF;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">TALAGO Tours · Customer Concierge</p>
-            <h2 style="color:#ffffff;margin-top:0;">New reply from our team</h2>
-            <p style="color:#94A3B8;font-size:13px;line-height:1.6;">Hello ${conversation.visitorName || 'Traveler'}, our concierge team has replied to your conversation:</p>
-            <div style="background:#0B1528;border-left:3px solid #00E5FF;padding:16px;border-radius:6px;margin:20px 0;font-size:14px;color:#F8FAFC;white-space:pre-wrap;">${body}</div>
-            <p style="color:#64748B;font-size:12px;">You can view and continue this conversation on the website via our live chat widget.</p>
-          </div>
-        `;
-        await sendEmail({ to: conversation.visitorEmail, subject, html });
+        const { sendAdminReplyEmail } = await import('@/lib/email');
+        const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://talago.com';
+        // Extract any reservation/inquiry reference from the conversation messages
+        const refMatch = body.match(/\[((?:RES|INQ)-[A-Z0-9]+)\]/);
+        const reference = refMatch?.[1] ?? 'CHAT';
+        await sendAdminReplyEmail(conversation.visitorEmail, {
+          customerName: conversation.visitorName || 'Traveler',
+          reference,
+          adminMessage: body,
+          replyUrl: `${SITE_URL}/my-bookings`,
+        });
       } catch (emailErr) {
         console.warn('[live-chat/reply] Email notification non-fatal error:', emailErr);
       }
