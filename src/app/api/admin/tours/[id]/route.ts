@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema, TourAddonSchema } from '@/utils/tourJsonSchemas';
+import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema, TourAddonSchema, isValidCoverImage } from '@/utils/tourJsonSchemas';
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 const ALLOWED_TYPES = ['SHARED', 'PRIVATE'];
 
@@ -269,7 +269,7 @@ export async function PUT(
         const missing: string[] = [];
         if (!title || title.startsWith('Untitled Experience')) missing.push('English title');
         if (!resolvedPrice || resolvedPrice <= 0) missing.push('price greater than 0');
-        if (!resolvedCover) missing.push('cover image');
+        if (!resolvedCover || !isValidCoverImage(resolvedCover)) missing.push('valid cover image asset or storage reference');
         if (!resolvedDest) missing.push('destination');
 
         if (missing.length > 0) {
@@ -473,7 +473,7 @@ export async function PATCH(
         const missing: string[] = [];
         if (!title || title.startsWith('Untitled Experience')) missing.push('English title');
         if (!resolvedPrice || resolvedPrice <= 0) missing.push('price greater than 0');
-        if (!resolvedCover) missing.push('cover image');
+        if (!resolvedCover || !isValidCoverImage(resolvedCover)) missing.push('valid cover image asset or storage reference');
         if (!resolvedDest) missing.push('destination');
 
         if (missing.length > 0) {

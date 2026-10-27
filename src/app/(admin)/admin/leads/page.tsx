@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   CheckCircle2, Clock3, Loader2, Search, UserRound, MessageSquare,
-  FileText, Calendar, DollarSign, X, ExternalLink, Save, Phone, Mail,
+  FileText, Calendar, DollarSign, X, ExternalLink, Save, Phone, Mail, Send,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -75,6 +75,20 @@ function LeadsContent() {
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [notesSaveNotice, setNotesSaveNotice] = useState(false);
 
+  // Linked live conversation & supplier operator info
+  const [leadConversation, setLeadConversation] = useState<{
+    id: string;
+    messages: Array<{ id: string; sender: 'VISITOR' | 'ADMIN'; body: string; createdAt: string }>;
+  } | null>(null);
+  const [operatorInfo, setOperatorInfo] = useState<{
+    name?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  } | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [isSendingReply, setIsSendingReply] = useState(false);
+  const [replySuccessNotice, setReplySuccessNotice] = useState(false);
+
   const loadLeads = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -118,6 +132,63 @@ function LeadsContent() {
     setActiveLead(lead);
     setDrawerNotes(lead.notes || '');
     setNotesSaveNotice(false);
+    setReplyText('');
+    setReplySuccessNotice(false);
+    setLeadConversation(null);
+    setOperatorInfo(null);
+
+    // Fetch conversation messages and tour operator information
+    fetch(`/api/admin/leads/${lead.id}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.lead) {
+          if (data.lead.messages) {
+            setLeadConversation({
+              id: data.lead.conversationId || '',
+              messages: data.lead.messages,
+            });
+          }
+          if (data.lead.operator) {
+            setOperatorInfo(data.lead.operator);
+          }
+        }
+      })
+      .catch((err) => console.warn('[leads] Failed to fetch linked conversation:', err));
+  };
+
+  const handleSendReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeLead || !replyText.trim() || isSendingReply) return;
+    setIsSendingReply(true);
+    try {
+      const res = await fetch(`/api/admin/leads/${activeLead.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: replyText.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.message) {
+        setLeadConversation((prev) => ({
+          id: data.conversationId || prev?.id || '',
+          messages: [...(prev?.messages || []), data.message],
+        }));
+        setReplyText('');
+        setReplySuccessNotice(true);
+        setTimeout(() => setReplySuccessNotice(false), 4000);
+        if (data.leadStatus) {
+          setLeads((current) =>
+            current.map((l) => (l.id === activeLead.id ? { ...l, status: data.leadStatus } : l))
+          );
+          setActiveLead((prev) => (prev ? { ...prev, status: data.leadStatus } : null));
+        }
+      } else {
+        alert(data.error || 'Failed to send reply.');
+      }
+    } catch {
+      alert('Network error sending reply.');
+    } finally {
+      setIsSendingReply(false);
+    }
   };
 
   // TAL-C5: Auto-open lead drawer if ?id= is present in the URL
@@ -427,6 +498,18 @@ function LeadsContent() {
               </div>
             </div>
 
+            {/* Supplier / Tour Operator (if assigned) */}
+            {operatorInfo?.name && (
+              <div className="rounded-2xl border border-white/10 bg-[#060D1A] p-4 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-300">Supplier / Tour Operator</p>
+                <div className="text-xs space-y-1 text-slate-300">
+                  <p className="font-bold text-white">{operatorInfo.name}</p>
+                  {operatorInfo.phone && <p className="text-slate-400">📞 {operatorInfo.phone}</p>}
+                  {operatorInfo.email && <p className="text-slate-400">✉️ {operatorInfo.email}</p>}
+                </div>
+              </div>
+            )}
+
             {/* Trip Details */}
             <div className="rounded-2xl border border-white/10 bg-[#060D1A] p-4 space-y-3">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Trip &amp; Reservation</p>
@@ -451,6 +534,65 @@ function LeadsContent() {
                   <span className="text-slate-300 uppercase text-[10px] font-mono">{activeLead.source}</span>
                 </div>
               </div>
+            </div>
+
+            {/* Shared Live Conversation & Direct Reply Box */}
+            <div className="rounded-2xl border border-white/10 bg-[#060D1A] p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5" /> Shared Conversation Stream
+                </p>
+                {replySuccessNotice && (
+                  <span className="text-[10px] text-emerald-400 font-bold">✓ Reply sent &amp; logged</span>
+                )}
+              </div>
+
+              {/* Message List */}
+              <div className="max-h-56 overflow-y-auto space-y-2.5 rounded-xl bg-[#0B1528] p-3 border border-white/5">
+                {leadConversation?.messages && leadConversation.messages.length > 0 ? (
+                  leadConversation.messages.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`rounded-xl p-2.5 text-xs leading-relaxed ${
+                        m.sender === 'ADMIN'
+                          ? 'bg-cyan-400/10 border border-cyan-400/20 text-cyan-100 ml-4'
+                          : 'bg-white/5 border border-white/10 text-white mr-4'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-bold opacity-60 mb-1">
+                        <span>{m.sender === 'ADMIN' ? 'TALAGO Staff' : (activeLead.customerName || 'Traveler')}</span>
+                        <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <p className="whitespace-pre-wrap">{m.body}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-500 py-3 text-center">
+                    No conversation messages yet for this traveler. Send a reply below to initiate.
+                  </p>
+                )}
+              </div>
+
+              {/* Direct Reply Form */}
+              <form onSubmit={handleSendReply} className="space-y-2 pt-1">
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  rows={2}
+                  placeholder="Type a direct reply to this traveler (appears in live chat &amp; email)..."
+                  className="w-full rounded-xl border border-white/10 bg-[#0B1528] p-3 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-300"
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSendingReply || !replyText.trim()}
+                    className="flex items-center gap-1.5 rounded-xl bg-[#00E5FF] px-4 py-2 text-xs font-black text-slate-950 hover:brightness-110 transition disabled:opacity-40"
+                  >
+                    {isSendingReply ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    Send Direct Reply
+                  </button>
+                </div>
+              </form>
             </div>
 
             {/* Internal Staff Notes */}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema, TourAddonSchema } from '@/utils/tourJsonSchemas';
+import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema, TourAddonSchema, isValidCoverImage } from '@/utils/tourJsonSchemas';
 
 const SLUG_REGEX = /^[a-z0-9-]+$/;
 const ALLOWED_TYPES = ['SHARED', 'PRIVATE'];
@@ -319,7 +319,7 @@ export async function POST(request: NextRequest) {
       const missing: string[] = [];
       if (!title || title.startsWith('Untitled Experience')) missing.push('English title');
       if (!price || price <= 0) missing.push('adult price greater than 0');
-      if (!cover) missing.push('cover image');
+      if (!cover || !isValidCoverImage(cover)) missing.push('valid cover image asset or storage reference');
       if (!dest) missing.push('destination');
 
       if (missing.length > 0) {

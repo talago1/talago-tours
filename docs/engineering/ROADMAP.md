@@ -227,4 +227,7 @@ The editor has **27 named section IDs** (numbered 1-27 with 18a/18b as sub-items
 | Mobile sticky bar viewport safety | Visual/Layout | PASS |
 | Robots & Sitemap multi-language | Static/API | PASS |
 | Content CMS save-reload & i18n isolation | Script | PASS |
+| Customer journey end-to-end integration (7/7 steps) | Integration | PASS |
+| CRM & Live Chat bidirectional reply & sync | Integration | PASS |
+| Cover image asset & storage reference validation | Schema/API | PASS |
 
