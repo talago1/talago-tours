@@ -306,9 +306,16 @@ export default function AdminMediaPage() {
     }
   };
 
+  // Folder creation inline validation message
+  const [newFolderError, setNewFolderError] = useState('');
+
   // Folder Operations
   const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) return;
+    if (!newFolderName.trim()) {
+      setNewFolderError('Please enter a folder name.');
+      return;
+    }
+    setNewFolderError('');
     try {
       const res = await fetch('/api/admin/media/folders', {
         method: 'POST',
@@ -316,18 +323,23 @@ export default function AdminMediaPage() {
         body: JSON.stringify({ name: newFolderName.trim(), bucket: newFolderBucket }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create folder.');
+      if (!res.ok) {
+        setNewFolderError(data.error || 'Failed to create folder.');
+        return;
+      }
 
+      const createdName = newFolderName.trim();
       setFolders(data.folders);
       setNewFolderName('');
       setShowNewFolder(false);
+      setMobileFolderDrawerOpen(false);
       if (data.folder) {
         setActiveFolder(data.folder);
       }
-      setBatchActionNotice({ message: `Folder "${newFolderName}" created.`, type: 'success' });
+      setBatchActionNotice({ message: `Folder "${createdName}" created.`, type: 'success' });
       setTimeout(() => setBatchActionNotice(null), 3000);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Could not create folder.');
+      setNewFolderError(err instanceof Error ? err.message : 'Could not create folder.');
     }
   };
 
@@ -832,12 +844,59 @@ export default function AdminMediaPage() {
               ))}
             </div>
 
-            <button
-              onClick={() => { setMobileFolderDrawerOpen(false); setShowNewFolder(true); }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#00E5FF]/30 bg-[#00E5FF]/10 py-3 text-xs font-bold text-[#00E5FF]"
-            >
-              <FolderPlus className="h-4 w-4" /> Add New Folder
-            </button>
+            {showNewFolder ? (
+              <div className="rounded-xl border border-[#00E5FF]/30 bg-[#0B1528] p-4 space-y-3 animate-in fade-in">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#00E5FF]">Create Folder</p>
+                <input
+                  autoFocus
+                  value={newFolderName}
+                  onChange={(e) => { setNewFolderName(e.target.value); setNewFolderError(''); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateFolder();
+                    if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderName(''); setNewFolderError(''); }
+                  }}
+                  placeholder="e.g. Hurghada Diving"
+                  className={`w-full rounded-lg bg-white/10 px-3 py-2.5 text-sm text-white placeholder-slate-500 outline-none border ${
+                    newFolderError ? 'border-red-400' : 'border-white/10 focus:border-[#00E5FF]'
+                  }`}
+                />
+                {newFolderError && (
+                  <p className="flex items-center gap-1.5 text-xs text-red-400">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    {newFolderError}
+                  </p>
+                )}
+                <select
+                  value={newFolderBucket}
+                  onChange={(e) => setNewFolderBucket(e.target.value as 'talago-tour-media' | 'talago-media')}
+                  className="w-full rounded-lg bg-white/10 px-3 py-2.5 text-sm text-white outline-none border border-white/10"
+                >
+                  <option value="talago-tour-media">Tours Bucket (talago-tour-media)</option>
+                  <option value="talago-media">General Bucket (talago-media)</option>
+                </select>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={handleCreateFolder}
+                    className="flex-1 rounded-xl bg-[#00E5FF] py-3 text-sm font-black text-[#070F1E] hover:brightness-110 transition-all"
+                  >
+                    Create Folder
+                  </button>
+                  <button
+                    onClick={() => { setShowNewFolder(false); setNewFolderName(''); setNewFolderError(''); }}
+                    className="flex-1 rounded-xl bg-white/5 py-3 text-sm font-bold text-slate-400 hover:bg-white/10 hover:text-white transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowNewFolder(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#00E5FF]/30 bg-[#00E5FF]/10 py-3 text-xs font-bold text-[#00E5FF] hover:bg-[#00E5FF]/20 transition-all"
+              >
+                <FolderPlus className="h-4 w-4" /> Add New Folder
+              </button>
+            )}
           </div>
         </div>
       )}

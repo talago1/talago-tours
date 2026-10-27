@@ -258,8 +258,29 @@ export async function PUT(
     if (infantPrice !== undefined) updateData.infantPrice = infantPrice !== null ? Number(infantPrice) : null;
     if (infantMinAge !== undefined) updateData.infantMinAge = infantMinAge !== null ? Number(infantMinAge) : null;
     if (infantMaxAge !== undefined) updateData.infantMaxAge = infantMaxAge !== null ? Number(infantMaxAge) : null;
-    if (ageRestrictionsNotes !== undefined) updateData.ageRestrictionsNotes = ageRestrictionsNotes;
-    if (status !== undefined) updateData.status = status;
+    if (status !== undefined) {
+      if (status === 'ACTIVE') {
+        const trans = (translations !== undefined ? translations : existing.translations) as Record<string, any> | null;
+        const title = trans?.en?.title?.trim();
+        const resolvedPrice = adultPrice !== undefined ? Number(adultPrice) : (basePriceUSD !== undefined ? Number(basePriceUSD) : Number(existing.adultPrice || existing.basePriceUSD || 0));
+        const resolvedCover = (coverImage !== undefined ? coverImage : existing.coverImage)?.trim();
+        const resolvedDest = destinationId !== undefined ? destinationId : existing.destinationId;
+
+        const missing: string[] = [];
+        if (!title || title.startsWith('Untitled Experience')) missing.push('English title');
+        if (!resolvedPrice || resolvedPrice <= 0) missing.push('price greater than 0');
+        if (!resolvedCover) missing.push('cover image');
+        if (!resolvedDest) missing.push('destination');
+
+        if (missing.length > 0) {
+          return NextResponse.json(
+            { error: `Cannot publish tour as active. Missing required fields: ${missing.join(', ')}.`, missingFields: missing },
+            { status: 400 }
+          );
+        }
+      }
+      updateData.status = status;
+    }
     if (category !== undefined) updateData.category = category;
     if (allowDeposit !== undefined) updateData.allowDeposit = allowDeposit;
     if (depositPercentage !== undefined) updateData.depositPercentage = depositPercentage !== null ? Number(depositPercentage) : 100;
@@ -442,6 +463,29 @@ export async function PATCH(
     const updateData: Record<string, unknown> = {};
 
     if (body.status !== undefined) {
+      if (body.status === 'ACTIVE') {
+        const trans = existing.translations as Record<string, any> | null;
+        const title = trans?.en?.title?.trim();
+        const resolvedPrice = Number(existing.adultPrice || existing.basePriceUSD || 0);
+        const resolvedCover = existing.coverImage?.trim();
+        const resolvedDest = existing.destinationId;
+
+        const missing: string[] = [];
+        if (!title || title.startsWith('Untitled Experience')) missing.push('English title');
+        if (!resolvedPrice || resolvedPrice <= 0) missing.push('price greater than 0');
+        if (!resolvedCover) missing.push('cover image');
+        if (!resolvedDest) missing.push('destination');
+
+        if (missing.length > 0) {
+          return NextResponse.json(
+            {
+              error: `Cannot activate tour. Missing required fields: ${missing.join(', ')}.`,
+              missingFields: missing,
+            },
+            { status: 400 }
+          );
+        }
+      }
       updateData.status = body.status;
     }
     if (body.category !== undefined) {

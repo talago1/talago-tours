@@ -162,7 +162,7 @@ export default function CountryCodeSelector({
 
           {/* Dropdown Menu */}
           {isOpen && (
-            <div className="absolute left-0 top-full z-50 mt-2 w-72 rounded-2xl border border-white/10 bg-[#0B1528] p-2 shadow-2xl shadow-black/80 backdrop-blur-xl">
+            <div className="absolute left-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-[#0B1528] p-2 shadow-2xl shadow-black/80 backdrop-blur-xl">
               {/* Search input */}
               <div className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2">
                 <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />

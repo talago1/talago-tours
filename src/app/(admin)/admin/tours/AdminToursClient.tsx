@@ -245,6 +245,7 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
   const [tours, setTours] = useState<Tour[]>(initialTours);
   const [search, setSearch] = useState('');
   const [selectedDestination, setSelectedDestination] = useState('All');
+  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [previewTour, setPreviewTour] = useState<Tour | null>(null);
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const [togglingStatusId, setTogglingStatusId] = useState<string | null>(null);
@@ -259,7 +260,14 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
   }
 
   async function handleToggleStatus(tour: Tour) {
-    const newStatus = tour.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    let newStatus: string;
+    if (tour.status === 'ARCHIVED') {
+      if (!confirm(`Restore "${getTourTitle(tour.translations)}" from ARCHIVED to ACTIVE?`)) return;
+      newStatus = 'ACTIVE';
+    } else {
+      newStatus = tour.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    }
+
     setTogglingStatusId(tour.id);
     try {
       const res = await fetch(`/api/admin/tours/${tour.id}`, {
@@ -363,12 +371,21 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
     }
   }
 
+  const statusCounts = {
+    ALL: tours.length,
+    ACTIVE: tours.filter((t) => t.status === 'ACTIVE').length,
+    INACTIVE: tours.filter((t) => t.status === 'INACTIVE').length,
+    ARCHIVED: tours.filter((t) => t.status === 'ARCHIVED').length,
+    DRAFT: tours.filter((t) => t.status === 'DRAFT').length,
+  };
+
   const filtered = tours.filter((t) => {
     const matchesSearch =
       getTourTitle(t.translations).toLowerCase().includes(search.toLowerCase()) ||
       t.slug.toLowerCase().includes(search.toLowerCase());
     const matchesDest = selectedDestination === 'All' || t.destination.name === selectedDestination;
-    return matchesSearch && matchesDest;
+    const matchesStatus = selectedStatus === 'ALL' || t.status === selectedStatus;
+    return matchesSearch && matchesDest && matchesStatus;
   });
 
   return (
@@ -395,8 +412,8 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
         </div>
 
         {/* Filters */}
-        <section className="mb-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_240px]">
+        <section className="mb-6 space-y-4 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_200px_200px]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <input
@@ -419,6 +436,41 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
                 </option>
               ))}
             </select>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="rounded-2xl border border-white/10 bg-[#070F1E]/70 px-4 py-3 text-sm font-bold text-slate-300 outline-none focus:border-[#00E5FF]"
+            >
+              <option value="ALL">All Statuses ({statusCounts.ALL})</option>
+              <option value="ACTIVE">Active ({statusCounts.ACTIVE})</option>
+              <option value="INACTIVE">Inactive ({statusCounts.INACTIVE})</option>
+              <option value="ARCHIVED">Archived ({statusCounts.ARCHIVED})</option>
+              {statusCounts.DRAFT > 0 && <option value="DRAFT">Draft ({statusCounts.DRAFT})</option>}
+            </select>
+          </div>
+
+          {/* Quick status pill filters */}
+          <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
+            {(['ALL', 'ACTIVE', 'INACTIVE', 'ARCHIVED'] as const).map((statusKey) => (
+              <button
+                key={statusKey}
+                type="button"
+                onClick={() => setSelectedStatus(statusKey)}
+                className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-all ${
+                  selectedStatus === statusKey
+                    ? statusKey === 'ACTIVE'
+                      ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                      : statusKey === 'ARCHIVED'
+                      ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20'
+                      : statusKey === 'INACTIVE'
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                      : 'bg-[#00E5FF] text-slate-950 shadow-md shadow-[#00E5FF]/20'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {statusKey === 'ALL' ? 'All' : statusKey.charAt(0) + statusKey.slice(1).toLowerCase()} ({statusCounts[statusKey]})
+              </button>
+            ))}
           </div>
         </section>
 
@@ -453,14 +505,28 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
                     type="button"
                     onClick={() => handleToggleStatus(tour)}
                     disabled={togglingStatusId === tour.id}
-                    title="Click to toggle Active / Inactive status"
+                    title={
+                      tour.status === 'ARCHIVED'
+                        ? 'Click to restore archived tour to Active'
+                        : 'Click to toggle Active / Inactive status'
+                    }
                     className={`absolute right-3 top-3 flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider transition-all backdrop-blur-sm ${
                       tour.status === 'ACTIVE'
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                        : tour.status === 'ARCHIVED'
+                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30'
                         : 'bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30'
                     }`}
                   >
-                    <span className={`h-1.5 w-1.5 rounded-full ${tour.status === 'ACTIVE' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        tour.status === 'ACTIVE'
+                          ? 'bg-emerald-400'
+                          : tour.status === 'ARCHIVED'
+                          ? 'bg-purple-400'
+                          : 'bg-amber-400'
+                      }`}
+                    />
                     {tour.status}
                   </button>
 

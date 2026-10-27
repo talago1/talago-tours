@@ -1,12 +1,14 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { MessageCircle, Send, X } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabase/client';
 
 type ChatMessage = { id: string; sender: 'VISITOR' | 'ADMIN'; body: string; createdAt: string };
 
 export default function LiveChatWidget() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [contactMenuOpen, setContactMenuOpen] = useState(false);
   const [ready, setReady] = useState(false);
@@ -19,6 +21,13 @@ export default function LiveChatWidget() {
   const [visibleAdminReply, setVisibleAdminReply] = useState<string | null>(null);
   const knownAdminMessageIds = useRef(new Set<string>());
   const didLoadMessages = useRef(false);
+
+  // Check if current page is a tour detail page where the mobile sticky booking bar is visible
+  const isTourDetailPage = Boolean(
+    pathname &&
+    /^\/tours\/[^/]+$/.test(pathname) &&
+    !['checkout', 'boarding-pass', 'voucher'].includes(pathname.split('/')[2])
+  );
 
   const startSession = useCallback(async (details = {}) => {
     const response = await fetch('/api/public/live-chat/session', {
@@ -80,10 +89,18 @@ export default function LiveChatWidget() {
     } finally { setSending(false); }
   };
 
-  const whatsappUrl = 'https://wa.me/2010222434602?text=Hello%20TALAGO%20Marketplace%2C%20I%20need%20help%20with%20an%20experience.';
+  const configuredWhatsApp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '2010222434602';
+  const sanitizedWhatsApp = configuredWhatsApp.replace(/\D/g, '');
+  const whatsappUrl = `https://wa.me/${sanitizedWhatsApp}?text=Hello%20TALAGO%20Marketplace%2C%20I%20need%20help%20with%20an%20experience.`;
 
   return (
-    <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 flex flex-col items-end lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]">
+    <div
+      className={`fixed ${
+        isTourDetailPage
+          ? 'bottom-[calc(6.5rem+env(safe-area-inset-bottom))]'
+          : 'bottom-[calc(1.5rem+env(safe-area-inset-bottom))]'
+      } right-[calc(1rem+env(safe-area-inset-right))] z-40 flex flex-col items-end lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]`}
+    >
       {visibleAdminReply && !open && (
         <button type="button" onClick={() => { setOpen(true); setHasUnreadAdminReply(false); setVisibleAdminReply(null); setContactMenuOpen(false); }} className="mb-3 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-cyan-300/40 bg-[#0B1528] p-4 text-left shadow-2xl shadow-black/50 transition hover:border-cyan-200">
           <div className="flex items-start gap-3"><span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-300 text-xs font-black text-slate-950">T</span><span className="min-w-0"><strong className="block text-sm font-black text-white">New message from TALAGO</strong><span className="mt-1 block max-h-12 overflow-hidden text-xs leading-5 text-slate-300">{visibleAdminReply}</span><span className="mt-2 block text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-200">Open chat to reply</span></span></div>

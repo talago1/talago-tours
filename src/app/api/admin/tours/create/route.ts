@@ -310,6 +310,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (status === 'ACTIVE') {
+      const title = safeTranslations?.en?.title?.trim();
+      const price = resolvedAdultPrice || resolvedBasePrice;
+      const cover = coverImage?.trim();
+      const dest = resolvedDestinationId;
+
+      const missing: string[] = [];
+      if (!title || title.startsWith('Untitled Experience')) missing.push('English title');
+      if (!price || price <= 0) missing.push('adult price greater than 0');
+      if (!cover) missing.push('cover image');
+      if (!dest) missing.push('destination');
+
+      if (missing.length > 0) {
+        return NextResponse.json(
+          {
+            error: `Cannot publish tour as active. Missing required fields: ${missing.join(', ')}.`,
+            missingFields: missing,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const existing = await prisma.tour.findUnique({ where: { slug: resolvedSlug } });
     if (existing) {
       if (isDraft) {
