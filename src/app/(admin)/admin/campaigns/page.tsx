@@ -19,6 +19,10 @@ import {
   Users,
   AlertCircle,
   Loader2,
+  ShoppingCart,
+  RotateCcw,
+  Clock,
+  Phone,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -37,7 +41,7 @@ interface Campaign {
 }
 
 export default function AdminCampaignsPage() {
-  const [activeTab, setActiveTab] = useState<'codes' | 'newsletter'>('codes');
+  const [activeTab, setActiveTab] = useState<'codes' | 'newsletter' | 'recovery'>('codes');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +71,19 @@ export default function AdminCampaignsPage() {
   const [blastError, setBlastError] = useState<string | null>(null);
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
 
+  // Abandoned recovery states
+  const [recoveryStats, setRecoveryStats] = useState<{
+    total: number;
+    recovered: number;
+    pendingReminder: number;
+    sentReminder: number;
+    recoveryRate: number;
+  } | null>(null);
+  const [abandonedList, setAbandonedList] = useState<any[]>([]);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [triggeringRecovery, setTriggeringRecovery] = useState(false);
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
+
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -82,14 +99,46 @@ export default function AdminCampaignsPage() {
     }
   }, []);
 
+  const fetchRecoveryData = useCallback(async () => {
+    setRecoveryLoading(true);
+    try {
+      const res = await fetch('/api/admin/abandoned-checkouts');
+      if (res.ok) {
+        const data = await res.json();
+        setRecoveryStats(data.stats);
+        setAbandonedList(data.checkouts || []);
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setRecoveryLoading(false);
+    }
+  }, []);
+
+  const handleTriggerRecovery = async () => {
+    setTriggeringRecovery(true);
+    setRecoveryNotice(null);
+    try {
+      const res = await fetch('/api/admin/abandoned-checkouts', { method: 'POST' });
+      const data = await res.json();
+      setRecoveryNotice(data.message || 'Recovery run completed.');
+      await fetchRecoveryData();
+    } catch {
+      setRecoveryNotice('Failed to trigger recovery run.');
+    } finally {
+      setTriggeringRecovery(false);
+    }
+  };
+
   useEffect(() => {
     fetchCampaigns();
+    fetchRecoveryData();
     // Fetch subscriber count for the newsletter tab
     fetch('/api/admin/newsletter/blast')
       .then((r) => r.json())
       .then((d) => setSubscriberCount(d.activeSubscribers ?? null))
       .catch(() => {});
-  }, [fetchCampaigns]);
+  }, [fetchCampaigns, fetchRecoveryData]);
 
   const handleBlast = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -294,6 +343,23 @@ export default function AdminCampaignsPage() {
               </span>
             )}
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('recovery')}
+            className={`flex items-center gap-2 rounded-t-xl px-5 py-3 text-xs font-black uppercase tracking-wider transition-all ${
+              activeTab === 'recovery'
+                ? 'border-b-2 border-emerald-400 text-emerald-400'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Cart Recovery
+            {recoveryStats?.pendingReminder ? (
+              <span className="ml-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-black text-amber-300">
+                {recoveryStats.pendingReminder} pending
+              </span>
+            ) : null}
+          </button>
         </div>
 
         {/* Newsletter Blast Panel */}
@@ -417,6 +483,168 @@ export default function AdminCampaignsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Abandoned Cart Recovery Panel */}
+        {activeTab === 'recovery' && (
+          <div className="mb-8 space-y-6">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-5 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Total Abandoned</span>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-amber-400">
+                    <ShoppingCart className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="mt-3 text-3xl font-black text-white">{recoveryStats?.total ?? '—'}</p>
+                <p className="mt-1 text-xs text-slate-500">Uncompleted checkout sessions</p>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-5 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Recovered Rate</span>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="mt-3 text-3xl font-black text-emerald-400">{recoveryStats?.recoveryRate ?? 0}%</p>
+                <p className="mt-1 text-xs text-slate-500">{recoveryStats?.recovered ?? 0} bookings recovered</p>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-5 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Reminders Sent</span>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
+                    <Send className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="mt-3 text-3xl font-black text-[#00E5FF]">{recoveryStats?.sentReminder ?? '—'}</p>
+                <p className="mt-1 text-xs text-slate-500">Dispatched via Email &amp; WhatsApp</p>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-5 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Pending Follow-up</span>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
+                    <Clock className="h-4 w-4" />
+                  </div>
+                </div>
+                <p className="mt-3 text-3xl font-black text-amber-400">{recoveryStats?.pendingReminder ?? '—'}</p>
+                <p className="mt-1 text-xs text-slate-500">Awaiting automated recovery</p>
+              </div>
+            </div>
+
+            {/* Notice / Action Banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-6">
+              <div>
+                <h3 className="text-base font-black text-white flex items-center gap-2">
+                  <RotateCcw className="h-5 w-5 text-emerald-400" />
+                  Automated Cart Recovery Engine
+                </h3>
+                <p className="mt-1 text-xs text-slate-400 max-w-xl">
+                  Dispatches branded recovery emails with direct resume links and WhatsApp reminders to leads older than 30 minutes. Runs automatically via cron, or trigger manually below.
+                </p>
+                {recoveryNotice && (
+                  <p className="mt-2 text-xs font-bold text-emerald-300">✓ {recoveryNotice}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleTriggerRecovery}
+                disabled={triggeringRecovery}
+                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3.5 text-xs font-black uppercase tracking-wider text-[#070F1E] hover:bg-emerald-400 disabled:opacity-50 transition-all shadow-xl shadow-emerald-500/20 shrink-0"
+              >
+                {triggeringRecovery ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
+                ) : (
+                  <><Send className="h-4 w-4" /> Run Recovery Now</>
+                )}
+              </button>
+            </div>
+
+            {/* Recent Abandoned Sessions Table */}
+            <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#0B1528] shadow-2xl">
+              <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+                <h4 className="text-sm font-black text-white">Recent Abandoned Checkouts</h4>
+                <button
+                  type="button"
+                  onClick={fetchRecoveryData}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white"
+                >
+                  <RotateCcw className={`h-3.5 w-3.5 ${recoveryLoading ? 'animate-spin' : ''}`} /> Refresh
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-white/10 bg-[#070F1E] text-xs uppercase tracking-[0.18em] text-slate-400">
+                    <tr>
+                      <th className="px-6 py-4">Customer</th>
+                      <th className="px-6 py-4">Tour Experience</th>
+                      <th className="px-6 py-4">Contact</th>
+                      <th className="px-6 py-4">Travel Date</th>
+                      <th className="px-6 py-4">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.06]">
+                    {recoveryLoading && abandonedList.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
+                            <span>Loading abandoned checkouts...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : abandonedList.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                          No abandoned checkouts recorded yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      abandonedList.map((entry) => (
+                        <tr key={entry.id} className="hover:bg-white/[0.02]">
+                          <td className="px-6 py-4 font-bold text-white">
+                            {entry.name}
+                            <span className="block text-xs font-normal text-slate-500">
+                              {new Date(entry.createdAt).toLocaleString()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-slate-200">
+                            {entry.tourTitle || entry.tourId}
+                            <span className="block text-xs text-slate-500">{entry.guestCount} guest(s)</span>
+                          </td>
+                          <td className="px-6 py-4 text-xs font-mono text-slate-400">
+                            <div>{entry.phone}</div>
+                            {entry.email && <div className="text-slate-500">{entry.email}</div>}
+                          </td>
+                          <td className="px-6 py-4 text-xs text-slate-300">
+                            {entry.travelDate || '—'}
+                          </td>
+                          <td className="px-6 py-4">
+                            {entry.isRecovered ? (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-300">
+                                <CheckCircle2 className="h-3 w-3" /> Recovered
+                              </span>
+                            ) : entry.reminderSent ? (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-2.5 py-1 text-xs font-bold text-[#00E5FF]">
+                                <Send className="h-3 w-3" /> Reminder Sent
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-300">
+                                <Clock className="h-3 w-3" /> Pending Follow-up
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
         )}
 

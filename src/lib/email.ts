@@ -220,6 +220,69 @@ export async function sendAdminReplyEmail(
 }
 
 // ---------------------------------------------------------------------------
+// Abandoned checkout recovery email
+// ---------------------------------------------------------------------------
+
+export interface AbandonedCheckoutEmailData {
+  customerName: string;
+  tourName: string;
+  checkoutUrl: string;
+  travelDate?: string;
+  guestCount?: number;
+}
+
+export async function sendAbandonedCheckoutEmail(
+  to: string,
+  data: AbandonedCheckoutEmailData,
+): Promise<void> {
+  const resend = getResendClient();
+
+  const html = layout(`
+    <div style="text-align:center;margin-bottom:24px;">
+      <span style="display:inline-block;padding:6px 14px;background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.3);border-radius:999px;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#06b6d4;">
+        Spot Held For You
+      </span>
+    </div>
+
+    <h2 style="margin:0 0 10px;font-size:24px;font-weight:900;color:#fff;text-align:center;">
+      Did you leave something behind? 🌊
+    </h2>
+    <p style="margin:0 0 24px;color:rgba(255,255,255,0.65);font-size:14px;line-height:1.7;text-align:center;">
+      Hi ${data.customerName}, we noticed you started booking <strong style="color:#fff;">${data.tourName}</strong>, but didn't finish.
+      Your spot is held for a limited time — complete your booking now to guarantee your adventure!
+    </p>
+
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:20px;margin-bottom:28px;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tbody>
+          ${tableRow('Tour Experience', data.tourName)}
+          ${data.travelDate ? tableRow('Preferred Date', data.travelDate) : ''}
+          ${data.guestCount ? tableRow('Guests', String(data.guestCount)) : ''}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="text-align:center;margin-bottom:24px;">
+      ${primaryBtn(data.checkoutUrl, 'Finish Your Booking Now →')}
+    </div>
+
+    <p style="text-align:center;color:rgba(255,255,255,0.35);font-size:12px;margin:0;line-height:1.6;">
+      Have special requests or questions? Our concierge team is available 24/7 on WhatsApp.
+    </p>
+  `);
+
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `Did you leave something behind? Your ${data.tourName} experience awaits 🌊`,
+    html,
+  });
+  if (error) {
+    throw new Error(`Resend abandoned-checkout email failed: ${error.message}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Generic helper — used by the magic-link API route and newsletter blast
 // ---------------------------------------------------------------------------
 

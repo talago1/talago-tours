@@ -1,27 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isAdminRequest } from '@/utils/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * GET /api/notifications/abandoned-recovery
- *
- * Cron-friendly endpoint. Finds all unrecovered abandoned checkouts older
- * than 30 minutes with no reminder sent, and dispatches a WhatsApp/Telegram
- * follow-up for each.
- *
- * Secure via CRON_SECRET header. Call this from a cron job every 5 minutes.
- * Example: curl -H "Authorization: Bearer <CRON_SECRET>" https://talago.com/api/notifications/abandoned-recovery
- */
-export async function GET(request: NextRequest) {
-  // Authorization: require the CRON_SECRET bearer token
+function isAuthorized(request: NextRequest): boolean {
+  if (isAdminRequest(request)) return true;
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '').trim();
-    if (token !== cronSecret) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (token === cronSecret) return true;
+  }
+  // In development without CRON_SECRET or ADMIN_API_TOKEN, allow internal testing
+  if (!cronSecret && !process.env.ADMIN_API_TOKEN && process.env.NODE_ENV === 'development') {
+    return true;
+  }
+  return false;
+}
+
+export async function POST(request: NextRequest) {
+  return handleRecovery(request);
+}
+
+export async function GET(request: NextRequest) {
+  return handleRecovery(request);
+}
+
+async function handleRecovery(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
