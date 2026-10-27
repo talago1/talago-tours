@@ -121,14 +121,30 @@ Session Date: 2026-10-26
 - **Footer Copyright Verification**: Set footer copyright strictly to 2016 (`&copy; 2016 TALAGO Experiences Ltd. All rights reserved.`) in `src/app/(public)/layout.tsx`.
 - **Full Production Build (`npm run build`)**: Verified 80/80 static and dynamic routes compiled, optimized, and verified with zero errors.
 
+### Batch N: CRM, Booking Leads & Live Chat Unification & Journey Verification
+- **Cover Image Asset Verification**: Implemented `isValidCoverImage` in `src/utils/tourJsonSchemas.ts` verifying that cover images are actual supported image formats or storage references, while draft tours can continue to be saved incomplete.
+- **Admin Leads CRM & Live Chat Integration**:
+  - Enhanced `/api/admin/leads/[id]/route.ts` GET to resolve both `INQ-` and `RES-` conversation references, fetch linked tour operator details, and retrieve chat messages in chronological order.
+  - Added `POST` handler to `/api/admin/leads/[id]` enabling staff to reply directly from the Lead detail drawer, auto-advancing lead status from `INTERESTED` to `CONTACTED`, creating `NotificationLog` records, and dispatching customer email notifications.
+  - Enhanced `/api/admin/live-chat/[conversationId]/route.ts` to advance any linked lead from `INTERESTED` to `CONTACTED` upon admin inbox reply and notify the customer.
+  - Upgraded `/admin/leads` drawer with shared conversation stream, supplier/tour operator details, and direct reply form.
+- **7-Point Customer Journey Verification**:
+  - Successfully executed isolated test suite `scratch/verify_customer_journey.ts`:
+    1. Booking interest creates `BookingLead` with `RES-...` reference.
+    2. Lead and linked conversation appear in administration with message history and operator info.
+    3. Administrator replies directly to traveler; lead auto-advances to `CONTACTED` and `NotificationLog` records delivery.
+    4. Customer session receives admin reply via visitor token.
+    5. Inquiries (`INQ-...`) create independent leads without creating false bookings or consuming capacity.
+    6. Interest conversion preserves original notes, source, and complete conversation history.
+    7. Visitor token isolation guarantees unauthorized accounts cannot access other visitors' messages.
+
 ---
 
 ## 3. Verification & Regressions Summary
 
 - **Production Build**: `npm run build` exited with code 0 (All 80 routes and API handlers compiled and statically optimized).
 - **TypeScript Static Verification**: `npx tsc --noEmit` exited with code 0 (ZERO errors across the entire codebase).
-- **ESLint Verification**: `npm run lint` exited with code 0.
-- **Template Verification**: `node scripts/test_tour_template.cjs` passed (28/28 section headings verified).
+- **Customer Journey Integration Test**: `verify_customer_journey.ts` passed (7/7 steps green).
 - **Catalog Retirement Verification**: Exactly 162 untrusted Egypt Gate legacy tours retired to `ARCHIVED`; 69 curated Talago tours 100% preserved. Zero database rows dropped.
 
 ---
@@ -139,7 +155,7 @@ For any future session or operator:
 - Repository is clean, fully verified, and passing strict TypeScript + Next.js build.
 - Operators can download the authoritative 28-section tour template from `/templates/talago-tour-template-28-sections.txt` or directly within the Tour Editor under the "Import from Text" tab.
 - Folders can be organized directly in `/admin/media` with responsive multi-selection on mobile/desktop, and images moved via the server-side `/api/admin/media/move` endpoint without client re-upload.
-- Admin leads in `/admin/leads` and inquiries in `/admin/inbox` support both `RES-...` and `INQ-...` references.
+- Admin leads in `/admin/leads` and inquiries in `/admin/inbox` support both `RES-...` and `INQ-...` references with shared message streams and bidirectional replies.
 - Content studio in `/admin/content` provides AI translation, polishing, and FAQ drafting across all 8 configured languages with isolated persistence.
 
 

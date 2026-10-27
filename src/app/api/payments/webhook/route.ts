@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
 
     const booking = await prisma.booking.findUnique({
       where: { bookingReference: merchantOrderId },
+      include: { tour: { select: { translations: true, slug: true } } },
     });
 
     if (!booking) {
@@ -143,6 +144,33 @@ export async function POST(request: NextRequest) {
         where: { bookingId: booking.id, status: { not: 'CONVERTED' } },
         data: { status: 'CONVERTED' },
       });
+
+      // Send branded booking confirmation email (non-fatal)
+      if (booking.customerEmail && process.env.RESEND_API_KEY) {
+        try {
+          const { sendBookingConfirmationEmail } = await import('@/lib/email');
+          const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://talago.com';
+          const tourTranslations = booking.tour?.translations as Record<string, { title?: string }> | null;
+          const tourName =
+            (tourTranslations && (tourTranslations[booking.language]?.title || tourTranslations.en?.title)) ||
+            booking.tour?.slug ||
+            'Your Tour';
+
+          await sendBookingConfirmationEmail(booking.customerEmail, {
+            customerName: booking.customerName,
+            tourName,
+            bookingReference: booking.bookingReference,
+            travelDate: booking.travelDate.toLocaleDateString('en-US', {
+              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+            }),
+            guestCount: booking.guestCount,
+            totalPriceUSD: booking.totalPriceUSD,
+            confirmationUrl: `${SITE_URL}/booking/${booking.accessToken}`,
+          });
+        } catch (emailErr) {
+          console.warn('[webhook] Confirmation email non-fatal error:', emailErr);
+        }
+      }
 
       return NextResponse.json({
         status: 'accepted',

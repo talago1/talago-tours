@@ -251,3 +251,23 @@ export const TourScheduleRuleSchema = z.object({
 
 export type TourScheduleRuleEntry = z.infer<typeof TourScheduleRuleSchema>;
 
+// ---------------------------------------------------------------------------
+// Cover Image Asset & Storage Reference Validation
+// ---------------------------------------------------------------------------
+export function isValidCoverImage(url: unknown): boolean {
+  if (typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined' || trimmed.startsWith('[object')) {
+    return false;
+  }
+  // Must be a valid absolute HTTP(S) URL or relative media path
+  const isHttpUrl = /^https?:\/\/[^\s$.?#].[^\s]*$/i.test(trimmed);
+  const isRelativeMediaPath = /^\/(?:images|uploads|media|storage)\/[^\s]+$/i.test(trimmed);
+  if (!isHttpUrl && !isRelativeMediaPath) {
+    return false;
+  }
+  // Check image extension or storage endpoint pattern
+  const hasImageExt = /\.(jpe?g|png|webp|avif|gif|svg)(\?.*)?$/i.test(trimmed);
+  const isStorageReference = /(?:supabase\.co\/storage\/v1\/object\/public|talago-(?:tour-)?media|\/storage\/|\/media\/)/i.test(trimmed);
+  return hasImageExt || isStorageReference;
+}

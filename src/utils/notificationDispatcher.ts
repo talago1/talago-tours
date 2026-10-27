@@ -319,19 +319,38 @@ export async function dispatchAbandonedCheckoutReminder(
     const baseUrl = getBaseUrl();
     const tour = await prisma.tour.findUnique({
       where: { id: entry.tourId },
-      select: { slug: true },
+      select: { id: true, slug: true, translations: true },
     });
+    const tourTranslations = tour?.translations as Record<string, { title?: string }> | null;
+    const tourTitle = tourTranslations?.en?.title || tour?.slug || 'Talago Experience';
     const tourSlug = tour?.slug || entry.tourId;
+    const checkoutUrl = `${baseUrl}/checkout/${tour?.id || entry.tourId}`;
     const tourUrl = `${baseUrl}/tours/${tourSlug}`;
     const message = `Hey ${entry.name}! 👋
 
-We noticed you started booking a Talago experience but didn't get to finish.
+We noticed you started booking ${tourTitle} but didn't get to finish.
 
 Your spot may still be available — finish your booking now:
-${tourUrl}
+${checkoutUrl}
 
 Need help or have questions? WhatsApp us directly at +20 102 224 3460.
 — Talago Tours Team 🌊`;
+
+    // Branded email recovery reminder
+    if (entry.email && process.env.RESEND_API_KEY) {
+      try {
+        const { sendAbandonedCheckoutEmail } = await import('@/lib/email');
+        await sendAbandonedCheckoutEmail(entry.email, {
+          customerName: entry.name,
+          tourName: tourTitle,
+          checkoutUrl,
+          travelDate: entry.travelDate || undefined,
+          guestCount: entry.guestCount,
+        });
+      } catch (emailErr) {
+        console.warn('[notificationDispatcher] Abandoned recovery email error:', emailErr);
+      }
+    }
 
     // WhatsApp reminder
     const instanceId = process.env.GREEN_API_ID;

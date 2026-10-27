@@ -28,6 +28,23 @@ export async function POST(request: NextRequest, { params }: { params: { convers
     const message = await prisma.liveChatMessage.create({ data: { conversationId: conversation.id, sender: LiveChatSender.ADMIN, body } });
     await prisma.liveChatConversation.update({ where: { id: conversation.id }, data: { status: LiveChatStatus.OPEN, lastMessageAt: new Date() } });
 
+    // Synchronize CRM: advance any linked lead from INTERESTED to CONTACTED
+    if (conversation.visitorEmail || conversation.visitorPhone) {
+      await prisma.bookingLead.updateMany({
+        where: {
+          status: 'INTERESTED',
+          OR: [
+            ...(conversation.visitorEmail ? [{ customerEmail: conversation.visitorEmail }] : []),
+            ...(conversation.visitorPhone ? [{ customerPhone: conversation.visitorPhone }] : []),
+          ],
+        },
+        data: {
+          status: 'CONTACTED',
+          updatedAt: new Date(),
+        },
+      }).catch(() => {});
+    }
+
     // TAL-C6: Record admin reply in NotificationLog for monitoring
     await prisma.notificationLog.create({
       data: {
@@ -38,6 +55,25 @@ export async function POST(request: NextRequest, { params }: { params: { convers
         messageId: message.id,
       },
     }).catch(() => {});
+
+    // Dispatch branded email notification to visitor if email is present
+    if (conversation.visitorEmail && process.env.RESEND_API_KEY) {
+      try {
+        const { sendAdminReplyEmail } = await import('@/lib/email');
+        const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://talago.com';
+        // Extract any reservation/inquiry reference from the conversation messages
+        const refMatch = body.match(/\[((?:RES|INQ)-[A-Z0-9]+)\]/);
+        const reference = refMatch?.[1] ?? 'CHAT';
+        await sendAdminReplyEmail(conversation.visitorEmail, {
+          customerName: conversation.visitorName || 'Traveler',
+          reference,
+          adminMessage: body,
+          replyUrl: `${SITE_URL}/my-bookings`,
+        });
+      } catch (emailErr) {
+        console.warn('[live-chat/reply] Email notification non-fatal error:', emailErr);
+      }
+    }
 
     return NextResponse.json({ message }, { status: 201 });
   } catch {

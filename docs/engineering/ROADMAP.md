@@ -210,6 +210,18 @@ The editor has **27 named section IDs** (numbered 1-27 with 18a/18b as sub-items
 
 ---
 
+## Phase 9 — Branded Email Infrastructure & Newsletter Campaign Engine
+
+> Added 2026-10-27. Implements direct marketing, automated customer notifications, and branded email communications.
+
+- **TAL-M1** `[IMPLEMENTED & VERIFIED]` **Branded Email Layout**: Upgraded `src/lib/email.ts` with dark luxury Talago branding (`#070F1E` / `#06B6D4` / `#EAB308`), responsive table structure, header logo, and transactional footer. Added `sendAdminReplyEmail` with reference badge and original query context.
+- **TAL-M2** `[IMPLEMENTED & VERIFIED]` **Payment Webhook Confirmation Email**: Integrated automatic customer booking confirmation email dispatch upon successful Paymob webhook event (`/api/payments/webhook`). Localizes tour title from multilingual translations with fallback to tour slug.
+- **TAL-M3** `[IMPLEMENTED & VERIFIED]` **Newsletter Blast API & Unsubscribe**: Auth-guarded `/api/admin/newsletter/blast` sends batched emails (10/batch with 300ms throttle and 10-minute cooldown) with optional embedded promo code deep links (`/tours?promo=CODE`). Built 1-click unsubscribe handler at `/api/newsletter/unsubscribe` updating subscriber state to inactive and rendering branded confirmation.
+- **TAL-M4** `[IMPLEMENTED & VERIFIED]` **Admin Campaign Newsletter UI**: Added tab switcher and newsletter composition studio to `/admin/campaigns` (`page.tsx`) showing live subscriber count, rich HTML textarea, promo code auto-attacher, and live sending progress/diagnostics.
+- **TAL-M5** `[IMPLEMENTED & VERIFIED]` **Mobile Folder Creation Dialog**: Fixed mobile and small-screen folder creation in `/admin/media` by replacing hidden desktop sidebar inline form with a dedicated, centered modal dialog (`Create Folder Modal`). Opens cleanly from header button, mobile folder drawer, and sidebar at any viewport width.
+- **TAL-M6** `[IMPLEMENTED & VERIFIED]` **Abandoned Cart Recovery Engine & Studio**: Built `/api/admin/abandoned-checkouts` (GET stats/logs, POST manual trigger) and automated cron recovery (`/api/notifications/abandoned-recovery`). Dispatches branded recovery email (`sendAbandonedCheckoutEmail`) and WhatsApp reminder with direct checkout resumption link. Integrated Cart Recovery dashboard tab with KPI cards, recovery rate %, and candidate tracking inside `/admin/campaigns`.
+
+---
 
 | Test | Type | Status |
 |---|---|---|
@@ -227,4 +239,12 @@ The editor has **27 named section IDs** (numbered 1-27 with 18a/18b as sub-items
 | Mobile sticky bar viewport safety | Visual/Layout | PASS |
 | Robots & Sitemap multi-language | Static/API | PASS |
 | Content CMS save-reload & i18n isolation | Script | PASS |
+| Customer journey end-to-end integration (7/7 steps) | Integration | PASS |
+| CRM & Live Chat bidirectional reply & sync | Integration | PASS |
+| Cover image asset & storage reference validation | Schema/API | PASS |
+| Newsletter blast & unsubscribe lifecycle | Integration | PASS |
+| Payment webhook confirmation email dispatch | Integration | PASS |
+| Mobile folder creation modal & persistence | Layout/Static | PASS |
+| Abandoned cart email recovery & admin dashboard | Integration | PASS |
+| `npm run build` production release | Build | PASS |
 
