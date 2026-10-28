@@ -51,6 +51,7 @@ const selectFields = {
   cancellationPolicy: true,
   tourOptions: true,
   bookingQuestions: true,
+  pickupAreas: true,
   destination: {
     select: { id: true, name: true, slug: true },
   },

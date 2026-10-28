@@ -420,7 +420,17 @@ export default function CheckoutPage() {
 
         // Pickup zones come only from the tour destination's admin-managed Zone records.
         // Do not invent fallback zones on checkout: a price must always be traceable.
-        const zonesList: ZoneOption[] = Array.isArray(data.availableZones) ? data.availableZones : [];
+        // If the tour has custom per-tour pickup areas, prioritize them over destination zones
+        const customPickupAreas = Array.isArray(data.pickupAreas) && data.pickupAreas.length > 0
+          ? data.pickupAreas.map((area: any) => ({
+              id: area.id || area.name,
+              name: area.name,
+              transferFee: area.isFree ? 0 : Number(area.price || 0),
+              instructions: area.notes || undefined,
+            }))
+          : null;
+
+        const zonesList: ZoneOption[] = customPickupAreas || (Array.isArray(data.availableZones) ? data.availableZones : []);
         setAvailableZones(zonesList);
         if (zonesList.length > 0) {
           setSelectedZoneId(zonesList[0].id);
@@ -582,6 +592,9 @@ export default function CheckoutPage() {
           infantsCount,
           formData: {
             ...form,
+            zoneId: selectedZoneId,
+            selectedZoneName: availableZones.find((z) => z.id === selectedZoneId)?.name,
+            selectedZoneFee,
             currency,
             selectedAddons: selectedAddonsList,
             bookingAnswers,

@@ -101,6 +101,7 @@ export default async function EditTourPage({ params }: Params) {
     showExcerptOnCard: tour.showExcerptOnCard,
     addons: (tour.tourOptions as any[]) || [],
     bookingQuestions: (tour.bookingQuestions as any[]) || [],
+    pickupAreas: (tour.pickupAreas as any[]) || [],
     allowDeposit: tour.allowDeposit,
     depositType: (tour.depositType as 'PERCENTAGE' | 'FIXED') || 'PERCENTAGE',
     depositPercentage: tour.depositPercentage,

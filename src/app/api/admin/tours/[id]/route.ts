@@ -136,6 +136,7 @@ export async function PUT(
       metaTitle,
       metaDescription,
       keywords,
+      pickupAreas,
     } = body;
 
     // Build update payload
@@ -404,6 +405,7 @@ export async function PUT(
     if (metaTitle !== undefined) updateData.metaTitle = metaTitle || null;
     if (metaDescription !== undefined) updateData.metaDescription = metaDescription || null;
     if (keywords !== undefined) updateData.keywords = Array.isArray(keywords) ? keywords : [];
+    if (pickupAreas !== undefined) updateData.pickupAreas = Array.isArray(pickupAreas) ? pickupAreas : null;
 
     if (reviews !== undefined && reviews !== null) {
       if (Array.isArray(reviews)) {

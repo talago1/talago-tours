@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
       metaTitle,
       metaDescription,
       keywords,
+      pickupAreas,
     } = body;
 
     const isDraft = status === 'DRAFT';
@@ -408,6 +409,7 @@ export async function POST(request: NextRequest) {
         displayExcerpt: displayExcerpt ?? showExcerptOnCard ?? false,
         tourOptions: Array.isArray(tourOptions) ? tourOptions : undefined,
         bookingQuestions: Array.isArray(bookingQuestions) ? bookingQuestions : undefined,
+        pickupAreas: Array.isArray(pickupAreas) ? pickupAreas : undefined,
         reviews: Array.isArray(reviews)
           ? reviews.map((review, index) => ({
               id: `seed-${Date.now()}-${index}`,

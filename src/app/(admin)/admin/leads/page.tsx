@@ -65,7 +65,7 @@ function LeadsContent() {
   const [leads, setLeads] = useState<BookingLead[]>([]);
   const [metrics, setMetrics] = useState<LeadMetrics | null>(null);
   const [status, setStatus] = useState<'ALL' | LeadStatus>('ALL');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

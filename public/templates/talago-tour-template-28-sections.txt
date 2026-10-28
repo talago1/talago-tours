@@ -90,6 +90,11 @@ HOTEL_PICKUP_INCLUDED: true
 PICKUP_TYPE: both
 PICKUP_DESCRIPTION:
 Complimentary pickup and drop-off from all hotels and resorts in Hurghada. For Makadi Bay, Sahl Hasheesh, El Gouna, and Soma Bay, a small transfer surcharge applies.
+PICKUP_AREAS:
+- Hurghada Central Resorts | Price: 0 | Free
+- Makadi Bay Hotels | Price: 15 | Surcharge applies per person
+- El Gouna Resorts | Price: 20 | Surcharge applies per person
+- Soma Bay & Safaga | Price: 25 | Surcharge applies per person
 
 ### 11. MEETING POINT
 MEETING_POINT_NAME: Hurghada New Marina Main Gate

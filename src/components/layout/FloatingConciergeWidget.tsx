@@ -1,16 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function FloatingConciergeWidget() {
   const { language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  const [whatsappNumber, setWhatsappNumber] = useState(
+    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '+2010222434602'
+  );
 
-  const whatsappNumber = '+2010222434602';
+  useEffect(() => {
+    fetch('/api/public/settings/contact')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.whatsappNumber) setWhatsappNumber(data.whatsappNumber); })
+      .catch(() => {/* keep fallback */});
+  }, []);
+
   const defaultMessage = encodeURIComponent('Hello TALAGO Concierge! I would like to inquire about booking tours & curated travel experiences.');
-  const whatsappUrl = `https://wa.me/${whatsappNumber.replace('+', '')}?text=${defaultMessage}`;
+  const whatsappUrl = `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${defaultMessage}`;
 
   return (
     <div className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 flex flex-col items-end lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]">
@@ -67,3 +76,4 @@ export default function FloatingConciergeWidget() {
     </div>
   );
 }
+

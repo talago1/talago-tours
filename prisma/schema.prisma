@@ -254,6 +254,9 @@ model Tour {
   tourOptions Json?
   // Dynamic Booking Questions (Phase 8: JSON array of { id, question, type, required, options })
   bookingQuestions Json?
+  // Per-tour pickup / transfer areas (overrides global zone fee when present)
+  // JSON array of { id, name, price, notes, isFree }
+  pickupAreas Json?
 
   // Legacy
   images    String[]
@@ -791,3 +794,4 @@ model TourScheduleRule {
   @@index([tourId, dayOfWeek])
   @@map("tour_schedule_rules")
 }
+

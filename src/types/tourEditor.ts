@@ -146,6 +146,15 @@ export type TourEditorSectionId =
   | 'operator'
   | 'completeness';
 
+
+export interface TourPickupArea {
+  id: string;
+  name: string;
+  price: number;
+  notes?: string;
+  isFree?: boolean;
+}
+
 export interface SectionMeta {
   id: TourEditorSectionId;
   title: string;
@@ -311,6 +320,7 @@ export interface TourEditorData {
   // Booking & Addons
   addons: TourAddon[];
   bookingQuestions: BookingQuestion[];
+  pickupAreas: TourPickupArea[];
 
   // SEO & Catalog
   cardExcerpt?: string;
@@ -391,6 +401,7 @@ export function createDefaultTourEditorData(): TourEditorData {
     exclusions: [],
     addons: [],
     bookingQuestions: [],
+    pickupAreas: [],
     variants: [],
     showExcerptOnCard: true,
     keywords: [],
@@ -501,3 +512,5 @@ export function calculateTourCompleteness(data: TourEditorData): {
 
   return { score, checks };
 }
+
+
