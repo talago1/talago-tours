@@ -407,6 +407,51 @@ export function parseTourText(rawText: string): TourTextParseResult {
     }
     parsedSectionsCount++;
   }
+  const pickupAreasBlock = ex10.getBlock('(?:PICKUP_AREAS|TRANSFER_AREAS)');
+  const pickupAreasRaw = pickupAreasBlock ? parseList(pickupAreasBlock) : [];
+  if (pickupAreasRaw && pickupAreasRaw.length > 0) {
+    const areas: Array<{ id: string; name: string; price: number; notes?: string; isFree?: boolean }> = [];
+    pickupAreasRaw.forEach((line: string, idx: number) => {
+      const parts = line.split('|').map((s: string) => s.trim());
+      const name = parts[0] || `Area ${idx + 1}`;
+      let price = 0;
+      let isFree = false;
+      let notes = '';
+
+      for (let i = 1; i < parts.length; i++) {
+        const p = parts[i];
+        const priceMatch = p.match(/(?:price|fee|cost)\s*:\s*(\d+(?:\.\d+)?)/i);
+        if (priceMatch) {
+          price = parseFloat(priceMatch[1]);
+        }
+        if (/free|included/i.test(p)) {
+          isFree = true;
+          price = 0;
+        }
+        const notesMatch = p.match(/(?:notes?|info)\s*:\s*(.+)/i);
+        if (notesMatch) {
+          notes = notesMatch[1].trim();
+        }
+      }
+
+      if (price === 0 && !isFree) {
+        const inlineMatch = name.match(/:\s*(\d+(?:\.\d+)?)/);
+        if (inlineMatch) price = parseFloat(inlineMatch[1]);
+      }
+
+      areas.push({
+        id: `area-${idx + 1}-${Date.now()}`,
+        name: name.replace(/:\s*\d+(?:\.\d+)?/, '').trim(),
+        price,
+        isFree: isFree || price === 0,
+        notes: notes || undefined,
+      });
+    });
+
+    if (areas.length > 0) {
+      resultData.pickupAreas = areas;
+    }
+  }
 
   // ─── 11. MEETING POINT ─────────────────────────────────────────────────────
   const sec11 = ex.getSectionBlock('11') || ex.getSectionBlock('MEETING POINT');

@@ -223,7 +223,24 @@ export async function POST(request: NextRequest) {
     const effectiveAdultPrice = tour.priceAdult ?? tour.adultPrice;
     const effectiveChildPrice = tour.priceChild ?? tour.childPrice ?? effectiveAdultPrice;
     const effectiveInfantPrice = tour.infantPrice ?? 0;
-    const zoneTransferFee = tour.zone?.transferFee ?? 0;
+    // Resolve custom per-tour pickup area surcharge or zone transfer fee
+    let zoneTransferFee = tour.zone?.transferFee ?? 0;
+    const requestedZoneId = formData.zoneId;
+    const requestedAreaName = formData.selectedZoneName;
+
+    if (tour.pickupAreas && Array.isArray(tour.pickupAreas) && (tour.pickupAreas as any[]).length > 0) {
+      const match = (tour.pickupAreas as any[]).find(
+        (a: any) => a.id === requestedZoneId || a.name === requestedZoneId || (requestedAreaName && a.name === requestedAreaName)
+      );
+      if (match) {
+        zoneTransferFee = match.isFree ? 0 : Number(match.price || 0);
+      }
+    } else if (requestedZoneId) {
+      const customZone = await prisma.zone.findUnique({ where: { id: requestedZoneId } });
+      if (customZone) {
+        zoneTransferFee = customZone.transferFee;
+      }
+    }
 
     // Validate promo code on server
     let promoCodeId: string | null = null;

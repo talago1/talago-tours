@@ -36,6 +36,7 @@ import {
   Languages,
   Loader2,
   Download,
+  Copy,
 } from 'lucide-react';
 
 import type {
@@ -107,6 +108,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
       itinerary: initialData.itinerary || [],
       addons: initialData.addons || [],
       bookingQuestions: initialData.bookingQuestions || [],
+      pickupAreas: initialData.pickupAreas || [],
       pickupTimes: initialData.pickupTimes || [],
     };
   });
@@ -123,6 +125,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   const [importText, setImportText] = useState('');
   const [importPreview, setImportPreview] = useState<TourTextParseResult | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [copiedTemplate, setCopiedTemplate] = useState(false);
+  const [loadingSample, setLoadingSample] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [mediaPickerTarget, setMediaPickerTarget] = useState<'cover' | 'gallery' | null>(null);
 
@@ -399,6 +403,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
         itinerary: data.itinerary.length > 0 ? data.itinerary : undefined,
         tourOptions: data.addons.length > 0 ? data.addons : [],
         bookingQuestions: (data.bookingQuestions && data.bookingQuestions.length > 0) ? data.bookingQuestions : [],
+        pickupAreas: (data.pickupAreas && data.pickupAreas.length > 0) ? data.pickupAreas : [],
         reviews: data.reviews.length > 0 ? data.reviews : undefined,
         translations: finalTranslations,
         vehicleType: data.vehicleType || undefined,
@@ -1632,6 +1637,132 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none placeholder:text-slate-600"
                   />
                 </div>
+              
+                {/* Per-Tour Pickup Areas & Custom Transfer Pricing */}
+                <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-black text-white flex items-center gap-2">
+                        <span>Per-Tour Pickup Areas & Transfer Surcharges</span>
+                        <span className="text-[10px] font-bold bg-[#EAB308]/20 text-[#EAB308] px-2.5 py-0.5 rounded-full border border-[#EAB308]/30">
+                          Custom Pricing
+                        </span>
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Configure specific pickup locations and their transfer prices for this tour (e.g. Makadi Bay $15, El Gouna $20, Hurghada Center $0/Free). Overrides default destination zone fees.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newArea = {
+                          id: 'area_' + Date.now(),
+                          name: '',
+                          price: 0,
+                          isFree: false,
+                          notes: '',
+                        };
+                        updateData({ pickupAreas: [...(data.pickupAreas || []), newArea] });
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#00E5FF]/10 border border-[#00E5FF]/30 px-3.5 py-2 text-xs font-bold text-[#00E5FF] hover:bg-[#00E5FF]/20 transition shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Pickup Area
+                    </button>
+                  </div>
+
+                  {(!data.pickupAreas || data.pickupAreas.length === 0) ? (
+                    <div className="rounded-xl border border-dashed border-white/10 p-5 text-center">
+                      <p className="text-xs text-slate-400">
+                        No custom pickup areas configured for this tour yet. Default destination transfer fees apply.
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Click &ldquo;Add Pickup Area&rdquo; to customize pickup regions and surcharges specifically for this tour.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {data.pickupAreas.map((area, index) => (
+                        <div
+                          key={area.id || index}
+                          className="flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5"
+                        >
+                          <div className="flex-1 w-full sm:w-auto">
+                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                              Area / Resort Name
+                            </label>
+                            <input
+                              type="text"
+                              value={area.name}
+                              onChange={(e) => {
+                                const updated = [...(data.pickupAreas || [])];
+                                updated[index] = { ...updated[index], name: e.target.value };
+                                updateData({ pickupAreas: updated });
+                              }}
+                              placeholder="e.g. Makadi Bay, El Gouna, Sahl Hasheesh"
+                              className="w-full rounded-lg border border-white/10 bg-[#060D1A] px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-[#00E5FF] outline-none"
+                            />
+                          </div>
+
+                          <div className="w-full sm:w-36">
+                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                              Transfer Surcharge (USD)
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-2 text-xs font-bold text-slate-500">$</span>
+                              <input
+                                type="number"
+                                min={0}
+                                disabled={area.isFree}
+                                value={area.isFree ? 0 : area.price}
+                                onChange={(e) => {
+                                  const updated = [...(data.pickupAreas || [])];
+                                  updated[index] = { ...updated[index], price: Number(e.target.value) };
+                                  updateData({ pickupAreas: updated });
+                                }}
+                                className={`w-full rounded-lg border border-white/10 bg-[#060D1A] pl-7 pr-3 py-2 text-xs text-white outline-none ${
+                                  area.isFree ? 'opacity-40 cursor-not-allowed' : 'focus:border-[#00E5FF]'
+                                }`}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 pt-2 sm:pt-4">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(area.isFree)}
+                                onChange={(e) => {
+                                  const updated = [...(data.pickupAreas || [])];
+                                  updated[index] = {
+                                    ...updated[index],
+                                    isFree: e.target.checked,
+                                    price: e.target.checked ? 0 : updated[index].price,
+                                  };
+                                  updateData({ pickupAreas: updated });
+                                }}
+                                className="h-4 w-4 rounded border-white/20 text-[#00E5FF] focus:ring-0"
+                              />
+                              <span className="text-xs font-semibold text-emerald-400">Free / Included</span>
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = (data.pickupAreas || []).filter((_, i) => i !== index);
+                                updateData({ pickupAreas: updated });
+                              }}
+                              className="rounded-lg p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition ml-2"
+                              title="Delete Area"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -2774,6 +2905,47 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                   <Download className="h-3.5 w-3.5" />
                   JSON Template
                 </a>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/templates/talago-tour-template-28-sections.txt');
+                      if (res.ok) {
+                        const txt = await res.text();
+                        await navigator.clipboard.writeText(txt);
+                        setCopiedTemplate(true);
+                        setTimeout(() => setCopiedTemplate(false), 2500);
+                      }
+                    } catch (e) {
+                      console.error('Clipboard copy error:', e);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#EAB308]/40 bg-[#EAB308]/10 px-3.5 py-2 text-xs font-bold text-[#EAB308] transition hover:bg-[#EAB308]/20"
+                >
+                  {copiedTemplate ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedTemplate ? 'Copied Template!' : 'Copy 28-Section Template'}
+                </button>
+                <button
+                  type="button"
+                  disabled={loadingSample}
+                  onClick={async () => {
+                    try {
+                      setLoadingSample(true);
+                      const res = await fetch('/templates/talago-tour-template-28-sections.txt');
+                      if (res.ok) {
+                        const txt = await res.text();
+                        setImportText(txt);
+                        setImportErrors([]);
+                      }
+                    } finally {
+                      setLoadingSample(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-50"
+                >
+                  {loadingSample ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                  Load Sample 28-Section Text
+                </button>
               </div>
             )}
 

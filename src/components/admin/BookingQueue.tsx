@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 import React, { useState, useMemo } from 'react';
 import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
@@ -14,6 +15,7 @@ import {
   Clock,
   DollarSign,
   MessageCircle,
+  MessageSquare,
   CreditCard,
   AlertCircle,
   Search,
@@ -176,11 +178,11 @@ function ExpandedDetails({ booking }: { booking: ActiveQueueTicket }) {
               <p className="text-xs text-slate-500 truncate mt-0.5">{booking.customerEmail}</p>
             )}
           </div>
-          <div className="mt-3">
+          <div className="mt-3 space-y-2">
             {cleanPhone ? (
               <a
                 href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-                  `Hello ${booking.customerName}, regarding your booking ${booking.bookingReference} for ${booking.tourTitle} on ${booking.travelDate || ''}: Your pickup is scheduled for ${booking.pickupTime || 'lobby'}. Cash balance due: $${cashDue}.`
+                  `Hello ${booking.customerName}, regarding your booking ${booking.bookingReference} for ${booking.tourTitle} on ${booking.travelDate || ''}: Your pickup is scheduled for ${booking.pickupTime || 'lobby'}. Cash balance due: ${cashDue}.`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -190,8 +192,15 @@ function ExpandedDetails({ booking }: { booking: ActiveQueueTicket }) {
                 Chat on WhatsApp
               </a>
             ) : (
-              <span className="text-xs text-slate-500 italic">No phone provided</span>
+              <span className="text-xs text-slate-500 italic block text-center mb-1">No phone provided</span>
             )}
+            <Link
+              href={`/admin/leads?search=${encodeURIComponent(booking.customerEmail || booking.customerPhone || booking.bookingReference)}`}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 px-3 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all shadow-sm"
+            >
+              <MessageSquare className="h-3.5 w-3.5 text-cyan-400" />
+              Live Chat & CRM Lead
+            </Link>
           </div>
         </div>
       </div>
