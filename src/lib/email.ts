@@ -1,14 +1,16 @@
 /**
- * Email utility using Resend.
+ * Email utility supporting Resend and Brevo (dual provider).
  * All email sending is server-side only — this file must never be imported by
  * client components (no 'use client' directive should ever be added here).
  *
- * Required env var: RESEND_API_KEY
- * Optional env var: RESEND_FROM_EMAIL  (defaults to onboarding@resend.dev for testing,
- *                                       use your verified domain in production)
+ * Configured via:
+ *   RESEND_API_KEY  (primary)
+ *   BREVO_API_KEY   (Brevo v3 provider / fallback)
+ *   RESEND_FROM_EMAIL / BREVO_FROM_EMAIL
  */
 
 import { Resend } from 'resend';
+import { isBrevoConfigured, sendBrevoTransactionalEmail } from '@/lib/brevo';
 
 if (typeof window !== 'undefined') {
   throw new Error('Security Violation: Email utility imported into browser bundle.');
@@ -85,7 +87,6 @@ function tableRow(label: string, value: string): string {
 // ---------------------------------------------------------------------------
 
 export async function sendMagicLinkEmail(to: string, magicLink: string): Promise<void> {
-  const resend = getResendClient();
   const html = layout(`
     <h2 style="margin:0 0 12px;font-size:22px;font-weight:900;color:#fff;">Sign in to TALAGO</h2>
     <p style="margin:0 0 20px;color:rgba(255,255,255,0.6);line-height:1.7;font-size:14px;">
@@ -97,15 +98,11 @@ export async function sendMagicLinkEmail(to: string, magicLink: string): Promise
     </p>
   `);
 
-  const { error } = await resend.emails.send({
-    from: FROM_EMAIL,
+  await sendEmail({
     to,
     subject: 'Your TALAGO sign-in link',
     html,
   });
-  if (error) {
-    throw new Error(`Resend magic-link email failed: ${error.message}`);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -126,7 +123,6 @@ export async function sendBookingConfirmationEmail(
   to: string,
   data: BookingConfirmationData,
 ): Promise<void> {
-  const resend = getResendClient();
   const html = layout(`
     <div style="text-align:center;margin-bottom:28px;">
       <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:linear-gradient(135deg,#10b981,#059669);border-radius:50%;font-size:26px;">✓</div>
@@ -156,15 +152,11 @@ export async function sendBookingConfirmationEmail(
     </div>
   `);
 
-  const { error } = await resend.emails.send({
-    from: FROM_EMAIL,
+  await sendEmail({
     to,
     subject: `Booking Confirmed — ${data.tourName} (${data.bookingReference})`,
     html,
   });
-  if (error) {
-    throw new Error(`Resend booking-confirmation email failed: ${error.message}`);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -183,7 +175,6 @@ export async function sendAdminReplyEmail(
   to: string,
   data: AdminReplyEmailData,
 ): Promise<void> {
-  const resend = getResendClient();
   const isInquiry = data.reference.startsWith('INQ-');
   const refLabel = isInquiry ? 'Inquiry Reference' : 'Reservation Reference';
 
@@ -208,15 +199,11 @@ export async function sendAdminReplyEmail(
     </div>
   `);
 
-  const { error } = await resend.emails.send({
-    from: FROM_EMAIL,
+  await sendEmail({
     to,
     subject: `TALAGO replied to your ${isInquiry ? 'inquiry' : 'reservation'} (${data.reference})`,
     html,
   });
-  if (error) {
-    throw new Error(`Resend admin-reply email failed: ${error.message}`);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -235,8 +222,6 @@ export async function sendAbandonedCheckoutEmail(
   to: string,
   data: AbandonedCheckoutEmailData,
 ): Promise<void> {
-  const resend = getResendClient();
-
   const html = layout(`
     <div style="text-align:center;margin-bottom:24px;">
       <span style="display:inline-block;padding:6px 14px;background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.3);border-radius:999px;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#06b6d4;">
@@ -271,19 +256,15 @@ export async function sendAbandonedCheckoutEmail(
     </p>
   `);
 
-  const { error } = await resend.emails.send({
-    from: FROM_EMAIL,
+  await sendEmail({
     to,
     subject: `Did you leave something behind? Your ${data.tourName} experience awaits 🌊`,
     html,
   });
-  if (error) {
-    throw new Error(`Resend abandoned-checkout email failed: ${error.message}`);
-  }
 }
 
 // ---------------------------------------------------------------------------
-// Generic helper — used by the magic-link API route and newsletter blast
+// Generic helper with automatic dual-provider fallback (Resend / Brevo)
 // ---------------------------------------------------------------------------
 
 export async function sendEmail(options: {
@@ -291,14 +272,37 @@ export async function sendEmail(options: {
   subject: string;
   html: string;
 }): Promise<void> {
-  const resend = getResendClient();
-  const { error } = await resend.emails.send({
-    from: FROM_EMAIL,
-    to: options.to,
-    subject: options.subject,
-    html: options.html,
-  });
-  if (error) {
-    throw new Error(`Resend email failed: ${error.message}`);
+  const hasResend = Boolean(process.env.RESEND_API_KEY);
+  const hasBrevo = isBrevoConfigured();
+
+  if (hasResend) {
+    try {
+      const resend = getResendClient();
+      const { error } = await resend.emails.send({
+        from: FROM_EMAIL,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+      });
+      if (!error) return;
+      console.warn('[sendEmail] Resend error:', error.message);
+      if (!hasBrevo) {
+        throw new Error(`Resend email failed: ${error.message}`);
+      }
+    } catch (err: any) {
+      if (!hasBrevo) throw err;
+      console.warn('[sendEmail] Resend failed, attempting fallback to Brevo:', err.message);
+    }
   }
+
+  if (hasBrevo) {
+    await sendBrevoTransactionalEmail({
+      to: options.to,
+      subject: options.subject,
+      htmlContent: options.html,
+    });
+    return;
+  }
+
+  throw new Error('No email provider configured. Please configure RESEND_API_KEY or BREVO_API_KEY.');
 }
