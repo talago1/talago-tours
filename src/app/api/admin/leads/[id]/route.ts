@@ -197,7 +197,7 @@ export async function POST(
     }).catch(() => {});
 
     // Send branded email notification to customer
-    if (lead.customerEmail && process.env.RESEND_API_KEY) {
+    if (lead.customerEmail && (process.env.RESEND_API_KEY || process.env.BREVO_API_KEY)) {
       try {
         const { sendAdminReplyEmail } = await import('@/lib/email');
         const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://talago.com';

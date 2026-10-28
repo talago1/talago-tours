@@ -57,7 +57,7 @@ export async function POST(request: NextRequest, { params }: { params: { convers
     }).catch(() => {});
 
     // Dispatch branded email notification to visitor if email is present
-    if (conversation.visitorEmail && process.env.RESEND_API_KEY) {
+    if (conversation.visitorEmail && (process.env.RESEND_API_KEY || process.env.BREVO_API_KEY)) {
       try {
         const { sendAdminReplyEmail } = await import('@/lib/email');
         const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://talago.com';

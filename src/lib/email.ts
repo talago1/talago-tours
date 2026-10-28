@@ -304,5 +304,7 @@ export async function sendEmail(options: {
     return;
   }
 
-  throw new Error('No email provider configured. Please configure RESEND_API_KEY or BREVO_API_KEY.');
+  // No provider available — log a warning and return silently.
+  // Email is a secondary channel; booking flows must never fail due to missing email config.
+  console.warn('[sendEmail] No email provider configured (RESEND_API_KEY / BREVO_API_KEY missing). Email skipped.');
 }

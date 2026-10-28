@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Send branded booking confirmation email (non-fatal)
-      if (booking.customerEmail && process.env.RESEND_API_KEY) {
+      if (booking.customerEmail && (process.env.RESEND_API_KEY || process.env.BREVO_API_KEY)) {
         try {
           const { sendBookingConfirmationEmail } = await import('@/lib/email');
           const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://talago.com';
