@@ -21,12 +21,19 @@ export async function GET(request: NextRequest) {
       where: { email: user.email },
     });
 
+    const isSynthetic = user.email.endsWith('@noreply.talago.com');
+    const phoneFromSynthetic = isSynthetic ? user.email.replace(/^guest-/, '').replace(/@noreply\.talago\.com$/, '') : null;
+    const displayName = user.user_metadata?.name || (
+      phoneFromSynthetic ? `+${phoneFromSynthetic}` : user.email.split('@')[0]
+    );
+
     if (!profile) {
       // Create user profile in database to prevent orphan profiles
       const newProfile = await prisma.customerProfile.create({
         data: {
           email: user.email,
-          name: user.user_metadata?.name || user.email.split('@')[0],
+          name: displayName,
+          phone: phoneFromSynthetic ? `+${phoneFromSynthetic}` : undefined,
           isShadow: false,
         },
       });
@@ -35,6 +42,7 @@ export async function GET(request: NextRequest) {
         authenticated: true,
         name: newProfile.name,
         email: newProfile.email,
+        phone: newProfile.phone,
       });
     }
 
@@ -48,8 +56,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       authenticated: true,
-      name: profile.name,
+      name: profile.name || displayName,
       email: profile.email,
+      phone: profile.phone,
     });
   } catch (error) {
     console.error('Session verification error:', error);

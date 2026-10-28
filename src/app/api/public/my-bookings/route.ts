@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { Prisma } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,9 +30,48 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401, headers: NO_STORE });
     }
 
+    // Resolve possible phone numbers for phone-first / WhatsApp customers
+    let resolvedPhone: string | null = null;
+    const syntheticMatch = user.email.match(/^guest-(\d+)@noreply\.talago\.com$/);
+    if (syntheticMatch) {
+      resolvedPhone = syntheticMatch[1];
+    } else {
+      const profile = await prisma.customerProfile.findUnique({
+        where: { email: user.email },
+        select: { phone: true },
+      });
+      if (profile?.phone) {
+        resolvedPhone = profile.phone.replace(/[^\d]/g, '');
+      }
+    }
+
+    const bookingWhere: Prisma.BookingWhereInput = resolvedPhone
+      ? {
+          OR: [
+            { customerEmail: user.email },
+            { customerPhone: { contains: resolvedPhone } },
+          ],
+        }
+      : { customerEmail: user.email };
+
+    const leadWhere: Prisma.BookingLeadWhereInput = resolvedPhone
+      ? {
+          OR: [
+            { customerEmail: { equals: user.email, mode: 'insensitive' as const } },
+            { customerPhone: { contains: resolvedPhone } },
+          ],
+          bookingId: null,
+          status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] as any },
+        }
+      : {
+          customerEmail: { equals: user.email, mode: 'insensitive' as const },
+          bookingId: null,
+          status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] as any },
+        };
+
     const [bookings, reservations] = await Promise.all([
       prisma.booking.findMany({
-        where: { customerEmail: user.email },
+        where: bookingWhere,
         select: {
           id: true,
           bookingReference: true,
@@ -73,11 +113,7 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
       }),
       prisma.bookingLead.findMany({
-        where: {
-          customerEmail: { equals: user.email, mode: 'insensitive' },
-          bookingId: null,
-          status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
-        },
+        where: leadWhere,
         select: {
           id: true,
           tourId: true,
