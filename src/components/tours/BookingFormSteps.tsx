@@ -191,10 +191,18 @@ export default function BookingFormSteps({
     if (hotelErr) newErrors.hotelName = hotelErr;
     const nameErr = validateCustomerName(customerName);
     if (nameErr) newErrors.customerName = nameErr;
-    const emailErr = validateCustomerEmail(customerEmail);
-    if (emailErr) newErrors.customerEmail = emailErr;
+
+    // Email is optional when a valid phone number is provided
     const phoneErr = validateCustomerPhone(customerPhone);
     if (phoneErr) newErrors.customerPhone = phoneErr;
+
+    if (customerEmail.trim()) {
+      const emailErr = validateCustomerEmail(customerEmail);
+      if (emailErr) newErrors.customerEmail = emailErr;
+    } else if (phoneErr) {
+      newErrors.customerEmail = 'Please provide an email or phone number';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [zoneId, hotelName, customerName, customerEmail, customerPhone]);
@@ -516,7 +524,9 @@ export default function BookingFormSteps({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Email <span className="text-gray-400 font-normal">(Optional if phone provided)</span>
+              </label>
               <input
                 type="email"
                 value={customerEmail}

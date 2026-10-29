@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Loader2,
   Mail,
   ShieldAlert,
   MessageCircle,
-  Send,
   SendHorizontal,
   CheckCircle2,
   ExternalLink,
@@ -25,13 +24,37 @@ declare global {
   }
 }
 
+function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+      />
+    </svg>
+  );
+}
+
 export default function AuthPage() {
   const { dict } = useLanguage();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { whatsappNumber, getWhatsAppUrl } = useContactSettings();
 
-  // Active Auth Tab: 'TELEGRAM' | 'WHATSAPP' | 'EMAIL'
-  const [authMethod, setAuthMethod] = useState<'TELEGRAM' | 'WHATSAPP' | 'EMAIL'>('TELEGRAM');
+  // Active Auth Tab: 'TELEGRAM' | 'GOOGLE' | 'WHATSAPP' | 'EMAIL'
+  const [authMethod, setAuthMethod] = useState<'TELEGRAM' | 'GOOGLE' | 'WHATSAPP' | 'EMAIL'>('TELEGRAM');
 
   // Shared states
   const [loading, setLoading] = useState(false);
@@ -51,6 +74,17 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordMode, setIsPasswordMode] = useState(false);
+
+  // Check URL errors on mount
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      setMessage({
+        type: 'error',
+        text: decodeURIComponent(errorParam),
+      });
+    }
+  }, [searchParams]);
 
   // ---------------------------------------------------------------------------
   // 1. Load Telegram Bot Configuration
@@ -75,6 +109,15 @@ export default function AuthPage() {
     setLoading(true);
     setMessage(null);
 
+    // Timeout safeguard against indefinite hanging
+    const timeoutTimer = setTimeout(() => {
+      setLoading(false);
+      setMessage({
+        type: 'error',
+        text: 'Telegram authentication timed out. Please try again.',
+      });
+    }, 15000);
+
     try {
       const res = await fetch('/api/auth/telegram/verify', {
         method: 'POST',
@@ -82,6 +125,7 @@ export default function AuthPage() {
         body: JSON.stringify(telegramUser),
       });
 
+      clearTimeout(timeoutTimer);
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Telegram verification failed. Please try again.');
@@ -89,17 +133,25 @@ export default function AuthPage() {
 
       setMessage({
         type: 'success',
-        text: 'Successfully authenticated with Telegram! Redirecting to your dashboard...',
+        text: 'Successfully authenticated with Telegram! Loading your bookings...',
       });
 
-      if (data.actionLink) {
+      // If server returned a direct Supabase session, hydrate client session
+      if (data.session) {
+        try {
+          await supabaseClient.auth.setSession(data.session);
+        } catch {
+          // ignore local session storage error, cookie is already set
+        }
+      }
+
+      if (data.actionLink && !data.session) {
         window.location.href = data.actionLink;
       } else {
-        setTimeout(() => {
-          router.push('/my-bookings');
-        }, 1200);
+        router.push('/my-bookings');
       }
     } catch (err: any) {
+      clearTimeout(timeoutTimer);
       setMessage({
         type: 'error',
         text: err?.message || 'An error occurred during Telegram verification.',
@@ -133,6 +185,8 @@ export default function AuthPage() {
     script.setAttribute('data-radius', '14');
     script.setAttribute('data-request-access', 'write');
     script.setAttribute('data-userpic', 'false');
+    // Enforce English language explicitly on Telegram widget to avoid Arabic labels
+    script.setAttribute('data-lang', 'en');
     script.setAttribute('data-onauth', 'window.onTelegramAuth(user)');
     script.async = true;
 
@@ -140,7 +194,46 @@ export default function AuthPage() {
   }, [authMethod, telegramConfig]);
 
   // ---------------------------------------------------------------------------
-  // 3. WhatsApp Challenge Initiation & Polling
+  // 3. Google Sign-In Handler (Supabase OAuth)
+  // ---------------------------------------------------------------------------
+  async function handleGoogleSignIn() {
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const redirectUri = `${window.location.origin}/auth/callback?next=/my-bookings`;
+      const { data, error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUri,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err: any) {
+      setLoading(false);
+      setMessage({
+        type: 'error',
+        text:
+          err?.message?.includes('provider is not enabled') || err?.message?.includes('Unsupported provider')
+            ? 'Google Sign-In is awaiting provider activation in Supabase Auth. Please use Telegram, WhatsApp, or Email in the meantime.'
+            : (err?.message || 'Could not initiate Google Sign-In.'),
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 4. WhatsApp Challenge Initiation & Polling
   // ---------------------------------------------------------------------------
   async function handleStartWhatsAppChallenge() {
     setLoading(true);
@@ -217,7 +310,7 @@ export default function AuthPage() {
   }, [waPolling, waChallenge, router]);
 
   // ---------------------------------------------------------------------------
-  // 4. Email Auth Handler (Secondary & Backward-compatible)
+  // 5. Email Auth Handler (Secondary & Backward-compatible)
   // ---------------------------------------------------------------------------
   async function handleEmailAuth(event: React.FormEvent) {
     event.preventDefault();
@@ -303,15 +396,15 @@ export default function AuthPage() {
         </div>
 
         {/* Authentication Mode Switcher */}
-        <div className="mb-6 grid grid-cols-3 gap-1.5 rounded-2xl bg-white/[0.04] p-1.5 border border-white/10 text-center">
-          {/* 1. Telegram (Zero cost / Primary) */}
+        <div className="mb-6 grid grid-cols-4 gap-1 rounded-2xl bg-white/[0.04] p-1 border border-white/10 text-center">
+          {/* 1. Telegram */}
           <button
             type="button"
             onClick={() => {
               setAuthMethod('TELEGRAM');
               setMessage(null);
             }}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-bold transition-all ${
+            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-1 text-[11px] font-bold transition-all ${
               authMethod === 'TELEGRAM'
                 ? 'bg-sky-500/20 border border-sky-500/50 text-sky-300 shadow-md shadow-sky-500/10'
                 : 'text-slate-400 hover:text-white'
@@ -321,14 +414,31 @@ export default function AuthPage() {
             <span>Telegram</span>
           </button>
 
-          {/* 2. WhatsApp (Customer-sent message / No OTP fees) */}
+          {/* 2. Google */}
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMethod('GOOGLE');
+              setMessage(null);
+            }}
+            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-1 text-[11px] font-bold transition-all ${
+              authMethod === 'GOOGLE'
+                ? 'bg-white/15 border border-white/40 text-white shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <GoogleIcon className="h-3.5 w-3.5 shrink-0" />
+            <span>Google</span>
+          </button>
+
+          {/* 3. WhatsApp */}
           <button
             type="button"
             onClick={() => {
               setAuthMethod('WHATSAPP');
               setMessage(null);
             }}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-bold transition-all ${
+            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-1 text-[11px] font-bold transition-all ${
               authMethod === 'WHATSAPP'
                 ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 shadow-md shadow-emerald-500/10'
                 : 'text-slate-400 hover:text-white'
@@ -338,14 +448,14 @@ export default function AuthPage() {
             <span>WhatsApp</span>
           </button>
 
-          {/* 3. Email (Secondary / Optional) */}
+          {/* 4. Email */}
           <button
             type="button"
             onClick={() => {
               setAuthMethod('EMAIL');
               setMessage(null);
             }}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-medium transition-all ${
+            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-1 text-[11px] font-medium transition-all ${
               authMethod === 'EMAIL'
                 ? 'bg-white/10 border border-white/20 text-white shadow-md'
                 : 'text-slate-500 hover:text-slate-300'
@@ -429,7 +539,44 @@ export default function AuthPage() {
           </div>
         )}
 
-        {/* ── TAB 2: WHATSAPP VERIFICATION ── */}
+        {/* ── TAB 2: GOOGLE SIGN-IN ── */}
+        {authMethod === 'GOOGLE' && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-center">
+              <div className="flex justify-center mb-2">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white">
+                  <GoogleIcon className="h-5 w-5" />
+                </span>
+              </div>
+              <h2 className="text-sm font-bold text-white">Continue with Google</h2>
+              <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                Fast and secure sign in using your Google account. Your bookings and itineraries will be linked to your email address.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-white/20 bg-white/[0.06] py-3.5 text-sm font-bold text-white shadow-xl transition-all duration-300 hover:bg-white/[0.12] hover:scale-[1.02] disabled:opacity-60 disabled:pointer-events-none"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
+              ) : (
+                <>
+                  <GoogleIcon className="h-5 w-5" />
+                  <span>Continue with Google</span>
+                </>
+              )}
+            </button>
+
+            <p className="text-[11px] text-center text-slate-500">
+              OAuth 2.0 authenticated directly via Supabase Auth without storing your password.
+            </p>
+          </div>
+        )}
+
+        {/* ── TAB 3: WHATSAPP VERIFICATION ── */}
         {authMethod === 'WHATSAPP' && (
           <div className="space-y-4">
             <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
@@ -489,7 +636,7 @@ export default function AuthPage() {
                   <div className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-2.5 text-[11px] text-amber-300 text-left">
                     <p className="font-bold">Provider Configuration Note:</p>
                     <p className="mt-0.5">
-                      Inbound webhook receiver is awaiting Meta Cloud API token (<code className="text-white font-mono">WHATSAPP_WEBHOOK_VERIFY_TOKEN</code>). For instant login without webhook setup, please use <strong>Telegram</strong> or <strong>Email</strong>.
+                      Inbound webhook receiver is awaiting Meta Cloud API token (<code className="text-white font-mono">WHATSAPP_WEBHOOK_VERIFY_TOKEN</code>). For instant login without webhook setup, please use <strong>Telegram</strong>, <strong>Google</strong>, or <strong>Email</strong>.
                     </p>
                   </div>
                 )}
@@ -519,11 +666,11 @@ export default function AuthPage() {
           </div>
         )}
 
-        {/* ── TAB 3: EMAIL (SECONDARY) ── */}
+        {/* ── TAB 4: EMAIL (SECONDARY) ── */}
         {authMethod === 'EMAIL' && (
           <form onSubmit={handleEmailAuth} className="space-y-4">
             <div className="rounded-xl border border-white/5 bg-white/[0.02] p-2.5 text-center text-xs text-slate-400">
-              Email sign-in is optional. Use Telegram or WhatsApp for faster, passwordless access.
+              Email sign-in is optional. Use Telegram or Google for faster, passwordless access.
             </div>
 
             <label className="block">
@@ -589,6 +736,16 @@ export default function AuthPage() {
             </div>
           </form>
         )}
+
+        {/* Guest Booking Lookup link */}
+        <div className="mt-6 pt-4 text-center border-t border-white/10">
+          <p className="text-xs text-slate-400">
+            Booked as a guest?{' '}
+            <Link href="/my-bookings" className="font-bold text-[#00E5FF] hover:underline">
+              Lookup your booking with reference &amp; phone
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   );

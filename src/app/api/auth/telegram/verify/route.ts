@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { createClient } from '@supabase/supabase-js';
 import { prisma } from '@/lib/prisma';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
     const fullName = [first_name, last_name].filter(Boolean).join(' ').trim() || (username ? `@${username}` : `Traveler #${id}`);
 
     // Create or update CustomerProfile in PostgreSQL
-    const profile = await prisma.customerProfile.upsert({
+    await prisma.customerProfile.upsert({
       where: { email: syntheticEmail },
       create: {
         email: syntheticEmail,
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 5. Generate Supabase Auth session link
+    // 5. Generate and exchange Supabase Auth session
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
       process.env.NEXT_PUBLIC_BASE_URL ||
@@ -100,6 +101,8 @@ export async function POST(request: NextRequest) {
     const finalRedirect = `${appUrl}/my-bookings`;
 
     let actionLink: string | null = null;
+    let session: any = null;
+
     try {
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
@@ -107,20 +110,45 @@ export async function POST(request: NextRequest) {
         options: { redirectTo: finalRedirect },
       });
 
-      if (!linkError && linkData?.properties?.action_link) {
-        actionLink = linkData.properties.action_link;
-      } else {
-        console.warn('[auth-telegram-verify] Supabase generateLink notice:', linkError);
+      if (!linkError && linkData?.properties) {
+        actionLink = linkData.properties.action_link || null;
+        const tokenHash = linkData.properties.hashed_token;
+        const verificationType = (linkData.properties.verification_type === 'signup' ? 'signup' : 'magiclink') as 'signup' | 'magiclink';
+
+        if (tokenHash && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          const supabaseAnon = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+          );
+
+          const { data: verifyData, error: verifyError } = await supabaseAnon.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: verificationType,
+          });
+
+          if (!verifyError && verifyData?.session) {
+            session = {
+              access_token: verifyData.session.access_token,
+              refresh_token: verifyData.session.refresh_token,
+              expires_in: verifyData.session.expires_in,
+              token_type: verifyData.session.token_type,
+              user: verifyData.session.user,
+            };
+          }
+        }
+      } else if (linkError) {
+        console.warn('[auth-telegram-verify] Supabase generateLink notice:', linkError.message);
       }
     } catch (sbErr) {
-      console.warn('[auth-telegram-verify] Supabase admin error:', sbErr);
+      console.warn('[auth-telegram-verify] Supabase session generation notice:', sbErr);
     }
 
-    // 6. Return verified response
-    return NextResponse.json(
+    // 6. Return verified response with session and cookie
+    const response = NextResponse.json(
       {
         success: true,
         message: 'Successfully authenticated via Telegram.',
+        session,
         actionLink,
         redirectUrl: '/my-bookings',
         user: {
@@ -132,6 +160,18 @@ export async function POST(request: NextRequest) {
       },
       { status: 200, headers: NO_STORE }
     );
+
+    if (session?.access_token) {
+      response.cookies.set('talago_session', session.access_token, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+    }
+
+    return response;
   } catch (err: any) {
     console.error('[auth-telegram-verify] Unexpected error:', err);
     return NextResponse.json(
@@ -140,4 +180,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

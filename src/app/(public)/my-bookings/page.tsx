@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { isSupabaseStorageImage } from '@/utils/imageOptimization';
@@ -17,6 +17,12 @@ import {
   User,
   Clock,
   Star,
+  Search,
+  Phone,
+  ShieldCheck,
+  ArrowRight,
+  SendHorizontal,
+  ExternalLink,
 } from 'lucide-react';
 import WriteReviewModal from '@/components/modals/WriteReviewModal';
 
@@ -79,7 +85,6 @@ const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
   COMPLETED: { label: 'Completed', class: 'bg-sky-500/10 text-sky-300 border-sky-500/20' },
 };
 
-// Customer-facing lead status labels — deliberately simpler than internal admin values
 const RESERVATION_STATUS_CONFIG: Record<string, { label: string; desc: string; class: string }> = {
   INTERESTED:        { label: 'Pending', desc: 'Awaiting team confirmation', class: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/20' },
   IN_PROGRESS:       { label: 'In Progress', desc: 'Our team is preparing your trip', class: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' },
@@ -100,7 +105,6 @@ function ReservationCard({ reservation }: { reservation: ReservationItem }) {
 
   return (
     <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.04] p-5 space-y-3">
-      {/* Header row */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-white">
@@ -113,7 +117,6 @@ function ReservationCard({ reservation }: { reservation: ReservationItem }) {
         </span>
       </div>
 
-      {/* Meta */}
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
         <span className="flex items-center gap-1">
           <User className="h-3 w-3" />
@@ -131,10 +134,8 @@ function ReservationCard({ reservation }: { reservation: ReservationItem }) {
         </span>
       </div>
 
-      {/* Status description */}
       <p className="text-xs text-slate-400">{cfg.desc}</p>
 
-      {/* Admin reply preview */}
       {reservation.lastAdminMessage && (
         <div className={`rounded-xl border p-3 ${
           reservation.hasUnreadAdminReply
@@ -179,7 +180,6 @@ function BookingCard({
       className="group block rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 transition-all duration-300 hover:border-[#00E5FF]/30 hover:bg-white/[0.06] hover:shadow-lg hover:shadow-[#00E5FF]/5"
     >
       <div className="flex items-start gap-4">
-        {/* Tour cover image */}
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-white/10">
           {booking.tour?.coverImage ? (
             <Image
@@ -200,7 +200,6 @@ function BookingCard({
           )}
         </div>
 
-        {/* Info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <h3 className="truncate text-sm font-bold text-white transition-colors group-hover:text-[#00E5FF]">
@@ -273,23 +272,36 @@ function BookingCard({
 
 export default function MyBookingsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Authentication & account states
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [reservations, setReservations] = useState<ReservationItem[]>([]);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [reviewTarget, setReviewTarget] = useState<BookingItem | null>(null);
 
-  const loadBookingsForSession = useCallback(async (token: string, userEmail: string) => {
-    setEmail(userEmail);
+  // Guest Lookup states
+  const [lookupRef, setLookupRef] = useState('');
+  const [lookupPhone, setLookupPhone] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookedUpBooking, setLookedUpBooking] = useState<BookingItem | null>(null);
+  const [lookedUpReservation, setLookedUpReservation] = useState<ReservationItem | null>(null);
+
+  const loadBookingsForSession = useCallback(async (token?: string, userEmail?: string) => {
+    if (userEmail) setEmail(userEmail);
     try {
       const res = await fetch('/api/public/my-bookings', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error('Failed to load bookings');
       const data = await res.json();
-      setBookings(data.bookings);
+      setBookings(data.bookings || []);
       setReservations(data.reservations || []);
+      setIsAuthenticated(true);
     } catch {
       setError('Could not load your bookings. Please try again.');
     } finally {
@@ -297,35 +309,74 @@ export default function MyBookingsPage() {
     }
   }, []);
 
+  // Guest lookup handler
+  const handleLookupSubmit = useCallback(async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!lookupRef.trim() || !lookupPhone.trim()) {
+      setLookupError('Please enter both your booking reference and contact phone number.');
+      return;
+    }
+
+    setLookupLoading(true);
+    setLookupError(null);
+    setLookedUpBooking(null);
+    setLookedUpReservation(null);
+
+    try {
+      const res = await fetch('/api/public/my-bookings/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reference: lookupRef.trim(),
+          phone: lookupPhone.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'No matching booking found.');
+      }
+
+      if (data.type === 'BOOKING' && data.booking) {
+        setLookedUpBooking(data.booking);
+      } else if (data.type === 'RESERVATION' && data.reservation) {
+        setLookedUpReservation(data.reservation);
+      }
+    } catch (err: any) {
+      setLookupError(err.message || 'Lookup failed. Please verify your details.');
+    } finally {
+      setLookupLoading(false);
+    }
+  }, [lookupRef, lookupPhone]);
+
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | undefined;
-
-    // Check if there is an access token in the hash
     const hasHash = typeof window !== 'undefined' && window.location.hash.includes('access_token');
 
-    // If there is a hash, set a timeout to redirect to /auth if we don't get a session
+    // Pre-populate lookup from query params if available
+    const initialRef = searchParams.get('ref');
+    const initialPhone = searchParams.get('phone');
+    if (initialRef) setLookupRef(initialRef);
+    if (initialPhone) setLookupPhone(initialPhone);
+
     if (hasHash) {
       timeoutId = setTimeout(() => {
         setLoading(false);
-        router.replace('/auth');
-      }, 5000); // 5 seconds grace period for Supabase to exchange hash
+      }, 5000);
     }
 
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
       async (event, session) => {
         if (session) {
           if (timeoutId) clearTimeout(timeoutId);
-          // Clean the hash from the URL without a page reload
           if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
             window.history.replaceState(null, '', window.location.pathname);
           }
           await loadBookingsForSession(session.access_token, session.user.email ?? '');
         } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
-          if (!hasHash) {
-            // No hash to wait for, redirect to auth immediately
-            setLoading(false);
-            router.replace('/auth');
-          }
+          // If no session, allow guest lookup mode instead of bouncing to /auth
+          setLoading(false);
+          setIsAuthenticated(false);
         }
       }
     );
@@ -334,10 +385,14 @@ export default function MyBookingsPage() {
       subscription.unsubscribe();
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [router, loadBookingsForSession]);
+  }, [searchParams, loadBookingsForSession]);
 
   async function handleSignOut() {
     await supabaseClient.auth.signOut();
+    setIsAuthenticated(false);
+    setBookings([]);
+    setReservations([]);
+    setEmail('');
     router.push('/');
   }
 
@@ -355,6 +410,123 @@ export default function MyBookingsPage() {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // GUEST LOOKUP INTERFACE (WHEN NOT SIGNED IN)
+  // ---------------------------------------------------------------------------
+  if (!isAuthenticated) {
+    return (
+      <main className="mx-auto max-w-3xl px-5 py-14 lg:px-8">
+        <div className="mb-8 text-center sm:text-left">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-3 py-1 text-xs font-bold text-[#00E5FF] mb-3">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>Secure Guest Portal</span>
+          </div>
+          <h1 className="text-3xl font-black text-white">Find Your Booking</h1>
+          <p className="mt-2 text-sm text-slate-400 leading-relaxed max-w-xl">
+            Booked without an account? Enter your booking or reservation reference along with your contact phone number to access your trip details and boarding passes.
+          </p>
+        </div>
+
+        {/* Lookup Card */}
+        <div className="rounded-[2rem] border border-white/10 bg-[#0B1528]/85 p-6 sm:p-8 shadow-2xl backdrop-blur-xl mb-8">
+          <form onSubmit={handleLookupSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  Booking or Reservation Reference
+                </label>
+                <div className="relative">
+                  <Ticket className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. TAL-12345678 or RES-ABC12345"
+                    value={lookupRef}
+                    onChange={(e) => setLookupRef(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white font-mono text-sm uppercase placeholder-slate-500 outline-none focus:border-[#00E5FF] focus:ring-1 focus:ring-[#00E5FF]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  Contact Phone Number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                  <input
+                    type="tel"
+                    required
+                    placeholder="e.g. +20 122 243 4602"
+                    value={lookupPhone}
+                    onChange={(e) => setLookupPhone(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white text-sm placeholder-slate-500 outline-none focus:border-[#00E5FF] focus:ring-1 focus:ring-[#00E5FF]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {lookupError && (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-300 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                <span>{lookupError}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={lookupLoading}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#00E5FF] px-6 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 hover:bg-[#00D4F0] transition-all disabled:opacity-60"
+            >
+              {lookupLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Searching...</span>
+                </>
+              ) : (
+                <>
+                  <Search className="h-4 w-4" />
+                  <span>Find My Booking</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Lookup Results Display */}
+          {(lookedUpBooking || lookedUpReservation) && (
+            <div className="mt-8 pt-6 border-t border-white/10 space-y-4">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-emerald-400">
+                Found Matching Experience:
+              </h2>
+              {lookedUpBooking && <BookingCard booking={lookedUpBooking} />}
+              {lookedUpReservation && <ReservationCard reservation={lookedUpReservation} />}
+            </div>
+          )}
+        </div>
+
+        {/* Account Sign-In Card */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold text-white">Have a customer account?</h3>
+            <p className="mt-1 text-xs text-slate-400">
+              Sign in with Telegram, Google, or Email to view all your past and upcoming trips in one place.
+            </p>
+          </div>
+          <Link
+            href="/auth"
+            className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/10 transition-all"
+          >
+            <span>Sign In or Register</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // AUTHENTICATED CUSTOMER DASHBOARD
+  // ---------------------------------------------------------------------------
   return (
     <main className="mx-auto max-w-3xl px-5 py-14 lg:px-8">
       {/* Header */}
@@ -417,6 +589,7 @@ export default function MyBookingsPage() {
               </div>
             </section>
           )}
+
           {/* Upcoming */}
           {upcoming.length > 0 && (
             <section>
@@ -425,7 +598,7 @@ export default function MyBookingsPage() {
                 Upcoming ({upcoming.length})
               </h2>
               <div className="space-y-3">
-                {upcoming.map(b => (
+                {upcoming.map((b) => (
                   <BookingCard key={b.id} booking={b} onOpenReview={(target) => setReviewTarget(target)} />
                 ))}
               </div>
@@ -437,10 +610,10 @@ export default function MyBookingsPage() {
             <section>
               <h2 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
                 <Clock className="h-3.5 w-3.5" />
-                Past & Cancelled ({past.length})
+                Past &amp; Cancelled ({past.length})
               </h2>
               <div className="space-y-3 opacity-90">
-                {past.map(b => (
+                {past.map((b) => (
                   <BookingCard key={b.id} booking={b} onOpenReview={(target) => setReviewTarget(target)} />
                 ))}
               </div>

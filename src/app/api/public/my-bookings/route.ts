@@ -11,13 +11,14 @@ const NO_STORE = { 'cache-control': 'no-store, private' };
 /**
  * GET /api/public/my-bookings
  * Returns all bookings for the authenticated customer.
- * Reads the Authorization Bearer token (Supabase access token) from the request header.
+ * Reads the Authorization Bearer token (Supabase access token) from header or talago_session cookie.
  */
 export async function GET(request: NextRequest) {
   try {
-    // Get the bearer token from Authorization header
     const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    const token =
+      (authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : null) ||
+      request.cookies.get('talago_session')?.value;
 
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE });
@@ -76,25 +77,20 @@ export async function GET(request: NextRequest) {
           id: true,
           bookingReference: true,
           customerName: true,
-          // The caller is already authenticated via Supabase and scoped to their
-          // own email, so handing them their own access token is what lets the
-          // detail page stay token-gated instead of falling back to the id.
           accessToken: true,
+          tourId: true,
           status: true,
           travelDate: true,
           guestCount: true,
           totalPriceUSD: true,
           currency: true,
           paymentScheme: true,
-          amountPaidOnline: true,
           amountDueOnArrival: true,
+          amountPaidOnline: true,
           createdAt: true,
-          tourId: true,
           reviews: {
-            select: {
-              id: true,
-              rating: true,
-            },
+            select: { id: true, rating: true },
+            take: 1,
           },
           tour: {
             select: {
@@ -105,13 +101,12 @@ export async function GET(request: NextRequest) {
             },
           },
           transaction: {
-            select: {
-              status: true,
-            },
+            select: { status: true },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { travelDate: 'asc' },
       }),
+
       prisma.bookingLead.findMany({
         where: leadWhere,
         select: {
@@ -127,58 +122,38 @@ export async function GET(request: NextRequest) {
           createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
+        take: 20,
       }),
     ]);
 
-    // Derive reservation reference and fetch latest admin reply for each lead
-    const chatToken = request.cookies.get('talago_live_chat')?.value;
+    const formattedReservations = reservations.map((r) => {
+      return {
+        id: r.id,
+        reservationReference: `RES-${r.id.slice(-8).toUpperCase()}`,
+        tourId: r.tourId,
+        tourTitle: r.tourTitle,
+        tourSlug: r.tourSlug,
+        adults: r.adults,
+        children: r.children,
+        totalEstimatedPrice: r.totalEstimatedPrice,
+        currency: r.currency,
+        status: r.status,
+        createdAt: r.createdAt,
+        lastAdminMessage: null,
+        lastAdminMessageAt: null,
+        hasUnreadAdminReply: false,
+      };
+    });
 
-    const enrichedReservations = await Promise.all(
-      reservations.map(async (r) => {
-        const reservationReference = `RES-${r.id.slice(-8).toUpperCase()}`;
-
-        // Fetch latest admin reply from conversation linked by visitorToken cookie
-        let lastAdminMessage: string | null = null;
-        let lastAdminMessageAt: string | null = null;
-        let hasUnreadAdminReply = false;
-
-        if (chatToken) {
-          try {
-            const conversation = await prisma.liveChatConversation.findUnique({
-              where: { visitorToken: chatToken },
-              select: {
-                messages: {
-                  where: { sender: 'ADMIN' },
-                  orderBy: { createdAt: 'desc' },
-                  take: 1,
-                  select: { body: true, createdAt: true, readAt: true },
-                },
-              },
-            });
-            const lastMsg = conversation?.messages[0];
-            if (lastMsg) {
-              lastAdminMessage = lastMsg.body;
-              lastAdminMessageAt = lastMsg.createdAt.toISOString();
-              hasUnreadAdminReply = lastMsg.readAt === null;
-            }
-          } catch {
-            // Non-blocking — inbox preview is best-effort
-          }
-        }
-
-        return {
-          ...r,
-          reservationReference,
-          lastAdminMessage,
-          lastAdminMessageAt,
-          hasUnreadAdminReply,
-        };
-      })
+    return NextResponse.json({
+      bookings,
+      reservations: formattedReservations,
+    }, { headers: NO_STORE });
+  } catch (err) {
+    console.error('Failed to fetch bookings:', err);
+    return NextResponse.json(
+      { error: 'Failed to fetch bookings' },
+      { status: 500, headers: NO_STORE }
     );
-
-    return NextResponse.json({ bookings, reservations: enrichedReservations, email: user.email }, { headers: NO_STORE });
-  } catch (error) {
-    console.error('[api/public/my-bookings] GET error:', error);
-    return NextResponse.json({ error: 'Failed to load bookings' }, { status: 500, headers: NO_STORE });
   }
 }
