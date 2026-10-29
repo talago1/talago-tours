@@ -23,6 +23,7 @@ import {
 import { useWishlist } from '@/context/WishlistContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { useContactSettings } from '@/hooks/useContactSettings';
 import type { WishlistItem } from '@/types/wishlist';
 
 type SortOption = 'recent' | 'price_asc' | 'price_desc' | 'rating';
@@ -31,6 +32,7 @@ export default function WishlistClient() {
   const { wishlist, count, isLoaded, removeFromWishlist, clearWishlist } = useWishlist();
   const { formatPrice } = useCurrency();
   const { dict } = useLanguage();
+  const { normalizedWhatsAppNumber } = useContactSettings();
 
   const [sort, setSort] = useState<SortOption>('recent');
   const [searchQuery, setSearchQuery] = useState('');
@@ -101,7 +103,7 @@ export default function WishlistClient() {
 
   // WhatsApp Concierge message with all saved tours
   const whatsappUrl = useMemo(() => {
-    const phone = '2010222434602';
+    const phone = normalizedWhatsAppNumber || '201222434602';
     if (wishlist.length === 0) {
       return `https://wa.me/${phone}?text=${encodeURIComponent(
         'Hello TALAGO Concierge! I would like help planning my vacation experiences.'
@@ -118,7 +120,7 @@ export default function WishlistClient() {
     const msg = `Hello TALAGO Concierge! I have saved ${wishlist.length} experiences to my bucket list and would like to check availability or request a custom bundled quote:\n\n${itemsSummary}\n\nCan you assist me with scheduling?`;
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-  }, [wishlist]);
+  }, [wishlist, normalizedWhatsAppNumber]);
 
   return (
     <div className="relative min-h-screen bg-[#070F1E] pb-24 pt-28 text-white sm:pt-32">

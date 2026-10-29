@@ -1,126 +1,95 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Loader2,
   Mail,
   ShieldAlert,
-  Phone,
   MessageCircle,
-  KeyRound,
-  CheckCircle2,
   Send,
   SendHorizontal,
+  CheckCircle2,
+  ExternalLink,
+  RefreshCw,
+  Info,
 } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
+import { useContactSettings } from '@/hooks/useContactSettings';
+
+declare global {
+  interface Window {
+    onTelegramAuth?: (user: any) => void;
+  }
+}
 
 export default function AuthPage() {
-  // Tabs: 'WHATSAPP' | 'TELEGRAM' | 'EMAIL'
-  const [authMethod, setAuthMethod] = useState<'WHATSAPP' | 'TELEGRAM' | 'EMAIL'>('WHATSAPP');
+  const { dict } = useLanguage();
+  const router = useRouter();
+  const { whatsappNumber, getWhatsAppUrl } = useContactSettings();
 
-  // Input states
-  const [identifier, setIdentifier] = useState('');
-  const [otpStep, setOtpStep] = useState<'ENTER_IDENTIFIER' | 'ENTER_OTP'>('ENTER_IDENTIFIER');
-  const [otpCode, setOtpCode] = useState('');
-  const [devOtp, setDevOtp] = useState<string | null>(null);
+  // Active Auth Tab: 'TELEGRAM' | 'WHATSAPP' | 'EMAIL'
+  const [authMethod, setAuthMethod] = useState<'TELEGRAM' | 'WHATSAPP' | 'EMAIL'>('TELEGRAM');
+
+  // Shared states
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  // Telegram states
+  const [telegramConfig, setTelegramConfig] = useState<{ configured: boolean; botUsername: string | null } | null>(null);
+  const telegramContainerRef = useRef<HTMLDivElement>(null);
+
+  // WhatsApp states (Inbound challenge flow)
+  const [waChallenge, setWaChallenge] = useState<string | null>(null);
+  const [waUrl, setWaUrl] = useState<string | null>(null);
+  const [waPolling, setWaPolling] = useState(false);
+  const [waWebhookConfigured, setWaWebhookConfigured] = useState(false);
 
   // Email states (Secondary)
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordMode, setIsPasswordMode] = useState(false);
 
-  // Shared states
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const { dict } = useLanguage();
-  const router = useRouter();
-
   // ---------------------------------------------------------------------------
-  // Handler 1: Send OTP (WhatsApp or Telegram)
+  // 1. Load Telegram Bot Configuration
   // ---------------------------------------------------------------------------
-  async function handleSendOtp(e: React.FormEvent) {
-    e.preventDefault();
-    const clean = identifier.trim();
-    if (!clean || clean.length < 3) {
-      setMessage({
-        type: 'error',
-        text: authMethod === 'WHATSAPP'
-          ? 'يرجى إدخال رقم هاتف صحيح مع كود الدولة (مثال: +201022243460).'
-          : 'يرجى إدخال اسم المستخدم في تليجرام أو رقم هاتفك.',
+  useEffect(() => {
+    fetch('/api/auth/telegram/config')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          setTelegramConfig(data);
+        }
+      })
+      .catch(() => {
+        setTelegramConfig({ configured: false, botUsername: null });
       });
-      return;
-    }
+  }, []);
 
+  // ---------------------------------------------------------------------------
+  // 2. Telegram Auth Handler Callback
+  // ---------------------------------------------------------------------------
+  const handleTelegramAuth = useCallback(async (telegramUser: any) => {
     setLoading(true);
     setMessage(null);
 
     try {
-      const channel = authMethod === 'TELEGRAM' ? 'telegram' : 'whatsapp';
-      const res = await fetch('/api/auth/otp/send', {
+      const res = await fetch('/api/auth/telegram/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: clean, channel }),
+        body: JSON.stringify(telegramUser),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'فشل إرسال كود التحقق. يرجى المحاولة لاحقاً.');
-      }
-
-      setOtpStep('ENTER_OTP');
-      if (data.devOtp) {
-        setDevOtp(data.devOtp);
-      }
-      setMessage({
-        type: 'success',
-        text: authMethod === 'WHATSAPP'
-          ? 'تم إرسال كود التأكيد إلى واتساب الخاص بك بنجاح! 📲'
-          : 'تم إرسال كود التأكيد عبر تليجرام بنجاح! ✈️',
-      });
-    } catch (err: any) {
-      setMessage({
-        type: 'error',
-        text: err?.message || 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Handler 2: Verify OTP
-  // ---------------------------------------------------------------------------
-  async function handleVerifyOtp(e: React.FormEvent) {
-    e.preventDefault();
-    if (!otpCode || otpCode.trim().length < 4) {
-      setMessage({ type: 'error', text: 'يرجى إدخال كود التحقق المكون من 6 أرقام.' });
-      return;
-    }
-
-    setLoading(true);
-    setMessage(null);
-
-    try {
-      const res = await fetch('/api/auth/otp/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identifier: identifier.trim(),
-          code: otpCode.trim(),
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'كود التحقق غير صحيح أو انتهت صلاحيته.');
+        throw new Error(data.error || 'Telegram verification failed. Please try again.');
       }
 
       setMessage({
         type: 'success',
-        text: 'تم تسجيل الدخول بنجاح! جاري تحويلك إلى لوحة رحلاتك...',
+        text: 'Successfully authenticated with Telegram! Redirecting to your dashboard...',
       });
 
       if (data.actionLink) {
@@ -133,15 +102,122 @@ export default function AuthPage() {
     } catch (err: any) {
       setMessage({
         type: 'error',
-        text: err?.message || 'فشل التحقق من الكود. يرجى التأكد وإعادة المحاولة.',
+        text: err?.message || 'An error occurred during Telegram verification.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
+  // Bind Telegram callback to window
+  useEffect(() => {
+    window.onTelegramAuth = handleTelegramAuth;
+    return () => {
+      delete window.onTelegramAuth;
+    };
+  }, [handleTelegramAuth]);
+
+  // Render official Telegram Widget when tab is active and botUsername is available
+  useEffect(() => {
+    if (authMethod !== 'TELEGRAM' || !telegramConfig?.botUsername || !telegramContainerRef.current) {
+      return;
+    }
+
+    // Clear previous widget iframe if any
+    telegramContainerRef.current.innerHTML = '';
+
+    const script = document.createElement('script');
+    script.src = 'https://telegram.org/js/telegram-widget.js?22';
+    script.setAttribute('data-telegram-login', telegramConfig.botUsername);
+    script.setAttribute('data-size', 'large');
+    script.setAttribute('data-radius', '14');
+    script.setAttribute('data-request-access', 'write');
+    script.setAttribute('data-userpic', 'false');
+    script.setAttribute('data-onauth', 'window.onTelegramAuth(user)');
+    script.async = true;
+
+    telegramContainerRef.current.appendChild(script);
+  }, [authMethod, telegramConfig]);
+
+  // ---------------------------------------------------------------------------
+  // 3. WhatsApp Challenge Initiation & Polling
+  // ---------------------------------------------------------------------------
+  async function handleStartWhatsAppChallenge() {
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch('/api/auth/whatsapp/challenge', {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to generate verification challenge.');
+      }
+
+      setWaChallenge(data.challenge);
+      setWaUrl(data.whatsappUrl);
+      setWaWebhookConfigured(Boolean(data.hasWebhookConfigured));
+      setWaPolling(true);
+
+      // Open WhatsApp in new tab
+      window.open(data.whatsappUrl, '_blank', 'noopener,noreferrer');
+
+      setMessage({
+        type: 'info',
+        text: 'WhatsApp opened with your single-use verification message. Send the message, then return here.',
+      });
+    } catch (err: any) {
+      setMessage({
+        type: 'error',
+        text: err?.message || 'Could not initiate WhatsApp verification.',
       });
     } finally {
       setLoading(false);
     }
   }
 
+  // Poll WhatsApp challenge status
+  useEffect(() => {
+    if (!waPolling || !waChallenge) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/auth/whatsapp/poll?challenge=${encodeURIComponent(waChallenge)}`);
+        const data = await res.json();
+
+        if (data.status === 'VERIFIED') {
+          clearInterval(interval);
+          setWaPolling(false);
+          setMessage({
+            type: 'success',
+            text: `WhatsApp verified (+${data.phone})! Redirecting...`,
+          });
+
+          if (data.actionLink) {
+            window.location.href = data.actionLink;
+          } else {
+            router.push('/my-bookings');
+          }
+        } else if (data.status === 'EXPIRED') {
+          clearInterval(interval);
+          setWaPolling(false);
+          setMessage({
+            type: 'error',
+            text: 'Verification challenge expired. Please generate a new one.',
+          });
+        }
+      } catch {
+        // silent retry
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [waPolling, waChallenge, router]);
+
   // ---------------------------------------------------------------------------
-  // Handler 3: Email Auth (Secondary)
+  // 4. Email Auth Handler (Secondary & Backward-compatible)
   // ---------------------------------------------------------------------------
   async function handleEmailAuth(event: React.FormEvent) {
     event.preventDefault();
@@ -166,18 +242,16 @@ export default function AuthPage() {
             password,
           });
 
-          if (signUpError) {
-            throw signUpError;
-          }
+          if (signUpError) throw signUpError;
 
           setMessage({
             type: 'success',
-            text: dict?.authPage?.registrationSuccess || 'Registration successful! Check your email.',
+            text: dict?.authPage?.registrationSuccess || 'Registration successful! Check your email to confirm.',
           });
         } else if (data.session) {
           document.cookie = `talago_session=${data.session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
-          setMessage({ type: 'success', text: dict?.authPage?.signedInSuccess || 'Signed in! Redirecting...' });
-          setTimeout(() => router.push('/my-bookings'), 1500);
+          setMessage({ type: 'success', text: dict?.authPage?.signedInSuccess || 'Signed in successfully! Redirecting...' });
+          setTimeout(() => router.push('/my-bookings'), 1200);
         }
       } else {
         const res = await fetch('/api/auth/magic-link', {
@@ -196,13 +270,13 @@ export default function AuthPage() {
 
         setMessage({
           type: 'success',
-          text: dict?.authPage?.magicLinkSent || 'Magic link sent! Check your inbox.',
+          text: dict?.authPage?.magicLinkSent || 'Sign-in link sent! Please check your email inbox.',
         });
       }
     } catch (err: any) {
       setMessage({
         type: 'error',
-        text: err instanceof Error ? err.message : 'An unexpected error occurred.',
+        text: err?.message || 'An unexpected error occurred.',
       });
     } finally {
       setLoading(false);
@@ -220,38 +294,21 @@ export default function AuthPage() {
             <span className="text-2xl font-black uppercase tracking-[0.34em] text-white">TALAGO</span>
             <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40" />
           </Link>
-          <h1 className="text-2xl font-black text-white">تسجيل الدخول والتسجيل</h1>
-          <p className="mt-1 text-xs text-slate-400">
-            الدخول الفوري عبر واتساب أو تليجرام بدون تعقيدات
+          <h1 className="text-2xl font-black text-white">
+            {dict?.authPage?.title || 'Sign In or Register'}
+          </h1>
+          <p className="mt-1 text-xs sm:text-sm text-slate-400">
+            Access your bookings, boarding passes, and custom travel itinerary.
           </p>
         </div>
 
-        {/* Channels Tabs: WhatsApp (Primary) | Telegram (Primary) | Email (Secondary) */}
+        {/* Authentication Mode Switcher */}
         <div className="mb-6 grid grid-cols-3 gap-1.5 rounded-2xl bg-white/[0.04] p-1.5 border border-white/10 text-center">
-          {/* 1. WhatsApp */}
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMethod('WHATSAPP');
-              setOtpStep('ENTER_IDENTIFIER');
-              setMessage(null);
-            }}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-bold transition-all ${
-              authMethod === 'WHATSAPP'
-                ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 shadow-md shadow-emerald-500/10'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <MessageCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-            <span>واتساب</span>
-          </button>
-
-          {/* 2. Telegram */}
+          {/* 1. Telegram (Zero cost / Primary) */}
           <button
             type="button"
             onClick={() => {
               setAuthMethod('TELEGRAM');
-              setOtpStep('ENTER_IDENTIFIER');
               setMessage(null);
             }}
             className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-bold transition-all ${
@@ -261,10 +318,27 @@ export default function AuthPage() {
             }`}
           >
             <SendHorizontal className="h-3.5 w-3.5 text-sky-400 shrink-0" />
-            <span>تليجرام</span>
+            <span>Telegram</span>
           </button>
 
-          {/* 3. Email (Secondary) */}
+          {/* 2. WhatsApp (Customer-sent message / No OTP fees) */}
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMethod('WHATSAPP');
+              setMessage(null);
+            }}
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-bold transition-all ${
+              authMethod === 'WHATSAPP'
+                ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 shadow-md shadow-emerald-500/10'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <MessageCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+            <span>WhatsApp</span>
+          </button>
+
+          {/* 3. Email (Secondary / Optional) */}
           <button
             type="button"
             onClick={() => {
@@ -278,220 +352,183 @@ export default function AuthPage() {
             }`}
           >
             <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-            <span>الإيميل</span>
+            <span>Email</span>
           </button>
         </div>
 
-        {/* ── METHOD 1 & 2: WHATSAPP / TELEGRAM OTP FLOW ── */}
-        {(authMethod === 'WHATSAPP' || authMethod === 'TELEGRAM') && (
-          <div>
-            {otpStep === 'ENTER_IDENTIFIER' ? (
-              <form onSubmit={handleSendOtp} className="space-y-4">
-                <label className="block">
-                  <span className="mb-2 flex items-center justify-between text-xs font-bold text-slate-300">
-                    <span>
-                      {authMethod === 'WHATSAPP' ? 'رقم الهاتف أو واتساب' : 'معرف تليجرام أو رقم الهاتف'}
-                    </span>
-                    <span className={`text-[11px] font-semibold flex items-center gap-1 ${authMethod === 'WHATSAPP' ? 'text-emerald-400' : 'text-sky-400'}`}>
-                      {authMethod === 'WHATSAPP' ? (
-                        <>
-                          <MessageCircle className="h-3 w-3" /> تأكيد فوري عبر واتساب
-                        </>
-                      ) : (
-                        <>
-                          <SendHorizontal className="h-3 w-3" /> كود فوري عبر تليجرام
-                        </>
-                      )}
-                    </span>
-                  </span>
-
-                  <div className="relative flex items-center">
-                    {authMethod === 'WHATSAPP' ? (
-                      <Phone className="absolute left-4 h-4 w-4 text-slate-500" />
-                    ) : (
-                      <SendHorizontal className="absolute left-4 h-4 w-4 text-slate-500" />
-                    )}
-                    <input
-                      type="text"
-                      required
-                      dir="ltr"
-                      placeholder={authMethod === 'WHATSAPP' ? '+20 102 224 3460' : '@username or +2010...'}
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white placeholder-slate-500 outline-none transition-all duration-300 focus:border-[#00E5FF] focus:ring-1 focus:ring-[#00E5FF] font-mono text-sm"
-                    />
-                  </div>
-                  <span className="mt-1.5 block text-[11px] text-slate-400">
-                    {authMethod === 'WHATSAPP'
-                      ? 'أدخل رقم هاتفك مع كود الدولة لنرسل لك كود الدخول عبر واتساب.'
-                      : 'أدخل معرف حساب تليجرام الخاص بك أو رقم هاتفك لاستلام كود التأكيد.'}
-                  </span>
-                </label>
-
-                {message && (
-                  <div
-                    className={`rounded-2xl border p-3.5 text-xs font-semibold flex gap-2.5 ${
-                      message.type === 'success'
-                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
-                        : 'border-red-500/20 bg-red-500/10 text-red-300'
-                    }`}
-                  >
-                    <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
-                    <span>{message.text}</span>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`w-full inline-flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black text-white shadow-xl transition-all duration-300 hover:scale-[1.02] hover:brightness-110 disabled:opacity-60 disabled:pointer-events-none ${
-                    authMethod === 'WHATSAPP'
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-500/20'
-                      : 'bg-gradient-to-r from-sky-500 to-blue-600 shadow-sky-500/20'
-                  }`}
-                >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4" />
-                      <span>
-                        {authMethod === 'WHATSAPP'
-                          ? 'إرسال كود الدخول عبر واتساب'
-                          : 'إرسال كود الدخول عبر تليجرام'}
-                      </span>
-                    </>
-                  )}
-                </button>
-              </form>
+        {/* Global Feedback Banner */}
+        {message && (
+          <div
+            className={`mb-5 rounded-2xl border p-3.5 text-xs font-semibold flex gap-2.5 ${
+              message.type === 'success'
+                ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                : message.type === 'info'
+                ? 'border-sky-500/20 bg-sky-500/10 text-sky-300'
+                : 'border-red-500/20 bg-red-500/10 text-red-300'
+            }`}
+          >
+            {message.type === 'success' ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-400" />
+            ) : message.type === 'info' ? (
+              <Info className="h-4 w-4 shrink-0 mt-0.5 text-sky-400" />
             ) : (
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div className={`rounded-2xl border p-3.5 text-center ${authMethod === 'WHATSAPP' ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-sky-500/20 bg-sky-500/5'}`}>
-                  <p className="text-xs text-slate-300">
-                    تم إرسال كود الدخول المكون من 6 أرقام إلى:
+              <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
+            )}
+            <span>{message.text}</span>
+          </div>
+        )}
+
+        {/* ── TAB 1: TELEGRAM LOGIN ── */}
+        {authMethod === 'TELEGRAM' && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 p-4 text-center">
+              <div className="flex justify-center mb-2">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/20 text-sky-400">
+                  <SendHorizontal className="h-5 w-5" />
+                </span>
+              </div>
+              <h2 className="text-sm font-bold text-white">Instant Sign In with Telegram</h2>
+              <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                Log in seamlessly using your verified Telegram account. No SMS, no password, and no mandatory email required.
+              </p>
+            </div>
+
+            {/* Telegram Official Widget Container */}
+            <div className="flex flex-col items-center justify-center min-h-[56px] py-2">
+              {telegramConfig?.configured && telegramConfig.botUsername ? (
+                <div ref={telegramContainerRef} className="flex justify-center" />
+              ) : telegramConfig === null ? (
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
+                  <span>Loading Telegram login...</span>
+                </div>
+              ) : (
+                <div className="text-center rounded-xl border border-white/10 bg-white/[0.02] p-4 text-xs text-slate-400 w-full">
+                  <p className="font-semibold text-slate-300">Telegram Bot Setup Notice</p>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    To enable 1-click Telegram Login on your custom domain, set <code className="text-sky-300">TELEGRAM_BOT_TOKEN</code> in your environment variables and authorize your domain with <code className="text-sky-300">@BotFather</code> (/setdomain).
                   </p>
-                  <p className="mt-1 font-mono text-sm font-black text-white" dir="ltr">
-                    {identifier}
-                  </p>
+                  <div className="mt-3">
+                    <a
+                      href="https://t.me/talagotours"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-300 hover:bg-sky-500/20 transition-all"
+                    >
+                      <SendHorizontal className="h-3.5 w-3.5" />
+                      <span>Open Telegram Concierge</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <p className="text-[11px] text-center text-slate-500">
+              Your Telegram identity is verified cryptographically via server-side signature validation.
+            </p>
+          </div>
+        )}
+
+        {/* ── TAB 2: WHATSAPP VERIFICATION ── */}
+        {authMethod === 'WHATSAPP' && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
+              <div className="flex justify-center mb-2">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                  <MessageCircle className="h-5 w-5" />
+                </span>
+              </div>
+              <h2 className="text-sm font-bold text-white">Continue with WhatsApp</h2>
+              <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                Avoid SMS OTP fees. Send a single-use verification message from your own WhatsApp to our concierge business number.
+              </p>
+            </div>
+
+            {!waChallenge ? (
+              <button
+                type="button"
+                onClick={handleStartWhatsAppChallenge}
+                disabled={loading}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3.5 text-sm font-black text-white shadow-xl shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] hover:brightness-110 disabled:opacity-60"
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Open WhatsApp &amp; Send Verification</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-center">
+                <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-400">
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  <span>Waiting for your WhatsApp message...</span>
                 </div>
 
-                <label className="block">
-                  <span className="mb-2 block text-xs font-bold text-slate-300">
-                    أدخل كود التحقق (6 أرقام)
-                  </span>
-                  <div className="relative flex items-center">
-                    <KeyRound className="absolute left-4 h-4 w-4 text-slate-500" />
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      required
-                      maxLength={6}
-                      dir="ltr"
-                      autoFocus
-                      placeholder="• • • • • •"
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/[^\d]/g, ''))}
-                      className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-white/10 bg-white/5 text-center text-xl font-mono tracking-[0.3em] font-black text-white outline-none transition-all duration-300 focus:border-[#00E5FF] focus:ring-1 focus:ring-[#00E5FF]"
-                    />
-                  </div>
-                </label>
+                <p className="font-mono text-xs text-slate-300 bg-white/5 py-1.5 px-3 rounded-xl inline-block">
+                  Challenge: <strong className="text-white">{waChallenge}</strong>
+                </p>
 
-                {devOtp && (
-                  <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-2 text-center text-[11px] text-yellow-300 font-mono">
-                    💡 كود التحقق السريع: <strong>{devOtp}</strong>
+                {waUrl && (
+                  <div>
+                    <a
+                      href={waUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00E5FF] hover:underline"
+                    >
+                      <span>Re-open WhatsApp chat</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
                   </div>
                 )}
 
-                {message && (
-                  <div
-                    className={`rounded-2xl border p-3.5 text-xs font-semibold flex gap-2.5 ${
-                      message.type === 'success'
-                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
-                        : 'border-red-500/20 bg-red-500/10 text-red-300'
-                    }`}
-                  >
-                    <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
-                    <span>{message.text}</span>
+                {!waWebhookConfigured && (
+                  <div className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-2.5 text-[11px] text-amber-300 text-left">
+                    <p className="font-bold">Provider Configuration Note:</p>
+                    <p className="mt-0.5">
+                      Inbound webhook receiver is awaiting Meta Cloud API token (<code className="text-white font-mono">WHATSAPP_WEBHOOK_VERIFY_TOKEN</code>). For instant login without webhook setup, please use <strong>Telegram</strong> or <strong>Email</strong>.
+                    </p>
                   </div>
                 )}
 
                 <button
-                  type="submit"
-                  disabled={loading || otpCode.length < 4}
-                  className={`w-full inline-flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black text-white shadow-xl transition-all duration-300 hover:scale-[1.02] hover:brightness-110 disabled:opacity-60 disabled:pointer-events-none ${
-                    authMethod === 'WHATSAPP'
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-500/20'
-                      : 'bg-gradient-to-r from-sky-500 to-blue-600 shadow-sky-500/20'
-                  }`}
+                  type="button"
+                  onClick={handleStartWhatsAppChallenge}
+                  className="mt-2 text-xs text-slate-400 hover:text-white transition-colors"
                 >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>تأكيد وتسجيل الدخول</span>
-                    </>
-                  )}
+                  Generate a new challenge
                 </button>
-
-                <div className="flex items-center justify-between pt-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOtpStep('ENTER_IDENTIFIER');
-                      setMessage(null);
-                    }}
-                    className="text-slate-400 hover:text-white transition-colors"
-                  >
-                    ← تعديل البيانات
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSendOtp}
-                    disabled={loading}
-                    className="text-[#00E5FF] hover:underline font-bold"
-                  >
-                    إعادة إرسال الكود
-                  </button>
-                </div>
-              </form>
+              </div>
             )}
 
-            {/* Direct Instant Channels Support */}
-            <div className="mt-6 border-t border-white/5 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            {/* Direct Support fallback */}
+            <div className="pt-2 text-center border-t border-white/5">
               <a
-                href={`https://wa.me/2010222434602?text=${encodeURIComponent('مرحباً TALAGO Tours، أحتاج مساعدة في تسجيل الدخول لحسابي.')}`}
+                href={getWhatsAppUrl('Hello TALAGO Support! I need assistance signing in to my account.')}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 transition-colors font-semibold"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
               >
                 <MessageCircle className="h-3.5 w-3.5" />
-                <span>مساعدة فورية عبر واتساب</span>
-              </a>
-
-              <a
-                href="https://t.me/talagotours"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sky-400 hover:text-sky-300 transition-colors font-semibold"
-              >
-                <SendHorizontal className="h-3.5 w-3.5" />
-                <span>فتح قناة تليجرام المباشرة</span>
+                <span>Need concierge help? Chat with us on WhatsApp ({whatsappNumber})</span>
               </a>
             </div>
           </div>
         )}
 
-        {/* ── METHOD 3: EMAIL (SECONDARY) ── */}
+        {/* ── TAB 3: EMAIL (SECONDARY) ── */}
         {authMethod === 'EMAIL' && (
           <form onSubmit={handleEmailAuth} className="space-y-4">
             <div className="rounded-xl border border-white/5 bg-white/[0.02] p-2.5 text-center text-xs text-slate-400">
-              البريد الإلكتروني خيار بديل وثانوي. يُفضل استخدام واتساب أو تليجرام للدخول الأسرع.
+              Email sign-in is optional. Use Telegram or WhatsApp for faster, passwordless access.
             </div>
 
             <label className="block">
               <span className="mb-2 block text-xs font-bold text-slate-300">
-                {dict?.authPage?.emailLabel || 'البريد الإلكتروني'}
+                {dict?.authPage?.emailLabel || 'Email Address'}
               </span>
               <div className="relative flex items-center">
                 <Mail className="absolute left-4 h-4 w-4 text-slate-500" />
@@ -509,7 +546,7 @@ export default function AuthPage() {
             {isPasswordMode && (
               <label className="block">
                 <span className="mb-2 block text-xs font-bold text-slate-300">
-                  {dict?.authPage?.passwordLabel || 'كلمة المرور'}
+                  {dict?.authPage?.passwordLabel || 'Password'}
                 </span>
                 <input
                   type="password"
@@ -522,19 +559,6 @@ export default function AuthPage() {
               </label>
             )}
 
-            {message && (
-              <div
-                className={`rounded-2xl border p-3.5 text-xs font-semibold flex gap-2.5 ${
-                  message.type === 'success'
-                    ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
-                    : 'border-red-500/20 bg-red-500/10 text-red-300'
-                }`}
-              >
-                <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>{message.text}</span>
-              </div>
-            )}
-
             <button
               type="submit"
               disabled={loading}
@@ -545,7 +569,7 @@ export default function AuthPage() {
               ) : isPasswordMode ? (
                 dict?.authPage?.signInRegister || 'Sign In / Register'
               ) : (
-                dict?.authPage?.sendMagicLink || 'Send Magic Link'
+                dict?.authPage?.sendMagicLink || 'Send Sign-In Link'
               )}
             </button>
 
@@ -559,7 +583,7 @@ export default function AuthPage() {
                 className="text-xs font-bold text-[#06B6D4] hover:text-[#EAB308] transition-colors"
               >
                 {isPasswordMode
-                  ? (dict?.authPage?.useMagicLink || 'Use passwordless magic link instead')
+                  ? (dict?.authPage?.useMagicLink || 'Use passwordless sign-in link instead')
                   : (dict?.authPage?.usePassword || 'Use email password instead')}
               </button>
             </div>

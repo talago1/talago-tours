@@ -545,7 +545,7 @@ export default function AdminSettingsPage() {
                         type="text"
                         value={settings.contact.whatsappNumber}
                         onChange={(e) => updateContact('whatsappNumber', e.target.value)}
-                        placeholder="+2010222434602"
+                        placeholder="+201222434602"
                         className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none focus:border-[#00E5FF]"
                       />
                     </label>
@@ -572,7 +572,7 @@ export default function AdminSettingsPage() {
                       type="text"
                       value={settings.contact?.phoneNumber || ''}
                       onChange={(e) => updateContact('phoneNumber', e.target.value)}
-                      placeholder="+20 102 224 34602"
+                      placeholder="+20 122 243 4602"
                       className="w-full rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3.5 text-white outline-none focus:border-[#00E5FF]"
                     />
                   </label>

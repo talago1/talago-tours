@@ -1,25 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { useContactSettings } from '@/hooks/useContactSettings';
 
 export default function FloatingConciergeWidget() {
   const { language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
-  const [whatsappNumber, setWhatsappNumber] = useState(
-    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '+2010222434602'
-  );
+  const { getWhatsAppUrl, showWhatsApp } = useContactSettings();
 
-  useEffect(() => {
-    fetch('/api/public/settings/contact')
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data?.whatsappNumber) setWhatsappNumber(data.whatsappNumber); })
-      .catch(() => {/* keep fallback */});
-  }, []);
+  if (showWhatsApp === false) return null;
 
-  const defaultMessage = encodeURIComponent('Hello TALAGO Concierge! I would like to inquire about booking tours & curated travel experiences.');
-  const whatsappUrl = `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${defaultMessage}`;
+  const defaultMessage = 'Hello TALAGO Concierge! I would like to inquire about booking tours & curated travel experiences.';
+  const whatsappUrl = getWhatsAppUrl(defaultMessage);
 
   return (
     <div className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 flex flex-col items-end lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]">
@@ -61,19 +55,16 @@ export default function FloatingConciergeWidget() {
         </div>
       )}
 
-      {/* Floating Action Button */}
+      {/* Floating Toggle Pill Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white shadow-2xl shadow-[#25D366]/40 transition-all duration-300 hover:scale-110"
-        aria-label="Contact VIP Concierge"
+        className="group relative flex items-center gap-2.5 rounded-full border border-white/15 bg-[#0B1528]/90 py-2.5 pl-3 pr-4 shadow-2xl shadow-black/60 backdrop-blur-xl transition-all duration-300 hover:border-[#00E5FF]/40 hover:bg-[#0B1528] hover:shadow-[#00E5FF]/10 active:scale-95"
       >
-        <span className="absolute -top-1 -right-1 flex h-4 w-4">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex h-4 w-4 rounded-full border-2 border-[#070F1E] bg-emerald-500"></span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-[#25D366] to-[#128C7E] text-white shadow-md shadow-[#25D366]/30 transition-transform duration-300 group-hover:scale-110">
+          <MessageCircle className="h-4 w-4 fill-current" />
         </span>
-        {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6 fill-current" />}
+        <span className="text-xs font-black uppercase tracking-[0.14em] text-white">Concierge</span>
       </button>
     </div>
   );
 }
-

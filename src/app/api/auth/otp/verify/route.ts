@@ -17,7 +17,6 @@ function cleanIdentifierString(val: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  // 1. Rate limiting
   const limit = rateLimit(clientKey(request, 'auth-otp-verify'), LIMIT, WINDOW_MS);
   if (!limit.allowed) {
     return tooManyRequests(limit.retryAfterSeconds);
@@ -44,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     if (!record) {
       return NextResponse.json(
-        { error: 'كود التحقق غير صالح أو انتهت صلاحيته. يرجى طلب كود جديد.' },
+        { error: 'Verification code has expired or was not requested.' },
         { status: 400, headers: NO_STORE }
       );
     }
@@ -54,27 +53,25 @@ export async function POST(request: NextRequest) {
       parsed = JSON.parse(record.value);
     } catch {
       return NextResponse.json(
-        { error: 'سجل التحقق تالف. يرجى طلب كود جديد.' },
+        { error: 'Invalid verification record.' },
         { status: 400, headers: NO_STORE }
       );
     }
 
-    // Expiry check
     if (Date.now() > parsed.expiresAt) {
       await prisma.systemSetting.delete({ where: { key: settingKey } }).catch(() => {});
       return NextResponse.json(
-        { error: 'انتهت صلاحية كود التحقق. يرجى طلب كود جديد.' },
+        { error: 'Verification code has expired. Please request a new code.' },
         { status: 400, headers: NO_STORE }
       );
     }
 
-    // Code mismatch check
     if (parsed.code !== submittedCode) {
       const attempts = (parsed.attempts || 0) + 1;
       if (attempts >= 5) {
         await prisma.systemSetting.delete({ where: { key: settingKey } }).catch(() => {});
         return NextResponse.json(
-          { error: 'عدد محاولات خاطئة زائد. يرجى طلب كود جديد.' },
+          { error: 'Too many incorrect attempts. Please request a new code.' },
           { status: 429, headers: NO_STORE }
         );
       }
@@ -85,7 +82,7 @@ export async function POST(request: NextRequest) {
       });
 
       return NextResponse.json(
-        { error: 'كود التحقق غير صحيح. يرجى التأكد وإعادة المحاولة.' },
+        { error: 'Incorrect verification code. Please check and try again.' },
         { status: 400, headers: NO_STORE }
       );
     }
@@ -99,7 +96,6 @@ export async function POST(request: NextRequest) {
       ? deriveGuestEmail(cleanIdentifier)
       : `telegram-${cleanIdentifier}@noreply.talago.com`;
 
-    // Check if CustomerProfile exists
     const existingProfile = await prisma.customerProfile.findFirst({
       where: {
         OR: [
@@ -136,7 +132,6 @@ export async function POST(request: NextRequest) {
       request.nextUrl.origin;
     const finalRedirect = `${appUrl}/my-bookings`;
 
-    // Generate Supabase sign-in link
     let actionLink: string | null = null;
     try {
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
@@ -155,7 +150,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: 'تم التحقق بنجاح.',
+        message: 'Successfully verified.',
         actionLink,
         redirectUrl: '/my-bookings',
         email: targetEmail,
@@ -170,4 +165,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

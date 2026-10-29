@@ -15,7 +15,6 @@ function sanitizePhoneForWhatsApp(phone: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  // 1. Rate limiting
   const limit = rateLimit(clientKey(request, 'auth-phone-verify-otp'), LIMIT, WINDOW_MS);
   if (!limit.allowed) {
     return tooManyRequests(limit.retryAfterSeconds);
@@ -57,7 +56,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check expiration
     if (Date.now() > parsed.expiresAt) {
       await prisma.systemSetting.delete({ where: { key: settingKey } }).catch(() => {});
       return NextResponse.json(
@@ -66,7 +64,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check code match
     if (parsed.code !== submittedCode) {
       const attempts = (parsed.attempts || 0) + 1;
       if (attempts >= 5) {
@@ -90,11 +87,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Code matches! Clear the OTP from storage
     await prisma.systemSetting.delete({ where: { key: settingKey } }).catch(() => {});
 
-    // Resolve target email:
-    // Look up existing CustomerProfile by phone number to see if they have a real email
     const existingProfile = await prisma.customerProfile.findFirst({
       where: {
         OR: [
@@ -109,7 +103,6 @@ export async function POST(request: NextRequest) {
       ? existingProfile.email
       : syntheticEmail;
 
-    // Create or update CustomerProfile
     const profileName = existingProfile?.name || `Traveler +${cleanPhone.slice(-4)}`;
     await prisma.customerProfile.upsert({
       where: { email: targetEmail },
@@ -125,14 +118,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Build the redirect URL
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
       process.env.NEXT_PUBLIC_BASE_URL ||
       request.nextUrl.origin;
     const finalRedirect = `${appUrl}/my-bookings`;
 
-    // Generate Supabase sign-in link (creates user automatically if missing)
     let actionLink: string | null = null;
     try {
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
@@ -143,14 +134,12 @@ export async function POST(request: NextRequest) {
 
       if (!linkError && linkData?.properties?.action_link) {
         actionLink = linkData.properties.action_link;
-      } else {
-        console.warn('[auth-phone-verify-otp] Supabase generateLink warning:', linkError);
       }
     } catch (sbErr) {
-      console.warn('[auth-phone-verify-otp] Supabase admin error:', sbErr);
+      console.warn('[auth-phone-verify-otp] Supabase generateLink notice:', sbErr);
     }
 
-    const response = NextResponse.json(
+    return NextResponse.json(
       {
         success: true,
         message: 'Successfully verified.',
@@ -160,8 +149,6 @@ export async function POST(request: NextRequest) {
       },
       { status: 200, headers: NO_STORE }
     );
-
-    return response;
   } catch (err: any) {
     console.error('[auth-phone-verify-otp] Error:', err);
     return NextResponse.json(

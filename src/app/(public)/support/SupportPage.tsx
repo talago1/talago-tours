@@ -28,7 +28,7 @@ export default function SupportPage({ contactSettings }: SupportPageProps) {
   const showWhatsApp = contactSettings?.showWhatsApp !== false && Boolean(contactSettings?.whatsappNumber);
   const showEmail = contactSettings?.showEmail !== false && Boolean(contactSettings?.corporateEmail);
   const showPhone = Boolean(contactSettings?.showPhone && contactSettings?.phoneNumber);
-  const whatsappNum = contactSettings?.whatsappNumber || '+2010222434602';
+  const whatsappNum = contactSettings?.whatsappNumber || '+201222434602';
   const emailAddr = contactSettings?.corporateEmail || 'support@talago-tours.com';
   const phoneNum = contactSettings?.phoneNumber || '';
 

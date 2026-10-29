@@ -70,7 +70,7 @@ ${boardingPassLine}
 🔗 *View & Manage Reservation:*
 ${manageLink}
 
-Need anything or have a question? Reply to this message or WhatsApp us at +20 102 224 3460.
+Need anything or have a question? Reply to this message or WhatsApp us at +20 122 243 4602.
 See you on your adventure! 🌅
 — Talago Tours Team`;
 }
@@ -333,7 +333,7 @@ We noticed you started booking ${tourTitle} but didn't get to finish.
 Your spot may still be available — finish your booking now:
 ${checkoutUrl}
 
-Need help or have questions? WhatsApp us directly at +20 102 224 3460.
+Need help or have questions? WhatsApp us directly at +20 122 243 4602.
 — Talago Tours Team 🌊`;
 
     // Branded email recovery reminder

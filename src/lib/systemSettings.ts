@@ -20,7 +20,7 @@ export function serializeSettingValue(value: unknown): string {
 
 export const DEFAULT_SETTINGS = {
   contact: {
-    whatsappNumber: '+2010222434602',
+    whatsappNumber: '+201222434602',
     corporateEmail: 'support@talago-tours.com',
     phoneNumber: '',
     socialLinks: { instagram: '', facebook: '', twitter: '' },

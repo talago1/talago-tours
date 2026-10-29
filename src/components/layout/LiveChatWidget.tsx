@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { MessageCircle, Send, X } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabase/client';
+import { useContactSettings } from '@/hooks/useContactSettings';
 
 type ChatMessage = { id: string; sender: 'VISITOR' | 'ADMIN'; body: string; createdAt: string };
 
@@ -89,17 +90,8 @@ export default function LiveChatWidget() {
     } finally { setSending(false); }
   };
 
-  const [whatsappNumber, setWhatsappNumber] = useState(
-    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '+2010222434602'
-  );
-  useEffect(() => {
-    fetch('/api/public/settings/contact')
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data?.whatsappNumber) setWhatsappNumber(data.whatsappNumber); })
-      .catch(() => {/* keep fallback */});
-  }, []);
-  const sanitizedWhatsApp = whatsappNumber.replace(/\D/g, '');
-  const whatsappUrl = `https://wa.me/${sanitizedWhatsApp}?text=Hello%20TALAGO%20Marketplace%2C%20I%20need%20help%20with%20an%20experience.`;
+  const { getWhatsAppUrl } = useContactSettings();
+  const whatsappUrl = getWhatsAppUrl('Hello TALAGO Marketplace, I need help with an experience.');
 
   return (
     <div
