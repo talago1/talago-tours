@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 
 const LIMIT = 15;
 const WINDOW_MS = 10 * 60 * 1000;
+const FRESHNESS_WINDOW_SEC = 600; // 10 minutes max payload age
 const NO_STORE = { 'cache-control': 'no-store, private' };
 
 export async function POST(request: NextRequest) {
@@ -64,18 +65,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Replay protection: auth_date must be fresh (within 24 hours) and not in future
+    // 3. Strict freshness check (10-minute maximum age)
     const nowSec = Math.floor(Date.now() / 1000);
     const authDateNum = Number(auth_date);
 
-    if (isNaN(authDateNum) || nowSec - authDateNum > 86400 || authDateNum > nowSec + 300) {
+    if (isNaN(authDateNum) || nowSec - authDateNum > FRESHNESS_WINDOW_SEC || authDateNum > nowSec + 60) {
       return NextResponse.json(
         { error: 'Telegram authentication token has expired. Please try again.' },
         { status: 401, headers: NO_STORE }
       );
     }
 
-    // 4. Stable customer identity
+    // 4. One-time replay prevention: ensure hash has not been consumed previously
+    const replayKey = `tg_used_${hash}`;
+    const alreadyUsed = await prisma.systemSetting.findUnique({
+      where: { key: replayKey },
+    });
+
+    if (alreadyUsed) {
+      return NextResponse.json(
+        { error: 'This Telegram authorization response has already been used. Please log in again.' },
+        { status: 401, headers: NO_STORE }
+      );
+    }
+
+    // Mark hash as consumed immediately in PostgreSQL
+    await prisma.systemSetting.create({
+      data: {
+        key: replayKey,
+        value: JSON.stringify({
+          consumedAt: new Date().toISOString(),
+          telegramId: String(id),
+          authDate: String(auth_date),
+        }),
+      },
+    }).catch(() => {
+      // Catch concurrent collision
+    });
+
+    // 5. Stable customer identity
     const syntheticEmail = `telegram-${id}@noreply.talago.com`;
     const fullName = [first_name, last_name].filter(Boolean).join(' ').trim() || (username ? `@${username}` : `Traveler #${id}`);
 
@@ -93,14 +121,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 5. Generate and exchange Supabase Auth session
+    // 6. Generate and exchange authentic Supabase Auth session
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
       process.env.NEXT_PUBLIC_BASE_URL ||
       request.nextUrl.origin;
     const finalRedirect = `${appUrl}/my-bookings`;
 
-    let actionLink: string | null = null;
     let session: any = null;
 
     try {
@@ -111,7 +138,6 @@ export async function POST(request: NextRequest) {
       });
 
       if (!linkError && linkData?.properties) {
-        actionLink = linkData.properties.action_link || null;
         const tokenHash = linkData.properties.hashed_token;
         const verificationType = (linkData.properties.verification_type === 'signup' ? 'signup' : 'magiclink') as 'signup' | 'magiclink';
 
@@ -132,7 +158,10 @@ export async function POST(request: NextRequest) {
               refresh_token: verifyData.session.refresh_token,
               expires_in: verifyData.session.expires_in,
               token_type: verifyData.session.token_type,
-              user: verifyData.session.user,
+              user: {
+                id: verifyData.session.user.id,
+                email: verifyData.session.user.email,
+              },
             };
           }
         }
@@ -143,13 +172,12 @@ export async function POST(request: NextRequest) {
       console.warn('[auth-telegram-verify] Supabase session generation notice:', sbErr);
     }
 
-    // 6. Return verified response with session and cookie
+    // 7. Return verified response with session and set authoritative cookie
     const response = NextResponse.json(
       {
         success: true,
         message: 'Successfully authenticated via Telegram.',
         session,
-        actionLink,
         redirectUrl: '/my-bookings',
         user: {
           id: String(id),

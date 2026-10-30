@@ -218,6 +218,22 @@ export default function AuthPage() {
       }
 
       if (data?.url) {
+        // Pre-check if provider is enabled in Supabase before navigating
+        // to prevent displaying a raw 400 JSON screen to the user
+        try {
+          const preflight = await fetch(data.url, { method: 'GET', redirect: 'manual' });
+          if (preflight.status === 400) {
+            setLoading(false);
+            setMessage({
+              type: 'error',
+              text: 'Google Sign-In is awaiting provider activation in the Supabase Dashboard. In the meantime, please use Telegram, WhatsApp, or Email.',
+            });
+            return;
+          }
+        } catch {
+          // If preflight check is prevented by browser CORS, continue with standard navigation
+        }
+
         window.location.href = data.url;
       }
     } catch (err: any) {

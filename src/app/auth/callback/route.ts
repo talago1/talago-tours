@@ -70,8 +70,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Redirect to requested next page or default
-    const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/my-bookings';
+    // Open redirect hardening: validate safe relative internal path
+    const isSafePath =
+      typeof next === 'string' &&
+      next.startsWith('/') &&
+      !next.startsWith('//') &&
+      !next.startsWith('/\\') &&
+      !next.includes('://');
+
+    const safeNext = isSafePath ? next : '/my-bookings';
     const redirectUrl = new URL(safeNext, appUrl);
     const response = NextResponse.redirect(redirectUrl);
 

@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 
 const LIMIT = 20;
 const WINDOW_MS = 10 * 60 * 1000;
+const FRESHNESS_WINDOW_SEC = 600; // 10 minutes max payload age
 
 export async function GET(request: NextRequest) {
   const limit = rateLimit(clientKey(request, 'auth-telegram-callback'), LIMIT, WINDOW_MS);
@@ -45,7 +46,6 @@ export async function GET(request: NextRequest) {
     // 1. Verify HMAC signature
     const secretKey = crypto.createHash('sha256').update(botToken).digest();
 
-    // Collect all query parameters except 'hash'
     const paramsObj: Record<string, string> = {};
     searchParams.forEach((val, key) => {
       if (key !== 'hash') {
@@ -70,14 +70,37 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${failureRedirect}&reason=invalid_signature`);
     }
 
-    // 2. Freshness check
+    // 2. Strict freshness check (10-minute maximum age)
     const nowSec = Math.floor(Date.now() / 1000);
     const authDateNum = Number(auth_date);
-    if (isNaN(authDateNum) || nowSec - authDateNum > 86400 || authDateNum > nowSec + 300) {
+    if (isNaN(authDateNum) || nowSec - authDateNum > FRESHNESS_WINDOW_SEC || authDateNum > nowSec + 60) {
       return NextResponse.redirect(`${failureRedirect}&reason=expired`);
     }
 
-    // 3. Stable profile
+    // 3. Single-use replay protection
+    const replayKey = `tg_used_${hash}`;
+    const alreadyUsed = await prisma.systemSetting.findUnique({
+      where: { key: replayKey },
+    });
+
+    if (alreadyUsed) {
+      return NextResponse.redirect(`${failureRedirect}&reason=replay_detected`);
+    }
+
+    await prisma.systemSetting.create({
+      data: {
+        key: replayKey,
+        value: JSON.stringify({
+          consumedAt: new Date().toISOString(),
+          telegramId: String(id),
+          authDate: String(auth_date),
+        }),
+      },
+    }).catch(() => {
+      // Catch concurrent collision
+    });
+
+    // 4. Stable customer profile
     const syntheticEmail = `telegram-${id}@noreply.talago.com`;
     const fullName = [first_name, last_name].filter(Boolean).join(' ').trim() || (username ? `@${username}` : `Traveler #${id}`);
 
@@ -94,7 +117,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // 4. Session generation
+    // 5. Session generation
     let accessToken: string | null = null;
     try {
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
@@ -144,4 +167,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${failureRedirect}&reason=server_error`);
   }
 }
-
