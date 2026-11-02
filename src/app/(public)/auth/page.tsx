@@ -136,16 +136,26 @@ function AuthPageContent() {
       popupRef.current = popup;
 
       // Listen for postMessage from telegram-success page
-      const onMessage = (event: MessageEvent) => {
+      const onMessage = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
         if (event.data?.type === 'talago_telegram_auth_success') {
           window.removeEventListener('message', onMessage);
           if (popupTimerRef.current) clearInterval(popupTimerRef.current);
           if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
           setLoading(false);
-          setMessage({ type: 'success', text: 'Signed in with Telegram! Loading your bookings…' });
+          setMessage({ type: 'success', text: 'Signed in with Telegram! Loading your account…' });
           const returnTo = event.data.returnTo || '/my-bookings';
-          setTimeout(() => router.push(returnTo), 800);
+
+          if (event.data?.session) {
+            try {
+              await supabaseClient.auth.setSession(event.data.session);
+            } catch (err) {
+              console.warn('[auth] Could not set client session:', err);
+            }
+          }
+
+          // Authoritative full-window navigation to ensure server cookies and client session are live
+          window.location.href = returnTo;
         }
       };
       window.addEventListener('message', onMessage);
@@ -157,18 +167,28 @@ function AuthPageContent() {
           window.removeEventListener('message', onMessage);
           if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
 
-          // Check if we now have a session
-          const { data: sessionData } = await supabaseClient.auth.getSession();
-          if (sessionData?.session) {
-            setLoading(false);
-            setMessage({ type: 'success', text: 'Signed in! Loading your bookings…' });
-            setTimeout(() => router.push('/my-bookings'), 800);
-          } else {
-            // Check cookie (server-set session) by pinging a protected route
-            setLoading(false);
-            setMessage({ type: 'info', text: 'Verifying session…' });
-            router.push('/my-bookings');
-          }
+          // Verify if session exists either in client or via server cookie
+          try {
+            const { data: sessionData } = await supabaseClient.auth.getSession();
+            if (sessionData?.session) {
+              setLoading(false);
+              setMessage({ type: 'success', text: 'Signed in! Loading your account…' });
+              window.location.href = '/my-bookings';
+              return;
+            }
+
+            const check = await fetch('/api/auth/session');
+            const checkData = await check.json();
+            if (checkData?.authenticated) {
+              setLoading(false);
+              setMessage({ type: 'success', text: 'Signed in! Loading your account…' });
+              window.location.href = '/my-bookings';
+              return;
+            }
+          } catch {}
+
+          // Fallback navigation
+          window.location.href = '/my-bookings';
         }
       }, 600);
 

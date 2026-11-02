@@ -27,6 +27,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [serverUser, setServerUser] = useState<{ email?: string; name?: string } | null>(null);
   const [mobileLangOpen, setMobileLangOpen] = useState(false);
 
   // Close mobile menu on route change
@@ -38,23 +39,44 @@ export default function Navbar() {
   // Auth session listener
   useEffect(() => {
     supabaseClient.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+      if (data.session) {
+        setSession(data.session);
+      } else {
+        fetch('/api/auth/session')
+          .then((res) => (res.ok ? res.json() : null))
+          .then((authData) => {
+            if (authData?.authenticated && authData.user) {
+              setServerUser(authData.user);
+            }
+          })
+          .catch(() => {});
+      }
     });
 
     const { data: listener } = supabaseClient.auth.onAuthStateChange((_event, s) => {
       setSession(s);
+      if (s) setServerUser(null);
     });
 
     return () => listener.subscription.unsubscribe();
   }, []);
 
   async function handleSignOut() {
-    await supabaseClient.auth.signOut();
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    try {
+      await supabaseClient.auth.signOut();
+    } catch {}
+    setSession(null);
+    setServerUser(null);
     setMobileMenuOpen(false);
+    window.location.href = '/';
   }
 
-  const userEmail = session?.user?.email ?? '';
-  const userInitial = userEmail[0]?.toUpperCase() ?? '?';
+  const activeEmail = session?.user?.email || serverUser?.email || '';
+  const activeName = serverUser?.name || activeEmail.split('@')[0] || '';
+  const userInitial = (activeName[0] || activeEmail[0] || 'T').toUpperCase();
 
   return (
     <header className="sticky top-0 z-[100] border-b border-white/[0.06] backdrop-blur-xl bg-[#070F1E]/85 shadow-lg shadow-black/10">
@@ -187,7 +209,7 @@ export default function Navbar() {
 
             {/* Auth Actions */}
             <div className="pt-2">
-              {session ? (
+              {(session || serverUser) ? (
                 <div className="space-y-3">
                   {/* User Profile Card */}
                   <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -196,7 +218,7 @@ export default function Navbar() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-bold text-slate-400">Signed in as</p>
-                      <p className="truncate text-sm font-bold text-white">{userEmail}</p>
+                      <p className="truncate text-sm font-bold text-white">{activeEmail || activeName}</p>
                     </div>
                   </div>
 

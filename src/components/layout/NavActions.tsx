@@ -30,6 +30,7 @@ export default function NavActions() {
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [serverUser, setServerUser] = useState<{ email?: string; name?: string } | null>(null);
   const langRef = useRef<HTMLDivElement>(null);
   const currencyRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
@@ -37,11 +38,23 @@ export default function NavActions() {
   // Bootstrap session state + listen for changes
   useEffect(() => {
     supabaseClient.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+      if (data.session) {
+        setSession(data.session);
+      } else {
+        fetch('/api/auth/session')
+          .then((res) => (res.ok ? res.json() : null))
+          .then((authData) => {
+            if (authData?.authenticated && authData.user) {
+              setServerUser(authData.user);
+            }
+          })
+          .catch(() => {});
+      }
     });
 
     const { data: listener } = supabaseClient.auth.onAuthStateChange((_event, s) => {
       setSession(s);
+      if (s) setServerUser(null);
     });
 
     return () => listener.subscription.unsubscribe();
@@ -59,14 +72,22 @@ export default function NavActions() {
   }, []);
 
   const handleSignOut = useCallback(async () => {
-    await supabaseClient.auth.signOut();
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    try {
+      await supabaseClient.auth.signOut();
+    } catch {}
+    setSession(null);
+    setServerUser(null);
     setUserOpen(false);
     router.push('/');
     router.refresh();
   }, [router]);
 
-  const userEmail = session?.user?.email ?? '';
-  const userInitial = userEmail[0]?.toUpperCase() ?? '?';
+  const activeEmail = session?.user?.email || serverUser?.email || '';
+  const activeName = serverUser?.name || activeEmail.split('@')[0] || '';
+  const userInitial = (activeName[0] || activeEmail[0] || 'T').toUpperCase();
 
   return (
     <div className="flex items-center gap-2">
@@ -152,7 +173,7 @@ export default function NavActions() {
       <div className="h-6 w-px bg-white/10" />
 
       {/* ── Auth: Logged In → Avatar Dropdown | Logged Out → Sign In button ── */}
-      {session ? (
+      {(session || serverUser) ? (
         <div ref={userRef} className="relative">
           <button
             type="button"
@@ -164,7 +185,7 @@ export default function NavActions() {
               {userInitial}
             </span>
             <span className="hidden sm:block max-w-[120px] truncate">
-              {userEmail.split('@')[0]}
+              {activeName || activeEmail.split('@')[0]}
             </span>
             <ChevronDown className={`h-3 w-3 transition-transform ${userOpen ? 'rotate-180' : ''}`} />
           </button>
@@ -173,7 +194,7 @@ export default function NavActions() {
             <div className="absolute right-0 top-full mt-2 w-52 rounded-xl border border-white/10 bg-[#0B1528] py-1 shadow-2xl shadow-black/60 backdrop-blur-xl">
               <div className="border-b border-white/[0.06] px-4 py-2.5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Signed in as</p>
-                <p className="mt-0.5 truncate text-sm font-semibold text-white">{userEmail}</p>
+                <p className="mt-0.5 truncate text-sm font-semibold text-white">{activeEmail || activeName}</p>
               </div>
               <Link
                 href="/my-bookings"

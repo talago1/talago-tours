@@ -23,6 +23,8 @@ import {
   ArrowRight,
   SendHorizontal,
   ExternalLink,
+  ChevronDown,
+  Sparkles,
 } from 'lucide-react';
 import WriteReviewModal from '@/components/modals/WriteReviewModal';
 
@@ -66,6 +68,16 @@ interface ReservationItem {
   lastAdminMessage?: string | null;
   lastAdminMessageAt?: string | null;
   hasUnreadAdminReply?: boolean;
+}
+
+interface CustomerInfo {
+  id?: string;
+  email: string;
+  name: string;
+  phone?: string | null;
+  isTelegram?: boolean;
+  telegramUsername?: string | null;
+  telegramPhotoUrl?: string | null;
 }
 
 function getTourTitle(translations: unknown, lang = 'en'): string {
@@ -277,33 +289,57 @@ export default function MyBookingsPage() {
   // Authentication & account states
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [customer, setCustomer] = useState<CustomerInfo | null>(null);
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [reservations, setReservations] = useState<ReservationItem[]>([]);
-  const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [reviewTarget, setReviewTarget] = useState<BookingItem | null>(null);
 
-  // Guest Lookup states
+  // Guest Lookup states (used in guest portal AND in authenticated lookup drawer)
   const [lookupRef, setLookupRef] = useState('');
   const [lookupPhone, setLookupPhone] = useState('');
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookedUpBooking, setLookedUpBooking] = useState<BookingItem | null>(null);
   const [lookedUpReservation, setLookedUpReservation] = useState<ReservationItem | null>(null);
+  const [showAuthGuestLookup, setShowAuthGuestLookup] = useState(false);
 
-  const loadBookingsForSession = useCallback(async (token?: string, userEmail?: string) => {
-    if (userEmail) setEmail(userEmail);
+  /**
+   * Loads bookings and customer profile. Accepts an optional token from Supabase client,
+   * but also seamlessly falls back to the authoritative talago_session cookie.
+   */
+  const loadBookingsForSession = useCallback(async (token?: string) => {
     try {
-      const res = await fetch('/api/public/my-bookings', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error('Failed to load bookings');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const res = await fetch('/api/public/my-bookings', { headers });
+
+      if (res.status === 401) {
+        setIsAuthenticated(false);
+        setCustomer(null);
+        return false;
+      }
+
+      if (!res.ok) {
+        throw new Error('Failed to load bookings');
+      }
+
       const data = await res.json();
       setBookings(data.bookings || []);
       setReservations(data.reservations || []);
+      if (data.user) {
+        setCustomer(data.user);
+      }
       setIsAuthenticated(true);
-    } catch {
+      setError(null);
+      return true;
+    } catch (err: any) {
+      console.warn('[my-bookings] loadBookings warning:', err?.message);
       setError('Could not load your bookings. Please try again.');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -350,8 +386,7 @@ export default function MyBookingsPage() {
   }, [lookupRef, lookupPhone]);
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout | undefined;
-    const hasHash = typeof window !== 'undefined' && window.location.hash.includes('access_token');
+    let mounted = true;
 
     // Pre-populate lookup from query params if available
     const initialRef = searchParams.get('ref');
@@ -359,41 +394,82 @@ export default function MyBookingsPage() {
     if (initialRef) setLookupRef(initialRef);
     if (initialPhone) setLookupPhone(initialPhone);
 
-    if (hasHash) {
-      timeoutId = setTimeout(() => {
-        setLoading(false);
-      }, 5000);
+    async function initAuth() {
+      // 1. Check if token hash is in URL (OAuth or Telegram redirect)
+      if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+        try {
+          const hash = window.location.hash.replace(/^#/, '');
+          const params = new URLSearchParams(hash);
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+          if (accessToken && refreshToken) {
+            await supabaseClient.auth.setSession({
+              access_token: decodeURIComponent(accessToken),
+              refresh_token: decodeURIComponent(refreshToken),
+            });
+            window.history.replaceState(null, '', window.location.pathname);
+            const success = await loadBookingsForSession(accessToken);
+            if (success && mounted) return;
+          }
+        } catch {}
+      }
+
+      // 2. Try with existing client-side Supabase session if available
+      try {
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        if (sessionData?.session) {
+          const success = await loadBookingsForSession(sessionData.session.access_token);
+          if (success && mounted) return;
+        }
+      } catch (err) {
+        console.warn('[my-bookings] client session check:', err);
+      }
+
+      // 3. Fallback to server-side cookie (talago_session)
+      if (mounted) {
+        await loadBookingsForSession();
+      }
     }
 
+    initAuth();
+
+    // 4. Subscribe to auth state changes (e.g. login from popup, OAuth callback)
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
       async (event, session) => {
-        if (session) {
-          if (timeoutId) clearTimeout(timeoutId);
-          if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
-            window.history.replaceState(null, '', window.location.pathname);
-          }
-          await loadBookingsForSession(session.access_token, session.user.email ?? '');
-        } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
-          // If no session, allow guest lookup mode instead of bouncing to /auth
-          setLoading(false);
+        if (!mounted) return;
+        if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')) {
+          await loadBookingsForSession(session.access_token);
+        } else if (event === 'SIGNED_OUT') {
           setIsAuthenticated(false);
+          setBookings([]);
+          setReservations([]);
+          setCustomer(null);
+          setLoading(false);
         }
       }
     );
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
-      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [searchParams, loadBookingsForSession]);
 
   async function handleSignOut() {
-    await supabaseClient.auth.signOut();
+    setLoading(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    try {
+      await supabaseClient.auth.signOut();
+    } catch {}
     setIsAuthenticated(false);
     setBookings([]);
     setReservations([]);
-    setEmail('');
+    setCustomer(null);
+    setLoading(false);
     router.push('/');
+    router.refresh();
   }
 
   const upcoming = bookings.filter(b => new Date(b.travelDate) >= new Date() && b.status !== 'CANCELLED');
@@ -404,7 +480,7 @@ export default function MyBookingsPage() {
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-[#00E5FF]" />
-          <p className="text-sm text-slate-400">Loading your bookings…</p>
+          <p className="text-sm text-slate-400">Loading your account…</p>
         </div>
       </div>
     );
@@ -507,9 +583,9 @@ export default function MyBookingsPage() {
         {/* Account Sign-In Card */}
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            <h3 className="text-sm font-bold text-white">Have a customer account?</h3>
+            <h3 className="text-sm font-bold text-white">Have an account?</h3>
             <p className="mt-1 text-xs text-slate-400">
-              Sign in with Telegram, Google, or Email to view all your past and upcoming trips in one place.
+              Sign in with Telegram, Google, or Email to view all your trips, messages, and boarding passes in one place.
             </p>
           </div>
           <Link
@@ -527,55 +603,119 @@ export default function MyBookingsPage() {
   // ---------------------------------------------------------------------------
   // AUTHENTICATED CUSTOMER DASHBOARD
   // ---------------------------------------------------------------------------
+  const customerDisplayName = customer?.name || (customer?.email ? customer.email.split('@')[0] : 'Traveler');
+  const userInitial = customerDisplayName[0]?.toUpperCase() ?? 'T';
+
   return (
     <main className="mx-auto max-w-3xl px-5 py-14 lg:px-8">
-      {/* Header */}
-      <div className="mb-10 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-white">My Bookings</h1>
-          {email && (
-            <p className="mt-1 text-sm text-slate-400 flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5" />
-              {email}
-            </p>
-          )}
+      {/* Customer Profile Card */}
+      <div className="mb-8 rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B1528] to-[#0d1c36] p-6 shadow-2xl backdrop-blur-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div className="flex items-center gap-4">
+            {customer?.telegramPhotoUrl ? (
+              <img
+                src={customer.telegramPhotoUrl}
+                alt={customerDisplayName}
+                className="h-14 w-14 rounded-full border-2 border-[#00E5FF]/40 object-cover shadow-lg"
+              />
+            ) : (
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#00E5FF] to-[#0284C7] text-xl font-black text-[#070F1E] shadow-lg shadow-[#00E5FF]/20">
+                {userInitial}
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black text-white">{customerDisplayName}</h1>
+                {customer?.isTelegram && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-300">
+                    <SendHorizontal className="h-2.5 w-2.5" />
+                    <span>Telegram Verified</span>
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                {customer?.telegramUsername && (
+                  <span className="font-semibold text-sky-400">@{customer.telegramUsername}</span>
+                )}
+                {customer?.email && !customer.email.endsWith('@noreply.talago.com') && (
+                  <span className="flex items-center gap-1 text-slate-300">
+                    <User className="h-3 w-3 text-slate-500" />
+                    {customer.email}
+                  </span>
+                )}
+                {customer?.phone && (
+                  <span className="flex items-center gap-1 text-slate-300">
+                    <Phone className="h-3 w-3 text-slate-500" />
+                    {customer.phone}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="self-start sm:self-center inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-300 transition-all hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Sign Out</span>
+          </button>
         </div>
-        <button
-          onClick={handleSignOut}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-400 transition-all hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
-        >
-          <LogOut className="h-3.5 w-3.5" />
-          Sign Out
-        </button>
+
+        {/* Trips Quick Stats */}
+        <div className="mt-6 pt-5 border-t border-white/5 grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-xl bg-white/[0.02] p-2.5 border border-white/5">
+            <span className="block text-lg font-black text-white">{upcoming.length}</span>
+            <span className="text-[10px] uppercase tracking-wider text-slate-400">Upcoming</span>
+          </div>
+          <div className="rounded-xl bg-white/[0.02] p-2.5 border border-white/5">
+            <span className="block text-lg font-black text-[#00E5FF]">{reservations.length}</span>
+            <span className="text-[10px] uppercase tracking-wider text-slate-400">Requests</span>
+          </div>
+          <div className="rounded-xl bg-white/[0.02] p-2.5 border border-white/5">
+            <span className="block text-lg font-black text-slate-400">{past.length}</span>
+            <span className="text-[10px] uppercase tracking-wider text-slate-400">Completed</span>
+          </div>
+        </div>
       </div>
 
       {/* Error */}
       {error && (
         <div className="mb-8 flex items-center gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
           <AlertCircle className="h-5 w-5 shrink-0" />
-          {error}
+          <span>{error}</span>
         </div>
       )}
 
+      {/* Bookings & Reservations Content */}
       {bookings.length === 0 && reservations.length === 0 && !error ? (
         /* Empty State */
-        <div className="flex flex-col items-center py-24 text-center">
-          <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/5">
-            <Ticket className="h-9 w-9 text-slate-600" />
+        <div className="rounded-3xl border border-white/10 bg-[#0B1528]/50 p-10 text-center space-y-4">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/10 text-[#00E5FF]">
+            <Ticket className="h-8 w-8" />
           </div>
-          <h2 className="text-xl font-bold text-white">No bookings yet</h2>
-          <p className="mt-2 max-w-sm text-sm text-slate-400">
-            Your booked tours will appear here. Ready for your next adventure?
-          </p>
-          <Link
-            href="/tours"
-            className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#00E5FF] px-6 py-3 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 transition-all hover:scale-[1.03] hover:bg-[#00D4F0]"
-          >
-            Explore Tours
-          </Link>
+          <div className="space-y-1">
+            <h2 className="text-lg font-bold text-white">No active bookings yet</h2>
+            <p className="mx-auto max-w-md text-xs sm:text-sm text-slate-400">
+              Your confirmed trips and reservation requests will appear here. Ready to explore the best of Egypt?
+            </p>
+          </div>
+          <div className="pt-2">
+            <Link
+              href="/tours"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#00E5FF] px-6 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 transition-all hover:bg-[#00D4F0] hover:scale-[1.02]"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>Explore Tours</span>
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-10">
+          {/* Reservation Requests */}
           {reservations.length > 0 && (
             <section>
               <h2 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
@@ -622,17 +762,81 @@ export default function MyBookingsPage() {
         </div>
       )}
 
-      {/* CTA */}
-      {(bookings.length > 0 || reservations.length > 0) && (
-        <div className="mt-14 text-center">
-          <Link
-            href="/tours"
-            className="inline-flex items-center gap-2 rounded-full border border-[#EAB308]/25 bg-[#EAB308]/10 px-6 py-3 text-sm font-bold text-[#EAB308] transition-all hover:bg-[#EAB308]/20"
-          >
-            Book Another Tour
-          </Link>
-        </div>
-      )}
+      {/* Guest Lookup Utility for Authenticated Travelers */}
+      <div className="mt-12 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <button
+          type="button"
+          onClick={() => setShowAuthGuestLookup((prev) => !prev)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              Have a booking made as a guest?
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Look up another trip by booking reference and contact phone.
+            </p>
+          </div>
+          <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${showAuthGuestLookup ? 'rotate-180' : ''}`} />
+        </button>
+
+        {showAuthGuestLookup && (
+          <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
+            <form onSubmit={handleLookupSubmit} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  required
+                  placeholder="Booking Reference (e.g. TAL-12345678)"
+                  value={lookupRef}
+                  onChange={(e) => setLookupRef(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white font-mono text-xs uppercase placeholder-slate-500 outline-none focus:border-[#00E5FF]"
+                />
+                <input
+                  type="tel"
+                  required
+                  placeholder="Contact Phone Number"
+                  value={lookupPhone}
+                  onChange={(e) => setLookupPhone(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white text-xs placeholder-slate-500 outline-none focus:border-[#00E5FF]"
+                />
+              </div>
+
+              {lookupError && (
+                <p className="text-xs text-red-400">{lookupError}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={lookupLoading}
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-xs font-bold text-white hover:bg-white/20 transition-all disabled:opacity-50"
+              >
+                {lookupLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                <span>Find Trip</span>
+              </button>
+            </form>
+
+            {(lookedUpBooking || lookedUpReservation) && (
+              <div className="pt-3 border-t border-white/5 space-y-3">
+                <span className="text-[11px] font-bold text-emerald-400">Found Trip:</span>
+                {lookedUpBooking && <BookingCard booking={lookedUpBooking} />}
+                {lookedUpReservation && <ReservationCard reservation={lookedUpReservation} />}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Book Another Tour CTA */}
+      <div className="mt-10 text-center">
+        <Link
+          href="/tours"
+          className="inline-flex items-center gap-2 rounded-full border border-[#EAB308]/25 bg-[#EAB308]/10 px-6 py-3 text-sm font-bold text-[#EAB308] transition-all hover:bg-[#EAB308]/20"
+        >
+          <span>Book Another Tour</span>
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
 
       {/* Write a Review Modal */}
       {reviewTarget && (

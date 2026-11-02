@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
   const syntheticEmail = `telegram-${telegramId}@noreply.talago.com`;
 
   // ── Upsert CustomerProfile ─────────────────────────────────────────────────
-  // Lookup by telegramId first, then by synthetic email — never merge by phone alone
+  // Lookup by telegramId first, then by synthetic email
   try {
     const existingByTgId = await prisma.customerProfile.findUnique({
       where: { telegramId },
@@ -181,7 +181,6 @@ export async function GET(request: NextRequest) {
           telegramBotAccess,
           telegramConnectedAt: new Date(),
           isShadow: false,
-          // Only set telegramPhone if provided; never overwrite booking phone
           ...(telegramPhone ? { telegramPhone, telegramPhoneVerified: true } : {}),
         },
       });
@@ -213,7 +212,6 @@ export async function GET(request: NextRequest) {
     }
   } catch (err) {
     console.error('[tg-oidc-callback] CustomerProfile upsert error:', err);
-    // Non-fatal: continue to create session even if profile update fails
   }
 
   // ── Mint a real Supabase Auth session ──────────────────────────────────────
@@ -265,12 +263,18 @@ export async function GET(request: NextRequest) {
     console.warn('[tg-oidc-callback] Supabase session error (non-fatal):', err);
   }
 
-  // ── Clear PKCE cookie and redirect to success page ────────────────────────
-  // The telegram-success page closes the popup and redirects the opener
+  // ── Redirect to success page ──────────────────────────────────────────────
+  // Pass tokens in hash fragment so client can hydrate Supabase localStorage,
+  // while HttpOnly cookie talago_session handles authoritative server authentication.
   const successUrl = new URL(`/auth/telegram-success`, request.nextUrl.origin);
   successUrl.searchParams.set('returnTo', returnTo);
 
-  const response = NextResponse.redirect(successUrl);
+  let redirectTarget = successUrl.toString();
+  if (session?.access_token && session?.refresh_token) {
+    redirectTarget += `#access_token=${encodeURIComponent(session.access_token)}&refresh_token=${encodeURIComponent(session.refresh_token)}`;
+  }
+
+  const response = NextResponse.redirect(redirectTarget);
 
   // Clear the PKCE cookie
   response.cookies.set('tg_pkce', '', {
@@ -281,17 +285,16 @@ export async function GET(request: NextRequest) {
     maxAge: 0,
   });
 
-  // Set the session cookie so the main window gets it on next request
+  // Set the authoritative talago_session cookie (7 days)
   if (session?.access_token) {
     response.cookies.set('talago_session', session.access_token, {
       path: '/',
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 7,
     });
   }
 
   return response;
 }
-
