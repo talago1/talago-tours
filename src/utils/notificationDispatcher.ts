@@ -54,7 +54,7 @@ function buildCustomerWhatsAppMessage(data: BookingNotificationPayload): string 
     ? `🎫 *Your Boarding Pass (PDF):*\n${data.pdfUrl}\n`
     : `🎫 *Your Boarding Pass:*\n${baseUrl}/booking/${data.accessToken}\n`;
 
-  return `🌊 *TALAGO Tours — Booking Confirmation*
+  return `🌊 *TALAGO — Booking Confirmation*
 
 Hello ${data.customerName}! 🎉
 
@@ -72,7 +72,7 @@ ${manageLink}
 
 Need anything or have a question? Reply to this message or WhatsApp us at +20 122 243 4602.
 See you on your adventure! 🌅
-— Talago Tours Team`;
+— Talago Team`;
 }
 
 function buildAdminTelegramMessage(data: BookingNotificationPayload): string {
@@ -334,7 +334,7 @@ Your spot may still be available — finish your booking now:
 ${checkoutUrl}
 
 Need help or have questions? WhatsApp us directly at +20 122 243 4602.
-— Talago Tours Team 🌊`;
+— Talago Team 🌊`;
 
     // Branded email recovery reminder
     if (entry.email && process.env.RESEND_API_KEY) {

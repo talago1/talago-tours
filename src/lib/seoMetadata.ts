@@ -496,7 +496,7 @@ export function buildTourDetailSEO(params: {
       title: formattedTitle,
       description,
       url: `${pageUrl}${lang === 'en' ? '' : `?lang=${lang}`}`,
-      siteName: 'TALAGO Tours',
+      siteName: 'TALAGO',
       locale: getOpenGraphLocale(lang),
       type: 'website',
       images: [

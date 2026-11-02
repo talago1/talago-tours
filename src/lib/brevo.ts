@@ -92,7 +92,7 @@ export async function sendBrevoTransactionalEmail(options: BrevoTransactionalEma
  */
 export async function createBrevoCampaign(options: BrevoCampaignOptions): Promise<{ id: number }> {
   const defaultSenderEmail = process.env.BREVO_FROM_EMAIL || 'info@talago.com';
-  const defaultSenderName = process.env.BREVO_FROM_NAME || 'TALAGO Tours';
+  const defaultSenderName = process.env.BREVO_FROM_NAME || 'TALAGO';
 
   const payload: Record<string, any> = {
     name: options.name,

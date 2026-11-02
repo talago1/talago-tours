@@ -26,7 +26,7 @@ const jsonLd = {
       '@id': `${baseUrl}/#website`,
       url: baseUrl,
       name: 'TALAGO',
-      alternateName: 'TALAGO Tours',
+      alternateName: 'Talago',
       description: 'TALAGO — Book top-rated tours, activities & experiences worldwide. Discover Egypt, the Red Sea, and beyond.',
       inLanguage: 'en',
       publisher: { '@id': `${baseUrl}/#organization` },
@@ -43,7 +43,7 @@ const jsonLd = {
       '@type': 'Organization',
       '@id': `${baseUrl}/#organization`,
       name: 'TALAGO',
-      alternateName: 'TALAGO Tours',
+      alternateName: 'Talago',
       url: baseUrl,
       logo: {
         '@type': 'ImageObject',

@@ -531,7 +531,7 @@ export function applyTemplateToTourData(templateId: string, baseData: TourEditor
         cancellationPolicy: patch.cancellationPolicy || '',
         pickupDescription: patch.pickupDescription || '',
         faqItems: patch.faqItems || [],
-        seoTitle: `${template.title} | TALAGO Tours`,
+        seoTitle: `${template.title} | TALAGO`,
         seoDescription: template.description,
       },
     },

@@ -46,7 +46,7 @@ function getBaseUrl(): string {
 // ---------------------------------------------------------------------------
 
 const MESSAGE_TEMPLATES: Record<string, string> = {
-  en: `🌊 *TALAGO Tours — Booking Confirmation*
+  en: `🌊 *TALAGO — Booking Confirmation*
 
 Hello {customerName}! 🎉
 
@@ -64,9 +64,9 @@ Your booking *{bookingReference}* is now *{status}*.
 For questions, reply to this message or call us at +20 122 243 4602.
 
 See you soon! 🌅
-— Talago Tours Team`,
+— Talago Team`,
 
-  de: `🌊 *TALAGO Tours — Buchungsbestätigung*
+  de: `🌊 *TALAGO — Buchungsbestätigung*
 
 Hallo {customerName}! 🎉
 
@@ -84,9 +84,9 @@ Ihre Buchung *{bookingReference}* ist jetzt *{status}*.
 Bei Fragen antworten Sie auf diese Nachricht oder rufen Sie +20 122 243 4602 an.
 
 Bis bald! 🌅
-— Talago Tours Team`,
+— Talago Team`,
 
-  ru: `🌊 *TALAGO Tours — Подтверждение бронирования*
+  ru: `🌊 *TALAGO — Подтверждение бронирования*
 
 Здравствуйте, {customerName}! 🎉
 
@@ -104,9 +104,9 @@ Bis bald! 🌅
 По вопросам ответьте на это сообщение или позвоните +20 122 243 4602.
 
 До встречи! 🌅
-— Команда Talago Tours`,
+— Команда Talago`,
 
-  fr: `🌊 *TALAGO Tours — Confirmation de réservation*
+  fr: `🌊 *TALAGO — Confirmation de réservation*
 
 Bonjour {customerName}! 🎉
 
@@ -124,9 +124,9 @@ Votre réservation *{bookingReference}* est maintenant *{status}*.
 Pour toute question, répondez à ce message ou appelez le +20 122 243 4602.
 
 À bientôt! 🌅
-— L'équipe Talago Tours`,
+— L'équipe Talago`,
 
-  it: `🌊 *TALAGO Tours — Conferma prenotazione*
+  it: `🌊 *TALAGO — Conferma prenotazione*
 
 Ciao {customerName}! 🎉
 
@@ -144,9 +144,9 @@ La tua prenotazione *{bookingReference}* è ora *{status}*.
 Per domande, rispondi a questo messaggio o chiama il +20 122 243 4602.
 
 A presto! 🌅
-— Team Talago Tours`,
+— Team Talago`,
 
-  pl: `🌊 *TALAGO Tours — Potwierdzenie rezerwacji*
+  pl: `🌊 *TALAGO — Potwierdzenie rezerwacji*
 
 Cześć {customerName}! 🎉
 
@@ -164,9 +164,9 @@ Twoja rezerwacja *{bookingReference}* ma teraz status *{status}*.
 W razie pytań odpowiedz na tę wiadomość lub zadzwoń +20 122 243 4602.
 
 Do zobaczenia! 🌅
-— Zespół Talago Tours`,
+— Zespół Talago`,
 
-  es: `🌊 *TALAGO Tours — Confirmación de reserva*
+  es: `🌊 *TALAGO — Confirmación de reserva*
 
 ¡Hola {customerName}! 🎉
 
@@ -184,7 +184,7 @@ Tu reserva *{bookingReference}* ahora está *{status}*.
 Si tienes preguntas, responde a este mensaje o llama al +20 122 243 4602.
 
 ¡Hasta pronto! 🌅
-— Equipo Talago Tours`,
+— Equipo Talago`,
 };
 
 const STATUS_LABELS: Record<string, Record<string, string>> = {
