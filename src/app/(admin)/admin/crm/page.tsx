@@ -595,6 +595,55 @@ function CRMContent() {
                     </div>
                   </div>
 
+                  {/* Telegram Profile */}
+                  {customerDetail.profile?.telegramId && (
+                    <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-sky-400">Telegram</span>
+                        {customerDetail.profile.telegramBotAccess ? (
+                          <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                            Messaging Enabled
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+                            Bot Not Authorized
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {customerDetail.profile.telegramPhotoUrl && (
+                          <img
+                            src={customerDetail.profile.telegramPhotoUrl}
+                            alt="Telegram avatar"
+                            className="h-9 w-9 rounded-full border border-sky-500/30 object-cover shrink-0"
+                          />
+                        )}
+                        <div className="space-y-0.5 text-xs">
+                          {customerDetail.profile.telegramUsername && (
+                            <p className="font-bold text-white">
+                              @{customerDetail.profile.telegramUsername}
+                            </p>
+                          )}
+                          <p className="text-slate-400 font-mono">ID: {customerDetail.profile.telegramId}</p>
+                          {customerDetail.profile.telegramPhone && (
+                            <p className="text-slate-300 flex items-center gap-1">
+                              <Phone className="h-3 w-3 text-slate-500" />
+                              {customerDetail.profile.telegramPhone}
+                              {customerDetail.profile.telegramPhoneVerified && (
+                                <span className="text-[10px] font-bold text-emerald-400 ml-1">Verified</span>
+                              )}
+                            </p>
+                          )}
+                          {customerDetail.profile.telegramConnectedAt && (
+                            <p className="text-[11px] text-slate-500">
+                              Connected {new Date(customerDetail.profile.telegramConnectedAt).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Connected Journey Timeline */}
                   <div className="space-y-3">
                     <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">

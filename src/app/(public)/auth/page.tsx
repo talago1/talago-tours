@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -17,12 +17,6 @@ import {
 import { supabaseClient } from '@/lib/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { useContactSettings } from '@/hooks/useContactSettings';
-
-declare global {
-  interface Window {
-    onTelegramAuth?: (user: any) => void;
-  }
-}
 
 function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
@@ -47,26 +41,36 @@ function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   );
 }
 
-export default function AuthPage() {
+function TelegramIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+    </svg>
+  );
+}
+
+function AuthPageContent() {
   const { dict } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { whatsappNumber, getWhatsAppUrl } = useContactSettings();
+  const { getWhatsAppUrl } = useContactSettings();
 
-  // Active Auth Tab: 'TELEGRAM' | 'GOOGLE' | 'WHATSAPP' | 'EMAIL'
   const [authMethod, setAuthMethod] = useState<'GOOGLE' | 'TELEGRAM' | 'EMAIL'>('GOOGLE');
 
-  // Shared states
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
-  // Telegram states
-  const [telegramConfig, setTelegramConfig] = useState<{ configured: boolean; botUsername: string | null } | null>(null);
-  const telegramContainerRef = useRef<HTMLDivElement>(null);
+  // Telegram OIDC state
+  const [telegramConfig, setTelegramConfig] = useState<{
+    configured: boolean;
+    botUsername: string | null;
+    oidcConfigured?: boolean;
+  } | null>(null);
+  const popupRef = useRef<Window | null>(null);
+  const popupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const popupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-
-
-  // Email states (Secondary)
+  // Email states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordMode, setIsPasswordMode] = useState(false);
@@ -75,122 +79,118 @@ export default function AuthPage() {
   useEffect(() => {
     const errorParam = searchParams.get('error');
     if (errorParam) {
-      setMessage({
-        type: 'error',
-        text: decodeURIComponent(errorParam),
-      });
+      setMessage({ type: 'error', text: decodeURIComponent(errorParam) });
     }
   }, [searchParams]);
 
-  // ---------------------------------------------------------------------------
-  // 1. Load Telegram Bot Configuration
-  // ---------------------------------------------------------------------------
+  // Load Telegram config
   useEffect(() => {
     fetch('/api/auth/telegram/config')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data) {
-          setTelegramConfig(data);
-        }
+        if (data) setTelegramConfig(data);
       })
-      .catch(() => {
-        setTelegramConfig({ configured: false, botUsername: null });
-      });
+      .catch(() => setTelegramConfig({ configured: false, botUsername: null }));
+  }, []);
+
+  // Cleanup popup watchers on unmount
+  useEffect(() => {
+    return () => {
+      if (popupTimerRef.current) clearInterval(popupTimerRef.current);
+      if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
+    };
   }, []);
 
   // ---------------------------------------------------------------------------
-  // 2. Telegram Auth Handler Callback
+  // Telegram OIDC popup flow
   // ---------------------------------------------------------------------------
-  const handleTelegramAuth = useCallback(async (telegramUser: any) => {
+  const handleTelegramOidc = useCallback(async () => {
     setLoading(true);
-    setMessage(null);
+    setMessage({ type: 'info', text: 'Connecting to Telegram…' });
 
-    // Timeout safeguard against indefinite hanging
-    const timeoutTimer = setTimeout(() => {
-      setLoading(false);
-      setMessage({
-        type: 'error',
-        text: 'Telegram authentication timed out. Please try again.',
-      });
-    }, 15000);
+    // Cleanup any previous popup watcher
+    if (popupTimerRef.current) clearInterval(popupTimerRef.current);
+    if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
 
     try {
-      const res = await fetch('/api/auth/telegram/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(telegramUser),
-      });
-
-      clearTimeout(timeoutTimer);
-      const data = await res.json();
+      const res = await fetch('/api/auth/telegram/authorize?returnTo=/my-bookings');
       if (!res.ok) {
-        throw new Error(data.error || 'Telegram verification failed. Please try again.');
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Could not start Telegram login. Please try again.');
+      }
+      const { url } = await res.json();
+
+      // Open Telegram OIDC in a popup
+      const popup = window.open(
+        url,
+        'telegram_oidc',
+        'width=800,height=640,scrollbars=yes,resizable=yes,status=yes'
+      );
+
+      if (!popup) {
+        // Popup was blocked — fall back to full-page redirect
+        window.location.href = url;
+        return;
       }
 
-      setMessage({
-        type: 'success',
-        text: 'Successfully authenticated with Telegram! Loading your bookings...',
-      });
+      popupRef.current = popup;
 
-      // If server returned a direct Supabase session, hydrate client session
-      if (data.session) {
-        try {
-          await supabaseClient.auth.setSession(data.session);
-        } catch {
-          // ignore local session storage error, cookie is already set
+      // Listen for postMessage from telegram-success page
+      const onMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        if (event.data?.type === 'talago_telegram_auth_success') {
+          window.removeEventListener('message', onMessage);
+          if (popupTimerRef.current) clearInterval(popupTimerRef.current);
+          if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
+          setLoading(false);
+          setMessage({ type: 'success', text: 'Signed in with Telegram! Loading your bookings…' });
+          const returnTo = event.data.returnTo || '/my-bookings';
+          setTimeout(() => router.push(returnTo), 800);
         }
-      }
+      };
+      window.addEventListener('message', onMessage);
 
-      if (data.actionLink && !data.session) {
-        window.location.href = data.actionLink;
-      } else {
-        router.push('/my-bookings');
-      }
+      // Poll for popup closure (fallback if postMessage fails)
+      popupTimerRef.current = setInterval(async () => {
+        if (popup.closed) {
+          clearInterval(popupTimerRef.current!);
+          window.removeEventListener('message', onMessage);
+          if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
+
+          // Check if we now have a session
+          const { data: sessionData } = await supabaseClient.auth.getSession();
+          if (sessionData?.session) {
+            setLoading(false);
+            setMessage({ type: 'success', text: 'Signed in! Loading your bookings…' });
+            setTimeout(() => router.push('/my-bookings'), 800);
+          } else {
+            // Check cookie (server-set session) by pinging a protected route
+            setLoading(false);
+            setMessage({ type: 'info', text: 'Verifying session…' });
+            router.push('/my-bookings');
+          }
+        }
+      }, 600);
+
+      // 5-minute global timeout
+      popupTimeoutRef.current = setTimeout(() => {
+        clearInterval(popupTimerRef.current!);
+        window.removeEventListener('message', onMessage);
+        if (!popup.closed) popup.close();
+        setLoading(false);
+        setMessage({
+          type: 'error',
+          text: 'Telegram login timed out. Please try again.',
+        });
+      }, 5 * 60 * 1000);
     } catch (err: any) {
-      clearTimeout(timeoutTimer);
-      setMessage({
-        type: 'error',
-        text: err?.message || 'An error occurred during Telegram verification.',
-      });
-    } finally {
       setLoading(false);
+      setMessage({ type: 'error', text: err?.message || 'Telegram login failed. Please try again.' });
     }
   }, [router]);
 
-  // Bind Telegram callback to window
-  useEffect(() => {
-    window.onTelegramAuth = handleTelegramAuth;
-    return () => {
-      delete window.onTelegramAuth;
-    };
-  }, [handleTelegramAuth]);
-
-  // Render official Telegram Widget when tab is active and botUsername is available
-  useEffect(() => {
-    if (authMethod !== 'TELEGRAM' || !telegramConfig?.botUsername || !telegramContainerRef.current) {
-      return;
-    }
-
-    // Clear previous widget iframe if any
-    telegramContainerRef.current.innerHTML = '';
-
-    const script = document.createElement('script');
-    script.src = 'https://telegram.org/js/telegram-widget.js?22';
-    script.setAttribute('data-telegram-login', telegramConfig.botUsername);
-    script.setAttribute('data-size', 'large');
-    script.setAttribute('data-radius', '14');
-    script.setAttribute('data-request-access', 'write');
-    script.setAttribute('data-userpic', 'false');
-    // Enforce English language explicitly on Telegram widget to avoid Arabic labels
-    script.setAttribute('data-lang', 'en');
-    script.setAttribute('data-onauth', 'window.onTelegramAuth(user)');
-    script.async = true;
-
-    telegramContainerRef.current.appendChild(script);
-  }, [authMethod, telegramConfig]);
-
   // ---------------------------------------------------------------------------
-  // 3. Google Sign-In Handler (Supabase OAuth)
+  // Google OAuth (Supabase)
   // ---------------------------------------------------------------------------
   async function handleGoogleSignIn() {
     setLoading(true);
@@ -203,20 +203,13 @@ export default function AuthPage() {
         provider: 'google',
         options: {
           redirectTo: redirectUri,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
+          queryParams: { access_type: 'offline', prompt: 'consent' },
         },
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       if (data?.url) {
-        // Pre-check if provider is enabled in Supabase before navigating
-        // to prevent displaying a raw 400 JSON screen to the user
         try {
           const preflight = await fetch(data.url, { method: 'GET', redirect: 'manual' });
           if (preflight.status === 400) {
@@ -228,9 +221,8 @@ export default function AuthPage() {
             return;
           }
         } catch {
-          // If preflight check is prevented by browser CORS, continue with standard navigation
+          // CORS blocked — continue
         }
-
         window.location.href = data.url;
       }
     } catch (err: any) {
@@ -240,13 +232,13 @@ export default function AuthPage() {
         text:
           err?.message?.includes('provider is not enabled') || err?.message?.includes('Unsupported provider')
             ? 'Google Sign-In is awaiting provider activation in Supabase Auth. Please use Telegram or Email in the meantime.'
-            : (err?.message || 'Could not initiate Google Sign-In.'),
+            : err?.message || 'Could not initiate Google Sign-In.',
       });
     }
   }
 
   // ---------------------------------------------------------------------------
-  // 4. Email Auth Handler (Secondary & Backward-compatible)
+  // Email auth (magic link or password)
   // ---------------------------------------------------------------------------
   async function handleEmailAuth(event: React.FormEvent) {
     event.preventDefault();
@@ -260,23 +252,12 @@ export default function AuthPage() {
 
     try {
       if (isPasswordMode) {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
         if (error) {
-          const { error: signUpError } = await supabaseClient.auth.signUp({
-            email,
-            password,
-          });
-
+          const { error: signUpError } = await supabaseClient.auth.signUp({ email, password });
           if (signUpError) throw signUpError;
-
-          setMessage({
-            type: 'success',
-            text: dict?.authPage?.registrationSuccess || 'Registration successful! Check your email to confirm.',
-          });
+          setMessage({ type: 'success', text: dict?.authPage?.registrationSuccess || 'Registration successful! Check your email to confirm.' });
         } else if (data.session) {
           document.cookie = `talago_session=${data.session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
           setMessage({ type: 'success', text: dict?.authPage?.signedInSuccess || 'Signed in successfully! Redirecting...' });
@@ -286,31 +267,24 @@ export default function AuthPage() {
         const res = await fetch('/api/auth/magic-link', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            email,
-            redirectTo: `${window.location.origin}/my-bookings`,
-          }),
+          body: JSON.stringify({ email, redirectTo: `${window.location.origin}/my-bookings` }),
         });
 
         const resData = await res.json();
-        if (!res.ok) {
-          throw new Error(resData.error || 'Failed to send magic link.');
-        }
+        if (!res.ok) throw new Error(resData.error || 'Failed to send magic link.');
 
-        setMessage({
-          type: 'success',
-          text: dict?.authPage?.magicLinkSent || 'Sign-in link sent! Please check your email inbox.',
-        });
+        setMessage({ type: 'success', text: dict?.authPage?.magicLinkSent || 'Sign-in link sent! Please check your email inbox.' });
       }
     } catch (err: any) {
-      setMessage({
-        type: 'error',
-        text: err?.message || 'An unexpected error occurred.',
-      });
+      setMessage({ type: 'error', text: err?.message || 'An unexpected error occurred.' });
     } finally {
       setLoading(false);
     }
   }
+
+  // Determine Telegram UI mode
+  const oidcReady = telegramConfig?.oidcConfigured === true;
+  const legacyReady = telegramConfig?.configured && telegramConfig?.botUsername && !oidcReady;
 
   return (
     <main className="min-h-screen bg-[#070F1E] flex flex-col justify-center items-center px-4 py-12 text-[#F8FAFC]">
@@ -331,15 +305,11 @@ export default function AuthPage() {
           </p>
         </div>
 
-        {/* Authentication Mode Switcher: 1. Google (Preferred), 2. Telegram, 3. Email */}
+        {/* Authentication Mode Switcher */}
         <div className="mb-6 grid grid-cols-3 gap-1.5 rounded-2xl bg-white/[0.04] p-1.5 border border-white/10 text-center">
-          {/* 1. Google (Preferred) */}
           <button
             type="button"
-            onClick={() => {
-              setAuthMethod('GOOGLE');
-              setMessage(null);
-            }}
+            onClick={() => { setAuthMethod('GOOGLE'); setMessage(null); }}
             className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-2 text-xs font-bold transition-all ${
               authMethod === 'GOOGLE'
                 ? 'bg-white/15 border border-white/30 text-white shadow-md'
@@ -350,30 +320,22 @@ export default function AuthPage() {
             <span>Google</span>
           </button>
 
-          {/* 2. Telegram */}
           <button
             type="button"
-            onClick={() => {
-              setAuthMethod('TELEGRAM');
-              setMessage(null);
-            }}
+            onClick={() => { setAuthMethod('TELEGRAM'); setMessage(null); }}
             className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-2 text-xs font-bold transition-all ${
               authMethod === 'TELEGRAM'
                 ? 'bg-sky-500/20 border border-sky-500/50 text-sky-300 shadow-md shadow-sky-500/10'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <SendHorizontal className="h-4 w-4 text-sky-400 shrink-0" />
+            <TelegramIcon className="h-4 w-4 text-sky-400 shrink-0" />
             <span>Telegram</span>
           </button>
 
-          {/* 3. Email */}
           <button
             type="button"
-            onClick={() => {
-              setAuthMethod('EMAIL');
-              setMessage(null);
-            }}
+            onClick={() => { setAuthMethod('EMAIL'); setMessage(null); }}
             className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-2 text-xs font-bold transition-all ${
               authMethod === 'EMAIL'
                 ? 'bg-white/15 border border-white/30 text-white shadow-md'
@@ -407,13 +369,13 @@ export default function AuthPage() {
           </div>
         )}
 
-        {/* ── TAB 1: TELEGRAM LOGIN ── */}
+        {/* ── TAB 1: TELEGRAM ── */}
         {authMethod === 'TELEGRAM' && (
           <div className="space-y-4">
             <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 p-4 text-center">
               <div className="flex justify-center mb-2">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/20 text-sky-400">
-                  <SendHorizontal className="h-5 w-5" />
+                  <TelegramIcon className="h-5 w-5" />
                 </span>
               </div>
               <h2 className="text-sm font-bold text-white">Instant Sign In with Telegram</h2>
@@ -422,43 +384,62 @@ export default function AuthPage() {
               </p>
             </div>
 
-            {/* Telegram Official Widget Container */}
-            <div className="flex flex-col items-center justify-center min-h-[56px] py-2">
-              {telegramConfig?.configured && telegramConfig.botUsername ? (
-                <div ref={telegramContainerRef} className="flex justify-center" />
-              ) : telegramConfig === null ? (
-                <div className="flex items-center gap-2 text-xs text-slate-400">
+            {/* OIDC Button (preferred) */}
+            {telegramConfig === null ? (
+              <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
+                <span>Loading Telegram login…</span>
+              </div>
+            ) : oidcReady ? (
+              <button
+                type="button"
+                onClick={handleTelegramOidc}
+                disabled={loading}
+                className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-sky-500/40 bg-sky-500/10 py-3.5 text-sm font-bold text-sky-200 shadow-xl transition-all duration-300 hover:bg-sky-500/20 hover:scale-[1.02] disabled:opacity-60 disabled:pointer-events-none"
+              >
+                {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
-                  <span>Loading Telegram login...</span>
-                </div>
-              ) : (
-                <div className="text-center rounded-xl border border-white/10 bg-white/[0.02] p-4 text-xs text-slate-400 w-full">
-                  <p className="font-semibold text-slate-300">Telegram Bot Setup Notice</p>
-                  <p className="mt-1 text-[11px] text-slate-400">
-                    To enable 1-click Telegram Login on your custom domain, set <code className="text-sky-300">TELEGRAM_BOT_TOKEN</code> in your environment variables and authorize your domain with <code className="text-sky-300">@BotFather</code> (/setdomain).
-                  </p>
-                  <div className="mt-3">
-                    <a
-                      href="https://t.me/talagotours"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-300 hover:bg-sky-500/20 transition-all"
-                    >
-                      <SendHorizontal className="h-3.5 w-3.5" />
-                      <span>Open Telegram Concierge</span>
-                    </a>
-                  </div>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <>
+                    <TelegramIcon className="h-5 w-5 text-sky-400" />
+                    <span>Continue with Telegram</span>
+                  </>
+                )}
+              </button>
+            ) : telegramConfig?.configured ? (
+              /* Legacy widget fallback — show unavailability notice when OIDC not set */
+              <div className="text-center rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-xs text-slate-400 w-full space-y-2">
+                <p className="font-semibold text-amber-300">Telegram Login Needs Configuration</p>
+                <p className="text-[11px] text-slate-400">
+                  Telegram OIDC credentials are not yet set. Once the BotFather OIDC setup is complete and{' '}
+                  <code className="text-sky-300">TELEGRAM_OIDC_CLIENT_ID</code> is added to your environment, this button will activate.
+                </p>
+                <a
+                  href="https://t.me/talagoo_bot"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-300 hover:bg-sky-500/20 transition-all"
+                >
+                  <TelegramIcon className="h-3.5 w-3.5" />
+                  <span>Message @talagoo_bot</span>
+                </a>
+              </div>
+            ) : (
+              <div className="text-center rounded-xl border border-white/10 bg-white/[0.02] p-4 text-xs text-slate-400 w-full">
+                <p className="font-semibold text-slate-300">Telegram Bot Setup Notice</p>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  To enable Telegram Login, configure <code className="text-sky-300">TELEGRAM_BOT_TOKEN</code> and OIDC credentials in your environment variables.
+                </p>
+              </div>
+            )}
 
             <p className="text-[11px] text-center text-slate-500">
-              Your Telegram identity is verified cryptographically via server-side signature validation.
+              Your Telegram identity is verified cryptographically via server-side OIDC token validation.
             </p>
           </div>
         )}
 
-        {/* ── TAB 2: GOOGLE SIGN-IN ── */}
+        {/* ── TAB 2: GOOGLE ── */}
         {authMethod === 'GOOGLE' && (
           <div className="space-y-4">
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-center">
@@ -495,7 +476,7 @@ export default function AuthPage() {
           </div>
         )}
 
-        {/* ── TAB 3: EMAIL (SECONDARY) ── */}
+        {/* ── TAB 3: EMAIL ── */}
         {authMethod === 'EMAIL' && (
           <form onSubmit={handleEmailAuth} className="space-y-4">
             <div className="rounded-xl border border-white/5 bg-white/[0.02] p-2.5 text-center text-xs text-slate-400">
@@ -552,10 +533,7 @@ export default function AuthPage() {
             <div className="mt-4 text-center border-t border-white/5 pt-3">
               <button
                 type="button"
-                onClick={() => {
-                  setIsPasswordMode((prev) => !prev);
-                  setMessage(null);
-                }}
+                onClick={() => { setIsPasswordMode((prev) => !prev); setMessage(null); }}
                 className="text-xs font-bold text-[#06B6D4] hover:text-[#EAB308] transition-colors"
               >
                 {isPasswordMode
@@ -577,5 +555,19 @@ export default function AuthPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#070F1E] flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
+        </main>
+      }
+    >
+      <AuthPageContent />
+    </Suspense>
   );
 }

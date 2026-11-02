@@ -11,6 +11,7 @@ export async function GET() {
       return NextResponse.json({
         configured: true,
         botUsername: envUsername.replace(/^@/, ''),
+        oidcConfigured: !!process.env.TELEGRAM_OIDC_CLIENT_ID,
       });
     }
 
@@ -25,9 +26,10 @@ export async function GET() {
 
     if (cachedBotUsername) {
       return NextResponse.json({
-        configured: true,
-        botUsername: cachedBotUsername,
-      });
+      configured: true,
+      botUsername: cachedBotUsername,
+      oidcConfigured: !!process.env.TELEGRAM_OIDC_CLIENT_ID,
+    });
     }
 
     const res = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
@@ -38,6 +40,7 @@ export async function GET() {
       return NextResponse.json({
         configured: true,
         botUsername: data.result.username,
+        oidcConfigured: !!process.env.TELEGRAM_OIDC_CLIENT_ID,
       });
     }
 

@@ -421,17 +421,27 @@ model Transaction {
 
 
 model CustomerProfile {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  name             String
-  phone            String?
-  isShadow         Boolean   @default(false)
-  invitedAt        DateTime?
-  lastMagicLinkAt  DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  name                  String
+  phone                 String?
+  isShadow              Boolean   @default(false)
+  invitedAt             DateTime?
+  lastMagicLinkAt       DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Telegram OIDC profile
+  telegramId            String?   @unique
+  telegramUsername      String?
+  telegramPhotoUrl      String?
+  telegramPhone         String?
+  telegramPhoneVerified Boolean   @default(false)
+  telegramBotAccess     Boolean   @default(false)
+  telegramConnectedAt   DateTime?
 
   @@index([email])
+  @@index([telegramId])
 }
 
 model TourTimeSlot {
