@@ -458,7 +458,7 @@ function CRMContent() {
                       </span>
                       <h4 className="text-sm font-bold text-white mt-0.5">{inq.customerName || 'Traveler Inquiry'}</h4>
                       <p className="text-xs text-slate-400 mt-0.5">Tour: {inq.tourTitle || 'General Question'}</p>
-                      {inq.notes && <p className="text-xs text-slate-300 italic mt-1">"{inq.notes}"</p>}
+                      {inq.notes && <p className="text-xs text-slate-300 italic mt-1">&ldquo;{inq.notes}&rdquo;</p>}
                     </div>
                     <span className="text-xs text-[#00E5FF] font-bold flex items-center gap-1">
                       <span>View Chat &amp; Reply</span>
@@ -634,7 +634,7 @@ function CRMContent() {
                               </span>
                             </div>
                             <p className="text-slate-300">{l.tourTitle}</p>
-                            {l.notes && <p className="text-slate-400 italic text-[11px]">"{l.notes}"</p>}
+                            {l.notes && <p className="text-slate-400 italic text-[11px]">&ldquo;{l.notes}&rdquo;</p>}
                           </div>
                         ))}
                       </div>

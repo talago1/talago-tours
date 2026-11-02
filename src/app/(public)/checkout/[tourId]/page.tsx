@@ -643,7 +643,7 @@ export default function CheckoutPage() {
   // guest totals and the active language, so all of them have to be listed
   // here — omitting them submits stale validation state when the guest
   // changes an answer, a pickup addon or the interface language.
-  }, [form, tour, departureDate, adultsCount, childrenCount, infantsCount, promoDiscount, bookingAnswers, selectedAddons, totalPayingGuests, language, dict, whatsappOptIn, currency, reservationId]);
+  }, [form, tour, departureDate, adultsCount, childrenCount, infantsCount, promoDiscount, bookingAnswers, selectedAddons, totalPayingGuests, language, dict, whatsappOptIn, currency, reservationId, availableZones, selectedZoneFee, selectedZoneId]);
 
   const handleResume = useCallback(() => {
     if (resumeAccessToken) {

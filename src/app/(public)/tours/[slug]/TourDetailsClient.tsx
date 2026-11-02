@@ -825,7 +825,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
       setBookingModalOpen(true);
       setIsStartingReservation(false);
     }
-  }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, totalPrice, selectedDate, selectedTime, reserveHref, router, isStartingReservation]);
+  }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, totalPrice, selectedDate, selectedTime, isStartingReservation]);
 
   const whatToBringItems = localizedWhatToBringItems;
   const itineraryItems = localizedItineraryItems;
