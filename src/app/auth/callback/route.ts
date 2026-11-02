@@ -4,6 +4,12 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+function cleanBaseUrl(url: string | undefined, fallback: string): string {
+  if (!url) return fallback;
+  const cleaned = url.replace(/^\uFEFF/, '').trim().replace(/\/+$/, '');
+  return cleaned || fallback;
+}
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
@@ -11,10 +17,8 @@ export async function GET(request: NextRequest) {
   const errorParam = requestUrl.searchParams.get('error');
   const errorDescription = requestUrl.searchParams.get('error_description');
 
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    requestUrl.origin;
+  const rawBaseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL;
+  const appUrl = cleanBaseUrl(rawBaseUrl, requestUrl.origin);
 
   if (errorParam || errorDescription) {
     console.error('[auth-callback] OAuth provider error:', errorParam, errorDescription);

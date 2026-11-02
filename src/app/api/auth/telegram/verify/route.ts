@@ -12,6 +12,12 @@ const WINDOW_MS = 10 * 60 * 1000;
 const FRESHNESS_WINDOW_SEC = 600; // 10 minutes max payload age
 const NO_STORE = { 'cache-control': 'no-store, private' };
 
+function cleanBaseUrl(url: string | undefined, fallback: string): string {
+  if (!url) return fallback;
+  const cleaned = url.replace(/^\uFEFF/, '').trim().replace(/\/+$/, '');
+  return cleaned || fallback;
+}
+
 export async function POST(request: NextRequest) {
   // 1. Rate limiting
   const limit = rateLimit(clientKey(request, 'auth-telegram-verify'), LIMIT, WINDOW_MS);
@@ -122,10 +128,8 @@ export async function POST(request: NextRequest) {
     });
 
     // 6. Generate and exchange authentic Supabase Auth session
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      request.nextUrl.origin;
+    const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL;
+    const appUrl = cleanBaseUrl(rawAppUrl, request.nextUrl.origin);
     const finalRedirect = `${appUrl}/my-bookings`;
 
     let session: any = null;

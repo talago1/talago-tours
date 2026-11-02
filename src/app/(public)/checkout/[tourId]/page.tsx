@@ -1479,12 +1479,91 @@ export default function CheckoutPage() {
                   </label>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-slate-400">{dict.checkout.paymentOptions}</p>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {tour.allowPayAtLocation && <button type="button" onClick={() => handleSchemeChange(PaymentScheme.PAY_ON_ARRIVAL)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold transition ${scheme === PaymentScheme.PAY_ON_ARRIVAL ? 'border-[#FF5B00] bg-[#FF5B00]/10 text-white' : 'border-white/10 text-slate-300 hover:border-white/25'}`}>{dict.checkout.payArrival}</button>}
-                    {tour.allowFullOnline !== false && <button type="button" onClick={() => handleSchemeChange(PaymentScheme.FULL_ONLINE)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold transition ${scheme === PaymentScheme.FULL_ONLINE ? 'border-[#06B6D4] bg-[#06B6D4]/10 text-white' : 'border-white/10 text-slate-300 hover:border-white/25'}`}>{dict.checkout.payOnline}</button>}
-                    {tour.allowDeposit && <button type="button" onClick={() => handleSchemeChange(PaymentScheme.DEPOSIT_ONLINE)} className={`rounded-xl border px-3 py-3 text-left text-xs font-bold transition ${scheme === PaymentScheme.DEPOSIT_ONLINE ? 'border-[#EAB308] bg-[#EAB308]/10 text-white' : 'border-white/10 text-slate-300 hover:border-white/25'}`}>{dict.checkout.secureDeposit.replace('20%', `${tour.depositPercentage}%`)}</button>}
+                {/* Authoritative Single Payment Method Selection */}
+                <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 lg:p-7 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="flex items-center gap-3 text-base font-black text-white">
+                      <CreditCard className="h-5 w-5 text-[#06B6D4]" />
+                      {dict.checkout.paymentOptions}
+                    </h2>
+                    <span className="text-xs font-medium text-slate-400">100% Secure & Guaranteed</span>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {/* Pay on Arrival */}
+                    {tour.allowPayAtLocation && (
+                      <button
+                        type="button"
+                        onClick={() => handleSchemeChange(PaymentScheme.PAY_ON_ARRIVAL)}
+                        className={`relative rounded-2xl border p-4 text-left transition-all duration-200 flex flex-col justify-between ${
+                          scheme === PaymentScheme.PAY_ON_ARRIVAL
+                            ? 'border-[#FF5B00] bg-[#FF5B00]/10 shadow-[0_0_16px_rgba(255,91,0,0.15)] ring-1 ring-[#FF5B00]'
+                            : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-[#FF5B00]">Zero Upfront</span>
+                            {scheme === PaymentScheme.PAY_ON_ARRIVAL && (
+                              <span className="h-2 w-2 rounded-full bg-[#FF5B00] shadow-[0_0_8px_#FF5B00]" />
+                            )}
+                          </div>
+                          <p className="text-sm font-black text-white">{dict.checkout.payArrival}</p>
+                          <p className="mt-1 text-xs text-slate-400 leading-relaxed">{dict.checkout.payArrivalDesc}</p>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* Full Online */}
+                    {tour.allowFullOnline !== false && (
+                      <button
+                        type="button"
+                        onClick={() => handleSchemeChange(PaymentScheme.FULL_ONLINE)}
+                        className={`relative rounded-2xl border p-4 text-left transition-all duration-200 flex flex-col justify-between ${
+                          scheme === PaymentScheme.FULL_ONLINE
+                            ? 'border-[#06B6D4] bg-[#06B6D4]/10 shadow-[0_0_16px_rgba(6,182,212,0.15)] ring-1 ring-[#06B6D4]'
+                            : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-[#06B6D4]">Instant Confirm</span>
+                            {scheme === PaymentScheme.FULL_ONLINE && (
+                              <span className="h-2 w-2 rounded-full bg-[#06B6D4] shadow-[0_0_8px_#06B6D4]" />
+                            )}
+                          </div>
+                          <p className="text-sm font-black text-white">{dict.checkout.payOnline}</p>
+                          <p className="mt-1 text-xs text-slate-400 leading-relaxed">{dict.checkout.payOnlineDesc}</p>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* Deposit Online */}
+                    {tour.allowDeposit && (tour.depositPercentage || 0) > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleSchemeChange(PaymentScheme.DEPOSIT_ONLINE)}
+                        className={`relative rounded-2xl border p-4 text-left transition-all duration-200 flex flex-col justify-between ${
+                          scheme === PaymentScheme.DEPOSIT_ONLINE
+                            ? 'border-[#EAB308] bg-[#EAB308]/10 shadow-[0_0_16px_rgba(234,179,8,0.15)] ring-1 ring-[#EAB308]'
+                            : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#EAB308] bg-[#EAB308]/15 px-2 py-0.5 rounded-full">
+                              <Sparkles className="h-2.5 w-2.5" />
+                              {dict.checkout.popular}
+                            </span>
+                            {scheme === PaymentScheme.DEPOSIT_ONLINE && (
+                              <span className="h-2 w-2 rounded-full bg-[#EAB308] shadow-[0_0_8px_#EAB308]" />
+                            )}
+                          </div>
+                          <p className="text-sm font-black text-white">{dict.checkout.secureDeposit.replace('20%', `${tour.depositPercentage}%`)}</p>
+                          <p className="mt-1 text-xs text-slate-400 leading-relaxed">{dict.checkout.secureDepositDesc}</p>
+                        </div>
+                      </button>
+                    )}
                   </div>
                 </div>
 

@@ -41,6 +41,7 @@ import { supabaseClient } from '@/lib/supabase/client';
 import TourCard from '@/components/public/TourCard';
 import WriteReviewModal from '@/components/modals/WriteReviewModal';
 import AskQuestionModal from '@/components/modals/AskQuestionModal';
+import ContinuousBookingModal from '@/components/tours/ContinuousBookingModal';
 import type { PublicTour } from '@/types/publicTour';
 import { useRouter } from 'next/navigation';
 
@@ -679,6 +680,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
 
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [wishAnim, setWishAnim] = useState(false);
   // Resolve localized translations from parent with fallback cascade
   const translations = tour.translations;
@@ -820,7 +822,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
     } catch {
       // Reservation logging must never block the customer from completing checkout.
     } finally {
-      router.push(reserveHref);
+      setBookingModalOpen(true);
       setIsStartingReservation(false);
     }
   }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, totalPrice, selectedDate, selectedTime, reserveHref, router, isStartingReservation]);
@@ -1942,6 +1944,39 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
       <div className="h-28 lg:hidden" />
 
       {/* Ask a Question Modal */}
+            {/* In-Page Continuous Booking Experience */}
+      <ContinuousBookingModal
+        isOpen={bookingModalOpen}
+        onClose={() => setBookingModalOpen(false)}
+        tour={{
+          id: tour.id,
+          slug: tour.slug,
+          title: localizedTitle,
+          coverImage: tour.images?.[0] || null,
+          adultPrice: pricePerAdult,
+          childPrice: tour.childPrice,
+          infantPrice: tour.infantPrice,
+          depositPercentage: tour.depositPercentage,
+          allowPayAtLocation: tour.allowPayAtLocation,
+          allowFullOnline: tour.allowFullOnline,
+          allowDeposit: tour.allowDeposit,
+          pickupType: tour.pickupType,
+          hotelPickupIncluded: tour.hotelPickupIncluded ?? false,
+          meetingPointName: tour.meetingPointName,
+          meetingPointAddress: tour.meetingPointAddress,
+          meetingPointLandmark: tour.meetingPointLandmark,
+          meetingPointInstructions: tour.meetingPointInstructions,
+          addons: tour.tourOptions,
+        }}
+        initialDate={selectedDate}
+        initialTime={selectedTime}
+        initialAdults={adultsCount}
+        initialChildren={childrenCount}
+        initialInfants={infantsCount}
+        initialAddons={selectedAddons}
+        availablePickupTimes={tour.pickupTimes || (tour.pickupTime ? [tour.pickupTime] : [])}
+      />
+
       <AskQuestionModal
         tourId={tour.id}
         tourSlug={tour.slug}

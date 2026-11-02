@@ -11,6 +11,12 @@ const LIMIT = 20;
 const WINDOW_MS = 10 * 60 * 1000;
 const FRESHNESS_WINDOW_SEC = 600; // 10 minutes max payload age
 
+function cleanBaseUrl(url: string | undefined, fallback: string): string {
+  if (!url) return fallback;
+  const cleaned = url.replace(/^\uFEFF/, '').trim().replace(/\/+$/, '');
+  return cleaned || fallback;
+}
+
 export async function GET(request: NextRequest) {
   const limit = rateLimit(clientKey(request, 'auth-telegram-callback'), LIMIT, WINDOW_MS);
   if (!limit.allowed) {
@@ -26,10 +32,8 @@ export async function GET(request: NextRequest) {
   const auth_date = searchParams.get('auth_date');
   const hash = searchParams.get('hash');
 
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    request.nextUrl.origin;
+  const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL;
+  const appUrl = cleanBaseUrl(rawAppUrl, request.nextUrl.origin);
   const failureRedirect = `${appUrl}/auth?error=telegram_failed`;
   const successRedirect = `${appUrl}/my-bookings`;
 

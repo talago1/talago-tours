@@ -215,89 +215,31 @@ export default function PriceSummarySidebar({
           </div>
         </div>
 
-        {/* Payment Scheme Selection */}
-        <div className="border-t border-white/10 pt-6 space-y-4">
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{dict.checkout.paymentOptions}</h4>
-
-          <div className="space-y-3">
-            {/* Pay on Arrival */}
-            {allowPayAtLocation && (
-              <label
-                className={`relative flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-all duration-300 hover:border-white/20 ${
-                  scheme === PaymentScheme.PAY_ON_ARRIVAL
-                    ? 'border-[#FF5B00] bg-[#FF5B00]/5 shadow-[0_0_12px_rgba(255,91,0,0.1)]'
-                    : 'border-white/10 bg-white/[0.02]'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="paymentScheme"
-                  value={PaymentScheme.PAY_ON_ARRIVAL}
-                  checked={scheme === PaymentScheme.PAY_ON_ARRIVAL}
-                  onChange={() => onSchemeChange(PaymentScheme.PAY_ON_ARRIVAL)}
-                  className="mt-1 h-4 w-4 border-slate-300 text-[#FF5B00] focus:ring-[#FF5B00]"
-                />
-                <div>
-                  <p className="text-sm font-black text-white">{dict.checkout.payArrival}</p>
-                  <p className="mt-1 text-xs text-slate-400">{dict.checkout.payArrivalDesc}</p>
-                </div>
-              </label>
-            )}
-
-            {/* Full Online */}
-            {allowFullOnline !== false && (
-              <label
-                className={`relative flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-all duration-300 hover:border-white/20 ${
-                  scheme === PaymentScheme.FULL_ONLINE
-                    ? 'border-[#06B6D4] bg-[#06B6D4]/5 shadow-[0_0_12px_rgba(6,182,212,0.1)]'
-                    : 'border-white/10 bg-white/[0.02]'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="paymentScheme"
-                  value={PaymentScheme.FULL_ONLINE}
-                  checked={scheme === PaymentScheme.FULL_ONLINE}
-                  onChange={() => onSchemeChange(PaymentScheme.FULL_ONLINE)}
-                  className="mt-1 h-4 w-4 border-slate-300 text-[#06B6D4] focus:ring-[#06B6D4]"
-                />
-                <div>
-                  <p className="text-sm font-black text-white">{dict.checkout.payOnline}</p>
-                  <p className="mt-1 text-xs text-slate-400">{dict.checkout.payOnlineDesc}</p>
-                </div>
-              </label>
-            )}
-
-            {/* Deposit Online */}
-            {allowDeposit && depositPercentage > 0 && (
-              <label
-                className={`relative flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-all duration-300 hover:border-white/20 ${
-                  scheme === PaymentScheme.DEPOSIT_ONLINE
-                    ? 'border-[#EAB308] bg-[#EAB308]/5 shadow-[0_0_12px_rgba(234,179,8,0.1)]'
-                    : 'border-white/10 bg-white/[0.02]'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="paymentScheme"
-                  value={PaymentScheme.DEPOSIT_ONLINE}
-                  checked={scheme === PaymentScheme.DEPOSIT_ONLINE}
-                  onChange={() => onSchemeChange(PaymentScheme.DEPOSIT_ONLINE)}
-                  className="mt-1 h-4 w-4 border-slate-300 text-[#EAB308] focus:ring-[#EAB308]"
-                />
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-black text-white">{dict.checkout.secureDeposit.replace('20%', `${depositPercentage}%`)}</p>
-                    <span className="flex items-center justify-center gap-0.5 rounded-full bg-[#EAB308]/15 px-1.5 py-0.5 text-[10px] font-bold text-[#EAB308]">
-                      <Sparkles className="h-2.5 w-2.5" />
-                      {dict.checkout.popular}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-400">{dict.checkout.secureDepositDesc}</p>
-                </div>
-              </label>
-            )}
+        {/* Selected Payment Scheme in Summary */}
+        <div className="border-t border-white/10 pt-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{dict.checkout.paymentOptions}</h4>
+            <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
+              scheme === PaymentScheme.PAY_ON_ARRIVAL
+                ? 'bg-[#FF5B00]/15 text-[#FF5B00] border border-[#FF5B00]/30'
+                : scheme === PaymentScheme.FULL_ONLINE
+                ? 'bg-[#06B6D4]/15 text-[#06B6D4] border border-[#06B6D4]/30'
+                : 'bg-[#EAB308]/15 text-[#EAB308] border border-[#EAB308]/30'
+            }`}>
+              {scheme === PaymentScheme.PAY_ON_ARRIVAL
+                ? dict.checkout.payArrival
+                : scheme === PaymentScheme.FULL_ONLINE
+                ? dict.checkout.payOnline
+                : dict.checkout.secureDeposit.replace('20%', `${depositPercentage}%`)}
+            </span>
           </div>
+          <p className="text-xs text-slate-400">
+            {scheme === PaymentScheme.PAY_ON_ARRIVAL
+              ? dict.checkout.payArrivalDesc
+              : scheme === PaymentScheme.FULL_ONLINE
+              ? dict.checkout.payOnlineDesc
+              : dict.checkout.secureDepositDesc}
+          </p>
         </div>
 
         {/* Pricing Split Breakdown display */}

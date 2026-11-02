@@ -54,7 +54,7 @@ export default function AuthPage() {
   const { whatsappNumber, getWhatsAppUrl } = useContactSettings();
 
   // Active Auth Tab: 'TELEGRAM' | 'GOOGLE' | 'WHATSAPP' | 'EMAIL'
-  const [authMethod, setAuthMethod] = useState<'TELEGRAM' | 'GOOGLE' | 'WHATSAPP' | 'EMAIL'>('TELEGRAM');
+  const [authMethod, setAuthMethod] = useState<'GOOGLE' | 'TELEGRAM' | 'EMAIL'>('GOOGLE');
 
   // Shared states
   const [loading, setLoading] = useState(false);
@@ -64,11 +64,7 @@ export default function AuthPage() {
   const [telegramConfig, setTelegramConfig] = useState<{ configured: boolean; botUsername: string | null } | null>(null);
   const telegramContainerRef = useRef<HTMLDivElement>(null);
 
-  // WhatsApp states (Inbound challenge flow)
-  const [waChallenge, setWaChallenge] = useState<string | null>(null);
-  const [waUrl, setWaUrl] = useState<string | null>(null);
-  const [waPolling, setWaPolling] = useState(false);
-  const [waWebhookConfigured, setWaWebhookConfigured] = useState(false);
+
 
   // Email states (Secondary)
   const [email, setEmail] = useState('');
@@ -201,7 +197,8 @@ export default function AuthPage() {
     setMessage(null);
 
     try {
-      const redirectUri = `${window.location.origin}/auth/callback?next=/my-bookings`;
+      const cleanOrigin = window.location.origin.replace(/^\uFEFF/, '').trim().replace(/\/+$/, '');
+      const redirectUri = `${cleanOrigin}/auth/callback?next=/my-bookings`;
       const { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -226,7 +223,7 @@ export default function AuthPage() {
             setLoading(false);
             setMessage({
               type: 'error',
-              text: 'Google Sign-In is awaiting provider activation in the Supabase Dashboard. In the meantime, please use Telegram, WhatsApp, or Email.',
+              text: 'Google Sign-In is awaiting provider activation in the Supabase Dashboard. In the meantime, please use Telegram or Email.',
             });
             return;
           }
@@ -242,7 +239,7 @@ export default function AuthPage() {
         type: 'error',
         text:
           err?.message?.includes('provider is not enabled') || err?.message?.includes('Unsupported provider')
-            ? 'Google Sign-In is awaiting provider activation in Supabase Auth. Please use Telegram, WhatsApp, or Email in the meantime.'
+            ? 'Google Sign-In is awaiting provider activation in Supabase Auth. Please use Telegram or Email in the meantime.'
             : (err?.message || 'Could not initiate Google Sign-In.'),
       });
     }
@@ -411,73 +408,56 @@ export default function AuthPage() {
           </p>
         </div>
 
-        {/* Authentication Mode Switcher */}
-        <div className="mb-6 grid grid-cols-4 gap-1 rounded-2xl bg-white/[0.04] p-1 border border-white/10 text-center">
-          {/* 1. Telegram */}
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMethod('TELEGRAM');
-              setMessage(null);
-            }}
-            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-1 text-[11px] font-bold transition-all ${
-              authMethod === 'TELEGRAM'
-                ? 'bg-sky-500/20 border border-sky-500/50 text-sky-300 shadow-md shadow-sky-500/10'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <SendHorizontal className="h-3.5 w-3.5 text-sky-400 shrink-0" />
-            <span>Telegram</span>
-          </button>
-
-          {/* 2. Google */}
+        {/* Authentication Mode Switcher: 1. Google (Preferred), 2. Telegram, 3. Email */}
+        <div className="mb-6 grid grid-cols-3 gap-1.5 rounded-2xl bg-white/[0.04] p-1.5 border border-white/10 text-center">
+          {/* 1. Google (Preferred) */}
           <button
             type="button"
             onClick={() => {
               setAuthMethod('GOOGLE');
               setMessage(null);
             }}
-            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-1 text-[11px] font-bold transition-all ${
+            className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-2 text-xs font-bold transition-all ${
               authMethod === 'GOOGLE'
-                ? 'bg-white/15 border border-white/40 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-white/15 border border-white/30 text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <GoogleIcon className="h-3.5 w-3.5 shrink-0" />
+            <GoogleIcon className="h-4 w-4 shrink-0" />
             <span>Google</span>
           </button>
 
-          {/* 3. WhatsApp */}
+          {/* 2. Telegram */}
           <button
             type="button"
             onClick={() => {
-              setAuthMethod('WHATSAPP');
+              setAuthMethod('TELEGRAM');
               setMessage(null);
             }}
-            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-1 text-[11px] font-bold transition-all ${
-              authMethod === 'WHATSAPP'
-                ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 shadow-md shadow-emerald-500/10'
-                : 'text-slate-400 hover:text-white'
+            className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-2 text-xs font-bold transition-all ${
+              authMethod === 'TELEGRAM'
+                ? 'bg-sky-500/20 border border-sky-500/50 text-sky-300 shadow-md shadow-sky-500/10'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <MessageCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-            <span>WhatsApp</span>
+            <SendHorizontal className="h-4 w-4 text-sky-400 shrink-0" />
+            <span>Telegram</span>
           </button>
 
-          {/* 4. Email */}
+          {/* 3. Email */}
           <button
             type="button"
             onClick={() => {
               setAuthMethod('EMAIL');
               setMessage(null);
             }}
-            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-1 text-[11px] font-medium transition-all ${
+            className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-2 text-xs font-bold transition-all ${
               authMethod === 'EMAIL'
-                ? 'bg-white/10 border border-white/20 text-white shadow-md'
-                : 'text-slate-500 hover:text-slate-300'
+                ? 'bg-white/15 border border-white/30 text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <Mail className="h-4 w-4 text-slate-300 shrink-0" />
             <span>Email</span>
           </button>
         </div>
