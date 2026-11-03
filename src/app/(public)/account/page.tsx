@@ -78,6 +78,7 @@ interface BookingItem {
 
 interface ReservationItem {
   id: string;
+  leadId?: string;
   tourId: string | null;
   tourTitle: string | null;
   tourSlug: string | null;
@@ -87,6 +88,7 @@ interface ReservationItem {
   currency: string;
   status: string;
   createdAt: string;
+  travelDate?: string | null;
   reservationReference?: string;
   lastAdminMessage?: string | null;
   lastAdminMessageAt?: string | null;
@@ -190,7 +192,34 @@ export default function AccountPage() {
       } else {
         // Fallback: check Supabase client session in browser
         const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session?.user) {
+        if (session?.access_token) {
+          // Sync server cookie immediately
+          try {
+            const syncRes = await fetch('/api/auth/session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ access_token: session.access_token }),
+            });
+            if (syncRes.ok) {
+              const syncData = await syncRes.json();
+              if (syncData?.authenticated && syncData.user) {
+                setAuthenticated(true);
+                setUserProfile(syncData.user);
+                setEditName(syncData.user.name || '');
+                setEditPhone(syncData.user.phone || syncData.user.telegramPhone || '');
+
+                const bookingsRes = await fetch('/api/public/my-bookings', { cache: 'no-store' });
+                if (bookingsRes.ok) {
+                  const bData = await bookingsRes.json();
+                  setBookings(Array.isArray(bData.bookings) ? bData.bookings : []);
+                  setReservations(Array.isArray(bData.reservations) ? bData.reservations : []);
+                }
+                fetchChatMessages();
+                return;
+              }
+            }
+          } catch {}
+
           setAuthenticated(true);
           const email = session.user.email || '';
           const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || email.split('@')[0];
@@ -260,6 +289,19 @@ export default function AccountPage() {
 
   useEffect(() => {
     loadData();
+
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (session?.access_token && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        loadData();
+      } else if (event === 'SIGNED_OUT') {
+        setAuthenticated(false);
+        setUserProfile(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [loadData]);
 
   // Sign out handler
@@ -855,6 +897,56 @@ export default function AccountPage() {
                 </div>
               </div>
             )}
+
+            {/* ── Reservations & Inquiry Requests ── */}
+            {reservations.length > 0 && (
+              <div className="mt-8 space-y-3">
+                <h3 className="text-sm font-black uppercase tracking-wider text-amber-400">
+                  Preliminary Requests & Inquiries
+                </h3>
+                <div className="space-y-3">
+                  {reservations.map((res) => (
+                    <div
+                      key={res.id}
+                      className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.03] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          {res.reservationReference && (
+                            <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                              {res.reservationReference}
+                            </span>
+                          )}
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase border bg-amber-500/10 text-amber-300 border-amber-500/20">
+                            {res.status}
+                          </span>
+                        </div>
+                        <p className="text-sm font-bold text-white line-clamp-1">
+                          {res.tourTitle || 'Tour Inquiry'}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {res.travelDate
+                            ? new Date(res.travelDate).toLocaleDateString(language, { day: 'numeric', month: 'short', year: 'numeric' })
+                            : 'Date TBD'}
+                          {res.adults ? ` · ${res.adults + (res.children || 0)} guests` : ''}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedChatBookingRef(res.leadId ? `lead:${res.leadId}` : null);
+                          setActiveTab('messages');
+                        }}
+                        className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-3.5 py-2 text-xs font-bold text-amber-300 transition"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        <span>Chat</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -890,7 +982,7 @@ export default function AccountPage() {
                 </button>
               </div>
 
-              {bookings.length > 0 && (
+              {(bookings.length > 0 || reservations.length > 0) && (
                 <div className="px-4 py-2.5 border-b border-white/5 bg-white/[0.01] flex items-center gap-2 overflow-x-auto text-xs shrink-0">
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">Channel:</span>
                   <button
@@ -910,6 +1002,19 @@ export default function AccountPage() {
                       {b.bookingReference}
                     </button>
                   ))}
+                  {reservations.map((r) => {
+                    const refKey = r.leadId ? `lead:${r.leadId}` : (r.reservationReference || r.id);
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setSelectedChatBookingRef(refKey)}
+                        className={`px-2.5 py-1 rounded-lg shrink-0 font-mono text-[11px] font-bold transition ${selectedChatBookingRef === refKey ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' : 'text-slate-400 hover:text-white bg-white/5'}`}
+                      >
+                        {r.reservationReference || `REQ-${r.id.slice(-6).toUpperCase()}`}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 

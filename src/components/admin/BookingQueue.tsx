@@ -424,7 +424,6 @@ function BookingChatPanel({ bookingReference, onClose }: { bookingReference: str
 }
 
 export default function BookingQueue({ initialBookings, availableTours = [], initialLeads = [] }: BookingQueueProps) {
-  const [activeView, setActiveView] = useState<'bookings' | 'leads'>('bookings');
   const [bookings, setBookings] = useState<ActiveQueueTicket[]>(initialBookings);
   const [leads] = useState<LeadItem[]>(initialLeads);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -704,87 +703,6 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
 
   return (
     <div className="space-y-6">
-      {/* View Switcher: Bookings vs Leads */}
-      <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-[#0B1528] p-1.5 self-start w-fit">
-        <button
-          type="button"
-          onClick={() => setActiveView('bookings')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeView === 'bookings' ? 'bg-[#00E5FF] text-[#070F1E] shadow-sm' : 'text-slate-400 hover:text-white'}`}
-        >
-          Confirmed Bookings ({bookings.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveView('leads')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeView === 'leads' ? 'bg-amber-400 text-[#070F1E] shadow-sm' : 'text-slate-400 hover:text-white'}`}
-        >
-          Inquiries & Leads ({leads.length})
-        </button>
-      </div>
-
-      {/* Leads View */}
-      {activeView === 'leads' && (
-        <div className="space-y-4">
-          {leads.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-[#0B1528] py-16 text-center">
-              <p className="text-slate-500 text-sm">No pending inquiries or booking leads.</p>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-white/10 bg-[#0B1528] overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/10 bg-white/[0.04]">
-                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Tour</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Customer</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Travel Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Guests</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Est. Price</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Chat</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/10">
-                  {leads.map((lead) => (
-                    <tr key={lead.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-4 py-3 text-xs text-slate-400">{new Date(lead.createdAt).toLocaleDateString()}</td>
-                      <td className="px-4 py-3 text-sm text-slate-300 max-w-[160px] truncate">{lead.tourTitle || '—'}</td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-semibold text-white">{lead.customerName || 'Anonymous'}</div>
-                        <div className="text-xs text-slate-400">{lead.customerPhone || lead.customerEmail || '—'}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-300">{lead.travelDate || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-slate-300">{lead.adults + (lead.children || 0)}</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-white">{lead.totalEstimatedPrice ? `${lead.totalEstimatedPrice.toFixed(0)}` : '—'}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-block rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase ${
-                          lead.status === 'CONVERTED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                          lead.status === 'CONTACTED' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                          lead.status === 'ABANDONED' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                          'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                        }`}>{lead.status}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => setChatBookingRef(`lead:${lead.id}`)}
-                          className="flex items-center gap-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 px-2 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all"
-                        >
-                          <MessageSquare className="h-3 w-3" />
-                          Chat
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Bookings View */}
-      {activeView === 'bookings' && <>
 
       {/* 1. Statistics Cards Bar */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -828,6 +746,68 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
           </div>
         </div>
       </div>
+
+      {/* Inquiries & Leads — inline section at the top */}
+      {leads.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-amber-500/10">
+            <div className="flex items-center gap-2">
+              <Inbox className="h-4 w-4 text-amber-400" />
+              <span className="text-xs font-black uppercase tracking-wider text-amber-400">Inquiries & Leads</span>
+              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400">{leads.length}</span>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/5 bg-white/[0.02]">
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">Date</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">Tour</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">Customer</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">Travel Date</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">Pax</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">Est. Value</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">Chat</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {leads.map((lead) => (
+                  <tr key={lead.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{new Date(lead.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-xs text-slate-300 max-w-[180px] truncate">{lead.tourTitle || '—'}</td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs font-semibold text-white">{lead.customerName || <span className="text-slate-500 italic">Anonymous</span>}</div>
+                      <div className="text-[10px] text-slate-400">{lead.customerPhone || lead.customerEmail || '—'}</div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-300 whitespace-nowrap">{lead.travelDate || '—'}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-white">{(lead.adults || 0) + (lead.children || 0)}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-white">{lead.totalEstimatedPrice ? `$${lead.totalEstimatedPrice.toFixed(0)}` : '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-block rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase ${
+                        lead.status === 'CONVERTED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                        lead.status === 'CONTACTED' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                        lead.status === 'ABANDONED' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                        'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                      }`}>{lead.status}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => setChatBookingRef(`lead:${lead.id}`)}
+                        className="flex items-center gap-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 px-2 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all"
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        Chat
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* 2. Advanced Filtering Controls Bar */}
       <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-5 shadow-2xl space-y-4">
@@ -1270,8 +1250,6 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
           );
         })}
       </div>
-
-      </>}
 
       {/* 5. Inline Booking Chat Panel */}
       {chatBookingRef && (

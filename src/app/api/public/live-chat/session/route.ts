@@ -23,15 +23,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json().catch(() => ({}));
-    const bookingReference = sanitizePlain(body.bookingReference, 50) || undefined;
-    const leadId = sanitizePlain(body.leadId, 60) || undefined;
+    let bookingReference = sanitizePlain(body.bookingReference, 50) || undefined;
+    let leadId = sanitizePlain(body.leadId, 60) || undefined;
+    if (bookingReference?.startsWith('lead:')) {
+      leadId = bookingReference.replace(/^lead:/, '');
+      bookingReference = undefined;
+    }
     const tourTitle = sanitizePlain(body.tourTitle, 150) || undefined;
 
     let token = request.cookies.get(COOKIE_NAME)?.value || crypto.randomUUID();
-    if (bookingReference) {
-      token = `booking:${bookingReference}`;
-    } else if (leadId) {
+    if (leadId) {
       token = `lead:${leadId}`;
+    } else if (bookingReference) {
+      token = `booking:${bookingReference}`;
     }
 
     const visitorName = sanitizePlain(body.name, 100) || undefined;

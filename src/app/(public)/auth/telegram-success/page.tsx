@@ -8,10 +8,16 @@ import { supabaseClient } from '@/lib/supabase/client';
 
 /** Allow only safe relative paths to prevent open-redirect. */
 function safePath(raw: string | null): string {
-  if (!raw) return '/my-bookings';
+  if (!raw) return '/account';
   const decoded = decodeURIComponent(raw).trim();
-  if (!decoded.startsWith('/') || decoded.startsWith('//') || /[\r\n]/.test(decoded)) {
-    return '/my-bookings';
+  if (
+    !decoded.startsWith('/') ||
+    decoded.startsWith('//') ||
+    decoded.startsWith('/\\') ||
+    decoded.includes('://') ||
+    /[\r\n]/.test(decoded)
+  ) {
+    return '/account';
   }
   return decoded;
 }
@@ -44,11 +50,18 @@ function TelegramSuccessContent() {
     }
 
     const tryClosePopup = async () => {
-      // If we have a session payload, hydrate client session
+      // If we have a session payload, hydrate client session and sync server cookie
       if (sessionPayload) {
         try {
           await supabaseClient.auth.setSession(sessionPayload);
-        } catch {}
+          await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: sessionPayload.access_token }),
+          });
+        } catch (e) {
+          console.warn('[telegram-success] session sync warning:', e);
+        }
       }
 
       try {

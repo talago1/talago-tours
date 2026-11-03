@@ -155,6 +155,7 @@ export async function GET(request: NextRequest) {
           currency: true,
           status: true,
           createdAt: true,
+          travelDate: true,
         },
         orderBy: { createdAt: 'desc' },
         take: 20,
@@ -163,6 +164,7 @@ export async function GET(request: NextRequest) {
 
     const formattedReservations = reservations.map((r) => ({
       id: r.id,
+      leadId: r.id,
       reservationReference: `RES-${r.id.slice(-8).toUpperCase()}`,
       tourId: r.tourId,
       tourTitle: r.tourTitle,
@@ -173,6 +175,7 @@ export async function GET(request: NextRequest) {
       currency: r.currency,
       status: r.status,
       createdAt: r.createdAt.toISOString(),
+      travelDate: r.travelDate || null,
       lastAdminMessage: null,
       lastAdminMessageAt: null,
       hasUnreadAdminReply: false,

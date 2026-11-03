@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       ? redirectTo.startsWith('/')
         ? `${appUrl}${redirectTo}`
         : redirectTo
-      : `${appUrl}/my-bookings`;
+      : `${appUrl}/account`;
 
     // 3. Generate a magic-link token via Supabase Admin API.
     //    generateLink returns the full magic-link URL that we embed in the email.

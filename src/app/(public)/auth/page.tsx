@@ -83,6 +83,59 @@ function AuthPageContent() {
     }
   }, [searchParams]);
 
+  // If already authenticated, redirect to /account (or returnTo) immediately
+  useEffect(() => {
+    let active = true;
+
+    async function checkExistingAuth() {
+      const targetReturn = searchParams.get('returnTo') || '/account';
+
+      // 1. Check client session
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session?.access_token && active) {
+          await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: session.access_token }),
+          }).catch(() => {});
+          window.location.href = targetReturn;
+          return;
+        }
+      } catch {}
+
+      // 2. Check server session cookie
+      try {
+        const res = await fetch('/api/auth/session', { cache: 'no-store' });
+        const data = await res.json();
+        if (data?.authenticated && active) {
+          window.location.href = targetReturn;
+          return;
+        }
+      } catch {}
+    }
+
+    checkExistingAuth();
+
+    // Also listen for auth state change
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (session?.access_token && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        const targetReturn = searchParams.get('returnTo') || '/account';
+        await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: session.access_token }),
+        }).catch(() => {});
+        window.location.href = targetReturn;
+      }
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [searchParams]);
+
   // Load Telegram config
   useEffect(() => {
     fetch('/api/auth/telegram/config')
@@ -147,11 +200,16 @@ function AuthPageContent() {
           setMessage({ type: 'success', text: 'Signed in with Telegram! Loading your account…' });
           const returnTo = event.data.returnTo || '/account';
 
-          if (event.data?.session) {
+          if (event.data?.session?.access_token) {
             try {
               await supabaseClient.auth.setSession(event.data.session);
+              await fetch('/api/auth/session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ access_token: event.data.session.access_token }),
+              });
             } catch (err) {
-              console.warn('[auth] Could not set client session:', err);
+              console.warn('[auth] Could not sync client session:', err);
             }
           }
 
@@ -171,10 +229,15 @@ function AuthPageContent() {
           // Verify if session exists either in client or via server cookie
           try {
             const { data: sessionData } = await supabaseClient.auth.getSession();
-            if (sessionData?.session) {
+            if (sessionData?.session?.access_token) {
               setLoading(false);
               setMessage({ type: 'success', text: 'Signed in! Loading your account…' });
-              window.location.href = '/my-bookings';
+              await fetch('/api/auth/session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ access_token: sessionData.session.access_token }),
+              }).catch(() => {});
+              window.location.href = targetReturn;
               return;
             }
 
@@ -281,15 +344,23 @@ function AuthPageContent() {
           if (signUpError) throw signUpError;
           setMessage({ type: 'success', text: dict?.authPage?.registrationSuccess || 'Registration successful! Check your email to confirm.' });
         } else if (data.session) {
-          document.cookie = `talago_session=${data.session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
+          const targetReturn = searchParams.get('returnTo') || '/account';
+          await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: data.session.access_token }),
+          }).catch(() => {});
           setMessage({ type: 'success', text: dict?.authPage?.signedInSuccess || 'Signed in successfully! Redirecting...' });
-          setTimeout(() => router.push('/my-bookings'), 1200);
+          setTimeout(() => {
+            window.location.href = targetReturn;
+          }, 600);
         }
       } else {
+        const targetReturn = searchParams.get('returnTo') || '/account';
         const res = await fetch('/api/auth/magic-link', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ email, redirectTo: `${window.location.origin}/my-bookings` }),
+          body: JSON.stringify({ email, redirectTo: targetReturn }),
         });
 
         const resData = await res.json();

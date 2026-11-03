@@ -109,30 +109,14 @@ export default function Navbar() {
           <NavActions />
         </nav>
 
-        {/* Mobile Actions: Currency quick selector + Menu Toggle */}
-        <div className="flex items-center gap-2 lg:hidden">
-          <button
-            type="button"
-            onClick={() => {
-              setMobileMenuOpen(true);
-              setMobileCurrencyOpen(true);
-              setMobileLangOpen(false);
-            }}
-            className="flex h-10 items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2.5 text-xs font-black text-slate-200 transition-all hover:bg-white/10 hover:text-white"
-            title="Change Currency"
-          >
-            <span className="text-[#00E5FF] font-mono">{symbols[currency]}</span>
-            <span>{currency}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition-all hover:bg-white/10 hover:text-white"
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
+        {/* Mobile Menu Button */}
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition-all hover:bg-white/10 hover:text-white lg:hidden"
+        >
+          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
       </div>
 
       {/* Mobile Menu Drawer */}

@@ -9,10 +9,14 @@ const COOKIE_NAME = 'talago_live_chat';
 
 async function currentConversation(request: NextRequest, body?: any) {
   const url = request.nextUrl;
-  const bookingReference =
+  let bookingReference =
     sanitizePlain(url.searchParams.get('bookingReference') || request.headers.get('x-booking-ref') || body?.bookingReference, 50) || undefined;
-  const leadId =
+  let leadId =
     sanitizePlain(url.searchParams.get('leadId') || request.headers.get('x-lead-id') || body?.leadId, 60) || undefined;
+  if (bookingReference?.startsWith('lead:')) {
+    leadId = bookingReference.replace(/^lead:/, '');
+    bookingReference = undefined;
+  }
   const conversationId =
     sanitizePlain(url.searchParams.get('conversationId') || request.headers.get('x-conversation-id') || body?.conversationId, 60) || undefined;
 

@@ -127,17 +127,19 @@ export async function POST(request: NextRequest) {
 
     const inquiryReference = `INQ-${lead.id.slice(-8).toUpperCase()}`;
 
-    // Mirror to live chat conversation so the marketplace team/supplier can reply directly
-    const inquiryChatMessage = `[${inquiryReference}] Question regarding "${tourTitle}":\n"${message}"${travelDate ? ` (Preferred Date: ${travelDate})` : ''}`;
-
+    // Dedicated conversation for this inquiry
     try {
+      const leadChatToken = `lead:${lead.id}`;
       const conversation = await prisma.liveChatConversation.upsert({
-        where: { visitorToken: chatToken },
+        where: { visitorToken: leadChatToken },
         create: {
-          visitorToken: chatToken,
+          visitorToken: leadChatToken,
           visitorName: customerName || undefined,
           visitorEmail: customerEmail || undefined,
           visitorPhone: customerPhone || undefined,
+          leadId: lead.id,
+          bookingReference: inquiryReference,
+          tourTitle: tourTitle,
           lastPagePath: `/tours/${tour.slug}`,
           status: 'OPEN',
           lastMessageAt: new Date(),
@@ -146,6 +148,9 @@ export async function POST(request: NextRequest) {
           visitorName: customerName || undefined,
           visitorEmail: customerEmail || undefined,
           visitorPhone: customerPhone || undefined,
+          leadId: lead.id,
+          bookingReference: inquiryReference,
+          tourTitle: tourTitle,
           lastPagePath: `/tours/${tour.slug}`,
           status: 'OPEN',
           lastMessageAt: new Date(),
@@ -153,11 +158,22 @@ export async function POST(request: NextRequest) {
         select: { id: true },
       });
 
+      // 1. Initial system context message
+      const systemContextMessage = `[INQUIRY SUBMITTED] Reference: #${inquiryReference} | Tour: ${tourTitle} | Guest: ${customerName || 'Traveler'}${customerPhone ? ` | Phone: ${customerPhone}` : ''}${customerEmail ? ` | Email: ${customerEmail}` : ''}${travelDate ? ` | Preferred Date: ${travelDate}` : ''} | Guests: ${adults} adults`;
+      await prisma.liveChatMessage.create({
+        data: {
+          conversationId: conversation.id,
+          sender: 'SYSTEM',
+          body: systemContextMessage,
+        },
+      });
+
+      // 2. Customer question as visitor message
       await prisma.liveChatMessage.create({
         data: {
           conversationId: conversation.id,
           sender: 'VISITOR',
-          body: inquiryChatMessage,
+          body: message,
         },
       });
     } catch (chatError) {
