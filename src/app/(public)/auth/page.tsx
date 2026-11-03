@@ -113,7 +113,8 @@ function AuthPageContent() {
     if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
 
     try {
-      const res = await fetch('/api/auth/telegram/authorize?returnTo=/my-bookings');
+      const targetReturn = searchParams.get('returnTo') || '/account';
+      const res = await fetch(`/api/auth/telegram/authorize?returnTo=${encodeURIComponent(targetReturn)}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Could not start Telegram login. Please try again.');
@@ -144,7 +145,7 @@ function AuthPageContent() {
           if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
           setLoading(false);
           setMessage({ type: 'success', text: 'Signed in with Telegram! Loading your account…' });
-          const returnTo = event.data.returnTo || '/my-bookings';
+          const returnTo = event.data.returnTo || '/account';
 
           if (event.data?.session) {
             try {
@@ -182,13 +183,13 @@ function AuthPageContent() {
             if (checkData?.authenticated) {
               setLoading(false);
               setMessage({ type: 'success', text: 'Signed in! Loading your account…' });
-              window.location.href = '/my-bookings';
+              window.location.href = targetReturn;
               return;
             }
           } catch {}
 
           // Fallback navigation
-          window.location.href = '/my-bookings';
+          window.location.href = targetReturn;
         }
       }, 600);
 
@@ -218,7 +219,8 @@ function AuthPageContent() {
 
     try {
       const cleanOrigin = window.location.origin.replace(/^\uFEFF/, '').trim().replace(/\/+$/, '');
-      const redirectUri = `${cleanOrigin}/auth/callback?next=/my-bookings`;
+      const targetReturn = searchParams.get('returnTo') || '/account';
+      const redirectUri = `${cleanOrigin}/auth/callback?next=${encodeURIComponent(targetReturn)}`;
       const { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: {

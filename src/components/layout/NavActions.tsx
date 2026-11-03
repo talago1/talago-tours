@@ -30,7 +30,12 @@ export default function NavActions() {
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
-  const [serverUser, setServerUser] = useState<{ email?: string; name?: string } | null>(null);
+  const [serverUser, setServerUser] = useState<{
+    email?: string;
+    name?: string;
+    telegramPhotoUrl?: string | null;
+    telegramUsername?: string | null;
+  } | null>(null);
   const langRef = useRef<HTMLDivElement>(null);
   const currencyRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
@@ -178,12 +183,20 @@ export default function NavActions() {
           <button
             type="button"
             onClick={() => setUserOpen(!userOpen)}
-            className="inline-flex items-center gap-2 rounded-full border border-[#00E5FF]/25 bg-[#00E5FF]/10 py-1.5 pl-2 pr-3 text-xs font-bold text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20"
+            className="inline-flex items-center gap-2 rounded-full border border-[#00E5FF]/25 bg-[#00E5FF]/10 py-1 pl-1.5 pr-3 text-xs font-bold text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20"
           >
-            {/* Avatar circle */}
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#00E5FF] text-[10px] font-black text-[#070F1E]">
-              {userInitial}
-            </span>
+            {/* Avatar circle or photo */}
+            {serverUser?.telegramPhotoUrl ? (
+              <img
+                src={serverUser.telegramPhotoUrl}
+                alt={activeName}
+                className="h-6 w-6 rounded-full object-cover border border-[#00E5FF]/40"
+              />
+            ) : (
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#00E5FF] text-[10px] font-black text-[#070F1E]">
+                {userInitial}
+              </span>
+            )}
             <span className="hidden sm:block max-w-[120px] truncate">
               {activeName || activeEmail.split('@')[0]}
             </span>
@@ -191,26 +204,41 @@ export default function NavActions() {
           </button>
 
           {userOpen && (
-            <div className="absolute right-0 top-full mt-2 w-52 rounded-xl border border-white/10 bg-[#0B1528] py-1 shadow-2xl shadow-black/60 backdrop-blur-xl">
-              <div className="border-b border-white/[0.06] px-4 py-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Signed in as</p>
-                <p className="mt-0.5 truncate text-sm font-semibold text-white">{activeEmail || activeName}</p>
+            <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-white/10 bg-[#0B1528] py-1.5 shadow-2xl shadow-black/80 backdrop-blur-xl z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="border-b border-white/[0.08] px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Signed in</p>
+                <p className="mt-0.5 truncate text-sm font-bold text-white">{activeName}</p>
+                {activeEmail && activeEmail !== activeName && !activeEmail.endsWith('@noreply.talago.com') && (
+                  <p className="truncate text-xs text-slate-400">{activeEmail}</p>
+                )}
+                {serverUser?.telegramUsername && (
+                  <span className="inline-block mt-1 text-[11px] font-mono text-[#00E5FF]">@{serverUser.telegramUsername}</span>
+                )}
               </div>
+              <Link
+                href="/account"
+                onClick={() => setUserOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-white/[0.06] hover:text-[#00E5FF]"
+              >
+                <User className="h-4 w-4 text-[#00E5FF]" />
+                {dict.navbar.account || 'Account Dashboard'}
+              </Link>
               <Link
                 href="/my-bookings"
                 onClick={() => setUserOpen(false)}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+                className="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
               >
                 <LayoutDashboard className="h-4 w-4" />
-                My Bookings
+                {dict.navbar.myBookings || 'My Bookings'}
               </Link>
+              <div className="h-px bg-white/[0.06] my-1" />
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-xs font-bold text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                {dict.navbar.logout || 'Sign Out'}
               </button>
             </div>
           )}

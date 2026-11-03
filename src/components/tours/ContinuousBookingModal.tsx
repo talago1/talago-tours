@@ -122,15 +122,16 @@ export default function ContinuousBookingModal({
     scheme: string;
   } | null>(null);
 
-  // Sync initial values when modal opens
+  // Sync initial values only when modal first opens
+  const prevIsOpenRef = React.useRef(false);
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       if (initialDate) setDepartureDate(initialDate);
       if (initialTime) setSelectedTime(initialTime);
       if (initialAdults) setAdultsCount(initialAdults);
       setChildrenCount(initialChildren);
       setInfantsCount(initialInfants);
-      setSelectedAddons(initialAddons);
+      setSelectedAddons(initialAddons || {});
       // Auto-select zone if only 1 zone exists
       if (zones.length === 1 && zones[0]?.id) {
         setSelectedZoneId(zones[0].id);
@@ -144,7 +145,8 @@ export default function ContinuousBookingModal({
         setPaymentScheme(PaymentScheme.DEPOSIT_ONLINE);
       }
     }
-  }, [isOpen, initialDate, initialTime, initialAdults, initialChildren, initialInfants, initialAddons, zones, tour]);
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, initialDate, initialTime, initialAdults, initialChildren, initialInfants, initialAddons, zones, tour.allowPayAtLocation, tour.allowFullOnline, tour.allowDeposit]);
 
   // Price calculations
   const effectiveAdultPrice = tour.adultPrice || 0;
@@ -569,29 +571,35 @@ export default function ContinuousBookingModal({
                             const label = addon.labels?.[language] || addon.labels?.en || addon.title || addon.name || 'Experience Add-on';
                             const isChecked = Boolean(selectedAddons[addon.id]);
                             return (
-                              <label
+                              <div
                                 key={addon.id}
-                                className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
+                                role="checkbox"
+                                aria-checked={isChecked}
+                                onClick={() =>
+                                  setSelectedAddons((prev) => ({ ...prev, [addon.id]: !prev[addon.id] }))
+                                }
+                                className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer select-none transition-all ${
                                   isChecked
-                                    ? 'border-[#00E5FF]/40 bg-[#00E5FF]/5'
-                                    : 'border-white/10 bg-white/[0.02] hover:border-white/20'
+                                    ? 'border-[#00E5FF] bg-[#00E5FF]/10 shadow-sm shadow-[#00E5FF]/15'
+                                    : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
                                 }`}
                               >
                                 <div className="flex items-center gap-3">
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={(e) =>
-                                      setSelectedAddons((prev) => ({ ...prev, [addon.id]: e.target.checked }))
-                                    }
-                                    className="h-4 w-4 rounded border-white/20 bg-white/5 text-[#00E5FF] focus:ring-[#00E5FF]"
-                                  />
+                                  <div
+                                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all ${
+                                      isChecked
+                                        ? 'border-[#00E5FF] bg-[#00E5FF] text-[#070F1E]'
+                                        : 'border-white/25 bg-white/5'
+                                    }`}
+                                  >
+                                    {isChecked && <Check className="h-3 w-3 stroke-[3]" />}
+                                  </div>
                                   <span className="text-xs font-bold text-white">{label}</span>
                                 </div>
-                                <span className="text-xs font-bold text-[#00E5FF]">
+                                <span className="text-xs font-black text-[#00E5FF]">
                                   +{formatPrice(addon.price)} {addon.priceType === 'per_person' ? '/ person' : ''}
                                 </span>
-                              </label>
+                              </div>
                             );
                           })}
                         </div>

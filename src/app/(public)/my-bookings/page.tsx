@@ -655,14 +655,23 @@ export default function MyBookingsPage() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="self-start sm:self-center inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-300 transition-all hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            <span>Sign Out</span>
-          </button>
+          <div className="flex items-center gap-2 self-start sm:self-center">
+            <Link
+              href="/account"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#00E5FF] px-4 py-2 text-xs font-black uppercase text-[#070F1E] shadow-sm hover:scale-105 transition-all"
+            >
+              <User className="h-3.5 w-3.5" />
+              <span>Account Hub</span>
+            </Link>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-slate-300 transition-all hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          </div>
         </div>
 
         {/* Trips Quick Stats */}

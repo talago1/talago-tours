@@ -16,10 +16,10 @@ const jwks = createRemoteJWKSet(TELEGRAM_JWKS_URL);
 
 /** Allow only safe relative paths to prevent open-redirect. */
 function safePath(raw: string | null | undefined): string {
-  if (!raw) return '/my-bookings';
+  if (!raw) return '/account';
   const decoded = decodeURIComponent(raw).trim();
   if (!decoded.startsWith('/') || decoded.startsWith('//') || /[\r\n]/.test(decoded)) {
-    return '/my-bookings';
+    return '/account';
   }
   return decoded;
 }
@@ -152,15 +152,19 @@ export async function GET(request: NextRequest) {
 
   // ── Extract Telegram identity from verified claims ─────────────────────────
   const telegramId = String(claims.sub);
-  const fullName =
+  const rawFullName =
+    (typeof claims.name === 'string' && claims.name.trim()) ||
     [claims.given_name, claims.family_name].filter(Boolean).join(' ').trim() ||
-    (claims.preferred_username ? `@${claims.preferred_username}` : `Traveler #${telegramId}`);
+    (claims.preferred_username ? `@${claims.preferred_username}` : null);
+
+  const fullName = rawFullName && rawFullName !== 'User' ? rawFullName : `Traveler #${telegramId}`;
   const telegramUsername = (claims.preferred_username as string) || null;
   const telegramPhotoUrl = (claims.picture as string) || null;
   const telegramBotAccess = !!(claims['telegram:bot_access']);
   // Phone is only present if the user granted the 'phone' scope
   const rawPhone = (claims.phone_number as string) || null;
   const telegramPhone = rawPhone && rawPhone.trim().length > 0 ? rawPhone.trim() : null;
+  const telegramPhoneVerified = Boolean(claims.phone_number_verified ?? (telegramPhone ? true : false));
 
   const syntheticEmail = `telegram-${telegramId}@noreply.talago.com`;
 
@@ -254,6 +258,19 @@ export async function GET(request: NextRequest) {
             access_token: verifyData.session.access_token,
             refresh_token: verifyData.session.refresh_token,
           };
+          if (verifyData.user?.id) {
+            await supabaseAdmin.auth.admin.updateUserById(verifyData.user.id, {
+              user_metadata: {
+                ...verifyData.user.user_metadata,
+                name: fullName,
+                full_name: fullName,
+                preferred_username: telegramUsername,
+                picture: telegramPhotoUrl,
+                avatar_url: telegramPhotoUrl,
+                telegram_id: telegramId,
+              },
+            }).catch(() => {});
+          }
         } else if (verifyError) {
           console.warn('[tg-oidc-callback] verifyOtp warning:', verifyError.message);
         }

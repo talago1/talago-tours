@@ -27,7 +27,12 @@ export default function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
-  const [serverUser, setServerUser] = useState<{ email?: string; name?: string } | null>(null);
+  const [serverUser, setServerUser] = useState<{
+    email?: string;
+    name?: string;
+    telegramPhotoUrl?: string | null;
+    telegramUsername?: string | null;
+  } | null>(null);
   const [mobileLangOpen, setMobileLangOpen] = useState(false);
 
   // Close mobile menu on route change
@@ -213,33 +218,56 @@ export default function Navbar() {
                 <div className="space-y-3">
                   {/* User Profile Card */}
                   <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#00E5FF] text-sm font-black text-[#070F1E]">
-                      {userInitial}
-                    </span>
+                    {serverUser?.telegramPhotoUrl ? (
+                      <img
+                        src={serverUser.telegramPhotoUrl}
+                        alt={activeName}
+                        className="h-10 w-10 rounded-full object-cover border border-[#00E5FF]/40"
+                      />
+                    ) : (
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#00E5FF] text-sm font-black text-[#070F1E]">
+                        {userInitial}
+                      </span>
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-bold text-slate-400">Signed in as</p>
-                      <p className="truncate text-sm font-bold text-white">{activeEmail || activeName}</p>
+                      <p className="truncate text-sm font-bold text-white">{activeName || activeEmail}</p>
+                      {serverUser?.telegramUsername && (
+                        <p className="truncate text-xs text-[#00E5FF] font-mono">@{serverUser.telegramUsername}</p>
+                      )}
                     </div>
                   </div>
 
                   {/* Actions */}
                   <div className="grid grid-cols-2 gap-3">
                     <Link
+                      href="/account"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-[#00E5FF] py-3 text-xs font-black uppercase text-[#070F1E] shadow-md shadow-[#00E5FF]/20"
+                    >
+                      <User className="h-4 w-4" />
+                      {dict.navbar.account || 'Account'}
+                    </Link>
+                    <Link
                       href="/my-bookings"
-                      className="flex items-center justify-center gap-2 rounded-xl border border-[#00E5FF]/20 bg-[#00E5FF]/5 py-3 text-xs font-bold text-[#00E5FF]"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-3 text-xs font-bold text-white"
                     >
                       <LayoutDashboard className="h-4 w-4" />
-                      My Bookings
+                      {dict.navbar.myBookings || 'Bookings'}
                     </Link>
-                    <button
-                      type="button"
-                      onClick={handleSignOut}
-                      className="flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 py-3 text-xs font-bold text-red-400"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sign Out
-                    </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleSignOut();
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 py-2.5 text-xs font-bold text-red-400"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    {dict.navbar.logout || 'Sign Out'}
+                  </button>
                 </div>
               ) : (
                 <Link

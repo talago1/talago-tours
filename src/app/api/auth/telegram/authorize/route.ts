@@ -19,10 +19,10 @@ function s256(verifier: string): string {
 
 /** Allow only safe relative paths to prevent open-redirect. */
 function safePath(raw: string | null): string {
-  if (!raw) return '/my-bookings';
+  if (!raw) return '/account';
   const decoded = decodeURIComponent(raw).trim();
   if (!decoded.startsWith('/') || decoded.startsWith('//') || /[\r\n]/.test(decoded)) {
-    return '/my-bookings';
+    return '/account';
   }
   return decoded;
 }
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
-    scope: 'openid profile telegram:bot_access',
+    scope: 'openid profile phone telegram:bot_access',
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',

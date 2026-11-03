@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
       !next.startsWith('/\\') &&
       !next.includes('://');
 
-    const safeNext = isSafePath ? next : '/my-bookings';
+    const safeNext = isSafePath ? next : '/account';
     const redirectUrl = new URL(safeNext, appUrl);
     const response = NextResponse.redirect(redirectUrl);
 
