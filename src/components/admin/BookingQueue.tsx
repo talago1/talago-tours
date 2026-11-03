@@ -328,7 +328,7 @@ function BookingChatPanel({ bookingReference, onClose }: { bookingReference: str
       await fetch('/api/admin/live-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(isLead ? { leadId: bookingReference.slice(5), message: text, senderRole: 'ADMIN' } : { bookingReference, message: text, senderRole: 'ADMIN' }),
+        body: JSON.stringify(isLead ? { leadId: bookingReference.slice(5), text, message: text, senderRole: 'ADMIN' } : { bookingReference, text, message: text, senderRole: 'ADMIN' }),
       });
       setReply('');
       await fetchMessages();
@@ -340,10 +340,10 @@ function BookingChatPanel({ bookingReference, onClose }: { bookingReference: str
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-end p-4 sm:items-center sm:justify-center pointer-events-none">
-      <div className="pointer-events-auto w-full max-w-md rounded-2xl border border-cyan-500/30 bg-[#0B1528] shadow-2xl flex flex-col" style={{ maxHeight: '80vh' }}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:justify-end sm:p-6 pointer-events-none">
+      <div className="pointer-events-auto w-full h-[90dvh] sm:h-[600px] sm:max-h-[85vh] sm:max-w-md rounded-t-3xl sm:rounded-2xl border border-cyan-500/30 bg-[#0B1528] shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 shrink-0 bg-white/[0.02]">
           <div className="flex items-center gap-2">
             <Inbox className="h-4 w-4 text-[#00E5FF]" />
             <span className="text-sm font-bold text-white">Chat — {bookingReference}</span>
@@ -365,25 +365,42 @@ function BookingChatPanel({ bookingReference, onClose }: { bookingReference: str
           {!loading && messages.length === 0 && (
             <div className="text-center text-xs text-slate-500 py-8">No messages yet for this booking.</div>
           )}
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.senderRole === 'ADMIN' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] rounded-xl px-3 py-2 text-xs ${
-                msg.senderRole === 'ADMIN'
-                  ? 'bg-[#00E5FF]/20 text-white border border-[#00E5FF]/30'
-                  : 'bg-white/[0.06] text-slate-200 border border-white/10'
-              }`}>
-                <p>{msg.text}</p>
-                <p className="mt-1 text-[10px] opacity-50">
-                  {msg.senderRole === 'ADMIN' ? 'You' : 'Guest'} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </p>
+          {messages.map((msg) => {
+            if (msg.senderRole === 'SYSTEM') {
+              return (
+                <div key={msg.id} className="flex justify-center my-2">
+                  <div className="max-w-[90%] rounded-xl border border-sky-400/20 bg-sky-500/10 px-3 py-2 text-[11px] text-sky-200 text-center leading-relaxed shadow-sm">
+                    <span className="font-bold text-[#00E5FF] mr-1 uppercase text-[10px]">[SYSTEM]</span>
+                    {msg.text}
+                    <span className="block mt-0.5 text-[9px] text-sky-400/60 font-mono">
+                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
+              );
+            }
+
+            const isAdmin = msg.senderRole === 'ADMIN';
+            return (
+              <div key={msg.id} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[80%] rounded-xl px-3 py-2 text-xs ${
+                  isAdmin
+                    ? 'bg-[#00E5FF]/20 text-white border border-[#00E5FF]/30'
+                    : 'bg-white/[0.06] text-slate-200 border border-white/10'
+                }`}>
+                  <p className="leading-relaxed">{msg.text}</p>
+                  <p className="mt-1 text-[10px] opacity-50 text-right">
+                    {isAdmin ? 'You' : 'Guest'} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           <div ref={messagesEndRef} />
         </div>
 
         {/* Reply Input */}
-        <div className="border-t border-white/10 p-3 flex items-center gap-2">
+        <div className="border-t border-white/10 p-3 bg-[#0B1528] shrink-0 sticky bottom-0 flex items-center gap-2">
           <input
             type="text"
             value={reply}

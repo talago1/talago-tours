@@ -1,4 +1,4 @@
-export const SETTINGS_KEYS = ['contact', 'financial', 'system', 'paymentMethods', 'banners', 'modules', 'seo'] as const;
+export const SETTINGS_KEYS = ['contact', 'financial', 'system', 'paymentMethods', 'banners', 'modules', 'seo', 'notifications'] as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[number];
 
@@ -121,6 +121,41 @@ export const DEFAULT_SETTINGS = {
     stickyMobileBookingBar: true,
     activityAtAGlance: true,
     facetedFilters: true,
+  },
+  notifications: {
+    telegram: {
+      enabled: true,
+      events: {
+        newBooking: true,
+        newLead: true,
+        statusChange: true,
+        newMessage: true,
+      },
+    },
+    whatsapp: {
+      enabled: true,
+      events: {
+        newBooking: true,
+        statusChange: true,
+        newMessage: false,
+      },
+    },
+    email: {
+      enabled: false,
+      events: {
+        newBooking: false,
+        statusChange: false,
+      },
+    },
+    inSite: {
+      enabled: true,
+      events: {
+        newBooking: true,
+        newLead: true,
+        statusChange: true,
+        newMessage: true,
+      },
+    },
   },
 };
 

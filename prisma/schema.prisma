@@ -710,6 +710,7 @@ enum LiveChatStatus {
 enum LiveChatSender {
   VISITOR
   ADMIN
+  SYSTEM
 }
 
 model LiveChatConversation {

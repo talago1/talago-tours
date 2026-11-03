@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
           },
           select: { id: true },
         });
-        await prisma.liveChatMessage.create({ data: { conversationId: conversation.id, sender: 'VISITOR', body: reservationMessage } });
+        await prisma.liveChatMessage.create({ data: { conversationId: conversation.id, sender: 'SYSTEM', body: reservationMessage } });
       } catch (chatError) {
         // The reservation itself must remain available even if inbox logging
         // is temporarily unavailable.

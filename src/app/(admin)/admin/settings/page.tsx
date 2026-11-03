@@ -99,6 +99,7 @@ export default function AdminSettingsPage() {
               system: { ...DEFAULT_SYSTEM_SETTINGS.system, ...(data.settings.system || {}) },
               banners: { ...DEFAULT_SYSTEM_SETTINGS.banners, ...(data.settings.banners || {}) },
               modules: { ...DEFAULT_SYSTEM_SETTINGS.modules, ...(data.settings.modules || {}) },
+              notifications: { ...DEFAULT_SYSTEM_SETTINGS.notifications, ...(data.settings.notifications || {}) },
             };
             setSettings(merged);
           }
@@ -2034,7 +2035,12 @@ export default function AdminSettingsPage() {
             {/* Notifications Panel */}
             {activeSection === 'notifications' && (
               <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">
-                <NotificationSettingsDashboard />
+                <NotificationSettingsDashboard
+                  settings={settings}
+                  setSettings={setSettings}
+                  onSave={handleSave}
+                  saving={saving}
+                />
               </div>
             )}
 

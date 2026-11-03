@@ -22,6 +22,11 @@ export async function GET() {
     return NextResponse.json({
       settings: mergeSystemSettings(settingsMap),
       defaults: DEFAULT_SETTINGS,
+      credentialsStatus: {
+        telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_ADMIN_CHAT_ID),
+        whatsapp: Boolean(process.env.GREEN_API_ID && process.env.GREEN_API_TOKEN),
+        email: Boolean(process.env.RESEND_API_KEY),
+      },
     });
   } catch {
     return NextResponse.json(

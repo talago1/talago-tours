@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -111,7 +111,7 @@ interface UserProfile {
 
 interface ChatMessage {
   id: string;
-  sender: 'VISITOR' | 'ADMIN';
+  sender: 'VISITOR' | 'ADMIN' | 'SYSTEM';
   body: string;
   createdAt: string;
 }
@@ -802,6 +802,18 @@ export default function AccountPage() {
                       </div>
 
                       <div className="flex items-center gap-3 w-full md:w-auto justify-end pt-3 md:pt-0 border-t md:border-t-0 border-white/5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedChatBookingRef(booking.bookingReference);
+                            setActiveTab('messages');
+                          }}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3.5 py-2.5 text-xs font-bold text-white transition hover:border-[#00E5FF]/40 hover:text-[#00E5FF]"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5 text-[#00E5FF]" />
+                          <span>Chat</span>
+                        </button>
+
                         <a
                           href={`/booking/${booking.accessToken}`}
                           className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-sm hover:scale-105 transition"
@@ -854,9 +866,9 @@ export default function AccountPage() {
               <p className="text-xs text-slate-400 mt-0.5">{dict.account.messages.subtitle}</p>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#0B1528] overflow-hidden shadow-2xl flex flex-col h-[520px]">
+            <div className="rounded-3xl border border-white/10 bg-[#0B1528] overflow-hidden shadow-2xl flex flex-col h-[560px] max-h-[78dvh]">
               {/* Chat Header */}
-              <div className="p-4 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
+              <div className="p-4 border-b border-white/10 bg-white/[0.02] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
                   <div>
@@ -879,7 +891,7 @@ export default function AccountPage() {
               </div>
 
               {bookings.length > 0 && (
-                <div className="px-4 py-2.5 border-b border-white/5 bg-white/[0.01] flex items-center gap-2 overflow-x-auto text-xs">
+                <div className="px-4 py-2.5 border-b border-white/5 bg-white/[0.01] flex items-center gap-2 overflow-x-auto text-xs shrink-0">
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">Channel:</span>
                   <button
                     type="button"
@@ -913,6 +925,20 @@ export default function AccountPage() {
                   </div>
                 ) : (
                   messages.map((m) => {
+                    if (m.sender === 'SYSTEM') {
+                      return (
+                        <div key={m.id} className="flex justify-center my-2">
+                          <div className="max-w-md rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-2.5 text-xs text-sky-200 text-center leading-relaxed shadow-sm">
+                            <span className="font-bold text-[#00E5FF] mr-1.5 uppercase tracking-wider text-[10px]">[SYSTEM]</span>
+                            {m.body.replace(/^\[SYSTEM BOOKING RECORD\]\s*|^\[BOOKING INITIALIZED\]\s*|^\[STATUS UPDATE\]\s*/, '')}
+                            <span className="block mt-1 text-[9px] text-sky-300/60 font-mono">
+                              {new Date(m.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const isMe = m.sender === 'VISITOR';
                     return (
                       <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -939,7 +965,7 @@ export default function AccountPage() {
               </div>
 
               {/* Chat Input Bar */}
-              <form onSubmit={handleSendMessage} className="p-3 border-t border-white/10 bg-white/[0.02] flex items-center gap-2">
+              <form onSubmit={handleSendMessage} className="p-3 border-t border-white/10 bg-[#0B1528] shrink-0 sticky bottom-0 flex items-center gap-2">
                 <input
                   type="text"
                   value={chatInput}

@@ -1,4 +1,17 @@
 import { prisma } from '@/lib/prisma';
+import { parseSettingValue, DEFAULT_SETTINGS } from '@/lib/systemSettings';
+
+async function getNotificationSettings() {
+  try {
+    const row = await prisma.systemSetting.findUnique({
+      where: { key: 'notifications' },
+    });
+    if (!row) return DEFAULT_SETTINGS.notifications;
+    return parseSettingValue(row.value, DEFAULT_SETTINGS.notifications);
+  } catch {
+    return DEFAULT_SETTINGS.notifications;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -271,8 +284,10 @@ export async function dispatchBookingNotifications(
       pdfUrl: pdfUrl ?? booking.pdfBoardingPassUrl ?? undefined,
     };
 
-    // 1. WhatsApp to customer (if opted in)
-    if (payload.whatsappOptIn) {
+    const notifSettings = await getNotificationSettings();
+
+    // 1. WhatsApp to customer (if opted in and channel enabled)
+    if (payload.whatsappOptIn && notifSettings.whatsapp?.enabled && notifSettings.whatsapp?.events?.newBooking !== false) {
       const waMessage = buildCustomerWhatsAppMessage(payload);
       const waResult = await sendWhatsApp(payload, waMessage);
       await logNotification(bookingId, 'WHATSAPP', booking.customerPhone, waResult);
@@ -281,20 +296,125 @@ export async function dispatchBookingNotifications(
       }
     }
 
-    // 2. Telegram alert to Admin
-    const adminMessage = buildAdminTelegramMessage(payload);
-    const tgResult = await sendTelegram(payload, adminMessage);
-    await logNotification(
-      bookingId,
-      'TELEGRAM',
-      process.env.TELEGRAM_ADMIN_CHAT_ID ?? 'admin',
-      tgResult,
-    );
-    if (!tgResult.success) {
-      console.warn(`[notificationDispatcher] Telegram failed for admin:`, tgResult.error);
+    // 2. Telegram alert to Admin (if channel and newBooking event enabled)
+    if (notifSettings.telegram?.enabled && notifSettings.telegram?.events?.newBooking !== false) {
+      const adminMessage = buildAdminTelegramMessage(payload);
+      const tgResult = await sendTelegram(payload, adminMessage);
+      await logNotification(
+        bookingId,
+        'TELEGRAM',
+        process.env.TELEGRAM_ADMIN_CHAT_ID ?? 'admin',
+        tgResult,
+      );
+      if (!tgResult.success) {
+        console.warn(`[notificationDispatcher] Telegram failed for admin:`, tgResult.error);
+      }
+    }
+
+    // 3. Email to customer (if channel and newBooking event enabled)
+    if (notifSettings.email?.enabled && notifSettings.email?.events?.newBooking) {
+      if (booking.customerEmail && !booking.customerEmail.endsWith('@noreply.talago.com')) {
+        try {
+          const { sendBookingConfirmationEmail } = await import('@/lib/email');
+          await sendBookingConfirmationEmail(booking.customerEmail, {
+            customerName: booking.customerName,
+            bookingReference: booking.bookingReference,
+            tourName: tourTitle,
+            travelDate: travelDateFormatted,
+            guestCount: booking.guestCount,
+            totalPriceUSD: booking.totalPriceUSD,
+            confirmationUrl: `${getBaseUrl()}/booking/${booking.accessToken}`,
+          });
+          await logNotification(bookingId, 'EMAIL', booking.customerEmail, { success: true });
+        } catch (emailErr: any) {
+          console.warn('[notificationDispatcher] Confirmation email error:', emailErr);
+          await logNotification(bookingId, 'EMAIL', booking.customerEmail, { success: false, error: emailErr?.message });
+        }
+      }
     }
   } catch (err) {
     console.error('[notificationDispatcher] Dispatch error:', err);
+  }
+}
+
+/**
+ * Dispatches notifications when a booking status changes.
+ */
+export async function dispatchStatusChangeNotifications(
+  bookingId: string,
+  oldStatus: string,
+  newStatus: string
+): Promise<void> {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { tour: { select: { translations: true } } },
+    });
+    if (!booking) return;
+
+    const notifSettings = await getNotificationSettings();
+
+    // 1. In-site / NotificationLog
+    if (notifSettings.inSite?.enabled && notifSettings.inSite?.events?.statusChange !== false) {
+      await logNotification(bookingId, 'SYSTEM', 'admin', {
+        success: true,
+        messageId: `STATUS_${oldStatus}_TO_${newStatus}`,
+      });
+    }
+
+    const translations = booking.tour.translations as Record<string, { title?: string }> | null;
+    const tourTitle = translations?.[booking.language]?.title ?? translations?.en?.title ?? 'Talago Experience';
+    const baseUrl = getBaseUrl();
+
+    // 2. Telegram Alert to Admin
+    if (notifSettings.telegram?.enabled && notifSettings.telegram?.events?.statusChange !== false) {
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      const chatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+      if (botToken && chatId) {
+        const text = `🔄 *BOOKING STATUS UPDATED*
+
+*Ref:* #${booking.bookingReference}
+*Customer:* ${booking.customerName} (${booking.customerPhone})
+*Tour:* ${tourTitle}
+*Status Transition:* ${oldStatus} ➔ *${newStatus}*
+
+🔗 [View in Admin](${baseUrl}/admin/bookings)`;
+
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
+        }).catch(() => {});
+      }
+    }
+
+    // 3. Customer WhatsApp notification on status change
+    if (booking.whatsappOptIn && notifSettings.whatsapp?.enabled && notifSettings.whatsapp?.events?.statusChange) {
+      const instanceId = process.env.GREEN_API_ID;
+      const token = process.env.GREEN_API_TOKEN;
+      if (instanceId && token && booking.customerPhone) {
+        const phoneChatId = `${sanitizePhoneForWhatsApp(booking.customerPhone)}@c.us`;
+        const waMsg = `🌊 *TALAGO — Booking Update*
+
+Hello ${booking.customerName},
+The status of your booking *#${booking.bookingReference}* (${tourTitle}) has been updated to: *${newStatus}*.
+
+🔗 View details & boarding pass:
+${baseUrl}/booking/${booking.accessToken}
+
+Need assistance? Reply directly to this WhatsApp message.
+— Talago Team`;
+
+        const waUrl = `https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`;
+        await fetch(waUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chatId: phoneChatId, message: waMsg }),
+        }).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.error('[notificationDispatcher] Status change dispatch error:', err);
   }
 }
 

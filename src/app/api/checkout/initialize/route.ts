@@ -441,7 +441,12 @@ export async function POST(request: NextRequest) {
       }
 
       // Ensure an independent conversation exists for this booking reference
-      const bookingConv = await prisma.liveChatConversation.findFirst({
+      const resolvedTourTitle = (() => {
+        const t = tour.translations as Record<string, { title?: string }> | null;
+        return t?.en?.title || 'Talago Experience';
+      })();
+
+      let bookingConv = await prisma.liveChatConversation.findFirst({
         where: {
           OR: [
             { bookingReference: result.booking.bookingReference },
@@ -449,8 +454,9 @@ export async function POST(request: NextRequest) {
           ],
         },
       });
+
       if (!bookingConv) {
-        await prisma.liveChatConversation.create({
+        bookingConv = await prisma.liveChatConversation.create({
           data: {
             visitorToken: `booking:${result.booking.bookingReference}`,
             bookingId: result.booking.id,
@@ -458,10 +464,40 @@ export async function POST(request: NextRequest) {
             visitorName: leadName.trim(),
             visitorEmail: email.trim(),
             visitorPhone: phone.trim(),
-            tourTitle: (() => { const t = tour.translations as Record<string, {title?: string}> | null; return t?.en?.title || undefined; })(),
+            tourTitle: resolvedTourTitle,
             lastPagePath: `/booking/${result.booking.accessToken}`,
           },
         });
+      }
+
+      // Check whether this conversation already has an initial booking message
+      if (bookingConv) {
+        const existingMsg = await prisma.liveChatMessage.findFirst({
+          where: {
+            conversationId: bookingConv.id,
+            OR: [
+              { sender: 'SYSTEM' },
+              { body: { contains: result.booking.bookingReference } },
+            ],
+          },
+        });
+
+        if (!existingMsg) {
+          const bookingSummary = `[BOOKING INITIALIZED] Reference: #${result.booking.bookingReference} | Guest: ${leadName.trim()} | Tour: ${resolvedTourTitle} | Date: ${departureDate} | Guests: ${totalGuests} (${finalAdultsCount} adults${finalChildrenCount > 0 ? `, ${finalChildrenCount} children` : ''}${finalInfantsCount > 0 ? `, ${finalInfantsCount} infants` : ''}) | Status: ${result.booking.status} | Total: $${finalTotal.toFixed(2)}`;
+
+          await prisma.liveChatMessage.create({
+            data: {
+              conversationId: bookingConv.id,
+              sender: 'SYSTEM',
+              body: bookingSummary,
+            },
+          });
+
+          await prisma.liveChatConversation.update({
+            where: { id: bookingConv.id },
+            data: { lastMessageAt: new Date(), status: 'OPEN' },
+          });
+        }
       }
     } catch (leadLinkErr) {
       console.warn('[initialize] Lead linking non-fatal warning:', leadLinkErr);

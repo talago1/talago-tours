@@ -120,6 +120,41 @@ export interface SystemSettings {
     siteDescription?: string;
     twitterHandle?: string;
   };
+  notifications: {
+    telegram: {
+      enabled: boolean;
+      events: {
+        newBooking: boolean;
+        newLead: boolean;
+        statusChange: boolean;
+        newMessage: boolean;
+      };
+    };
+    whatsapp: {
+      enabled: boolean;
+      events: {
+        newBooking: boolean;
+        statusChange: boolean;
+        newMessage: boolean;
+      };
+    };
+    email: {
+      enabled: boolean;
+      events: {
+        newBooking: boolean;
+        statusChange: boolean;
+      };
+    };
+    inSite: {
+      enabled: boolean;
+      events: {
+        newBooking: boolean;
+        newLead: boolean;
+        statusChange: boolean;
+        newMessage: boolean;
+      };
+    };
+  };
 }
 
 export interface HeroLanguageTexts {

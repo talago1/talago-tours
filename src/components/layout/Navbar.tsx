@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X, User, Globe, LayoutDashboard, LogOut, ChevronDown } from 'lucide-react';
 import { useLanguage, type LanguageCode, languageLabels } from '@/context/LanguageContext';
+import { useCurrency } from '@/context/CurrencyContext';
 import { supabaseClient } from '@/lib/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import NavLinks from './NavLinks';
@@ -24,6 +25,7 @@ const LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
 
 export default function Navbar() {
   const { language, setLanguage, dict } = useLanguage();
+  const { currency, setCurrency, symbols, supportedCurrencies } = useCurrency();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -34,11 +36,13 @@ export default function Navbar() {
     telegramUsername?: string | null;
   } | null>(null);
   const [mobileLangOpen, setMobileLangOpen] = useState(false);
+  const [mobileCurrencyOpen, setMobileCurrencyOpen] = useState(false);
 
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
     setMobileLangOpen(false);
+    setMobileCurrencyOpen(false);
   }, [pathname]);
 
   // Auth session listener
@@ -105,14 +109,30 @@ export default function Navbar() {
           <NavActions />
         </nav>
 
-        {/* Mobile Menu Button */}
-        <button
-          type="button"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition-all hover:bg-white/10 hover:text-white lg:hidden"
-        >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* Mobile Actions: Currency quick selector + Menu Toggle */}
+        <div className="flex items-center gap-2 lg:hidden">
+          <button
+            type="button"
+            onClick={() => {
+              setMobileMenuOpen(true);
+              setMobileCurrencyOpen(true);
+              setMobileLangOpen(false);
+            }}
+            className="flex h-10 items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2.5 text-xs font-black text-slate-200 transition-all hover:bg-white/10 hover:text-white"
+            title="Change Currency"
+          >
+            <span className="text-[#00E5FF] font-mono">{symbols[currency]}</span>
+            <span>{currency}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition-all hover:bg-white/10 hover:text-white"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu Drawer */}
@@ -206,6 +226,44 @@ export default function Navbar() {
                     >
                       <span>{lang.label}</span>
                       <span className="text-[10px] text-slate-500 font-normal">({lang.native})</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Currency Selector on Mobile */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setMobileCurrencyOpen(!mobileCurrencyOpen)}
+                className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-300"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-[#00E5FF] font-mono font-black">{symbols[currency]}</span>
+                  Currency: <span className="text-white font-bold">{currency}</span>
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${mobileCurrencyOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {mobileCurrencyOpen && (
+                <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/5 bg-[#0B1528] p-2">
+                  {supportedCurrencies.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => {
+                        setCurrency(c);
+                        setMobileCurrencyOpen(false);
+                      }}
+                      className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-bold transition-all ${
+                        currency === c
+                          ? 'bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/20'
+                          : 'text-slate-400 border border-transparent hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      <span>{c}</span>
+                      <span className="font-mono text-[11px] text-slate-400">{symbols[c]}</span>
                     </button>
                   ))}
                 </div>

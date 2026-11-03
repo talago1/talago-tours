@@ -42,9 +42,17 @@ export async function GET(request: NextRequest) {
     }
 
     if (conv) {
+      const messages = (conv.messages || []).map((m) => ({
+        id: m.id,
+        body: m.body,
+        text: m.body,
+        sender: m.sender,
+        senderRole: m.sender,
+        createdAt: m.createdAt,
+      }));
       return NextResponse.json({
         conversation: conv,
-        messages: conv.messages || [],
+        messages,
       });
     }
 
@@ -93,7 +101,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const text = sanitizeText(body.text, 1200);
+    const text = sanitizeText(body.text || body.message, 1200);
     if (!text) return NextResponse.json({ error: 'Message is required' }, { status: 400 });
 
     const bookingReference = sanitizePlain(body.bookingReference, 50) || undefined;
