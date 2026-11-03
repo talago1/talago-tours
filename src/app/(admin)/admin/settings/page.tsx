@@ -2039,7 +2039,7 @@ export default function AdminSettingsPage() {
             )}
 
             {activeSection === 'modules' && (
-              <MarketplaceModulesDashboard settings={settings} setSettings={setSettings} />
+              <MarketplaceModulesDashboard settings={settings} setSettings={setSettings} onSave={handleSave} saving={saving} />
             )}
 
             {activeSection === 'ai' && (

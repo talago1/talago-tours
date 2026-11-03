@@ -151,11 +151,11 @@ export async function createImplicitGuestBooking(
       throw capacityErr;
     }
 
-    const zoneId = input.zoneId ?? tour.zoneId;
-    const zone = await tx.zone.findUnique({
+    const zoneId = (input.zoneId ?? tour.zoneId) ?? undefined;
+    const zone = zoneId ? await tx.zone.findUnique({
       where: { id: zoneId },
       select: { id: true, transferFee: true },
-    });
+    }) : null;
 
     if (!zone) {
       throw new BookingEngineError('Pickup zone not found.', 404, 'zoneId');

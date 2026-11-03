@@ -27,11 +27,15 @@ import type { PartnerApplication } from '@/app/api/public/partners/apply/route';
 interface MarketplaceModulesDashboardProps {
   settings: SystemSettings;
   setSettings: React.Dispatch<React.SetStateAction<SystemSettings>>;
+  onSave?: () => Promise<void>;
+  saving?: boolean;
 }
 
 export default function MarketplaceModulesDashboard({
   settings,
   setSettings,
+  onSave,
+  saving = false,
 }: MarketplaceModulesDashboardProps) {
   const [applications, setApplications] = useState<PartnerApplication[]>([]);
   const [loadingApps, setLoadingApps] = useState(true);
@@ -82,18 +86,33 @@ export default function MarketplaceModulesDashboard({
       {/* ─── Module Controls Card ─── */}
       <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20 sm:p-8">
         <div className="mb-6">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#00E5FF]" />
-            <span className="text-xs font-black uppercase tracking-[0.24em] text-[#00E5FF]">
-              System Extensions &amp; Scaling
-            </span>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-[#00E5FF]" />
+              <span className="text-xs font-black uppercase tracking-[0.24em] text-[#00E5FF]">
+                System Extensions &amp; Scaling
+              </span>
+            </div>
+            <h2 className="mt-2 text-xl font-black text-white sm:text-2xl">
+              Marketplace &amp; Global Modules
+            </h2>
+            <p className="mt-1 text-sm text-slate-400">
+              Control platform capabilities for multi-country expansion and external supplier onboarding.
+            </p>
           </div>
-          <h2 className="mt-2 text-xl font-black text-white sm:text-2xl">
-            Marketplace &amp; Global Modules
-          </h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Control platform capabilities for multi-country expansion and external supplier onboarding.
-          </p>
+          {onSave && (
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#00E5FF] px-5 py-2.5 text-xs font-black text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 transition-all hover:bg-[#00E5FF]/90 disabled:opacity-50 shrink-0"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              <span>Save Module Settings</span>
+            </button>
+          )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

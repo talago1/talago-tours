@@ -5,7 +5,7 @@ import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminBookingsPage() {
-  const [bookings, toursList] = await Promise.all([
+  const [bookings, toursList, leads] = await Promise.all([
     prisma.booking.findMany({
       include: {
         tour: {
@@ -28,6 +28,11 @@ export default async function AdminBookingsPage() {
         translations: true,
       },
       orderBy: { createdAt: 'desc' },
+    }),
+    prisma.bookingLead.findMany({
+      where: { bookingId: null }, // only leads not yet converted to bookings
+      orderBy: { createdAt: 'desc' },
+      take: 200,
     }),
   ]);
 
@@ -93,7 +98,7 @@ export default async function AdminBookingsPage() {
             Monitor, filter, export reports, and bulk-manage bookings.
           </p>
         </div>
-        <BookingQueue initialBookings={tickets} availableTours={availableTours} />
+        <BookingQueue initialBookings={tickets} availableTours={availableTours} initialLeads={leads} />
       </div>
     </main>
   );

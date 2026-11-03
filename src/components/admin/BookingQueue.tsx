@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 import BookingRowActions from './BookingRowActions';
 import BookingInvoiceModal from './BookingInvoiceModal';
@@ -30,6 +30,8 @@ import {
   ArrowUpDown,
   Sparkles,
   HelpCircle,
+  Send,
+  Inbox,
 } from 'lucide-react';
 
 interface AvailableTour {
@@ -38,9 +40,27 @@ interface AvailableTour {
   category: string | null;
 }
 
+interface LeadItem {
+  id: string;
+  tourTitle: string | null;
+  tourSlug: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  travelDate: string | null;
+  adults: number;
+  children: number;
+  totalEstimatedPrice: number | null;
+  status: string;
+  source: string;
+  notes: string | null;
+  createdAt: Date | string;
+}
+
 interface BookingQueueProps {
   initialBookings: ActiveQueueTicket[];
   availableTours?: AvailableTour[];
+  initialLeads?: LeadItem[];
 }
 
 function SkeletonRow() {
@@ -61,7 +81,7 @@ function SkeletonRow() {
   );
 }
 
-function ExpandedDetails({ booking }: { booking: ActiveQueueTicket }) {
+function ExpandedDetails({ booking, onOpenChat }: { booking: ActiveQueueTicket; onOpenChat: (ref: string) => void }) {
   const cleanPhone = (booking.customerPhone || '').replace(/[^0-9]/g, '');
   const cashDue = booking.amountDueOnArrival ?? (booking.paymentScheme === 'FULL' ? 0 : Math.max(0, booking.totalPriceUSD - (booking.amountPaidOnline ?? 0)));
   const paidOnline = booking.amountPaidOnline ?? (booking.paymentScheme === 'FULL' ? booking.totalPriceUSD : 0);
@@ -194,13 +214,14 @@ function ExpandedDetails({ booking }: { booking: ActiveQueueTicket }) {
             ) : (
               <span className="text-xs text-slate-500 italic block text-center mb-1">No phone provided</span>
             )}
-            <Link
-              href={`/admin/leads?search=${encodeURIComponent(booking.customerEmail || booking.customerPhone || booking.bookingReference)}`}
+            <button
+              type="button"
+              onClick={() => onOpenChat(booking.bookingReference)}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 px-3 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all shadow-sm"
             >
               <MessageSquare className="h-3.5 w-3.5 text-cyan-400" />
-              Live Chat & CRM Lead
-            </Link>
+              Open Booking Chat
+            </button>
           </div>
         </div>
       </div>
@@ -257,9 +278,140 @@ function ExpandedDetails({ booking }: { booking: ActiveQueueTicket }) {
   );
 }
 
-export default function BookingQueue({ initialBookings, availableTours = [] }: BookingQueueProps) {
+
+// ─── Inline Booking Chat Panel ────────────────────────────────────────────────
+
+interface ChatMessage {
+  id: string;
+  text: string;
+  senderRole: string;
+  createdAt: string;
+}
+
+function BookingChatPanel({ bookingReference, onClose }: { bookingReference: string; onClose: () => void }) {
+  const isLead = bookingReference.startsWith("lead:");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [reply, setReply] = useState('');
+  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const fetchMessages = useCallback(async () => {
+    try {
+      const isLead = bookingReference.startsWith('lead:'); const qp = isLead ? `leadId=${encodeURIComponent(bookingReference.slice(5))}` : `bookingReference=${encodeURIComponent(bookingReference)}`; const res = await fetch(`/api/admin/live-chat?${qp}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(data.messages || []);
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setLoading(false);
+    }
+  }, [bookingReference]);
+
+  useEffect(() => {
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 8000);
+    return () => clearInterval(interval);
+  }, [fetchMessages]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSend = async () => {
+    const text = reply.trim();
+    if (!text || sending) return;
+    setSending(true);
+    try {
+      await fetch('/api/admin/live-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isLead ? { leadId: bookingReference.slice(5), message: text, senderRole: 'ADMIN' } : { bookingReference, message: text, senderRole: 'ADMIN' }),
+      });
+      setReply('');
+      await fetchMessages();
+    } catch {
+      // ignore
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-end p-4 sm:items-center sm:justify-center pointer-events-none">
+      <div className="pointer-events-auto w-full max-w-md rounded-2xl border border-cyan-500/30 bg-[#0B1528] shadow-2xl flex flex-col" style={{ maxHeight: '80vh' }}>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Inbox className="h-4 w-4 text-[#00E5FF]" />
+            <span className="text-sm font-bold text-white">Chat — {bookingReference}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-slate-400 hover:text-white transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+          {loading && (
+            <div className="text-center text-xs text-slate-500 py-8">Loading messages…</div>
+          )}
+          {!loading && messages.length === 0 && (
+            <div className="text-center text-xs text-slate-500 py-8">No messages yet for this booking.</div>
+          )}
+          {messages.map((msg) => (
+            <div key={msg.id} className={`flex ${msg.senderRole === 'ADMIN' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] rounded-xl px-3 py-2 text-xs ${
+                msg.senderRole === 'ADMIN'
+                  ? 'bg-[#00E5FF]/20 text-white border border-[#00E5FF]/30'
+                  : 'bg-white/[0.06] text-slate-200 border border-white/10'
+              }`}>
+                <p>{msg.text}</p>
+                <p className="mt-1 text-[10px] opacity-50">
+                  {msg.senderRole === 'ADMIN' ? 'You' : 'Guest'} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Reply Input */}
+        <div className="border-t border-white/10 p-3 flex items-center gap-2">
+          <input
+            type="text"
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+            placeholder="Type a reply…"
+            className="flex-1 rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white placeholder:text-slate-500 outline-none focus:border-[#00E5FF]"
+          />
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!reply.trim() || sending}
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#00E5FF]/20 text-[#00E5FF] hover:bg-[#00E5FF]/30 transition-colors disabled:opacity-50"
+          >
+            {sending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function BookingQueue({ initialBookings, availableTours = [], initialLeads = [] }: BookingQueueProps) {
+  const [activeView, setActiveView] = useState<'bookings' | 'leads'>('bookings');
   const [bookings, setBookings] = useState<ActiveQueueTicket[]>(initialBookings);
+  const [leads] = useState<LeadItem[]>(initialLeads);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [chatBookingRef, setChatBookingRef] = useState<string | null>(null);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -535,6 +687,88 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
 
   return (
     <div className="space-y-6">
+      {/* View Switcher: Bookings vs Leads */}
+      <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-[#0B1528] p-1.5 self-start w-fit">
+        <button
+          type="button"
+          onClick={() => setActiveView('bookings')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeView === 'bookings' ? 'bg-[#00E5FF] text-[#070F1E] shadow-sm' : 'text-slate-400 hover:text-white'}`}
+        >
+          Confirmed Bookings ({bookings.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveView('leads')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeView === 'leads' ? 'bg-amber-400 text-[#070F1E] shadow-sm' : 'text-slate-400 hover:text-white'}`}
+        >
+          Inquiries & Leads ({leads.length})
+        </button>
+      </div>
+
+      {/* Leads View */}
+      {activeView === 'leads' && (
+        <div className="space-y-4">
+          {leads.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-[#0B1528] py-16 text-center">
+              <p className="text-slate-500 text-sm">No pending inquiries or booking leads.</p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-[#0B1528] overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/[0.04]">
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Tour</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Customer</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Travel Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Guests</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Est. Price</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Chat</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {leads.map((lead) => (
+                    <tr key={lead.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-4 py-3 text-xs text-slate-400">{new Date(lead.createdAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-sm text-slate-300 max-w-[160px] truncate">{lead.tourTitle || '—'}</td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-semibold text-white">{lead.customerName || 'Anonymous'}</div>
+                        <div className="text-xs text-slate-400">{lead.customerPhone || lead.customerEmail || '—'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-300">{lead.travelDate || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-slate-300">{lead.adults + (lead.children || 0)}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-white">{lead.totalEstimatedPrice ? `${lead.totalEstimatedPrice.toFixed(0)}` : '—'}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase ${
+                          lead.status === 'CONVERTED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                          lead.status === 'CONTACTED' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                          lead.status === 'ABANDONED' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                          'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        }`}>{lead.status}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setChatBookingRef(`lead:${lead.id}`)}
+                          className="flex items-center gap-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 px-2 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all"
+                        >
+                          <MessageSquare className="h-3 w-3" />
+                          Chat
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Bookings View */}
+      {activeView === 'bookings' && <>
+
       {/* 1. Statistics Cards Bar */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4 shadow-xl">
@@ -913,7 +1147,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                     {expandedId === b.id && (
                       <tr key={`${b.id}-expanded`}>
                         <td colSpan={12} className="bg-white/[0.01] p-0">
-                          <ExpandedDetails booking={b} />
+                          <ExpandedDetails booking={b} onOpenChat={(ref) => setChatBookingRef(ref)} />
                         </td>
                       </tr>
                     )}
@@ -1020,7 +1254,17 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
         })}
       </div>
 
-      {/* 5. Invoice & Statement Modal */}
+      </>}
+
+      {/* 5. Inline Booking Chat Panel */}
+      {chatBookingRef && (
+        <BookingChatPanel
+          bookingReference={chatBookingRef}
+          onClose={() => setChatBookingRef(null)}
+        />
+      )}
+
+      {/* 6. Invoice & Statement Modal */}
       <BookingInvoiceModal
         isOpen={isInvoiceOpen}
         onClose={() => setIsInvoiceOpen(false)}

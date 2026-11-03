@@ -121,6 +121,8 @@ export default function ContinuousBookingModal({
     amountDueOnArrival: number;
     scheme: string;
   } | null>(null);
+  const [preliminaryLeadId, setPreliminaryLeadId] = useState<string | null>(null);
+  const [preliminaryReference, setPreliminaryReference] = useState<string | null>(null);
 
   // Sync initial values only when modal first opens
   const prevIsOpenRef = React.useRef(false);
@@ -144,9 +146,64 @@ export default function ContinuousBookingModal({
       } else if (tour.allowDeposit) {
         setPaymentScheme(PaymentScheme.DEPOSIT_ONLINE);
       }
+
+      // Auto-populate authenticated customer contact info immediately on modal open
+      fetch('/api/auth/session')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((authData) => {
+          if (authData?.authenticated && authData.user) {
+            const u = authData.user;
+            setLeadName((prev) => {
+              if (prev && prev.trim() !== '') return prev;
+              const n = u.name;
+              if (n && n !== 'User' && !n.startsWith('Traveler #')) return n;
+              if (u.telegramUsername) return `@${u.telegramUsername}`;
+              return prev;
+            });
+            setPhone((prev) => {
+              if (prev && prev.trim() !== '') return prev;
+              if (u.phone && u.phone.trim() !== '') return u.phone;
+              if (u.telegramPhone && u.telegramPhone.trim() !== '') return u.telegramPhone;
+              return prev;
+            });
+            setEmail((prev) => {
+              if (prev && prev.trim() !== '') return prev;
+              if (u.email && !u.email.endsWith('@noreply.talago.com')) return u.email;
+              return prev;
+            });
+
+            // Immediately register visible preliminary booking request
+            fetch('/api/public/booking-interest', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                tourId: tour.id,
+                tourSlug: tour.slug,
+                travelDate: initialDate || undefined,
+                adults: initialAdults || 1,
+                children: initialChildren || 0,
+                totalEstimatedPrice: effectiveAdultPrice * (initialAdults || 1),
+                currency: 'USD',
+                source: 'BOOKING_START',
+                customerName: (u.name && u.name !== 'User') ? u.name : undefined,
+                customerPhone: u.phone || u.telegramPhone || undefined,
+                customerEmail: (!u.email?.endsWith('@noreply.talago.com')) ? u.email : undefined,
+              }),
+            })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((resData) => {
+                if (resData?.leadId) {
+                  setPreliminaryLeadId(resData.leadId);
+                  setPreliminaryReference(resData.reservationReference);
+                }
+              })
+              .catch(() => {});
+          }
+        })
+        .catch(() => {});
     }
     prevIsOpenRef.current = isOpen;
-  }, [isOpen, initialDate, initialTime, initialAdults, initialChildren, initialInfants, initialAddons, zones, tour.allowPayAtLocation, tour.allowFullOnline, tour.allowDeposit]);
+  }, [isOpen, initialDate, initialTime, initialAdults, initialChildren, initialInfants, initialAddons, zones, tour.allowPayAtLocation, tour.allowFullOnline, tour.allowDeposit, tour.id, tour.slug]);  // effectiveAdultPrice is derived from tour.adultPrice, already in deps via tour
 
   // Price calculations
   const effectiveAdultPrice = tour.adultPrice || 0;
@@ -208,6 +265,34 @@ export default function ContinuousBookingModal({
       if (!cleanPhone || cleanPhone.length < 8) {
         errs.phone = 'Valid phone number is required';
       }
+      if (Object.keys(errs).length === 0) {
+        // Sync preliminary request with completed contact details
+        fetch('/api/public/booking-interest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tourId: tour.id,
+            tourSlug: tour.slug,
+            travelDate: departureDate || undefined,
+            adults: adultsCount,
+            children: childrenCount,
+            totalEstimatedPrice: grandTotal,
+            currency: 'USD',
+            source: 'BOOKING_FORM_CONTACT',
+            customerName: leadName.trim(),
+            customerPhone: phone.trim(),
+            customerEmail: email.trim() || undefined,
+          }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((resData) => {
+            if (resData?.leadId) {
+              setPreliminaryLeadId(resData.leadId);
+              setPreliminaryReference(resData.reservationReference);
+            }
+          })
+          .catch(() => {});
+      }
     }
 
     if (currentStep === 3) {
@@ -241,6 +326,7 @@ export default function ContinuousBookingModal({
     try {
       const payload = {
         tourId: tour.id,
+        reservationId: preliminaryLeadId || undefined,
         departureDate,
         guestCount: adultsCount + childrenCount + infantsCount,
         adultsCount,

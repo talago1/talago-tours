@@ -132,14 +132,30 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const tourCount = await prisma.tour.count({ where: { zoneId: id } });
-    if (tourCount > 0) {
+    const force = searchParams.get('force') === 'true';
+
+    const [tourCount, bookingCount] = await Promise.all([
+      prisma.tour.count({ where: { zoneId: id } }),
+      prisma.booking.count({ where: { zoneId: id } }),
+    ]);
+
+    if ((tourCount > 0 || bookingCount > 0) && !force) {
       return NextResponse.json(
         {
-          error: `Cannot delete '${existing.name}': ${tourCount} tour(s) reference this zone. Reassign them first.`,
+          requiresForce: true,
+          tourCount,
+          bookingCount,
+          message: `Zone '${existing.name}' is referenced by ${tourCount} tour(s) and ${bookingCount} booking(s). Deleting will unlink them.`,
         },
-        { status: 400 },
+        { status: 409 },
       );
+    }
+
+    if (tourCount > 0) {
+      await prisma.tour.updateMany({ where: { zoneId: id }, data: { zoneId: null } });
+    }
+    if (bookingCount > 0) {
+      await prisma.booking.updateMany({ where: { zoneId: id }, data: { zoneId: null } });
     }
 
     await prisma.zone.delete({ where: { id } });

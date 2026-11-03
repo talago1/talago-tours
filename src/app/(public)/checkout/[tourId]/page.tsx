@@ -381,6 +381,24 @@ export default function CheckoutPage() {
     }
   }, [tourId, form.leadName, form.phone, form.email, adultsCount, childrenCount, infantsCount, departureDate]);
 
+  // Auto-populate customer details from authenticated session
+  useEffect(() => {
+    fetch('/api/auth/session')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.authenticated && data.user) {
+          const u = data.user;
+          setForm((prev) => ({
+            ...prev,
+            leadName: prev.leadName.trim() ? prev.leadName : (u.name && u.name !== 'User' && !u.name.startsWith('Traveler #')) ? u.name : (u.telegramUsername ? `@${u.telegramUsername}` : prev.leadName),
+            phone: prev.phone.trim() ? prev.phone : (u.phone || u.telegramPhone || prev.phone),
+            email: prev.email.trim() ? prev.email : (!u.email?.endsWith('@noreply.talago.com') ? u.email : prev.email),
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Synchronize counts from search parameters on mount
   useEffect(() => {
     const queryAdults = searchParams.get('adults');

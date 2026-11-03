@@ -54,7 +54,7 @@ export default async function EditTourPage({ params }: Params) {
     basePriceUSD: tour.basePriceUSD || 0,
     durationHours: tour.durationHours || 1,
     maxCapacity: tour.maxCapacity || 10,
-    zoneId: tour.zoneId,
+    zoneId: tour.zoneId ?? undefined,
     destinationId: tour.destinationId || '',
     countryCode: tour.countryCode || 'EG',
     region: tour.region || '',

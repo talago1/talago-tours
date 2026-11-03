@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  ArrowRight,
   Clock,
   MapPin,
   Star,
@@ -293,13 +292,6 @@ export default function PublicTourCard({ tour, priority = false }: { tour: Publi
                 )}
               </div>
             </div>
-
-            <span
-              aria-hidden
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-slate-300 transition-colors duration-300 group-hover:border-[#00E5FF]/50 group-hover:text-[#00E5FF]"
-            >
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
-            </span>
           </div>
         </div>
       </Link>

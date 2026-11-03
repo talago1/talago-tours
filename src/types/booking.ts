@@ -41,7 +41,7 @@ export interface ActiveQueueTicket {
 
 export interface CheckoutFormData {
   tourId: string;
-  zoneId: string;
+  zoneId?: string;
   hotelName: string | null;
   travelDate: string;
   guestCount: number;
@@ -54,7 +54,7 @@ export interface Booking {
   id: string;
   bookingReference: string;
   tourId: string;
-  zoneId: string;
+  zoneId?: string;
   hotelName: string;
   travelDate: Date;
   guestCount: number;

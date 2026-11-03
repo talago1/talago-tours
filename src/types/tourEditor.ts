@@ -228,7 +228,7 @@ export interface TourEditorData {
 
   // Location
   destinationId: string;
-  zoneId: string;
+  zoneId?: string;
   countryCode?: string;
   region?: string;
   city?: string;

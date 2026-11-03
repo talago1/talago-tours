@@ -64,6 +64,7 @@ export default async function AdminToursPage() {
   // Convert decimal to number if needed or cast types
   const mappedTours = tours.map(t => ({
     ...t,
+    zoneId: t.zoneId ?? undefined,
     destinationId: t.destinationId ?? '',
     destination: t.destination ?? { name: '' },
     status: t.status ?? 'ACTIVE',

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ImageIcon } from 'lucide-react';
 import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 
@@ -24,6 +24,7 @@ export default function CarouselImages({
   priority = false,
 }: CarouselImagesProps) {
   const [index, setIndex] = useState(0);
+  const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
     if (!isHovered || images.length <= 1) return;
@@ -56,8 +57,30 @@ export default function CarouselImages({
     (index + 1) % images.length,
   ]);
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || images.length <= 1) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(delta) < 40) return; // ignore tiny movements
+    if (delta < 0) {
+      // swiped left → next
+      setIndex((prev) => (prev + 1) % images.length);
+    } else {
+      // swiped right → prev
+      setIndex((prev) => (prev - 1 + images.length) % images.length);
+    }
+  };
+
   return (
-    <div className="relative h-full w-full">
+    <div
+      className="relative h-full w-full"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {images.map((url, i) =>
         mounted.has(i) ? (
           <Image

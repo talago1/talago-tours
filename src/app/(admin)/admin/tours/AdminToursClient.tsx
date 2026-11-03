@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -33,7 +33,7 @@ interface Tour {
   translations: unknown;
   coverImage: string | null;
   destinationId: string;
-  zoneId: string;
+  zoneId?: string;
   maxCapacity: number;
   durationHours: number;
   destination: { name: string };

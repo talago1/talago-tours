@@ -23,7 +23,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json().catch(() => ({}));
-    const token = request.cookies.get(COOKIE_NAME)?.value || crypto.randomUUID();
+    const bookingReference = sanitizePlain(body.bookingReference, 50) || undefined;
+    const leadId = sanitizePlain(body.leadId, 60) || undefined;
+    const tourTitle = sanitizePlain(body.tourTitle, 150) || undefined;
+
+    let token = request.cookies.get(COOKIE_NAME)?.value || crypto.randomUUID();
+    if (bookingReference) {
+      token = `booking:${bookingReference}`;
+    } else if (leadId) {
+      token = `lead:${leadId}`;
+    }
+
     const visitorName = sanitizePlain(body.name, 100) || undefined;
     const visitorEmail = sanitizeEmail(body.email) || undefined;
     const visitorPhone = sanitizePhone(body.phone) || undefined;
@@ -31,18 +41,41 @@ export async function POST(request: NextRequest) {
 
     const conversation = await prisma.liveChatConversation.upsert({
       where: { visitorToken: token },
-      create: { visitorToken: token, visitorName, visitorEmail, visitorPhone, lastPagePath },
-      update: {
+      create: {
+        visitorToken: token,
         visitorName,
         visitorEmail,
         visitorPhone,
         lastPagePath,
+        bookingReference,
+        leadId,
+        tourTitle,
       },
-      select: { id: true, visitorName: true, visitorEmail: true, visitorPhone: true },
+      update: {
+        visitorName: visitorName || undefined,
+        visitorEmail: visitorEmail || undefined,
+        visitorPhone: visitorPhone || undefined,
+        lastPagePath: lastPagePath || undefined,
+        bookingReference: bookingReference || undefined,
+        leadId: leadId || undefined,
+        tourTitle: tourTitle || undefined,
+      },
+      select: {
+        id: true,
+        visitorName: true,
+        visitorEmail: true,
+        visitorPhone: true,
+        bookingReference: true,
+        leadId: true,
+        tourTitle: true,
+        status: true,
+      },
     });
 
     const response = NextResponse.json({ conversation });
-    conversationCookie(response, token);
+    if (!bookingReference && !leadId) {
+      conversationCookie(response, token);
+    }
     return response;
   } catch (error) {
     console.error('Unable to start live chat session:', error);

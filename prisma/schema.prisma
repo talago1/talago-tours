@@ -120,7 +120,7 @@ model Tour {
   durationHours  Int
   duration     String?
   maxCapacity    Int
-  zoneId         String
+  zoneId         String?
   destinationId  String?
   translations   Json
 
@@ -263,7 +263,7 @@ model Tour {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  zone       Zone       @relation(fields: [zoneId], references: [id])
+  zone       Zone?      @relation(fields: [zoneId], references: [id], onDelete: SetNull)
   destination Destination? @relation(fields: [destinationId], references: [id])
 
   bookings        Booking[]
@@ -283,7 +283,7 @@ model Booking {
   // NOT a credential; this is.
   accessToken      String        @unique
   tourId           String
-  zoneId           String
+  zoneId           String?
   hotelName        String?
   travelDate       DateTime
   guestCount       Int
@@ -346,7 +346,7 @@ model Booking {
   updatedAt DateTime @updatedAt
 
   tour Tour @relation(fields: [tourId], references: [id])
-  zone Zone @relation(fields: [zoneId], references: [id])
+  zone Zone? @relation(fields: [zoneId], references: [id], onDelete: SetNull)
 
   transaction Transaction?
   reviews Review[]
@@ -713,20 +713,27 @@ enum LiveChatSender {
 }
 
 model LiveChatConversation {
-  id           String         @id @default(cuid())
-  visitorToken String         @unique
-  visitorName  String?
-  visitorEmail String?
-  visitorPhone String?
-  lastPagePath String?
-  status       LiveChatStatus @default(OPEN)
-  lastMessageAt DateTime      @default(now())
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  messages     LiveChatMessage[]
+  id               String         @id @default(cuid())
+  visitorToken     String         @unique
+  visitorName      String?
+  visitorEmail     String?
+  visitorPhone     String?
+  bookingId        String?
+  bookingReference String?
+  leadId           String?
+  tourTitle        String?
+  lastPagePath     String?
+  status           LiveChatStatus @default(OPEN)
+  lastMessageAt    DateTime       @default(now())
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  messages         LiveChatMessage[]
 
   @@index([status, lastMessageAt])
   @@index([visitorEmail])
+  @@index([bookingReference])
+  @@index([bookingId])
+  @@index([leadId])
   @@map("live_chat_conversations")
 }
 

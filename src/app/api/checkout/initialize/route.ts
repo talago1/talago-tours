@@ -421,6 +421,47 @@ export async function POST(request: NextRequest) {
             updatedAt: new Date(),
           },
         });
+
+        // Carry over any lead conversation to the confirmed booking
+        await prisma.liveChatConversation.updateMany({
+          where: {
+            OR: [
+              { leadId: matchingLead.id },
+              { visitorToken: `lead:${matchingLead.id}` },
+            ],
+          },
+          data: {
+            bookingId: result.booking.id,
+            bookingReference: result.booking.bookingReference,
+            visitorName: leadName.trim(),
+            visitorEmail: email.trim(),
+            visitorPhone: phone.trim(),
+          },
+        });
+      }
+
+      // Ensure an independent conversation exists for this booking reference
+      const bookingConv = await prisma.liveChatConversation.findFirst({
+        where: {
+          OR: [
+            { bookingReference: result.booking.bookingReference },
+            { visitorToken: `booking:${result.booking.bookingReference}` },
+          ],
+        },
+      });
+      if (!bookingConv) {
+        await prisma.liveChatConversation.create({
+          data: {
+            visitorToken: `booking:${result.booking.bookingReference}`,
+            bookingId: result.booking.id,
+            bookingReference: result.booking.bookingReference,
+            visitorName: leadName.trim(),
+            visitorEmail: email.trim(),
+            visitorPhone: phone.trim(),
+            tourTitle: (() => { const t = tour.translations as Record<string, {title?: string}> | null; return t?.en?.title || undefined; })(),
+            lastPagePath: `/booking/${result.booking.accessToken}`,
+          },
+        });
       }
     } catch (leadLinkErr) {
       console.warn('[initialize] Lead linking non-fatal warning:', leadLinkErr);

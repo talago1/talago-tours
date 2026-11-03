@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -11,6 +11,7 @@ import { useWishlist } from '@/context/WishlistContext';
 import { LANGUAGES, type LanguageCode } from '@/lib/i18n';
 import type { SupportedCurrency } from '@/utils/currency';
 import WriteReviewModal from '@/components/modals/WriteReviewModal';
+import { useContactSettings } from '@/hooks/useContactSettings';
 import {
   CalendarDays,
   Ticket,
@@ -134,6 +135,7 @@ export default function AccountPage() {
   // Active tab state
   type TabKey = 'overview' | 'bookings' | 'messages' | 'favorites' | 'profile' | 'preferences' | 'security';
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const { getWhatsAppUrl } = useContactSettings();
 
   // Auth & Profile state
   const [loading, setLoading] = useState(true);
@@ -157,6 +159,7 @@ export default function AccountPage() {
   // Live Chat / Concierge Messages
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
+  const [selectedChatBookingRef, setSelectedChatBookingRef] = useState<string | null>(null);
   const [sendingMsg, setSendingMsg] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
@@ -222,16 +225,23 @@ export default function AccountPage() {
     }
   }, []);
 
-  const fetchChatMessages = async () => {
+  const fetchChatMessages = useCallback(async (refOverride?: string | null) => {
+    const bookingRef = refOverride !== undefined ? refOverride : selectedChatBookingRef;
     setChatLoading(true);
     try {
-      // Ensure chat session cookie exists
+      // Ensure chat session exists with bookingReference context if applicable
       await fetch('/api/public/live-chat/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pagePath: '/account' }),
+        body: JSON.stringify({
+          pagePath: '/account',
+          bookingReference: bookingRef || undefined,
+        }),
       });
-      const res = await fetch('/api/public/live-chat/messages');
+      const url = bookingRef
+        ? `/api/public/live-chat/messages?bookingReference=${encodeURIComponent(bookingRef)}`
+        : '/api/public/live-chat/messages';
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setMessages(Array.isArray(data.messages) ? data.messages : []);
@@ -240,7 +250,13 @@ export default function AccountPage() {
     finally {
       setChatLoading(false);
     }
-  };
+  }, [selectedChatBookingRef]);
+
+  useEffect(() => {
+    if (activeTab === 'messages') {
+      fetchChatMessages();
+    }
+  }, [activeTab, selectedChatBookingRef, fetchChatMessages]);
 
   useEffect(() => {
     loadData();
@@ -305,7 +321,10 @@ export default function AccountPage() {
       const res = await fetch('/api/public/live-chat/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          bookingReference: selectedChatBookingRef || undefined,
+        }),
       });
 
       if (res.ok) {
@@ -585,6 +604,17 @@ export default function AccountPage() {
                               {booking.amountDueOnArrival ? formatPrice(booking.amountDueOnArrival) : '$0'}
                             </span>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedChatBookingRef(booking.bookingReference);
+                              setActiveTab('messages');
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3.5 py-2 text-xs font-bold text-white transition hover:border-[#00E5FF]/40 hover:text-[#00E5FF]"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5 text-[#00E5FF]" />
+                            <span>Chat</span>
+                          </button>
                           <a
                             href={`/booking/${booking.accessToken}`}
                             className="inline-flex items-center gap-1.5 rounded-xl bg-[#00E5FF] px-4 py-2 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-sm hover:scale-105 transition"
@@ -636,7 +666,7 @@ export default function AccountPage() {
                     {dict.account.messages.activeChat}
                   </button>
                   <a
-                    href="https://wa.me/201000000000"
+                    href={getWhatsAppUrl('I need support with my Talago booking')}
                     target="_blank"
                     rel="noreferrer"
                     className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 text-xs font-bold text-emerald-400 transition"
@@ -830,19 +860,46 @@ export default function AccountPage() {
                 <div className="flex items-center gap-3">
                   <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
                   <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-white">Talago 24/7 Concierge</h4>
-                    <p className="text-[10px] text-slate-400">Direct dispatch & itinerary support</p>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                      {selectedChatBookingRef ? `Booking ${selectedChatBookingRef}` : 'Talago 24/7 Concierge'}
+                    </h4>
+                    <p className="text-[10px] text-slate-400">
+                      {selectedChatBookingRef ? 'Dedicated booking assistance & dispatch' : 'Direct dispatch & itinerary support'}
+                    </p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={fetchChatMessages}
+                  onClick={() => fetchChatMessages()}
                   className="p-2 text-slate-400 hover:text-white transition"
                   title="Refresh chat"
                 >
                   <RefreshCw className={`h-4 w-4 ${chatLoading ? 'animate-spin' : ''}`} />
                 </button>
               </div>
+
+              {bookings.length > 0 && (
+                <div className="px-4 py-2.5 border-b border-white/5 bg-white/[0.01] flex items-center gap-2 overflow-x-auto text-xs">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">Channel:</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedChatBookingRef(null)}
+                    className={`px-2.5 py-1 rounded-lg shrink-0 font-medium transition ${!selectedChatBookingRef ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/30' : 'text-slate-400 hover:text-white bg-white/5'}`}
+                  >
+                    General Concierge
+                  </button>
+                  {bookings.map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setSelectedChatBookingRef(b.bookingReference)}
+                      className={`px-2.5 py-1 rounded-lg shrink-0 font-mono text-[11px] font-bold transition ${selectedChatBookingRef === b.bookingReference ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/30' : 'text-slate-400 hover:text-white bg-white/5'}`}
+                    >
+                      {b.bookingReference}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Chat Messages Body */}
               <div className="flex-1 p-5 overflow-y-auto space-y-4">

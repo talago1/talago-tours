@@ -261,9 +261,30 @@ function ZoneSubPanel({
       const res = await fetch(`/api/admin/zones?id=${zoneId}`, { method: 'DELETE' });
       if (res.ok) {
         onZonesChanged();
+        return;
       }
+      if (res.status === 409) {
+        const data = await res.json();
+        if (data.requiresForce) {
+          const confirmed = window.confirm(
+            `${data.message}\n\nTours and bookings linked to this zone will have their zone unset (they are not deleted). Continue?`
+          );
+          if (confirmed) {
+            const forceRes = await fetch(`/api/admin/zones?id=${zoneId}&force=true`, { method: 'DELETE' });
+            if (forceRes.ok) {
+              onZonesChanged();
+            } else {
+              const err = await forceRes.json().catch(() => ({}));
+              alert(err.error || 'Failed to delete zone');
+            }
+          }
+          return;
+        }
+      }
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || 'Failed to delete zone');
     } catch {
-      // Handle error
+      alert('Failed to delete zone');
     }
   }
 

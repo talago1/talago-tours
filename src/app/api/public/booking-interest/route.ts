@@ -212,12 +212,32 @@ export async function POST(request: NextRequest) {
     // The browser's existing chat token keeps that conversation visible to the
     // same visitor when the team replies.
     if (isNewReservation) {
-      const reservationMessage = `[${reservationReference}] New reservation interest: ${tourTitle}. Guests: ${adults} adult${adults === 1 ? '' : 's'}${children > 0 ? `, ${children} child${children === 1 ? '' : 'ren'}` : ''}.${totalEstimatedPrice ? ` Estimated value: ${totalEstimatedPrice} ${currency}.` : ''}`;
+      const reservationMessage = `[${reservationReference}] New preliminary booking request: ${tourTitle}. Travel Date: ${travelDate || 'Flexible'}. Guests: ${adults} adult${adults === 1 ? '' : 's'}${children > 0 ? `, ${children} child${children === 1 ? '' : 'ren'}` : ''}.${totalEstimatedPrice ? ` Estimated value: ${totalEstimatedPrice} ${currency}.` : ''}`;
       try {
+        const leadChatToken = `lead:${lead.id}`;
         const conversation = await prisma.liveChatConversation.upsert({
-          where: { visitorToken: chatToken },
-          create: { visitorToken: chatToken, visitorName: customerName || undefined, visitorEmail: customerEmail || undefined, visitorPhone: customerPhone || undefined, lastPagePath: `/tours/${tourSlug}` },
-          update: { visitorName: customerName || undefined, visitorEmail: customerEmail || undefined, visitorPhone: customerPhone || undefined, lastPagePath: `/tours/${tourSlug}`, status: 'OPEN', lastMessageAt: new Date() },
+          where: { visitorToken: leadChatToken },
+          create: {
+            visitorToken: leadChatToken,
+            visitorName: customerName || undefined,
+            visitorEmail: customerEmail || undefined,
+            visitorPhone: customerPhone || undefined,
+            leadId: lead.id,
+            bookingReference: reservationReference,
+            tourTitle: tourTitle,
+            lastPagePath: `/tours/${tourSlug}`,
+          },
+          update: {
+            visitorName: customerName || undefined,
+            visitorEmail: customerEmail || undefined,
+            visitorPhone: customerPhone || undefined,
+            leadId: lead.id,
+            bookingReference: reservationReference,
+            tourTitle: tourTitle,
+            lastPagePath: `/tours/${tourSlug}`,
+            status: 'OPEN',
+            lastMessageAt: new Date(),
+          },
           select: { id: true },
         });
         await prisma.liveChatMessage.create({ data: { conversationId: conversation.id, sender: 'VISITOR', body: reservationMessage } });

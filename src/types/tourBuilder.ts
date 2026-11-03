@@ -85,7 +85,7 @@ export interface GlobalFields {
   durationHours: number;
   maxCapacity: number;
   tourType: TourType;
-  zoneId: string;
+  zoneId?: string;
   basePriceUSD: number;
 }
 
@@ -227,7 +227,7 @@ export interface TourCreatePayload {
   basePriceUSD: number;
   durationHours: number;
   maxCapacity: number;
-  zoneId: string;
+  zoneId?: string;
   translations: Translations;
   coverImage?: string;
   galleryImages?: string[];
