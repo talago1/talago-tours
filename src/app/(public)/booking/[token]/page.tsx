@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { supabaseClient } from '@/lib/supabase/client';
+import { ChevronLeft, Ticket, ArrowRight, MessageSquare } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface BookingDetail {
@@ -45,6 +48,20 @@ export default function BookingConfirmationPage() {
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [pageState, setPageState] = useState<PageState>('loading');
   const [retrying, setRetrying] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+      if (session?.access_token) {
+        setIsAuthenticated(true);
+      } else {
+        fetch('/api/auth/session')
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => { if (d?.authenticated) setIsAuthenticated(true); })
+          .catch(() => {});
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     async function loadBooking() {

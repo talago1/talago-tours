@@ -2,12 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
+import { supabaseClient } from '@/lib/supabase/client';
 
 export default function CheckoutSuccessContent({ token }: { token: string }) {
   const { dict } = useLanguage();
   // The reference is display-only and no longer travels in the URL, so it is
   // read back through the token-authenticated endpoint.
   const [bookingReference, setBookingReference] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+      if (session?.access_token) setIsAuthenticated(true);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!token) return;

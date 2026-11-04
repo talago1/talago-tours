@@ -291,7 +291,7 @@ export default function Navbar() {
                       {dict.navbar.account || 'Account'}
                     </Link>
                     <Link
-                      href="/my-bookings"
+                      href="/account?tab=bookings"
                       onClick={() => setMobileMenuOpen(false)}
                       className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-3 text-xs font-bold text-white"
                     >

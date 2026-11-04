@@ -296,6 +296,7 @@ export default function CheckoutPage() {
 
   const [tour, setTour] = useState<TourDetails | null>(null);
   const [pageState, setPageState] = useState<PageState>('loading');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [scheme, setScheme] = useState<PaymentScheme>(PaymentScheme.PAY_ON_ARRIVAL);
   const [adultsCount, setAdultsCount] = useState(1);
   const [childrenCount, setChildrenCount] = useState(0);
@@ -388,6 +389,7 @@ export default function CheckoutPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.authenticated && data.user) {
+          setIsAuthenticated(true);
           const u = data.user;
           setForm((prev) => ({
             ...prev,
@@ -736,15 +738,25 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          <Button
-            variant="primary"
-            size="lg"
-            className="mt-8"
-            onClick={() => router.push(`/booking/${confirmData.accessToken}`)}
-          >
-            {dict.checkout.viewDetails}
-            <ArrowRight className="h-4 w-4" />
-          </Button>
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full sm:w-auto"
+              onClick={() => router.push(`/booking/${confirmData.accessToken}`)}
+            >
+              {dict.checkout.viewDetails}
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              className="w-full sm:w-auto border border-white/20 bg-white/5 hover:bg-white/10 text-white"
+              onClick={() => router.push(isAuthenticated ? '/account?tab=bookings' : '/my-bookings')}
+            >
+              <span>Go to My Bookings</span>
+            </Button>
+          </div>
         </div>
       </div>
     );

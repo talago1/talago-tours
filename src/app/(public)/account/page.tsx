@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { supabaseClient } from '@/lib/supabase/client';
@@ -36,6 +36,9 @@ import {
   LayoutDashboard,
   Settings,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Info,
   RefreshCw,
   Send,
 } from 'lucide-react';
@@ -56,10 +59,22 @@ interface BookingItem {
   bookingReference: string;
   accessToken: string;
   customerName: string;
+  customerEmail?: string;
+  customerPhone?: string;
   tourId: string;
   status: string;
   travelDate: string;
   guestCount: number;
+  adultsCount?: number;
+  childrenCount?: number;
+  infantsCount?: number;
+  hotelName?: string | null;
+  roomNumber?: string | null;
+  pickupLocationName?: string | null;
+  selectedPickupTime?: string | null;
+  pickupDirectives?: string | null;
+  selectedAddons?: any;
+  specialRequirements?: string | null;
   totalPriceUSD: number;
   currency: string;
   paymentScheme: string | null;
@@ -130,6 +145,7 @@ function getTourTitle(translations: unknown, lang = 'en'): string {
 
 export default function AccountPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { dict, language, setLanguage } = useLanguage();
   const { currency, setCurrency, formatPrice } = useCurrency();
   const { wishlist, removeFromWishlist } = useWishlist();
@@ -137,6 +153,14 @@ export default function AccountPage() {
   // Active tab state
   type TabKey = 'overview' | 'bookings' | 'messages' | 'favorites' | 'profile' | 'preferences' | 'security';
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['overview', 'bookings', 'messages', 'favorites', 'profile', 'preferences', 'security'].includes(tabParam)) {
+      setActiveTab(tabParam as TabKey);
+    }
+  }, [searchParams]);
   const { getWhatsAppUrl } = useContactSettings();
 
   // Auth & Profile state
@@ -792,97 +816,169 @@ export default function AccountPage() {
                   return (
                     <div
                       key={booking.id}
-                      className="rounded-3xl border border-white/10 bg-[#0B1528] p-5 sm:p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
+                      className="rounded-3xl border border-white/10 bg-[#0B1528] p-5 sm:p-6 shadow-xl space-y-4 hover:border-white/20 transition"
                     >
-                      <div className="flex items-start gap-4 min-w-0">
-                        {booking.tour?.coverImage ? (
-                          <div className="relative h-20 w-24 rounded-2xl overflow-hidden shrink-0 border border-white/10 bg-slate-900">
-                            <Image
-                              src={booking.tour.coverImage}
-                              alt={title}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex h-20 w-24 shrink-0 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-[#00E5FF]">
-                            <Ticket className="h-8 w-8" />
-                          </div>
-                        )}
+                      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                        <div className="flex items-start gap-4 min-w-0">
+                          {booking.tour?.coverImage ? (
+                            <div className="relative h-20 w-24 rounded-2xl overflow-hidden shrink-0 border border-white/10 bg-slate-900">
+                              <Image
+                                src={booking.tour.coverImage}
+                                alt={title}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex h-20 w-24 shrink-0 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-[#00E5FF]">
+                              <Ticket className="h-8 w-8" />
+                            </div>
+                          )}
 
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-mono text-xs font-bold text-[#00E5FF] bg-white/5 px-2.5 py-0.5 rounded-full border border-white/10">
-                              {booking.bookingReference}
-                            </span>
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
-                                booking.status === 'CONFIRMED'
-                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-mono text-xs font-bold text-[#00E5FF] bg-white/5 px-2.5 py-0.5 rounded-full border border-white/10">
+                                {booking.bookingReference}
+                              </span>
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                                  booking.status === 'CONFIRMED'
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                    : booking.status === 'COMPLETED'
+                                    ? 'bg-sky-500/10 text-sky-400 border-sky-500/20'
+                                    : 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                                }`}
+                              >
+                                {booking.status === 'CONFIRMED'
+                                  ? dict.account.bookings.statusConfirmed
                                   : booking.status === 'COMPLETED'
-                                  ? 'bg-sky-500/10 text-sky-400 border-sky-500/20'
-                                  : 'bg-amber-500/10 text-amber-300 border-amber-500/20'
-                              }`}
-                            >
-                              {booking.status === 'CONFIRMED'
-                                ? dict.account.bookings.statusConfirmed
-                                : booking.status === 'COMPLETED'
-                                ? dict.account.bookings.statusCompleted
-                                : booking.status}
-                            </span>
+                                  ? dict.account.bookings.statusCompleted
+                                  : booking.status}
+                              </span>
+                            </div>
+                            <h3 className="text-base font-bold text-white line-clamp-1">{title}</h3>
+                            <p className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-3">
+                              <span className="flex items-center gap-1">
+                                <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
+                                {new Date(booking.travelDate).toLocaleDateString(language, { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                              <span>·</span>
+                              <span>{booking.guestCount} {dict.account.bookings.guestsLabel}</span>
+                              {booking.amountDueOnArrival !== null && booking.amountDueOnArrival > 0 && (
+                                <>
+                                  <span>·</span>
+                                  <span className="text-amber-300 font-bold">
+                                    {dict.account.bookings.dueOnArrival}: {formatPrice(booking.amountDueOnArrival)}
+                                  </span>
+                                </>
+                              )}
+                            </p>
                           </div>
-                          <h3 className="text-base font-bold text-white line-clamp-1">{title}</h3>
-                          <p className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-3">
-                            <span className="flex items-center gap-1">
-                              <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
-                              {new Date(booking.travelDate).toLocaleDateString(language, { day: 'numeric', month: 'short', year: 'numeric' })}
-                            </span>
-                            <span>·</span>
-                            <span>{booking.guestCount} {dict.account.bookings.guestsLabel}</span>
-                            {booking.amountDueOnArrival !== null && booking.amountDueOnArrival > 0 && (
-                              <>
-                                <span>·</span>
-                                <span className="text-amber-300 font-bold">
-                                  {dict.account.bookings.dueOnArrival}: {formatPrice(booking.amountDueOnArrival)}
-                                </span>
-                              </>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 w-full md:w-auto justify-end pt-3 md:pt-0 border-t md:border-t-0 border-white/5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedBookingId((prev) => (prev === booking.id ? null : booking.id))}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3 py-2.5 text-xs font-bold text-slate-200 transition"
+                          >
+                            <Info className="h-3.5 w-3.5 text-slate-400" />
+                            <span>{expandedBookingId === booking.id ? 'Hide Details' : 'Details'}</span>
+                            {expandedBookingId === booking.id ? (
+                              <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
                             )}
-                          </p>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedChatBookingRef(booking.bookingReference);
+                              setActiveTab('messages');
+                            }}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3.5 py-2.5 text-xs font-bold text-white transition hover:border-[#00E5FF]/40 hover:text-[#00E5FF]"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5 text-[#00E5FF]" />
+                            <span>Chat</span>
+                          </button>
+
+                          <a
+                            href={`/booking/${booking.accessToken}`}
+                            className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-sm hover:scale-105 transition"
+                          >
+                            <CreditCard className="h-3.5 w-3.5" />
+                            <span>{dict.account.bookings.viewBoardingPass}</span>
+                          </a>
+
+                          {isPast && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveReviewTour({ id: booking.tourId, title })}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 transition"
+                            >
+                              <Star className="h-3.5 w-3.5 text-amber-400" />
+                              <span>Review</span>
+                            </button>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 w-full md:w-auto justify-end pt-3 md:pt-0 border-t md:border-t-0 border-white/5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedChatBookingRef(booking.bookingReference);
-                            setActiveTab('messages');
-                          }}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3.5 py-2.5 text-xs font-bold text-white transition hover:border-[#00E5FF]/40 hover:text-[#00E5FF]"
-                        >
-                          <MessageSquare className="h-3.5 w-3.5 text-[#00E5FF]" />
-                          <span>Chat</span>
-                        </button>
+                      {/* Expandable In-Account Booking Details View */}
+                      {expandedBookingId === booking.id && (
+                        <div className="pt-4 border-t border-white/5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs bg-white/[0.02] p-4 rounded-2xl animate-in fade-in duration-150">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Pickup Location & Hotel</span>
+                            <p className="font-semibold text-white">
+                              {booking.hotelName || booking.pickupLocationName || 'To be coordinated with concierge'}
+                            </p>
+                            {booking.roomNumber && (
+                              <p className="text-slate-400 text-[11px] mt-0.5">Room: {booking.roomNumber}</p>
+                            )}
+                          </div>
 
-                        <a
-                          href={`/booking/${booking.accessToken}`}
-                          className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-sm hover:scale-105 transition"
-                        >
-                          <CreditCard className="h-3.5 w-3.5" />
-                          <span>{dict.account.bookings.viewBoardingPass}</span>
-                        </a>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Pickup Time</span>
+                            <p className="font-semibold text-white">
+                              {booking.selectedPickupTime || 'Supplier will confirm in chat'}
+                            </p>
+                            {booking.pickupDirectives && (
+                              <p className="text-slate-400 text-[11px] mt-0.5 line-clamp-1">{booking.pickupDirectives}</p>
+                            )}
+                          </div>
 
-                        {isPast && (
-                          <button
-                            type="button"
-                            onClick={() => setActiveReviewTour({ id: booking.tourId, title })}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 transition"
-                          >
-                            <Star className="h-3.5 w-3.5 text-amber-400" />
-                            <span>Review</span>
-                          </button>
-                        )}
-                      </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Guests Breakdown</span>
+                            <p className="font-semibold text-white">
+                              {booking.guestCount} Guests
+                              {(booking.adultsCount || 0) > 0 && ` (${booking.adultsCount} Adults`}
+                              {(booking.childrenCount || 0) > 0 && `, ${booking.childrenCount} Children`}
+                              {(booking.infantsCount || 0) > 0 && `, ${booking.infantsCount} Infants`}
+                              {(booking.adultsCount || 0) > 0 && ')'}
+                            </p>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Payment Scheme</span>
+                            <p className="font-semibold text-white">
+                              {booking.paymentScheme ? booking.paymentScheme.replace(/_/g, ' ') : 'Pay on Arrival'}
+                            </p>
+                            <p className="text-slate-400 text-[11px] mt-0.5">
+                              Total: {formatPrice(booking.totalPriceUSD)}
+                              {booking.amountDueOnArrival != null && booking.amountDueOnArrival > 0 && (
+                                <span className="text-amber-300 ml-1">· Due on arrival: {formatPrice(booking.amountDueOnArrival)}</span>
+                              )}
+                            </p>
+                          </div>
+
+                          {booking.specialRequirements && (
+                            <div className="sm:col-span-2">
+                              <span className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Special Requirements</span>
+                              <p className="text-slate-300 text-[11px]">{booking.specialRequirements}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

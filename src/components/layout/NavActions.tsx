@@ -224,7 +224,7 @@ export default function NavActions() {
                 {dict.navbar.account || 'Account Dashboard'}
               </Link>
               <Link
-                href="/my-bookings"
+                href="/account?tab=bookings"
                 onClick={() => setUserOpen(false)}
                 className="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
               >

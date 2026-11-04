@@ -333,7 +333,7 @@ export default function MyBookingsPage() {
       if (data.user) {
         setCustomer(data.user);
         setIsAuthenticated(true);
-        router.replace('/account');
+        router.replace('/account?tab=bookings');
         return true;
       }
       setError(null);
@@ -397,6 +397,15 @@ export default function MyBookingsPage() {
     if (initialPhone) setLookupPhone(initialPhone);
 
     async function initAuth() {
+      // Immediate redirect for authenticated customers to their account bookings workspace
+      try {
+        const { data: { session: existingSession } } = await supabaseClient.auth.getSession();
+        if (existingSession?.access_token) {
+          router.replace('/account?tab=bookings');
+          return;
+        }
+      } catch {}
+
       // 1. Check if token hash is in URL (OAuth or Telegram redirect)
       if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
         try {

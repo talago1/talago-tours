@@ -26,6 +26,7 @@ import CountryCodeSelector from '@/components/checkout/CountryCodeSelector';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { PaymentScheme } from '@/types/checkout';
+import { supabaseClient } from '@/lib/supabase/client';
 import type { ZoneOption } from '@/types/booking';
 
 export interface ContinuousBookingModalProps {
@@ -109,6 +110,7 @@ export default function ContinuousBookingModal({
 
   // Single Authoritative Payment Scheme
   const [paymentScheme, setPaymentScheme] = useState<PaymentScheme>(PaymentScheme.PAY_ON_ARRIVAL);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Submission & UI status
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -152,6 +154,7 @@ export default function ContinuousBookingModal({
         .then((r) => (r.ok ? r.json() : null))
         .then((authData) => {
           if (authData?.authenticated && authData.user) {
+            setIsAuthenticated(true);
             const u = authData.user;
             setLeadName((prev) => {
               if (prev && prev.trim() !== '') return prev;
@@ -359,9 +362,23 @@ export default function ContinuousBookingModal({
         },
       };
 
+      let authToken: string | null = null;
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        authToken = session?.access_token || null;
+      } catch {}
+
+      const initHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (authToken) {
+        initHeaders['Authorization'] = `Bearer ${authToken}`;
+      }
+
       const res = await fetch('/api/checkout/initialize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: initHeaders,
+        credentials: 'same-origin',
         body: JSON.stringify(payload),
       });
 
@@ -509,7 +526,7 @@ export default function ContinuousBookingModal({
                   <span>View Boarding Pass</span>
                 </a>
                 <a
-                  href="/my-bookings"
+                  href={isAuthenticated ? '/account?tab=bookings' : '/my-bookings'}
                   className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3.5 text-xs font-bold text-white hover:bg-white/10 transition"
                 >
                   <span>Go to My Bookings</span>
