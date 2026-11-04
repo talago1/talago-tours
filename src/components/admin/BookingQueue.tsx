@@ -1089,80 +1089,103 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                   : 'border-white/10 bg-[#0B1528]'
               }`}
             >
-              <div className="flex items-center justify-between">
+              {/* Header: Select, Reference, Status Badge & Actions */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={(e) => toggleSelect(b.id, e)}
                     className={isSelected ? 'text-[#00E5FF]' : 'text-slate-500'}
+                    aria-label="Select booking"
                   >
                     {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
                   </button>
                   <span className="font-mono text-sm font-bold text-[#00E5FF]">{b.bookingReference}</span>
+                  <span
+                    className={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                      b.status === 'CONFIRMED'
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        : b.status === 'COMPLETED'
+                        ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                        : b.status === 'CANCELLED'
+                        ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                        : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                    }`}
+                  >
+                    {b.status}
+                  </span>
                 </div>
 
-                <BookingRowActions
-                  ticket={b}
-                  onStatusChange={handleStatusChange}
-                  onUpdateBooking={handleUpdateBooking}
-                  onDeleteBooking={handleDeleteBooking}
-                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setChatBookingRef(b.bookingReference)}
+                    className="flex items-center gap-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 px-2 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all"
+                    title="Open Conversation"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5 text-cyan-400" />
+                    <span>Chat</span>
+                  </button>
+                  <BookingRowActions
+                    ticket={b}
+                    onStatusChange={handleStatusChange}
+                    onUpdateBooking={handleUpdateBooking}
+                    onDeleteBooking={handleDeleteBooking}
+                  />
+                </div>
               </div>
 
+              {/* Booking Overview Grid */}
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="text-slate-500">Tour</span>
-                  <p className="truncate font-medium text-white">{b.tourTitle}</p>
+                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Tour</span>
+                  <p className="truncate font-semibold text-white">{b.tourTitle}</p>
+                  {b.category && <p className="text-[10px] text-slate-400 capitalize">{b.category.toLowerCase()}</p>}
                 </div>
                 <div>
-                  <span className="text-slate-500">Customer</span>
-                  <p className="font-medium text-white">{b.customerName}</p>
+                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Customer</span>
+                  <p className="font-semibold text-white truncate">{b.customerName}</p>
+                  {b.customerPhone && <p className="text-[10px] text-slate-400 font-mono truncate">{b.customerPhone}</p>}
                 </div>
                 <div>
-                  <span className="text-slate-500">Date</span>
-                  <p className="text-slate-300">{b.travelDate}</p>
+                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Date & Time</span>
+                  <p className="text-slate-300 font-medium">{b.travelDate}</p>
+                  {b.pickupTime && <p className="text-[10px] text-amber-400 font-medium">Pickup: {b.pickupTime}</p>}
                 </div>
                 <div>
-                  <span className="text-slate-500">Guests</span>
-                  <p className="text-slate-300">{b.guestCount} Pax</p>
+                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Guests</span>
+                  <p className="text-slate-300 font-medium">{b.guestCount} Pax</p>
+                  <p className="text-[10px] text-slate-400">{b.adultsCount ?? b.guestCount} Ad · {b.childrenCount ?? 0} Ch</p>
                 </div>
                 <div>
-                  <span className="text-slate-500">Total Price</span>
+                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Total Price</span>
                   <p className="font-bold text-white">${b.totalPriceUSD.toFixed(2)}</p>
                 </div>
                 <div>
-                  <span className="text-slate-500">Due Cash</span>
+                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Due Cash</span>
                   <p className="font-bold text-amber-400">${(b.amountDueOnArrival || 0).toFixed(2)}</p>
                 </div>
               </div>
 
+              {/* Full Details, Conversation & Logistics Accordion */}
               <div className="border-t border-white/5 pt-3">
                 <button
                   type="button"
                   onClick={() => toggleExpand(b.id)}
-                  className="flex w-full items-center justify-between text-xs font-bold text-slate-400 hover:text-[#00E5FF] transition-colors"
+                  className="flex w-full items-center justify-between text-xs font-bold text-slate-300 hover:text-[#00E5FF] transition-colors bg-white/[0.02] hover:bg-white/[0.05] p-2.5 rounded-xl border border-white/5"
                 >
-                  <span>View Details & Logistics</span>
+                  <span className="flex items-center gap-1.5">
+                    {expandedId === b.id ? 'Hide Full Details & Logistics' : 'View Full Details, Chat & WhatsApp'}
+                  </span>
                   {expandedId === b.id ? (
-                    <ChevronDown className="h-3.5 w-3.5" />
+                    <ChevronDown className="h-4 w-4 text-[#00E5FF]" />
                   ) : (
-                    <ChevronRight className="h-3.5 w-3.5" />
+                    <ChevronRight className="h-4 w-4" />
                   )}
                 </button>
                 {expandedId === b.id && (
-                  <div className="mt-3 space-y-2 text-xs">
-                    <div className="flex items-center justify-between rounded-lg bg-white/[0.02] px-3 py-2">
-                      <span className="text-slate-500">Hotel / Room</span>
-                      <span className="font-semibold text-white">{b.hotelName} (Rm: {b.roomNumber || '—'})</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-white/[0.02] px-3 py-2">
-                      <span className="text-slate-500">Pickup Directives</span>
-                      <span className="font-semibold text-white">{b.pickupDirectives || 'Standard'}</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-white/[0.02] px-3 py-2">
-                      <span className="text-slate-500">Flight Numbers</span>
-                      <span className="font-semibold text-white">{b.flightNumbers || '—'}</span>
-                    </div>
+                  <div className="mt-3 pt-3 border-t border-white/10 animate-in fade-in duration-200">
+                    <ExpandedDetails booking={b} onOpenChat={setChatBookingRef} />
                   </div>
                 )}
               </div>

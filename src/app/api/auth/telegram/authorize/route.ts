@@ -17,11 +17,19 @@ function s256(verifier: string): string {
   return b64url(crypto.createHash('sha256').update(verifier, 'ascii').digest());
 }
 
-/** Allow only safe relative paths to prevent open-redirect. */
+/** Allow only safe relative paths to prevent open-redirect and login loops. */
 function safePath(raw: string | null): string {
   if (!raw) return '/account';
   const decoded = decodeURIComponent(raw).trim();
-  if (!decoded.startsWith('/') || decoded.startsWith('//') || /[\r\n]/.test(decoded)) {
+  if (
+    !decoded.startsWith('/') ||
+    decoded.startsWith('//') ||
+    decoded === '/login' ||
+    decoded === '/auth' ||
+    decoded.startsWith('/login?') ||
+    decoded.startsWith('/auth?') ||
+    /[\r\n]/.test(decoded)
+  ) {
     return '/account';
   }
   return decoded;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createClient } from '@supabase/supabase-js';
 import { prisma } from '@/lib/prisma';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
@@ -13,11 +14,19 @@ const TELEGRAM_ISSUER = 'https://oauth.telegram.org';
 const TELEGRAM_JWKS_URL = new URL('https://oauth.telegram.org/.well-known/jwks.json');
 const jwks = createRemoteJWKSet(TELEGRAM_JWKS_URL);
 
-/** Allow only safe relative paths to prevent open-redirect. */
+/** Allow only safe relative paths to prevent open-redirect and login loops. */
 function safePath(raw: string | null | undefined): string {
   if (!raw) return '/account';
   const decoded = decodeURIComponent(raw).trim();
-  if (!decoded.startsWith('/') || decoded.startsWith('//') || /[\r\n]/.test(decoded)) {
+  if (
+    !decoded.startsWith('/') ||
+    decoded.startsWith('//') ||
+    decoded === '/login' ||
+    decoded === '/auth' ||
+    decoded.startsWith('/login?') ||
+    decoded.startsWith('/auth?') ||
+    /[\r\n]/.test(decoded)
+  ) {
     return '/account';
   }
   return decoded;
@@ -216,52 +225,43 @@ export async function GET(request: NextRequest) {
     console.error('[tg-oidc-callback] CustomerProfile upsert error:', err);
   }
 
-  // ── Mint a Supabase Auth session via admin API ────────────────────────────
-  // Uses admin.createSession() which is reliable: no OTP tokens, no magic link
-  // race conditions, no email-confirmation dependency. The admin API mints a
-  // session directly for the Supabase user identified by user_id.
+  // ── Mint a Supabase Auth session ──────────────────────────────────────────
+  // We use generateLink with type: 'magiclink' + server-side verifyOtp.
+  // This produces an authentic, signed JWT session from Supabase without requiring user interaction.
   const returnTo = safePath(pkce.returnTo);
   let session: { access_token: string; refresh_token: string } | null = null;
 
   try {
-    // Step 1: Ensure the Supabase Auth user exists (createUser is idempotent-safe
-    // because we catch "already exists" and fall back to lookup).
-    let supabaseUserId: string | null = null;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
-    const { data: createdUserData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
       email: syntheticEmail,
-      email_confirm: true,
-      user_metadata: {
-        name: fullName,
-        full_name: fullName,
-        preferred_username: telegramUsername,
-        picture: telegramPhotoUrl,
-        avatar_url: telegramPhotoUrl,
-        telegram_id: telegramId,
-      },
     });
 
-    if (!createError && createdUserData?.user?.id) {
-      // Newly created
-      supabaseUserId = createdUserData.user.id;
-    } else {
-      // User already exists — scan listUsers to find by email
-      // (Admin API does not expose getUserByEmail directly; listUsers is the workaround)
-      const pageSize = 1000;
-      let page = 1;
-      let found = false;
-      while (!found) {
-        const { data: usersPage, error: listError } = await supabaseAdmin.auth.admin.listUsers({
-          perPage: pageSize,
-          page,
-        });
-        if (listError || !usersPage?.users?.length) break;
-        const match = usersPage.users.find((u: { email?: string; id?: string }) => u.email === syntheticEmail);
-        if (match?.id) {
-          supabaseUserId = match.id;
-          found = true;
-          // Refresh metadata for returning users
-          await supabaseAdmin.auth.admin.updateUserById(supabaseUserId, {
+    if (linkError) {
+      console.error('[tg-oidc-callback] generateLink error:', linkError.message);
+    } else if (linkData?.properties?.hashed_token && supabaseUrl && supabaseAnonKey) {
+      const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+
+      const { data: verifyData, error: verifyError } = await supabaseAnon.auth.verifyOtp({
+        token_hash: linkData.properties.hashed_token,
+        type: linkData.properties.verification_type,
+      });
+
+      if (verifyError) {
+        console.error('[tg-oidc-callback] verifyOtp error:', verifyError.message);
+      } else if (verifyData?.session) {
+        session = {
+          access_token: verifyData.session.access_token,
+          refresh_token: verifyData.session.refresh_token,
+        };
+
+        if (verifyData.user?.id) {
+          await supabaseAdmin.auth.admin.updateUserById(verifyData.user.id, {
             user_metadata: {
               name: fullName,
               full_name: fullName,
@@ -272,32 +272,10 @@ export async function GET(request: NextRequest) {
             },
           }).catch(() => {});
         }
-        if (usersPage.users.length < pageSize) break;
-        page++;
       }
-      if (createError) {
-        console.warn('[tg-oidc-callback] createUser note:', createError.message);
-      }
-    }
-
-    // Step 2: Mint session directly — no OTP, no magic link consumption
-    if (supabaseUserId) {
-      const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
-        user_id: supabaseUserId,
-      });
-      if (!sessionError && sessionData?.session) {
-        session = {
-          access_token: sessionData.session.access_token,
-          refresh_token: sessionData.session.refresh_token,
-        };
-      } else if (sessionError) {
-        console.warn('[tg-oidc-callback] createSession warning:', sessionError.message);
-      }
-    } else {
-      console.error('[tg-oidc-callback] Could not resolve Supabase user ID for', syntheticEmail);
     }
   } catch (err) {
-    console.warn('[tg-oidc-callback] Supabase session error (non-fatal):', err);
+    console.error('[tg-oidc-callback] Supabase session error:', err);
   }
 
   // ── Redirect to success page ──────────────────────────────────────────────

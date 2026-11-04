@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL;
   const appUrl = cleanBaseUrl(rawAppUrl, request.nextUrl.origin);
   const failureRedirect = `${appUrl}/auth?error=telegram_failed`;
-  const successRedirect = `${appUrl}/my-bookings`;
+  const successRedirect = `${appUrl}/account`;
 
   if (!id || !auth_date || !hash) {
     return NextResponse.redirect(`${failureRedirect}&reason=incomplete_payload`);

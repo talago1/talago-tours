@@ -18,6 +18,23 @@ import { supabaseClient } from '@/lib/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { useContactSettings } from '@/hooks/useContactSettings';
 
+function safeReturnTarget(raw: string | null | undefined): string {
+  if (!raw) return '/account';
+  const decoded = decodeURIComponent(raw).trim();
+  if (
+    !decoded.startsWith('/') ||
+    decoded.startsWith('//') ||
+    decoded === '/login' ||
+    decoded === '/auth' ||
+    decoded.startsWith('/login?') ||
+    decoded.startsWith('/auth?') ||
+    /[\r\n]/.test(decoded)
+  ) {
+    return '/account';
+  }
+  return decoded;
+}
+
 function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24">
@@ -88,7 +105,7 @@ function AuthPageContent() {
     let active = true;
 
     async function checkExistingAuth() {
-      const targetReturn = searchParams.get('returnTo') || '/account';
+      const targetReturn = safeReturnTarget(searchParams.get('returnTo'));
 
       // 1. Check client session
       try {
@@ -120,7 +137,7 @@ function AuthPageContent() {
     // Also listen for auth state change
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (session?.access_token && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-        const targetReturn = searchParams.get('returnTo') || '/account';
+        const targetReturn = safeReturnTarget(searchParams.get('returnTo'));
         await fetch('/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -166,7 +183,7 @@ function AuthPageContent() {
     if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
 
     try {
-      const targetReturn = searchParams.get('returnTo') || '/account';
+      const targetReturn = safeReturnTarget(searchParams.get('returnTo'));
       const res = await fetch(`/api/auth/telegram/authorize?returnTo=${encodeURIComponent(targetReturn)}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -198,7 +215,7 @@ function AuthPageContent() {
           if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
           setLoading(false);
           setMessage({ type: 'success', text: 'Signed in with Telegram! Loading your account…' });
-          const returnTo = event.data.returnTo || '/account';
+          const returnTo = safeReturnTarget(event.data.returnTo);
 
           if (event.data?.session?.access_token) {
             try {
@@ -251,8 +268,8 @@ function AuthPageContent() {
             }
           } catch {}
 
-          // Fallback navigation
-          window.location.href = targetReturn;
+          // If popup closed without establishing session, stop loading and prompt user
+          setLoading(false);
         }
       }, 600);
 

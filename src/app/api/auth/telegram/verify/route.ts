@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     // 6. Generate and exchange authentic Supabase Auth session
     const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL;
     const appUrl = cleanBaseUrl(rawAppUrl, request.nextUrl.origin);
-    const finalRedirect = `${appUrl}/my-bookings`;
+    const finalRedirect = `${appUrl}/account`;
 
     let session: any = null;
 
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: 'Successfully authenticated via Telegram.',
         session,
-        redirectUrl: '/my-bookings',
+        redirectUrl: '/account',
         user: {
           id: String(id),
           name: fullName,

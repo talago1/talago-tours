@@ -13,6 +13,10 @@ function safePath(raw: string | null): string {
     decoded.startsWith('//') ||
     decoded.startsWith('/\\') ||
     decoded.includes('://') ||
+    decoded === '/login' ||
+    decoded === '/auth' ||
+    decoded.startsWith('/login?') ||
+    decoded.startsWith('/auth?') ||
     /[\r\n]/.test(decoded)
   ) {
     return '/account';

@@ -6,7 +6,7 @@ import { Loader2, CheckCircle2 } from 'lucide-react';
 import { Suspense } from 'react';
 import { supabaseClient } from '@/lib/supabase/client';
 
-/** Allow only safe relative paths to prevent open-redirect. */
+/** Allow only safe relative paths to prevent open-redirect and login loops. */
 function safePath(raw: string | null): string {
   if (!raw) return '/account';
   const decoded = decodeURIComponent(raw).trim();
@@ -15,6 +15,10 @@ function safePath(raw: string | null): string {
     decoded.startsWith('//') ||
     decoded.startsWith('/\\') ||
     decoded.includes('://') ||
+    decoded === '/login' ||
+    decoded === '/auth' ||
+    decoded.startsWith('/login?') ||
+    decoded.startsWith('/auth?') ||
     /[\r\n]/.test(decoded)
   ) {
     return '/account';
