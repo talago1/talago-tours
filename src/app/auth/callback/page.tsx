@@ -90,7 +90,10 @@ function CallbackContent() {
             await fetch('/api/auth/session', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ access_token: session.access_token }),
+              body: JSON.stringify({
+                access_token: session.access_token,
+                refresh_token: session.refresh_token,
+              }),
             });
           } catch (e) {
             console.warn('[auth-callback] session cookie sync notice:', e);

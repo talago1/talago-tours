@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
   }
 
-  let pkce: { state: string; codeVerifier: string; nonce: string; returnTo: string };
+  let pkce: { state: string; codeVerifier: string; nonce: string; returnTo: string; redirectUri?: string };
   try {
     pkce = JSON.parse(pkceRaw);
   } catch {
@@ -84,10 +84,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
   }
 
+  const returnTo = safePath(pkce.returnTo);
+
   // ── One-time state replay protection ─────────────────────────────────────
   const replayKey = `tg_oidc_state_${pkce.state}`;
   const alreadyUsed = await prisma.systemSetting.findUnique({ where: { key: replayKey } });
   if (alreadyUsed) {
+    // If the user already has an active session cookie, route them directly to returnTo
+    const existingToken = request.cookies.get('talago_session')?.value;
+    if (existingToken) {
+      return NextResponse.redirect(new URL(returnTo, request.nextUrl.origin));
+    }
     const msg = encodeURIComponent('This authorization session has already been used. Please start a new login.');
     return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
   }
@@ -104,7 +111,7 @@ export async function GET(request: NextRequest) {
   }
 
   const origin = cleanBaseUrl(process.env.NEXT_PUBLIC_APP_URL, request.nextUrl.origin);
-  const redirectUri = `${origin}/api/auth/telegram/oidc-callback`;
+  const redirectUri = pkce.redirectUri || `${origin}/api/auth/telegram/oidc-callback`;
 
   // ── Exchange authorization code for tokens ────────────────────────────────
   let idToken: string;
@@ -228,7 +235,6 @@ export async function GET(request: NextRequest) {
   // ── Mint a Supabase Auth session ──────────────────────────────────────────
   // We use generateLink with type: 'magiclink' + server-side verifyOtp.
   // This produces an authentic, signed JWT session from Supabase without requiring user interaction.
-  const returnTo = safePath(pkce.returnTo);
   let session: { access_token: string; refresh_token: string } | null = null;
 
   try {
@@ -278,14 +284,20 @@ export async function GET(request: NextRequest) {
     console.error('[tg-oidc-callback] Supabase session error:', err);
   }
 
-  // ── Redirect to success page ──────────────────────────────────────────────
+  // ── Redirect to auth callback ─────────────────────────────────────────────
   // Pass tokens in hash fragment so client can hydrate Supabase localStorage,
-  // while HttpOnly cookie talago_session handles authoritative server authentication.
-  const successUrl = new URL(`/auth/telegram-success`, request.nextUrl.origin);
-  successUrl.searchParams.set('returnTo', returnTo);
+  // while HttpOnly cookies talago_session and talago_refresh handle authoritative server authentication.
+  if (!session?.access_token) {
+    console.error('[tg-oidc-callback] Failed to mint Supabase session for', syntheticEmail);
+    const msg = encodeURIComponent('Failed to create customer session. Please try logging in again.');
+    return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
+  }
 
-  let redirectTarget = successUrl.toString();
-  if (session?.access_token && session?.refresh_token) {
+  const callbackUrl = new URL('/auth/callback', request.nextUrl.origin);
+  callbackUrl.searchParams.set('next', returnTo);
+
+  let redirectTarget = callbackUrl.toString();
+  if (session.access_token && session.refresh_token) {
     redirectTarget += `#access_token=${encodeURIComponent(session.access_token)}&refresh_token=${encodeURIComponent(session.refresh_token)}`;
   }
 
@@ -301,13 +313,22 @@ export async function GET(request: NextRequest) {
   });
 
   // Set the authoritative talago_session cookie (7 days)
-  if (session?.access_token) {
-    response.cookies.set('talago_session', session.access_token, {
+  response.cookies.set('talago_session', session.access_token, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 24 * 7,
+  });
+
+  // Set the authoritative talago_refresh cookie (30 days) for server auto-refresh
+  if (session.refresh_token) {
+    response.cookies.set('talago_refresh', session.refresh_token, {
       path: '/',
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 24 * 30,
     });
   }
 

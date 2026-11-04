@@ -123,6 +123,7 @@ export async function GET(request: NextRequest) {
 
     // 5. Session generation
     let accessToken: string | null = null;
+    let refreshToken: string | null = null;
     try {
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
@@ -147,6 +148,7 @@ export async function GET(request: NextRequest) {
 
           if (verifyData?.session?.access_token) {
             accessToken = verifyData.session.access_token;
+            refreshToken = verifyData.session.refresh_token;
           }
         }
       }
@@ -154,7 +156,12 @@ export async function GET(request: NextRequest) {
       console.warn('[auth-telegram-callback] Supabase session generation error:', err);
     }
 
-    const response = NextResponse.redirect(successRedirect);
+    let redirectTarget = `${appUrl}/auth/callback?next=/account`;
+    if (accessToken && refreshToken) {
+      redirectTarget += `#access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}`;
+    }
+
+    const response = NextResponse.redirect(redirectTarget);
     if (accessToken) {
       response.cookies.set('talago_session', accessToken, {
         path: '/',
@@ -162,6 +169,15 @@ export async function GET(request: NextRequest) {
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',
         maxAge: 60 * 60 * 24 * 7,
+      });
+    }
+    if (refreshToken) {
+      response.cookies.set('talago_refresh', refreshToken, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 30,
       });
     }
 

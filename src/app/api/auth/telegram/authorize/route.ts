@@ -55,15 +55,15 @@ export async function GET(request: NextRequest) {
   const nonce = b64url(crypto.randomBytes(32));
   const codeChallenge = s256(codeVerifier);
 
-  // Store PKCE state in a short-lived HttpOnly cookie (10 minutes)
-  const pkcePayload = JSON.stringify({ state, codeVerifier, nonce, returnTo });
-
   // Build Telegram OIDC authorization URL
   const origin =
     process.env.NEXT_PUBLIC_APP_URL?.replace(/^[\uFEFF\s]+/, '').replace(/\/+$/, '') ||
     request.nextUrl.origin;
 
   const redirectUri = `${origin}/api/auth/telegram/oidc-callback`;
+
+  // Store PKCE state in a short-lived HttpOnly cookie (10 minutes)
+  const pkcePayload = JSON.stringify({ state, codeVerifier, nonce, returnTo, redirectUri });
 
   const params = new URLSearchParams({
     client_id: clientId,

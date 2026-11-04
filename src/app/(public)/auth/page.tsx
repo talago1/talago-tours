@@ -83,9 +83,6 @@ function AuthPageContent() {
     botUsername: string | null;
     oidcConfigured?: boolean;
   } | null>(null);
-  const popupRef = useRef<Window | null>(null);
-  const popupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const popupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Email states
   const [email, setEmail] = useState('');
@@ -114,7 +111,10 @@ function AuthPageContent() {
           await fetch('/api/auth/session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ access_token: session.access_token }),
+            body: JSON.stringify({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+            }),
           }).catch(() => {});
           window.location.href = targetReturn;
           return;
@@ -141,7 +141,10 @@ function AuthPageContent() {
         await fetch('/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token: session.access_token }),
+          body: JSON.stringify({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+          }),
         }).catch(() => {});
         window.location.href = targetReturn;
       }
@@ -163,24 +166,12 @@ function AuthPageContent() {
       .catch(() => setTelegramConfig({ configured: false, botUsername: null }));
   }, []);
 
-  // Cleanup popup watchers on unmount
-  useEffect(() => {
-    return () => {
-      if (popupTimerRef.current) clearInterval(popupTimerRef.current);
-      if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
-    };
-  }, []);
-
   // ---------------------------------------------------------------------------
-  // Telegram OIDC popup flow
+  // Telegram OIDC standard OAuth2/OIDC redirect flow
   // ---------------------------------------------------------------------------
   const handleTelegramOidc = useCallback(async () => {
     setLoading(true);
     setMessage({ type: 'info', text: 'Connecting to Telegram…' });
-
-    // Cleanup any previous popup watcher
-    if (popupTimerRef.current) clearInterval(popupTimerRef.current);
-    if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
 
     try {
       const targetReturn = safeReturnTarget(searchParams.get('returnTo'));
@@ -191,104 +182,13 @@ function AuthPageContent() {
       }
       const { url } = await res.json();
 
-      // Open Telegram OIDC in a popup
-      const popup = window.open(
-        url,
-        'telegram_oidc',
-        'width=800,height=640,scrollbars=yes,resizable=yes,status=yes'
-      );
-
-      if (!popup) {
-        // Popup was blocked — fall back to full-page redirect
-        window.location.href = url;
-        return;
-      }
-
-      popupRef.current = popup;
-
-      // Listen for postMessage from telegram-success page
-      const onMessage = async (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
-        if (event.data?.type === 'talago_telegram_auth_success') {
-          window.removeEventListener('message', onMessage);
-          if (popupTimerRef.current) clearInterval(popupTimerRef.current);
-          if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
-          setLoading(false);
-          setMessage({ type: 'success', text: 'Signed in with Telegram! Loading your account…' });
-          const returnTo = safeReturnTarget(event.data.returnTo);
-
-          if (event.data?.session?.access_token) {
-            try {
-              await supabaseClient.auth.setSession(event.data.session);
-              await fetch('/api/auth/session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ access_token: event.data.session.access_token }),
-              });
-            } catch (err) {
-              console.warn('[auth] Could not sync client session:', err);
-            }
-          }
-
-          // Authoritative full-window navigation to ensure server cookies and client session are live
-          window.location.href = returnTo;
-        }
-      };
-      window.addEventListener('message', onMessage);
-
-      // Poll for popup closure (fallback if postMessage fails)
-      popupTimerRef.current = setInterval(async () => {
-        if (popup.closed) {
-          clearInterval(popupTimerRef.current!);
-          window.removeEventListener('message', onMessage);
-          if (popupTimeoutRef.current) clearTimeout(popupTimeoutRef.current);
-
-          // Verify if session exists either in client or via server cookie
-          try {
-            const { data: sessionData } = await supabaseClient.auth.getSession();
-            if (sessionData?.session?.access_token) {
-              setLoading(false);
-              setMessage({ type: 'success', text: 'Signed in! Loading your account…' });
-              await fetch('/api/auth/session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ access_token: sessionData.session.access_token }),
-              }).catch(() => {});
-              window.location.href = targetReturn;
-              return;
-            }
-
-            const check = await fetch('/api/auth/session');
-            const checkData = await check.json();
-            if (checkData?.authenticated) {
-              setLoading(false);
-              setMessage({ type: 'success', text: 'Signed in! Loading your account…' });
-              window.location.href = targetReturn;
-              return;
-            }
-          } catch {}
-
-          // If popup closed without establishing session, stop loading and prompt user
-          setLoading(false);
-        }
-      }, 600);
-
-      // 5-minute global timeout
-      popupTimeoutRef.current = setTimeout(() => {
-        clearInterval(popupTimerRef.current!);
-        window.removeEventListener('message', onMessage);
-        if (!popup.closed) popup.close();
-        setLoading(false);
-        setMessage({
-          type: 'error',
-          text: 'Telegram login timed out. Please try again.',
-        });
-      }, 5 * 60 * 1000);
+      // Top-level browser navigation — standard OAuth/OIDC flow works seamlessly on all devices
+      window.location.href = url;
     } catch (err: any) {
       setLoading(false);
       setMessage({ type: 'error', text: err?.message || 'Telegram login failed. Please try again.' });
     }
-  }, [router]);
+  }, [searchParams]);
 
   // ---------------------------------------------------------------------------
   // Google OAuth (Supabase)

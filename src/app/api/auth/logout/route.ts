@@ -16,5 +16,13 @@ export async function POST() {
     maxAge: 0,
   });
 
+  response.cookies.set('talago_refresh', '', {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 0,
+  });
+
   return response;
 }

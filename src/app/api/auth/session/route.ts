@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { sanitizePlain, sanitizePhone } from '@/utils/sanitize';
@@ -7,18 +8,35 @@ export const dynamic = 'force-dynamic';
 
 const NO_STORE = { 'cache-control': 'no-store, private' };
 
-function setSessionCookie(response: NextResponse, token: string) {
-  response.cookies.set('talago_session', token, {
+function setSessionCookies(response: NextResponse, accessToken: string, refreshToken?: string | null) {
+  response.cookies.set('talago_session', accessToken, {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
+
+  if (refreshToken) {
+    response.cookies.set('talago_refresh', refreshToken, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
+  }
 }
 
-function clearSessionCookie(response: NextResponse) {
+function clearSessionCookies(response: NextResponse) {
   response.cookies.set('talago_session', '', {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 0,
+  });
+  response.cookies.set('talago_refresh', '', {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
@@ -127,16 +145,51 @@ async function resolveUserProfile(user: any) {
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
-    const token =
+    let token =
       (authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : null) ||
       request.cookies.get('talago_session')?.value;
+    const refreshToken = request.cookies.get('talago_refresh')?.value;
 
-    if (!token) {
+    if (!token && !refreshToken) {
       return NextResponse.json({ authenticated: false }, { headers: NO_STORE });
     }
 
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-    if (error || !user || !user.email) {
+    let user: any = null;
+    let refreshedToken: string | null = null;
+    let refreshedRefreshToken: string | null = null;
+
+    if (token) {
+      const { data: userData, error } = await supabaseAdmin.auth.getUser(token);
+      if (!error && userData?.user?.email) {
+        user = userData.user;
+      }
+    }
+
+    // Auto-refresh via refresh_token if access_token is expired or missing
+    if (!user && refreshToken) {
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+        if (supabaseUrl && supabaseAnonKey) {
+          const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
+          const { data: refreshData, error: refreshError } = await supabaseAnon.auth.refreshSession({
+            refresh_token: refreshToken,
+          });
+          if (!refreshError && refreshData?.session?.user?.email) {
+            user = refreshData.session.user;
+            refreshedToken = refreshData.session.access_token;
+            refreshedRefreshToken = refreshData.session.refresh_token;
+            token = refreshedToken;
+          }
+        }
+      } catch (e) {
+        console.warn('[session] auto-refresh notice:', e);
+      }
+    }
+
+    if (!user || !user.email) {
       return NextResponse.json({ authenticated: false }, { headers: NO_STORE });
     }
 
@@ -153,8 +206,10 @@ export async function GET(request: NextRequest) {
       { headers: NO_STORE }
     );
 
-    // Keep the authoritative cookie refreshed and in sync
-    setSessionCookie(res, token);
+    // Keep the authoritative cookies refreshed and in sync
+    if (token) {
+      setSessionCookies(res, token, refreshedRefreshToken || refreshToken);
+    }
     return res;
   } catch (error) {
     console.error('Session verification error:', error);
@@ -165,6 +220,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     let token: string | null = null;
+    let refreshToken: string | null = null;
+
     const authHeader = request.headers.get('authorization');
     if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.slice('Bearer '.length).trim();
@@ -174,11 +231,15 @@ export async function POST(request: NextRequest) {
       try {
         const body = await request.json();
         token = body?.access_token || body?.token || null;
+        refreshToken = body?.refresh_token || null;
       } catch {}
     }
 
     if (!token) {
       token = request.cookies.get('talago_session')?.value || null;
+    }
+    if (!refreshToken) {
+      refreshToken = request.cookies.get('talago_refresh')?.value || null;
     }
 
     if (!token) {
@@ -209,8 +270,8 @@ export async function POST(request: NextRequest) {
       { headers: NO_STORE }
     );
 
-    // Persist authoritative session cookie
-    setSessionCookie(res, token);
+    // Persist authoritative session cookies
+    setSessionCookies(res, token, refreshToken);
     return res;
   } catch (error) {
     console.error('Session sync error:', error);
@@ -332,7 +393,7 @@ export async function PATCH(request: NextRequest) {
       { headers: NO_STORE }
     );
 
-    setSessionCookie(res, token);
+    setSessionCookies(res, token);
     return res;
   } catch (error) {
     console.error('Profile update error:', error);
@@ -342,6 +403,6 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE() {
   const res = NextResponse.json({ success: true, authenticated: false }, { headers: NO_STORE });
-  clearSessionCookie(res);
+  clearSessionCookies(res);
   return res;
 }

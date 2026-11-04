@@ -61,7 +61,10 @@ function TelegramSuccessContent() {
           await fetch('/api/auth/session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ access_token: sessionPayload.access_token }),
+            body: JSON.stringify({
+              access_token: sessionPayload.access_token,
+              refresh_token: sessionPayload.refresh_token,
+            }),
           });
         } catch (e) {
           console.warn('[telegram-success] session sync warning:', e);

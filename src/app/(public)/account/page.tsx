@@ -227,7 +227,10 @@ export default function AccountPage() {
             const syncRes = await fetch('/api/auth/session', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ access_token: session.access_token }),
+              body: JSON.stringify({
+                access_token: session.access_token,
+                refresh_token: session.refresh_token,
+              }),
             });
             if (syncRes.ok) {
               const syncData = await syncRes.json();
