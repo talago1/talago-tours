@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import { createClient } from '@supabase/supabase-js';
 import { prisma } from '@/lib/prisma';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
@@ -169,7 +168,6 @@ export async function GET(request: NextRequest) {
   const syntheticEmail = `telegram-${telegramId}@noreply.talago.com`;
 
   // ── Upsert CustomerProfile ─────────────────────────────────────────────────
-  // Lookup by telegramId first, then by synthetic email
   try {
     const existingByTgId = await prisma.customerProfile.findUnique({
       where: { telegramId },
@@ -218,63 +216,85 @@ export async function GET(request: NextRequest) {
     console.error('[tg-oidc-callback] CustomerProfile upsert error:', err);
   }
 
-  // ── Mint a real Supabase Auth session ──────────────────────────────────────
+  // ── Mint a Supabase Auth session via admin API ────────────────────────────
+  // Uses admin.createSession() which is reliable: no OTP tokens, no magic link
+  // race conditions, no email-confirmation dependency. The admin API mints a
+  // session directly for the Supabase user identified by user_id.
   const returnTo = safePath(pkce.returnTo);
-  const appUrl = cleanBaseUrl(process.env.NEXT_PUBLIC_APP_URL, request.nextUrl.origin);
-  const finalRedirect = `${appUrl}${returnTo}`;
-
   let session: { access_token: string; refresh_token: string } | null = null;
 
   try {
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
+    // Step 1: Ensure the Supabase Auth user exists (createUser is idempotent-safe
+    // because we catch "already exists" and fall back to lookup).
+    let supabaseUserId: string | null = null;
+
+    const { data: createdUserData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: syntheticEmail,
-      options: { redirectTo: finalRedirect },
+      email_confirm: true,
+      user_metadata: {
+        name: fullName,
+        full_name: fullName,
+        preferred_username: telegramUsername,
+        picture: telegramPhotoUrl,
+        avatar_url: telegramPhotoUrl,
+        telegram_id: telegramId,
+      },
     });
 
-    if (linkError) {
-      console.warn('[tg-oidc-callback] generateLink warning:', linkError.message);
+    if (!createError && createdUserData?.user?.id) {
+      // Newly created
+      supabaseUserId = createdUserData.user.id;
+    } else {
+      // User already exists — scan listUsers to find by email
+      // (Admin API does not expose getUserByEmail directly; listUsers is the workaround)
+      const pageSize = 1000;
+      let page = 1;
+      let found = false;
+      while (!found) {
+        const { data: usersPage, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+          perPage: pageSize,
+          page,
+        });
+        if (listError || !usersPage?.users?.length) break;
+        const match = usersPage.users.find((u: { email?: string; id?: string }) => u.email === syntheticEmail);
+        if (match?.id) {
+          supabaseUserId = match.id;
+          found = true;
+          // Refresh metadata for returning users
+          await supabaseAdmin.auth.admin.updateUserById(supabaseUserId, {
+            user_metadata: {
+              name: fullName,
+              full_name: fullName,
+              preferred_username: telegramUsername,
+              picture: telegramPhotoUrl,
+              avatar_url: telegramPhotoUrl,
+              telegram_id: telegramId,
+            },
+          }).catch(() => {});
+        }
+        if (usersPage.users.length < pageSize) break;
+        page++;
+      }
+      if (createError) {
+        console.warn('[tg-oidc-callback] createUser note:', createError.message);
+      }
     }
 
-    if (!linkError && linkData?.properties?.hashed_token) {
-      const tokenHash = linkData.properties.hashed_token;
-      const verificationType = (
-        linkData.properties.verification_type === 'signup' ? 'signup' : 'magiclink'
-      ) as 'signup' | 'magiclink';
-
-      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        const supabaseAnon = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-        );
-
-        const { data: verifyData, error: verifyError } = await supabaseAnon.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: verificationType,
-        });
-
-        if (!verifyError && verifyData?.session) {
-          session = {
-            access_token: verifyData.session.access_token,
-            refresh_token: verifyData.session.refresh_token,
-          };
-          if (verifyData.user?.id) {
-            await supabaseAdmin.auth.admin.updateUserById(verifyData.user.id, {
-              user_metadata: {
-                ...verifyData.user.user_metadata,
-                name: fullName,
-                full_name: fullName,
-                preferred_username: telegramUsername,
-                picture: telegramPhotoUrl,
-                avatar_url: telegramPhotoUrl,
-                telegram_id: telegramId,
-              },
-            }).catch(() => {});
-          }
-        } else if (verifyError) {
-          console.warn('[tg-oidc-callback] verifyOtp warning:', verifyError.message);
-        }
+    // Step 2: Mint session directly — no OTP, no magic link consumption
+    if (supabaseUserId) {
+      const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
+        user_id: supabaseUserId,
+      });
+      if (!sessionError && sessionData?.session) {
+        session = {
+          access_token: sessionData.session.access_token,
+          refresh_token: sessionData.session.refresh_token,
+        };
+      } else if (sessionError) {
+        console.warn('[tg-oidc-callback] createSession warning:', sessionError.message);
       }
+    } else {
+      console.error('[tg-oidc-callback] Could not resolve Supabase user ID for', syntheticEmail);
     }
   } catch (err) {
     console.warn('[tg-oidc-callback] Supabase session error (non-fatal):', err);

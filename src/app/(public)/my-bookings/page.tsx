@@ -332,8 +332,10 @@ export default function MyBookingsPage() {
       setReservations(data.reservations || []);
       if (data.user) {
         setCustomer(data.user);
+        setIsAuthenticated(true);
+        router.replace('/account');
+        return true;
       }
-      setIsAuthenticated(true);
       setError(null);
       return true;
     } catch (err: any) {
@@ -343,7 +345,7 @@ export default function MyBookingsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   // Guest lookup handler
   const handleLookupSubmit = useCallback(async (e?: React.FormEvent) => {
