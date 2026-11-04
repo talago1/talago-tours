@@ -180,7 +180,12 @@ export default function AccountPage() {
         setEditPhone(sessionData.user.phone || sessionData.user.telegramPhone || '');
 
         // 2. Fetch authenticated customer bookings
-        const bookingsRes = await fetch('/api/public/my-bookings', { cache: 'no-store' });
+        const { data: { session: activeSession } } = await supabaseClient.auth.getSession();
+        const bookingsHeaders: Record<string, string> = {};
+        if (activeSession?.access_token) {
+          bookingsHeaders['Authorization'] = `Bearer ${activeSession.access_token}`;
+        }
+        const bookingsRes = await fetch('/api/public/my-bookings', { headers: bookingsHeaders, cache: 'no-store' });
         if (bookingsRes.ok) {
           const bData = await bookingsRes.json();
           setBookings(Array.isArray(bData.bookings) ? bData.bookings : []);
@@ -208,7 +213,10 @@ export default function AccountPage() {
                 setEditName(syncData.user.name || '');
                 setEditPhone(syncData.user.phone || syncData.user.telegramPhone || '');
 
-                const bookingsRes = await fetch('/api/public/my-bookings', { cache: 'no-store' });
+                const bookingsRes = await fetch('/api/public/my-bookings', {
+                  headers: { Authorization: `Bearer ${session.access_token}` },
+                  cache: 'no-store',
+                });
                 if (bookingsRes.ok) {
                   const bData = await bookingsRes.json();
                   setBookings(Array.isArray(bData.bookings) ? bData.bookings : []);

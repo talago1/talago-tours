@@ -32,6 +32,7 @@ import type { BookingQuestion } from '@/types/tourEditor';
 import type { PromoDiscount } from '@/utils/promo';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { supabaseClient } from '@/lib/supabase/client';
 
 interface ZoneOption {
   id: string;
@@ -597,9 +598,23 @@ export default function CheckoutPage() {
           };
         });
 
+      let authToken: string | null = null;
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        authToken = session?.access_token || null;
+      } catch {}
+
+      const initHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (authToken) {
+        initHeaders['Authorization'] = `Bearer ${authToken}`;
+      }
+
       const res = await fetch('/api/checkout/initialize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: initHeaders,
+        credentials: 'same-origin',
         body: JSON.stringify({
           tourId: tour.id,
           reservationId,

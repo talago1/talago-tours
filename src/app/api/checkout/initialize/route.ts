@@ -12,7 +12,7 @@ import { computePriceBreakdown } from '@/utils/priceCalculator';
 import { PaymentScheme, type InitializeResponse } from '@/types/checkout';
 import { BookingStatus, LeadStatus, Prisma } from '@prisma/client';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
-import { sanitizePlain, sanitizeEmail, sanitizePhone, sanitizeText } from '@/utils/sanitize';
+import { sanitizePlain, sanitizeEmail, sanitizePhone, sanitizeText, getPhoneSearchVariants } from '@/utils/sanitize';
 import { normalizeCurrency, convertCurrency } from '@/utils/currency';
 
 export const dynamic = 'force-dynamic';
@@ -275,6 +275,27 @@ export async function POST(request: NextRequest) {
 
     const bookingReference = generateBookingReference();
 
+    // Resolve authenticated customer session if present
+    const authHeader = request.headers.get('authorization');
+    const token =
+      (authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : null) ||
+      request.cookies.get('talago_session')?.value;
+
+    let authUserId = null;
+    let authUserEmail = null;
+
+    if (token) {
+      try {
+        const { data: { user: authUser }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+        if (!authErr && authUser?.email) {
+          authUserId = authUser.id;
+          authUserEmail = authUser.email.toLowerCase();
+        }
+      } catch (err) {
+        console.warn('[checkout-initialize] Auth session resolution warning:', err);
+      }
+    }
+
     // Wrap all record creation in a Serializable transaction.
     // enforceCapacity runs INSIDE the tx using the tx client so that the
     // capacity read and booking insert are a single atomic unit — eliminating
@@ -297,31 +318,79 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Create or update CustomerProfile
-      const existingProfile = await tx.customerProfile.findUnique({
-        where: { email: normalizedEmail },
-      });
-
+      // Resolve CustomerProfile:
+      // If customer is authenticated, bind booking to their registered account profile.
+      // If customer is guest, use or create shadow profile for guest tracking.
+      let profile;
+      let existingProfile = null;
       const now = new Date();
-      const profile = existingProfile
-        ? await tx.customerProfile.update({
+
+      if (authUserEmail) {
+        const telegramMatch = authUserEmail.match(/^telegram-(\d+)@noreply\.talago\.com$/);
+        existingProfile = await tx.customerProfile.findFirst({
+          where: {
+            OR: [
+              { email: authUserEmail },
+              ...(telegramMatch ? [{ telegramId: telegramMatch[1] }] : []),
+            ],
+          },
+        });
+
+        if (existingProfile) {
+          const updateData: Record<string, any> = {
+            isShadow: false,
+            lastMagicLinkAt: now,
+          };
+          if ((!existingProfile.phone || existingProfile.phone.trim() === '') && phone.trim()) {
+            updateData.phone = phone.trim();
+          }
+          if (
+            (!existingProfile.name || existingProfile.name === 'User' || existingProfile.name.startsWith('Traveler #')) &&
+            leadName.trim()
+          ) {
+            updateData.name = leadName.trim();
+          }
+          profile = await tx.customerProfile.update({
             where: { id: existingProfile.id },
+            data: updateData,
+          });
+        } else {
+          profile = await tx.customerProfile.create({
             data: {
-              name: leadName.trim(),
-              phone: phone.trim(),
-              lastMagicLinkAt: now,
-            },
-          })
-        : await tx.customerProfile.create({
-            data: {
-              email: normalizedEmail,
-              name: leadName.trim(),
-              phone: phone.trim(),
-              isShadow: true,
-              invitedAt: now,
+              email: authUserEmail,
+              name: leadName.trim() || 'Traveler',
+              phone: phone.trim() || undefined,
+              telegramId: telegramMatch ? telegramMatch[1] : undefined,
+              isShadow: false,
               lastMagicLinkAt: now,
             },
           });
+        }
+      } else {
+        existingProfile = await tx.customerProfile.findUnique({
+          where: { email: normalizedEmail },
+        });
+
+        profile = existingProfile
+          ? await tx.customerProfile.update({
+              where: { id: existingProfile.id },
+              data: {
+                name: leadName.trim(),
+                phone: phone.trim(),
+                lastMagicLinkAt: now,
+              },
+            })
+          : await tx.customerProfile.create({
+              data: {
+                email: normalizedEmail,
+                name: leadName.trim(),
+                phone: phone.trim(),
+                isShadow: true,
+                invitedAt: now,
+                lastMagicLinkAt: now,
+              },
+            });
+      }
 
       // Create Booking
       const booking = await tx.booking.create({
@@ -376,7 +445,60 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return { booking, transaction, shouldInvite: !existingProfile || existingProfile.isShadow };
+      // Retroactively link previous unlinked or shadow-profile bookings matching phone or email
+      if (authUserEmail && profile?.id) {
+        const phoneVariants = getPhoneSearchVariants(phone.trim() || profile.phone || profile.telegramPhone);
+        const linkOr: Prisma.BookingWhereInput[] = [];
+        for (const v of phoneVariants) {
+          linkOr.push({ customerPhone: { contains: v } });
+        }
+        if (rawEmail && !rawEmail.endsWith('@noreply.talago.com')) {
+          linkOr.push({ customerEmail: { equals: rawEmail, mode: 'insensitive' } });
+        }
+        if (linkOr.length > 0) {
+          const candidateBookings = await tx.booking.findMany({
+            where: {
+              AND: [
+                { id: { not: booking.id } },
+                { OR: linkOr },
+              ],
+            },
+            select: { id: true, customerProfileId: true },
+          });
+
+          const unlinked = candidateBookings.filter((b) => !b.customerProfileId || b.customerProfileId !== profile.id);
+          if (unlinked.length > 0) {
+            const foreignIds = unlinked
+              .map((b) => b.customerProfileId)
+              .filter((id): id is string => Boolean(id && id !== profile.id));
+
+            const shadowProfiles = foreignIds.length > 0
+              ? await tx.customerProfile.findMany({
+                  where: { id: { in: foreignIds }, isShadow: true },
+                  select: { id: true },
+                })
+              : [];
+            const adoptableIds = shadowProfiles.map((p) => p.id);
+
+            await tx.booking.updateMany({
+              where: {
+                id: { in: unlinked.map((b) => b.id) },
+                OR: [
+                  { customerProfileId: null },
+                  ...(adoptableIds.length > 0 ? [{ customerProfileId: { in: adoptableIds } }] : []),
+                ],
+              },
+              data: { customerProfileId: profile.id },
+            }).catch((e) => console.warn('[checkout-initialize] Retroactive link non-fatal warning:', e));
+          }
+        }
+      }
+
+      return {
+        booking,
+        transaction,
+        shouldInvite: !authUserEmail && (!existingProfile || existingProfile.isShadow),
+      };
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });

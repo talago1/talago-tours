@@ -76,6 +76,47 @@ export function sanitizePhone(val: unknown): string {
 }
 
 /**
+ * Generates phone search variants for matching bookings across country codes,
+ * local format (e.g. Egypt 01x vs 201x vs +201x), and significant digit suffixes.
+ */
+export function getPhoneSearchVariants(rawPhone: unknown): string[] {
+  if (!rawPhone) return [];
+  const digits = String(rawPhone).replace(/[^\d]/g, '');
+  if (digits.length < 7) return [];
+
+  const variants = new Set<string>();
+  variants.add(digits);
+  variants.add(`+${digits}`);
+
+  // Egypt international format: 201xxxxxxxxx (12 digits) -> local 01xxxxxxxxx (11 digits) & suffix 1xxxxxxxxx (10 digits)
+  if (digits.startsWith('20') && digits.length >= 11) {
+    const local = '0' + digits.slice(2);
+    variants.add(local);
+    const suffix = digits.slice(2);
+    if (suffix.length >= 8) {
+      variants.add(suffix);
+    }
+  }
+
+  // Egypt local format: 01xxxxxxxxx (11 digits) -> international 201xxxxxxxxx & suffix 1xxxxxxxxx
+  if (digits.startsWith('0') && digits.length >= 10) {
+    const withoutZero = digits.slice(1);
+    variants.add(withoutZero);
+    variants.add(`20${withoutZero}`);
+    variants.add(`+20${withoutZero}`);
+  }
+
+  // Universal subscriber suffix (last 9 digits for mobile numbers, or last 8)
+  if (digits.length >= 9) {
+    variants.add(digits.slice(-9));
+  } else if (digits.length >= 8) {
+    variants.add(digits.slice(-8));
+  }
+
+  return Array.from(variants);
+}
+
+/**
  * Recursively sanitizes a JSON object or array.
  */
 export function sanitizeDeep<T>(input: T): T {

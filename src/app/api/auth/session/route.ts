@@ -81,6 +81,9 @@ async function resolveUserProfile(user: any) {
     ) {
       updates.name = displayName;
     }
+    if (!profile.phone && profile.telegramPhone) {
+      updates.phone = profile.telegramPhone;
+    }
   }
 
   const finalProfile = profile
@@ -265,6 +268,43 @@ export async function PATCH(request: NextRequest) {
       where: { id: profile.id },
       data: updateData,
     });
+
+    if (cleanPhone && cleanPhone.length >= 7) {
+      const { getPhoneSearchVariants } = await import('@/utils/sanitize');
+      const phoneVariants = getPhoneSearchVariants(cleanPhone);
+      const linkOr = phoneVariants.map((v) => ({ customerPhone: { contains: v } }));
+      if (linkOr.length > 0) {
+        const candidateBookings = await prisma.booking.findMany({
+          where: { OR: linkOr },
+          select: { id: true, customerProfileId: true },
+        });
+        const unlinked = candidateBookings.filter((b) => !b.customerProfileId || b.customerProfileId !== profile.id);
+        if (unlinked.length > 0) {
+          const foreignIds = unlinked
+            .map((b) => b.customerProfileId)
+            .filter((id): id is string => Boolean(id && id !== profile.id));
+
+          const shadowProfiles = foreignIds.length > 0
+            ? await prisma.customerProfile.findMany({
+                where: { id: { in: foreignIds }, isShadow: true },
+                select: { id: true },
+              })
+            : [];
+          const adoptableIds = shadowProfiles.map((p) => p.id);
+
+          await prisma.booking.updateMany({
+            where: {
+              id: { in: unlinked.map((b) => b.id) },
+              OR: [
+                { customerProfileId: null },
+                ...(adoptableIds.length > 0 ? [{ customerProfileId: { in: adoptableIds } }] : []),
+              ],
+            },
+            data: { customerProfileId: profile.id },
+          }).catch(() => {});
+        }
+      }
+    }
 
     // Also update Supabase metadata if name changed
     if (cleanName) {
