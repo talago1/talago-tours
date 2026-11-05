@@ -12,9 +12,22 @@ export default function CheckoutSuccessContent({ token }: { token: string }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    supabaseClient.auth.getSession().then(({ data: { session } }) => {
-      if (session?.access_token) setIsAuthenticated(true);
-    }).catch(() => {});
+    fetch('/api/auth/session')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.authenticated) {
+          setIsAuthenticated(true);
+        } else {
+          supabaseClient.auth.getSession().then(({ data: { session } }) => {
+            if (session?.access_token) setIsAuthenticated(true);
+          }).catch(() => {});
+        }
+      })
+      .catch(() => {
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
+          if (session?.access_token) setIsAuthenticated(true);
+        }).catch(() => {});
+      });
   }, []);
 
   useEffect(() => {
@@ -56,12 +69,20 @@ export default function CheckoutSuccessContent({ token }: { token: string }) {
           </p>
         </div>
 
-        <a
-          href="/"
-          className="inline-block px-8 py-3 bg-[#00E5FF] text-[#070F1E] font-semibold rounded-lg hover:bg-[#00D4F0] transition-colors duration-200"
-        >
-          {dict.checkoutSuccessPage.backToHome}
-        </a>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <a
+            href="/"
+            className="w-full sm:w-auto inline-block px-8 py-3 bg-[#00E5FF] text-[#070F1E] font-semibold rounded-lg hover:bg-[#00D4F0] transition-colors duration-200"
+          >
+            {dict.checkoutSuccessPage.backToHome}
+          </a>
+          <a
+            href={isAuthenticated ? '/account?tab=bookings' : '/my-bookings'}
+            className="w-full sm:w-auto inline-block px-8 py-3 border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-lg transition-colors duration-200"
+          >
+            Go to My Bookings
+          </a>
+        </div>
 
         {token && (
           <div className="mt-6 border-t border-white/10 pt-6">

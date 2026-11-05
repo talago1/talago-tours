@@ -4,6 +4,7 @@ import { validateCheckoutForm, validateGuestTiers, deriveGuestEmail } from '@/ut
 import { generateBookingReference } from '@/utils/bookingReference';
 import { generateAccessToken } from '@/utils/bookingToken';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 
 import { enforceCapacity, CapacityExceededError } from '@/utils/capacityEngine';
 import { initiatePaymobSession } from '@/utils/paymob';
@@ -277,9 +278,10 @@ export async function POST(request: NextRequest) {
 
     // Resolve authenticated customer session if present
     const authHeader = request.headers.get('authorization');
-    const token =
+    let token =
       (authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : null) ||
       request.cookies.get('talago_session')?.value;
+    const refreshToken = request.cookies.get('talago_refresh')?.value;
 
     let authUserId = null;
     let authUserEmail = null;
@@ -293,6 +295,28 @@ export async function POST(request: NextRequest) {
         }
       } catch (err) {
         console.warn('[checkout-initialize] Auth session resolution warning:', err);
+      }
+    }
+
+    // Auto-refresh using refresh token if access token is expired
+    if (!authUserEmail && refreshToken) {
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+        if (supabaseUrl && supabaseAnonKey) {
+          const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
+          const { data: refreshData, error: refreshError } = await supabaseAnon.auth.refreshSession({
+            refresh_token: refreshToken,
+          });
+          if (!refreshError && refreshData?.session?.user?.email) {
+            authUserId = refreshData.session.user.id;
+            authUserEmail = refreshData.session.user.email.toLowerCase();
+          }
+        }
+      } catch (e) {
+        console.warn('[checkout-initialize] auto-refresh notice:', e);
       }
     }
 
@@ -367,16 +391,27 @@ export async function POST(request: NextRequest) {
           });
         }
       } else {
-        existingProfile = await tx.customerProfile.findUnique({
-          where: { email: normalizedEmail },
+        const phoneVariants = phone.trim() ? getPhoneSearchVariants(phone.trim()) : [];
+        existingProfile = await tx.customerProfile.findFirst({
+          where: {
+            OR: [
+              { email: normalizedEmail },
+              ...(phoneVariants.length > 0
+                ? phoneVariants.map((v) => ({ phone: { contains: v } }))
+                : []),
+              ...(phoneVariants.length > 0
+                ? phoneVariants.map((v) => ({ telegramPhone: { contains: v } }))
+                : []),
+            ],
+          },
         });
 
         profile = existingProfile
           ? await tx.customerProfile.update({
               where: { id: existingProfile.id },
               data: {
-                name: leadName.trim(),
-                phone: phone.trim(),
+                ...(existingProfile.name === 'User' || !existingProfile.name ? { name: leadName.trim() } : {}),
+                ...(existingProfile.phone ? {} : { phone: phone.trim() }),
                 lastMagicLinkAt: now,
               },
             })

@@ -302,6 +302,23 @@ export default function BookingConfirmationPage() {
               )}
             </div>
           )}
+
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/10 pt-6">
+            <Link
+              href={isAuthenticated ? '/account?tab=bookings' : '/my-bookings'}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-6 py-3 text-sm font-bold text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20"
+            >
+              Go to My Bookings
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href={`/tours/voucher/${token}`}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:brightness-110"
+            >
+              <Ticket className="h-4 w-4" />
+              {dict.checkoutSuccessPage?.viewVoucher || 'View Boarding Voucher'}
+            </Link>
+          </div>
         </div>
       </div>
     </main>

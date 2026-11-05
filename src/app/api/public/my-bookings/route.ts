@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { Prisma } from '@prisma/client';
 import { getPhoneSearchVariants } from '@/utils/sanitize';
 
@@ -16,18 +17,46 @@ const NO_STORE = { 'cache-control': 'no-store, private' };
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
-    const token =
+    let token =
       (authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : null) ||
       request.cookies.get('talago_session')?.value;
+    const refreshToken = request.cookies.get('talago_refresh')?.value;
 
-    if (!token) {
+    if (!token && !refreshToken) {
       return NextResponse.json({ authenticated: false, error: 'Unauthorized' }, { status: 401, headers: NO_STORE });
     }
 
     // Verify token with Supabase
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    let user: any = null;
+    if (token) {
+      const { data: userData, error: authError } = await supabaseAdmin.auth.getUser(token);
+      if (!authError && userData?.user?.email) {
+        user = userData.user;
+      }
+    }
 
-    if (authError || !user?.email) {
+    // Auto-refresh via refresh_token if access_token is expired or missing
+    if (!user && refreshToken) {
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+        if (supabaseUrl && supabaseAnonKey) {
+          const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
+          const { data: refreshData, error: refreshError } = await supabaseAnon.auth.refreshSession({
+            refresh_token: refreshToken,
+          });
+          if (!refreshError && refreshData?.session?.user?.email) {
+            user = refreshData.session.user;
+          }
+        }
+      } catch (e) {
+        console.warn('[my-bookings] auto-refresh notice:', e);
+      }
+    }
+
+    if (!user?.email) {
       return NextResponse.json({ authenticated: false, error: 'Invalid session' }, { status: 401, headers: NO_STORE });
     }
 

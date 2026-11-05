@@ -156,12 +156,11 @@ export async function GET(request: NextRequest) {
       console.warn('[auth-telegram-callback] Supabase session generation error:', err);
     }
 
-    let redirectTarget = `${appUrl}/auth/callback?next=/account`;
-    if (accessToken && refreshToken) {
-      redirectTarget += `#access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}`;
-    }
-
-    const response = NextResponse.redirect(redirectTarget);
+    // Redirect directly to /account — the talago_session + talago_refresh cookies
+    // are set on this response object, so /account can authenticate via GET /api/auth/session.
+    // We skip /auth/callback because browsers strip hash fragments during redirects,
+    // which caused "Could not establish an authenticated session" errors.
+    const response = NextResponse.redirect(successRedirect);
     if (accessToken) {
       response.cookies.set('talago_session', accessToken, {
         path: '/',

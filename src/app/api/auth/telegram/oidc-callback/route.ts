@@ -284,24 +284,19 @@ export async function GET(request: NextRequest) {
     console.error('[tg-oidc-callback] Supabase session error:', err);
   }
 
-  // ── Redirect to auth callback ─────────────────────────────────────────────
-  // Pass tokens in hash fragment so client can hydrate Supabase localStorage,
-  // while HttpOnly cookies talago_session and talago_refresh handle authoritative server authentication.
+  // ── Redirect directly to destination ─────────────────────────────────────
+  // The authoritative talago_session + talago_refresh cookies are set below on the
+  // redirect response itself. The /account page reads these via GET /api/auth/session.
+  // We do NOT route through /auth/callback — that intermediate page relies on hash
+  // fragments which browsers strip on cross-origin hops, causing "Could not establish
+  // an authenticated session" errors.
   if (!session?.access_token) {
     console.error('[tg-oidc-callback] Failed to mint Supabase session for', syntheticEmail);
     const msg = encodeURIComponent('Failed to create customer session. Please try logging in again.');
     return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
   }
 
-  const callbackUrl = new URL('/auth/callback', request.nextUrl.origin);
-  callbackUrl.searchParams.set('next', returnTo);
-
-  let redirectTarget = callbackUrl.toString();
-  if (session.access_token && session.refresh_token) {
-    redirectTarget += `#access_token=${encodeURIComponent(session.access_token)}&refresh_token=${encodeURIComponent(session.refresh_token)}`;
-  }
-
-  const response = NextResponse.redirect(redirectTarget);
+  const response = NextResponse.redirect(new URL(returnTo, request.nextUrl.origin));
 
   // Clear the PKCE cookie
   response.cookies.set('tg_pkce', '', {
