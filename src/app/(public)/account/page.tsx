@@ -203,6 +203,17 @@ export default function AccountPage() {
         setEditName(sessionData.user.name || '');
         setEditPhone(sessionData.user.phone || sessionData.user.telegramPhone || '');
 
+        // Sync Supabase client session if tokens are present
+        if (sessionData.accessToken && sessionData.refreshToken) {
+          const { data: { session: curSess } } = await supabaseClient.auth.getSession();
+          if (!curSess) {
+            await supabaseClient.auth.setSession({
+              access_token: sessionData.accessToken,
+              refresh_token: sessionData.refreshToken,
+            }).catch(() => {});
+          }
+        }
+
         // 2. Fetch authenticated customer bookings
         const { data: { session: activeSession } } = await supabaseClient.auth.getSession();
         const bookingsHeaders: Record<string, string> = {};
@@ -325,12 +336,22 @@ export default function AccountPage() {
   useEffect(() => {
     loadData();
 
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (session?.access_token && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
         loadData();
       } else if (event === 'SIGNED_OUT') {
-        setAuthenticated(false);
-        setUserProfile(null);
+        // Guard against client-init false logouts: check server session before clearing
+        try {
+          const check = await fetch('/api/auth/session', { cache: 'no-store' });
+          const checkData = await check.json();
+          if (!checkData?.authenticated) {
+            setAuthenticated(false);
+            setUserProfile(null);
+          }
+        } catch {
+          setAuthenticated(false);
+          setUserProfile(null);
+        }
       }
     });
 

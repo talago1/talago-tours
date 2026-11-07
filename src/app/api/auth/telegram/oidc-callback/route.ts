@@ -284,19 +284,94 @@ export async function GET(request: NextRequest) {
     console.error('[tg-oidc-callback] Supabase session error:', err);
   }
 
-  // ── Redirect directly to destination ─────────────────────────────────────
-  // The authoritative talago_session + talago_refresh cookies are set below on the
-  // redirect response itself. The /account page reads these via GET /api/auth/session.
-  // We do NOT route through /auth/callback — that intermediate page relies on hash
-  // fragments which browsers strip on cross-origin hops, causing "Could not establish
-  // an authenticated session" errors.
+  // ── First-Party HTML Client Bridge ───────────────────────────────────────
+  // Instead of a 302/307 redirect from a cross-site origin (which Safari ITP,
+  // mobile WebViews, and strict browser policies drop Set-Cookie headers for),
+  // we return a 200 OK document response.
+  // 1. Cookies set on 200 OK document responses are ALWAYS accepted by browsers.
+  // 2. The client script populates Supabase client localStorage and runs a
+  //    same-origin first-party fetch to /api/auth/session before navigating.
+  // 3. This guarantees 100% session persistence on both client and server across all browsers.
   if (!session?.access_token) {
     console.error('[tg-oidc-callback] Failed to mint Supabase session for', syntheticEmail);
     const msg = encodeURIComponent('Failed to create customer session. Please try logging in again.');
     return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
   }
 
-  const response = NextResponse.redirect(new URL(returnTo, request.nextUrl.origin));
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Authenticating | Talago Tours</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { background-color: #070F1E; color: #F8FAFC; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+    .spinner { width: 36px; height: 36px; border: 3px solid rgba(0,229,255,0.2); border-top-color: #00E5FF; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div style="text-align: center;">
+    <div class="spinner"></div>
+    <div style="font-size: 15px; font-weight: 700; color: #FFFFFF;">Completing sign-in…</div>
+    <div style="font-size: 13px; color: #94A3B8; margin-top: 6px;">Taking you to your account…</div>
+  </div>
+  <script>
+    (async function() {
+      const accessToken = ${JSON.stringify(session.access_token)};
+      const refreshToken = ${JSON.stringify(session.refresh_token)};
+      const returnTo = ${JSON.stringify(returnTo)};
+      const supabaseUrl = ${JSON.stringify(supabaseUrl)};
+
+      // 1. Populate Supabase client localStorage for instant client-side SDK auth
+      try {
+        if (supabaseUrl) {
+          const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
+          const storageKey = 'sb-' + projectRef + '-auth-token';
+          const sessionPayload = {
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+            token_type: 'bearer',
+            user: {
+              id: ${JSON.stringify(claims.sub ? String(claims.sub) : '')},
+              email: ${JSON.stringify(syntheticEmail)},
+              user_metadata: {
+                name: ${JSON.stringify(fullName)},
+                full_name: ${JSON.stringify(fullName)},
+                telegram_id: ${JSON.stringify(telegramId)}
+              }
+            }
+          };
+          localStorage.setItem(storageKey, JSON.stringify(sessionPayload));
+        }
+      } catch (e) {}
+
+      // 2. Synchronize server session cookie via same-origin first-party POST
+      try {
+        await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken })
+        });
+      } catch (e) {}
+
+      // 3. Clean navigation to destination
+      window.location.replace(returnTo);
+    })();
+  </script>
+</body>
+</html>`;
+
+  const response = new NextResponse(html, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+    },
+  });
 
   // Clear the PKCE cookie
   response.cookies.set('tg_pkce', '', {

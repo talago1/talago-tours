@@ -202,6 +202,8 @@ export async function GET(request: NextRequest) {
         name: finalProfile?.name || displayName || 'Traveler',
         email: finalProfile?.email || user.email,
         phone: finalProfile?.phone || finalProfile?.telegramPhone || null,
+        accessToken: token,
+        refreshToken: refreshedRefreshToken || refreshToken || null,
       },
       { headers: NO_STORE }
     );
@@ -266,6 +268,8 @@ export async function POST(request: NextRequest) {
         name: finalProfile?.name || displayName || 'Traveler',
         email: finalProfile?.email || user.email,
         phone: finalProfile?.phone || finalProfile?.telegramPhone || null,
+        accessToken: token,
+        refreshToken: refreshToken || null,
       },
       { headers: NO_STORE }
     );

@@ -39,6 +39,12 @@ function LoginRedirectContent() {
         const res = await fetch('/api/auth/session', { cache: 'no-store' });
         const data = await res.json();
         if (data?.authenticated && active) {
+          if (data.accessToken && data.refreshToken) {
+            await supabaseClient.auth.setSession({
+              access_token: data.accessToken,
+              refresh_token: data.refreshToken,
+            }).catch(() => {});
+          }
           window.location.href = returnTo;
           return;
         }

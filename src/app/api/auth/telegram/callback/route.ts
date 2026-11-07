@@ -156,11 +156,83 @@ export async function GET(request: NextRequest) {
       console.warn('[auth-telegram-callback] Supabase session generation error:', err);
     }
 
-    // Redirect directly to /account — the talago_session + talago_refresh cookies
-    // are set on this response object, so /account can authenticate via GET /api/auth/session.
-    // We skip /auth/callback because browsers strip hash fragments during redirects,
-    // which caused "Could not establish an authenticated session" errors.
-    const response = NextResponse.redirect(successRedirect);
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Authenticating | Talago Tours</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { background-color: #070F1E; color: #F8FAFC; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+    .spinner { width: 36px; height: 36px; border: 3px solid rgba(0,229,255,0.2); border-top-color: #00E5FF; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div style="text-align: center;">
+    <div class="spinner"></div>
+    <div style="font-size: 15px; font-weight: 700; color: #FFFFFF;">Completing sign-in…</div>
+    <div style="font-size: 13px; color: #94A3B8; margin-top: 6px;">Taking you to your account…</div>
+  </div>
+  <script>
+    (async function() {
+      const accessToken = ${JSON.stringify(accessToken || '')};
+      const refreshToken = ${JSON.stringify(refreshToken || '')};
+      const successRedirect = ${JSON.stringify(successRedirect)};
+      const supabaseUrl = ${JSON.stringify(supabaseUrl)};
+
+      // 1. Populate Supabase client localStorage
+      try {
+        if (supabaseUrl && accessToken) {
+          const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
+          const storageKey = 'sb-' + projectRef + '-auth-token';
+          const sessionPayload = {
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+            token_type: 'bearer',
+            user: {
+              id: ${JSON.stringify(id ? String(id) : '')},
+              email: ${JSON.stringify(syntheticEmail)},
+              user_metadata: {
+                name: ${JSON.stringify(fullName)},
+                full_name: ${JSON.stringify(fullName)},
+                telegram_id: ${JSON.stringify(id)}
+              }
+            }
+          };
+          localStorage.setItem(storageKey, JSON.stringify(sessionPayload));
+        }
+      } catch (e) {}
+
+      // 2. Synchronize server session cookie via same-origin first-party POST
+      if (accessToken) {
+        try {
+          await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken })
+          });
+        } catch (e) {}
+      }
+
+      // 3. Clean navigation to destination
+      window.location.replace(successRedirect);
+    })();
+  </script>
+</body>
+</html>`;
+
+    const response = new NextResponse(html, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    });
+
     if (accessToken) {
       response.cookies.set('talago_session', accessToken, {
         path: '/',
