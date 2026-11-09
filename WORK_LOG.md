@@ -27,24 +27,29 @@
    - Updated `src/app/(public)/tours/page.tsx` Prisma query to retrieve `allowPayAtLocation`, `hotelPickupIncluded`, `freeCancellationHours`, and `instantConfirmation`.
    - Updated `src/components/tours/PublicTourCard.tsx` with dynamic badge rendering matching real tour data.
 
-6. **Sputnik8 Reverse Engineering & Persistent Documentation:**
+6. **Removed Irrelevant Flight/Accommodation Fields (Tours Scope Discipline):**
+   - Cleaned out confusing and out-of-scope "Flight Numbers" and "Bed Config" input fields from `src/components/tours/BookingFormSteps.tsx` and unused state in `src/components/tours/ContinuousBookingModal.tsx`.
+   - Standardized payment gateway URL handling to ensure seamless full-window redirection when online payment is chosen.
+
+7. **Sputnik8 Reverse Engineering & Persistent Documentation:**
    - Authored `SPUTNIK8_REFERENCE.md` detailing the 4-step booking funnel, phone-first registration, guest auto-account creation, payment options clarity, and mobile drawer UX.
    - Updated permanent documents: `CURRENT_STATE.md`, `WORK_LOG.md`.
+   - Rebuilt Graphify knowledge graph (`2,904 nodes`, `5,906 edges`, `199 communities`).
 
-7. **Build & Quality Validation:**
+8. **Build & Quality Validation:**
    - Verified TypeScript strict compliance: `npx tsc --noEmit` → **0 errors**.
    - Verified Next.js production build: `npm run build` → **84/84 pages green**.
+   - Merged PR #17 (`d1a2e21`) into `main`.
 
 ---
 
 ## Current Stopping Point
-- All code changes verified, TypeScript clean, Next.js build clean.
-- Ready to update Graphify knowledge graph and commit changes to git.
+- `main` branch is clean, up to date with `origin/main`, and all recent enhancements are verified.
+- Additional scope cleanups (`flightNumbers`/`bedConfiguration` removal, payment gateway redirect alignment) ready for next commit.
 
 ---
 
 ## Exact Next Steps
-1. **Run `graphify update .`** to reflect modified routes and utilities in AST knowledge graph.
-2. **Commit all changes to git** with clear conventional commit messages.
-3. **Adaptive Paymob Redirect for Mobile Devices (Optional refinement):**
-   - Provide an optional full-window redirect fallback on small mobile viewports if the embedded Paymob iframe is constrained, while keeping Cash on Arrival as primary fallback.
+1. Create feature branch and commit the checkout scope cleanup and gateway redirect alignment.
+2. Open and merge PR to `main`.
+3. Perform end-to-end smoke verification on production deployment.
