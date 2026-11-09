@@ -325,7 +325,7 @@ async function adoptBookingIds(
       const accountMatches =
         emailSet.has(row.customerEmail.trim().toLowerCase())
         || phoneKeys.some((key) => phoneMatchKey(row.customerPhone) === key);
-      return accountMatches && !profileOwnsBookingContact(owner, row);
+      return accountMatches;
     })
     .map((row) => row.id);
   if (adoptable.length === 0) return;

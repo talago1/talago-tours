@@ -199,7 +199,7 @@ export async function GET(request: NextRequest) {
           telegramBotAccess,
           telegramConnectedAt: new Date(),
           isShadow: false,
-          ...(telegramPhone ? { telegramPhone, telegramPhoneVerified: true } : {}),
+          ...(telegramPhone ? { phone: telegramPhone, telegramPhone, telegramPhoneVerified: true } : {}),
         },
       });
     } else {
@@ -214,7 +214,7 @@ export async function GET(request: NextRequest) {
           telegramBotAccess,
           telegramConnectedAt: new Date(),
           isShadow: false,
-          ...(telegramPhone ? { telegramPhone, telegramPhoneVerified: true } : {}),
+          ...(telegramPhone ? { phone: telegramPhone, telegramPhone, telegramPhoneVerified: true } : {}),
         },
         update: {
           name: fullName,
@@ -224,7 +224,7 @@ export async function GET(request: NextRequest) {
           telegramBotAccess,
           telegramConnectedAt: new Date(),
           isShadow: false,
-          ...(telegramPhone ? { telegramPhone, telegramPhoneVerified: true } : {}),
+          ...(telegramPhone ? { phone: telegramPhone, telegramPhone, telegramPhoneVerified: true } : {}),
         },
       });
     }
@@ -268,6 +268,7 @@ export async function GET(request: NextRequest) {
 
         if (verifyData.user?.id) {
           await supabaseAdmin.auth.admin.updateUserById(verifyData.user.id, {
+            ...(telegramPhone ? { phone: telegramPhone } : {}),
             user_metadata: {
               name: fullName,
               full_name: fullName,
@@ -275,6 +276,7 @@ export async function GET(request: NextRequest) {
               picture: telegramPhotoUrl,
               avatar_url: telegramPhotoUrl,
               telegram_id: telegramId,
+              ...(telegramPhone ? { phone: telegramPhone } : {}),
             },
           }).catch(() => {});
         }

@@ -49,6 +49,7 @@ export interface PublicTourCardData {
   hotelPickupIncluded?: boolean | null;
   allowPayAtLocation?: boolean | null;
   freeCancellationHours?: number | null;
+  instantConfirmation?: boolean | null;
   destination: { name: string; slug: string } | null;
 }
 
@@ -256,10 +257,12 @@ export default function PublicTourCard({ tour, priority = false }: { tour: Publi
                 </div>
               )}
 
-              <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-400">
-                <CheckCircle2 className="h-3 w-3" />
-                {dict.catalog.instant}
-              </span>
+              {tour.instantConfirmation !== false && (
+                <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-400">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {dict.catalog.instant}
+                </span>
+              )}
             </div>
 
             {/* Title */}
@@ -268,7 +271,7 @@ export default function PublicTourCard({ tour, priority = false }: { tour: Publi
             </h3>
 
             {/* Trust Pill Strip */}
-            {(tour.allowPayAtLocation || tour.hotelPickupIncluded) && (
+            {(tour.allowPayAtLocation || tour.hotelPickupIncluded || Boolean(tour.freeCancellationHours && tour.freeCancellationHours > 0)) && (
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {tour.allowPayAtLocation && (
                   <span className="flex items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
@@ -280,6 +283,12 @@ export default function PublicTourCard({ tour, priority = false }: { tour: Publi
                   <span className="flex items-center gap-1 rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-400">
                     <MapPin className="h-2.5 w-2.5" />
                     Hotel Pickup
+                  </span>
+                )}
+                {Boolean(tour.freeCancellationHours && tour.freeCancellationHours > 0) && (
+                  <span className="flex items-center gap-1 rounded-md border border-teal-500/25 bg-teal-500/10 px-2 py-0.5 text-[10px] font-bold text-teal-400">
+                    <CheckCircle2 className="h-2.5 w-2.5" />
+                    Free cancel ({tour.freeCancellationHours}h)
                   </span>
                 )}
               </div>

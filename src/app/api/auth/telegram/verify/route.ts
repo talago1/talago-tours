@@ -119,10 +119,16 @@ export async function POST(request: NextRequest) {
       create: {
         email: syntheticEmail,
         name: fullName,
+        telegramId: String(id),
+        telegramUsername: username || null,
+        telegramPhotoUrl: photo_url || null,
         isShadow: false,
       },
       update: {
         name: fullName,
+        telegramId: String(id),
+        telegramUsername: username || null,
+        telegramPhotoUrl: photo_url || null,
         isShadow: false,
       },
     });

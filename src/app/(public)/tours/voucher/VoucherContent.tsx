@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { MessageSquare, Printer } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { useContactSettings } from '@/hooks/useContactSettings';
 import QrGeneratorCard from '@/components/vouchers/QrGeneratorCard';
 
 interface VoucherContentProps {
@@ -30,13 +32,23 @@ export default function VoucherContent({
   verifyUrl,
 }: VoucherContentProps) {
   const { dict } = useLanguage();
+  const { getWhatsAppUrl } = useContactSettings();
+
+  const whatsappMessage = `Hello Talago Concierge! I have a question regarding my booking reference: ${bookingReference} for ${tourTitle} (${travelDate}).`;
+  const whatsappHref = getWhatsAppUrl(whatsappMessage);
+
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') {
+      window.print();
+    }
+  };
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-emerald-50 to-white p-4">
       <div className="mx-auto max-w-md">
         <div className="mb-6 text-center">
-          <span className="text-2xl font-black uppercase tracking-[0.34em] text-white">TALAGO</span>
-          <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40" />
+          <span className="text-2xl font-black uppercase tracking-[0.34em] text-emerald-900">TALAGO</span>
+          <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40 ml-1 inline-block" />
           <p className="mt-1 text-sm text-emerald-700">{dict.voucherPage.badge}</p>
         </div>
 
@@ -97,16 +109,38 @@ export default function VoucherContent({
           )}
         </div>
 
+        {/* Voucher Action Strip */}
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 print:hidden">
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-3 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition active:scale-[0.98]"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span>WhatsApp Concierge</span>
+          </a>
+
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 px-4 py-3 text-xs font-bold text-gray-800 shadow-sm transition active:scale-[0.98]"
+          >
+            <Printer className="h-4 w-4 text-gray-600" />
+            <span>Download / Print PDF</span>
+          </button>
+        </div>
+
         <div className="mt-6 flex justify-center">
           <QrGeneratorCard url={verifyUrl} />
         </div>
 
-        <div className="mt-6 text-center text-xs text-gray-400">
+        <div className="mt-6 text-center text-xs text-gray-400 print:hidden">
           <p>{dict.voucherPage.presentVoucher}</p>
           <p className="mt-1">{dict.voucherPage.guideScan}</p>
         </div>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 text-center print:hidden">
           <Link
             href="/"
             className="inline-block rounded-lg bg-emerald-700 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-800"
@@ -119,7 +153,8 @@ export default function VoucherContent({
       <style>{`
         @media print {
           body { background: white !important; }
-          main { background: white !important; }
+          main { background: white !important; padding: 0 !important; }
+          .print\\:hidden { display: none !important; }
           a { display: none !important; }
         }
       `}</style>
