@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import {
   ShieldCheck,
   Users,
@@ -297,6 +298,8 @@ export default function CheckoutPage() {
   const [tour, setTour] = useState<TourDetails | null>(null);
   const [pageState, setPageState] = useState<PageState>('loading');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [scheme, setScheme] = useState<PaymentScheme>(PaymentScheme.PAY_ON_ARRIVAL);
   const [adultsCount, setAdultsCount] = useState(1);
   const [childrenCount, setChildrenCount] = useState(0);
@@ -390,6 +393,16 @@ export default function CheckoutPage() {
       .then((data) => {
         if (data?.authenticated && data.user) {
           setIsAuthenticated(true);
+          setCurrentUser(data.user);
+          if (data.accessToken) {
+            setSessionToken(data.accessToken);
+            if (data.refreshToken) {
+              supabaseClient.auth.setSession({
+                access_token: data.accessToken,
+                refresh_token: data.refreshToken,
+              }).catch(() => {});
+            }
+          }
           const u = data.user;
           setForm((prev) => ({
             ...prev,
@@ -600,11 +613,13 @@ export default function CheckoutPage() {
           };
         });
 
-      let authToken: string | null = null;
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        authToken = session?.access_token || null;
-      } catch {}
+      let authToken: string | null = sessionToken;
+      if (!authToken) {
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          authToken = session?.access_token || null;
+        } catch {}
+      }
 
       const initHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -911,6 +926,45 @@ export default function CheckoutPage() {
                 </div>
               </div>
             </div>
+
+            {/* Account Status Banner */}
+            {isAuthenticated ? (
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold shrink-0">
+                    ✓
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                      Logged in as {currentUser?.name || currentUser?.telegramUsername ? `@${currentUser.telegramUsername}` : (currentUser?.email || 'Member')}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      This booking will be automatically linked to your account and appear in your dashboard.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/account"
+                  className="hidden sm:inline-flex text-xs font-bold text-[#00E5FF] hover:underline shrink-0"
+                >
+                  My Account →
+                </Link>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 shrink-0">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">Booking as Guest</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Have an account? <Link href={`/auth?returnTo=/checkout/${tourId}`} className="text-[#00E5FF] font-bold hover:underline">Log in</Link> to save this trip to your account and manage it anytime.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Guest Information */}
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 lg:p-8">

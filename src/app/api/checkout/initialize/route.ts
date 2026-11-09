@@ -4,7 +4,8 @@ import { validateCheckoutForm, validateGuestTiers, deriveGuestEmail } from '@/ut
 import { generateBookingReference } from '@/utils/bookingReference';
 import { generateAccessToken } from '@/utils/bookingToken';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { createClient } from '@supabase/supabase-js';
+import { resolveRequestUser } from '@/server/customerSession';
+import { adoptOwnedBookings, findProfileByContact } from '@/server/customerBookings';
 
 import { enforceCapacity, CapacityExceededError } from '@/utils/capacityEngine';
 import { initiatePaymobSession } from '@/utils/paymob';
@@ -13,7 +14,7 @@ import { computePriceBreakdown } from '@/utils/priceCalculator';
 import { PaymentScheme, type InitializeResponse } from '@/types/checkout';
 import { BookingStatus, LeadStatus, Prisma } from '@prisma/client';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
-import { sanitizePlain, sanitizeEmail, sanitizePhone, sanitizeText, getPhoneSearchVariants } from '@/utils/sanitize';
+import { sanitizePlain, sanitizeEmail, sanitizePhone, sanitizeText } from '@/utils/sanitize';
 import { normalizeCurrency, convertCurrency } from '@/utils/currency';
 
 export const dynamic = 'force-dynamic';
@@ -276,49 +277,9 @@ export async function POST(request: NextRequest) {
 
     const bookingReference = generateBookingReference();
 
-    // Resolve authenticated customer session if present
-    const authHeader = request.headers.get('authorization');
-    let token =
-      (authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : null) ||
-      request.cookies.get('talago_session')?.value;
-    const refreshToken = request.cookies.get('talago_refresh')?.value;
-
-    let authUserId = null;
-    let authUserEmail = null;
-
-    if (token) {
-      try {
-        const { data: { user: authUser }, error: authErr } = await supabaseAdmin.auth.getUser(token);
-        if (!authErr && authUser?.email) {
-          authUserId = authUser.id;
-          authUserEmail = authUser.email.toLowerCase();
-        }
-      } catch (err) {
-        console.warn('[checkout-initialize] Auth session resolution warning:', err);
-      }
-    }
-
-    // Auto-refresh using refresh token if access token is expired
-    if (!authUserEmail && refreshToken) {
-      try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-        if (supabaseUrl && supabaseAnonKey) {
-          const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
-            auth: { persistSession: false, autoRefreshToken: false },
-          });
-          const { data: refreshData, error: refreshError } = await supabaseAnon.auth.refreshSession({
-            refresh_token: refreshToken,
-          });
-          if (!refreshError && refreshData?.session?.user?.email) {
-            authUserId = refreshData.session.user.id;
-            authUserEmail = refreshData.session.user.email.toLowerCase();
-          }
-        }
-      } catch (e) {
-        console.warn('[checkout-initialize] auto-refresh notice:', e);
-      }
-    }
+    // Cookie session wins over a stale browser bearer token.
+    const auth = await resolveRequestUser(request);
+    const authUserEmail = auth?.user.email?.toLowerCase() ?? null;
 
     // Wrap all record creation in a Serializable transaction.
     // enforceCapacity runs INSIDE the tx using the tx client so that the
@@ -391,20 +352,7 @@ export async function POST(request: NextRequest) {
           });
         }
       } else {
-        const phoneVariants = phone.trim() ? getPhoneSearchVariants(phone.trim()) : [];
-        existingProfile = await tx.customerProfile.findFirst({
-          where: {
-            OR: [
-              { email: normalizedEmail },
-              ...(phoneVariants.length > 0
-                ? phoneVariants.map((v) => ({ phone: { contains: v } }))
-                : []),
-              ...(phoneVariants.length > 0
-                ? phoneVariants.map((v) => ({ telegramPhone: { contains: v } }))
-                : []),
-            ],
-          },
-        });
+        existingProfile = await findProfileByContact(tx, normalizedEmail, phone.trim());
 
         profile = existingProfile
           ? await tx.customerProfile.update({
@@ -480,63 +428,29 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Retroactively link previous unlinked or shadow-profile bookings matching phone or email
-      if (authUserEmail && profile?.id) {
-        const phoneVariants = getPhoneSearchVariants(phone.trim() || profile.phone || profile.telegramPhone);
-        const linkOr: Prisma.BookingWhereInput[] = [];
-        for (const v of phoneVariants) {
-          linkOr.push({ customerPhone: { contains: v } });
-        }
-        if (rawEmail && !rawEmail.endsWith('@noreply.talago.com')) {
-          linkOr.push({ customerEmail: { equals: rawEmail, mode: 'insensitive' } });
-        }
-        if (linkOr.length > 0) {
-          const candidateBookings = await tx.booking.findMany({
-            where: {
-              AND: [
-                { id: { not: booking.id } },
-                { OR: linkOr },
-              ],
-            },
-            select: { id: true, customerProfileId: true },
-          });
-
-          const unlinked = candidateBookings.filter((b) => !b.customerProfileId || b.customerProfileId !== profile.id);
-          if (unlinked.length > 0) {
-            const foreignIds = unlinked
-              .map((b) => b.customerProfileId)
-              .filter((id): id is string => Boolean(id && id !== profile.id));
-
-            const shadowProfiles = foreignIds.length > 0
-              ? await tx.customerProfile.findMany({
-                  where: { id: { in: foreignIds }, isShadow: true },
-                  select: { id: true },
-                })
-              : [];
-            const adoptableIds = shadowProfiles.map((p) => p.id);
-
-            await tx.booking.updateMany({
-              where: {
-                id: { in: unlinked.map((b) => b.id) },
-                OR: [
-                  { customerProfileId: null },
-                  ...(adoptableIds.length > 0 ? [{ customerProfileId: { in: adoptableIds } }] : []),
-                ],
-              },
-              data: { customerProfileId: profile.id },
-            }).catch((e) => console.warn('[checkout-initialize] Retroactive link non-fatal warning:', e));
-          }
-        }
-      }
-
       return {
         booking,
         transaction,
+        profileId: profile.id,
+        profileEmail: profile.email,
+        profilePhone: profile.phone,
+        profileTelegramPhone: profile.telegramPhone,
         shouldInvite: !authUserEmail && (!existingProfile || existingProfile.isShadow),
       };
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
+
+    if (authUserEmail && result.profileId) {
+      const metaPhone = typeof auth?.user.user_metadata?.phone === 'string' ? auth.user.user_metadata.phone : null;
+      await adoptOwnedBookings({
+        profileId: result.profileId,
+        emails: [authUserEmail, rawEmail, normalizedEmail, result.profileEmail],
+        phones: [phone, result.profilePhone, result.profileTelegramPhone, auth?.user.phone, metaPhone],
+      }).catch((error) => {
+        console.warn('[checkout-initialize] booking adoption warning:', error);
+      });
+    }
 
     // A booking is only a conversion after its payment/confirmation state says so.
     // Online payment starts an in-progress lead; the verified webhook completes it.
