@@ -111,6 +111,8 @@ export default function ContinuousBookingModal({
   // Single Authoritative Payment Scheme
   const [paymentScheme, setPaymentScheme] = useState<PaymentScheme>(PaymentScheme.PAY_ON_ARRIVAL);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
 
   // Submission & UI status
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -155,6 +157,16 @@ export default function ContinuousBookingModal({
         .then((authData) => {
           if (authData?.authenticated && authData.user) {
             setIsAuthenticated(true);
+            setCurrentUser(authData.user);
+            if (authData.accessToken) {
+              setSessionToken(authData.accessToken);
+              if (authData.refreshToken) {
+                supabaseClient.auth.setSession({
+                  access_token: authData.accessToken,
+                  refresh_token: authData.refreshToken,
+                }).catch(() => {});
+              }
+            }
             const u = authData.user;
             setLeadName((prev) => {
               if (prev && prev.trim() !== '') return prev;
@@ -362,11 +374,13 @@ export default function ContinuousBookingModal({
         },
       };
 
-      let authToken: string | null = null;
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        authToken = session?.access_token || null;
-      } catch {}
+      let authToken: string | null = sessionToken;
+      if (!authToken) {
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          authToken = session?.access_token || null;
+        } catch {}
+      }
 
       const initHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -723,6 +737,33 @@ export default function ContinuousBookingModal({
                         Guest booking enabled — Email is optional when a valid phone is provided.
                       </p>
                     </div>
+
+                    {/* Account Status Badge */}
+                    {isAuthenticated ? (
+                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 flex items-center gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold shrink-0 text-xs">
+                          ✓
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-emerald-400 truncate">
+                            Logged in as {currentUser?.name || (currentUser?.telegramUsername ? `@${currentUser.telegramUsername}` : (currentUser?.email || 'Member'))}
+                          </p>
+                          <p className="text-[11px] text-slate-400">This trip will be automatically saved to your account.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 flex items-center gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 shrink-0 text-xs">
+                          <User className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-white">Booking as Guest</p>
+                          <p className="text-[11px] text-slate-400">
+                            Have an account? <a href={`/auth?returnTo=/tours/${tour.slug}`} className="text-[#00E5FF] font-bold hover:underline">Log in</a> to link this booking.
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-xs font-bold text-slate-300 mb-1.5">Lead Traveler Full Name *</label>

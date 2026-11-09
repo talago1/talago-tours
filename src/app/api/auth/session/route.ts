@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { sanitizePlain, sanitizePhone } from '@/utils/sanitize';
+import { adoptOwnedBookings } from '@/server/customerBookings';
 
 export const dynamic = 'force-dynamic';
 

@@ -84,6 +84,18 @@ export default function CheckoutSuccessContent({ token }: { token: string }) {
           </a>
         </div>
 
+        {!isAuthenticated && (
+          <div className="mt-4 pt-4 border-t border-white/5 text-xs text-slate-400">
+            <span>Want to track all your trips in one place? </span>
+            <a
+              href="/login?returnTo=/account"
+              className="text-[#00E5FF] hover:underline font-medium"
+            >
+              Sign in or create an account
+            </a>
+          </div>
+        )}
+
         {token && (
           <div className="mt-6 border-t border-white/10 pt-6">
             <a

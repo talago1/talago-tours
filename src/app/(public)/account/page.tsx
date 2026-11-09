@@ -41,6 +41,7 @@ import {
   Info,
   RefreshCw,
   Send,
+  Plus,
 } from 'lucide-react';
 
 const LANGUAGE_NAMES: Record<LanguageCode, string> = {
@@ -182,6 +183,14 @@ export default function AccountPage() {
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
+  // Link Booking Modal & Form state
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkRef, setLinkRef] = useState('');
+  const [linkPhone, setLinkPhone] = useState('');
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkSuccess, setLinkSuccess] = useState<string | null>(null);
+
   // Live Chat / Concierge Messages
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
@@ -214,17 +223,28 @@ export default function AccountPage() {
           }
         }
 
-        // 2. Fetch authenticated customer bookings
-        const { data: { session: activeSession } } = await supabaseClient.auth.getSession();
+        // 2. Fetch authenticated customer bookings (authoritatively using returned session token)
+        const token = sessionData.accessToken;
         const bookingsHeaders: Record<string, string> = {};
-        if (activeSession?.access_token) {
-          bookingsHeaders['Authorization'] = `Bearer ${activeSession.access_token}`;
+        if (token) {
+          bookingsHeaders['Authorization'] = `Bearer ${token}`;
+        } else {
+          const { data: { session: activeSession } } = await supabaseClient.auth.getSession();
+          if (activeSession?.access_token) {
+            bookingsHeaders['Authorization'] = `Bearer ${activeSession.access_token}`;
+          }
         }
-        const bookingsRes = await fetch('/api/public/my-bookings', { headers: bookingsHeaders, cache: 'no-store' });
+        const bookingsRes = await fetch('/api/public/my-bookings', {
+          headers: bookingsHeaders,
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
         if (bookingsRes.ok) {
           const bData = await bookingsRes.json();
           setBookings(Array.isArray(bData.bookings) ? bData.bookings : []);
           setReservations(Array.isArray(bData.reservations) ? bData.reservations : []);
+        } else {
+          console.warn('[Account] /api/public/my-bookings status:', bookingsRes.status);
         }
 
         // 3. Fetch concierge live chat messages
@@ -435,6 +455,55 @@ export default function AccountPage() {
       console.error('Send message error:', err);
     } finally {
       setSendingMsg(false);
+    }
+  };
+
+  // Link guest booking to account
+  const handleLinkBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!linkRef.trim() || !linkPhone.trim()) {
+      setLinkError('Please enter both booking reference and contact phone number.');
+      return;
+    }
+
+    setLinkLoading(true);
+    setLinkError(null);
+    setLinkSuccess(null);
+
+    try {
+      const { data: { session: curSess } } = await supabaseClient.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (curSess?.access_token) {
+        headers['Authorization'] = `Bearer ${curSess.access_token}`;
+      }
+
+      const res = await fetch('/api/public/my-bookings/link', {
+        method: 'POST',
+        headers,
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          bookingReference: linkRef.trim(),
+          phone: linkPhone.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to link booking.');
+      }
+
+      setLinkSuccess(data.message || 'Booking linked successfully to your account!');
+      setLinkRef('');
+      setLinkPhone('');
+      await loadData();
+      setTimeout(() => {
+        setShowLinkModal(false);
+        setLinkSuccess(null);
+      }, 2000);
+    } catch (err: any) {
+      setLinkError(err.message || 'Could not link booking.');
+    } finally {
+      setLinkLoading(false);
     }
   };
 
@@ -725,6 +794,68 @@ export default function AccountPage() {
                     );
                   })}
                 </div>
+              ) : bookings.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Recent Completed & Past Trips</p>
+                      <p className="text-xs text-slate-500 mt-0.5">You have {bookings.length} trip(s) recorded in your account.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('bookings')}
+                      className="text-xs font-bold text-[#00E5FF] hover:underline"
+                    >
+                      View All Trips ({bookings.length}) →
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {bookings.slice(0, 2).map((booking) => {
+                      const title = getTourTitle(booking.tour?.translations, language);
+                      return (
+                        <div
+                          key={booking.id}
+                          className="rounded-3xl border border-white/10 bg-[#0B1528] p-5 sm:p-6 shadow-xl flex flex-col justify-between space-y-4 hover:border-white/20 transition"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-[#00E5FF] mb-2">
+                                {booking.bookingReference}
+                              </span>
+                              <h3 className="text-base font-black text-white line-clamp-1">{title}</h3>
+                              <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+                                <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
+                                <span>{new Date(booking.travelDate).toLocaleDateString(language, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                <span>·</span>
+                                <span>{booking.guestCount} {dict.account.bookings.guestsLabel}</span>
+                              </p>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 text-[10px] font-black uppercase">
+                              {booking.status}
+                            </span>
+                          </div>
+
+                          <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                            <a
+                              href={`/tours/voucher/${booking.accessToken}`}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/20 px-3.5 py-2 text-xs font-bold text-emerald-300 transition"
+                            >
+                              <Ticket className="h-3.5 w-3.5" />
+                              <span>Voucher</span>
+                            </a>
+                            <a
+                              href={`/booking/${booking.accessToken}`}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-[#00E5FF] px-4 py-2 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-sm hover:scale-105 transition"
+                            >
+                              <CreditCard className="h-3.5 w-3.5" />
+                              <span>{dict.account.bookings.viewBoardingPass}</span>
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               ) : (
                 <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.01] p-8 sm:p-12 text-center space-y-4">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-slate-500">
@@ -734,13 +865,23 @@ export default function AccountPage() {
                     <h3 className="text-base font-bold text-white">{dict.account.overview.noUpcoming}</h3>
                     <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">{dict.account.overview.noUpcomingDesc}</p>
                   </div>
-                  <Link
-                    href="/tours"
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#00E5FF] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-md shadow-[#00E5FF]/20 hover:scale-105 transition"
-                  >
-                    <span>{dict.account.overview.browseTours}</span>
-                    <span>→</span>
-                  </Link>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                    <Link
+                      href="/tours"
+                      className="inline-flex items-center gap-2 rounded-xl bg-[#00E5FF] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-md shadow-[#00E5FF]/20 hover:scale-105 transition"
+                    >
+                      <span>{dict.account.overview.browseTours}</span>
+                      <span>→</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setShowLinkModal(true)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-slate-200 hover:bg-white/10 transition"
+                    >
+                      <Plus className="h-3.5 w-3.5 text-[#00E5FF]" />
+                      <span>Link Guest Booking</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -809,26 +950,37 @@ export default function AccountPage() {
                 <p className="text-xs text-slate-400 mt-0.5">{dict.account.bookings.subtitle}</p>
               </div>
 
-              {/* Filter Pills */}
-              <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
-                {(['ALL', 'UPCOMING', 'PAST'] as const).map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setBookingFilter(f)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                      bookingFilter === f
-                        ? 'bg-[#00E5FF] text-[#070F1E] font-black shadow-sm'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {f === 'ALL'
-                      ? dict.account.bookings.filterAll
-                      : f === 'UPCOMING'
-                      ? dict.account.bookings.filterUpcoming
-                      : dict.account.bookings.filterPast}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setShowLinkModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#00E5FF]/30 bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 px-3.5 py-1.5 text-xs font-bold text-[#00E5FF] transition"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Link Guest Booking</span>
+                </button>
+
+                {/* Filter Pills */}
+                <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
+                  {(['ALL', 'UPCOMING', 'PAST'] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setBookingFilter(f)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                        bookingFilter === f
+                          ? 'bg-[#00E5FF] text-[#070F1E] font-black shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {f === 'ALL'
+                        ? dict.account.bookings.filterAll
+                        : f === 'UPCOMING'
+                        ? dict.account.bookings.filterUpcoming
+                        : dict.account.bookings.filterPast}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -928,6 +1080,14 @@ export default function AccountPage() {
                           </button>
 
                           <a
+                            href={`/tours/voucher/${booking.accessToken}`}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-3.5 py-2.5 text-xs font-bold text-emerald-300 transition"
+                          >
+                            <Ticket className="h-3.5 w-3.5" />
+                            <span>Voucher</span>
+                          </a>
+
+                          <a
                             href={`/booking/${booking.accessToken}`}
                             className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-sm hover:scale-105 transition"
                           >
@@ -1008,16 +1168,26 @@ export default function AccountPage() {
                 })}
               </div>
             ) : (
-              <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.01] p-12 text-center space-y-4">
+              <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.01] p-8 sm:p-12 text-center space-y-4">
                 <Ticket className="h-10 w-10 text-slate-600 mx-auto" />
                 <div>
                   <h3 className="text-base font-bold text-white">{dict.account.bookings.noBookings}</h3>
-                  <p className="text-xs text-slate-400 mt-1">{dict.account.bookings.noBookingsDesc}</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                    {dict.account.bookings.noBookingsDesc} Did you book as a guest? Link your booking to this account anytime.
+                  </p>
                 </div>
-                <div className="pt-2">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowLinkModal(true)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#00E5FF] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-md shadow-[#00E5FF]/20 hover:scale-105 transition"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Link Guest Booking</span>
+                  </button>
                   <Link
                     href="/my-bookings"
-                    className="inline-flex items-center gap-2 text-xs font-bold text-[#00E5FF] hover:underline"
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-slate-200 hover:bg-white/10 transition"
                   >
                     <span>{dict.account.bookings.guestLookupLink}</span>
                     <span>→</span>
@@ -1574,6 +1744,104 @@ export default function AccountPage() {
           tourTitle={activeReviewTour.title}
           onClose={() => setActiveReviewTour(null)}
         />
+      )}
+
+      {/* Link Guest Booking Modal */}
+      {showLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0B1528] p-6 sm:p-8 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-[#00E5FF]/10 border border-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF]">
+                  <Plus className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">Link a Guest Booking</h3>
+                  <p className="text-xs text-slate-400">Connect a previous booking to your account</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLinkModal(false);
+                  setLinkError(null);
+                  setLinkSuccess(null);
+                }}
+                className="text-slate-400 hover:text-white transition p-1 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleLinkBooking} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Booking Reference
+                </label>
+                <input
+                  type="text"
+                  value={linkRef}
+                  onChange={(e) => setLinkRef(e.target.value)}
+                  placeholder="e.g. TLG-2026-M3W6"
+                  required
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-mono font-bold text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none transition uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Contact Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={linkPhone}
+                  onChange={(e) => setLinkPhone(e.target.value)}
+                  placeholder="e.g. +201222434602"
+                  required
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none transition"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  The phone number used when the booking was made.
+                </p>
+              </div>
+
+              {linkError && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-300">
+                  {linkError}
+                </div>
+              )}
+
+              {linkSuccess && (
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-300 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>{linkSuccess}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLinkModal(false);
+                    setLinkError(null);
+                    setLinkSuccess(null);
+                  }}
+                  className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs font-bold text-slate-300 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={linkLoading}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#00E5FF] px-6 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 hover:scale-105 transition disabled:opacity-50"
+                >
+                  {linkLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  <span>{linkLoading ? 'Linking…' : 'Link Booking'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

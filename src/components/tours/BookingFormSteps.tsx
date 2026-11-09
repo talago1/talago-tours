@@ -13,6 +13,7 @@ import {
 import { calculateTieredPrice } from '@/utils/priceCalculator';
 import { Users, Baby, UserRound } from 'lucide-react';
 import { useCurrency } from '@/context/CurrencyContext';
+import { supabaseClient } from '@/lib/supabase/client';
 
 interface BookingFormStepsProps {
   tourId: string;
@@ -229,9 +230,23 @@ export default function BookingFormSteps({
     setSubmitError(null);
 
     try {
+      let authToken: string | null = null;
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        authToken = session?.access_token || null;
+      } catch {}
+
+      const initHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (authToken) {
+        initHeaders['Authorization'] = `Bearer ${authToken}`;
+      }
+
       const res = await fetch('/api/checkout/initialize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: initHeaders,
+        credentials: 'same-origin',
         body: JSON.stringify({
           tourId,
           departureDate: travelDate,
