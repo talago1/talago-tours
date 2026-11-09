@@ -79,3 +79,4 @@ This document serves as the persistent product reference guide reverse engineere
   - Shows price and `Book Now` CTA.
   - Tapping opens a smooth bottom drawer preserving the current tour context without navigating away.
 - Talago aligns with this pattern using responsive modals and sticky mobile action bars in `src/components/tours/` and `src/app/(public)/tours/[slug]/`.
+

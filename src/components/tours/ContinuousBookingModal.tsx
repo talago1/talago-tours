@@ -105,7 +105,6 @@ export default function ContinuousBookingModal({
   const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [hotelName, setHotelName] = useState('');
   const [roomNumber, setRoomNumber] = useState('');
-  const [flightNumbers, setFlightNumbers] = useState('');
   const [specialRequirements, setSpecialRequirements] = useState('');
 
   // Single Authoritative Payment Scheme
@@ -354,7 +353,6 @@ export default function ContinuousBookingModal({
           pickupType,
           hotelName: hotelName.trim() || (pickupType === 'MEETING_POINT' ? tour.meetingPointName || 'Meeting Point' : undefined),
           roomNumber: roomNumber.trim() || undefined,
-          flightNumbers: flightNumbers.trim() || undefined,
           specialRequirements: specialRequirements.trim() || undefined,
           selectedPickupTime: selectedTime || undefined,
           paymentScheme,

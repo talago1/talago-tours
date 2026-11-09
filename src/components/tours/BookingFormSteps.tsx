@@ -151,8 +151,6 @@ export default function BookingFormSteps({
   const [customerPhone, setCustomerPhone] = useState('');
   const [roomNumber, setRoomNumber] = useState('');
   const [pickupDirectives, setPickupDirectives] = useState('');
-  const [flightNumbers, setFlightNumbers] = useState('');
-  const [bedConfiguration, setBedConfiguration] = useState('');
   const [specialRequirements, setSpecialRequirements] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -304,8 +302,6 @@ export default function BookingFormSteps({
             hotelName: hotelName.trim(),
             roomNumber: roomNumber.trim() || undefined,
             pickupDirectives: pickupDirectives.trim() || undefined,
-            flightNumbers: flightNumbers.trim() || undefined,
-            bedConfiguration: bedConfiguration.trim() || undefined,
             specialRequirements: specialRequirements.trim() || undefined,
             paymentScheme: 'pay_on_arrival',
             currency: 'USD',
@@ -328,6 +324,10 @@ export default function BookingFormSteps({
       }
 
       const data = await res.json();
+      if (data.gatewayIframeUrl) {
+        window.location.href = data.gatewayIframeUrl;
+        return;
+      }
       window.location.href = data.confirmationUrl || `/booking/${encodeURIComponent(data.accessToken)}`;
     } catch {
       setSubmitError('Network error. Please check your connection and try again.');
@@ -531,28 +531,6 @@ export default function BookingFormSteps({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Flight Numbers</label>
-                <input
-                  type="text"
-                  value={flightNumbers}
-                  onChange={(e) => setFlightNumbers(e.target.value)}
-                  placeholder="Optional"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5B00]/50"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Bed Config</label>
-                <input
-                  type="text"
-                  value={bedConfiguration}
-                  onChange={(e) => setBedConfiguration(e.target.value)}
-                  placeholder="Optional"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5B00]/50"
-                />
-              </div>
-            </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Special Requirements</label>
