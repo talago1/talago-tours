@@ -20,3 +20,4 @@ public/uploads/*
 .vercel
 scripts/backups/
 scripts/*.json
+.cursor/
