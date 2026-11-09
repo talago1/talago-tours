@@ -21,3 +21,7 @@ public/uploads/*
 scripts/backups/
 scripts/*.json
 .cursor/
+
+graphify-out/cache/
+
+graphify-out/
