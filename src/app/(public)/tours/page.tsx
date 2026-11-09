@@ -132,6 +132,7 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
         hotelPickupIncluded: true,
         allowPayAtLocation: true,
         freeCancellationHours: true,
+        instantConfirmation: true,
         destination: {
           select: { name: true, slug: true },
         },

@@ -514,7 +514,11 @@ export default function AccountPage() {
   }, [bookings]);
 
   const pastBookings = useMemo(() => {
-    return bookings.filter((b) => new Date(b.travelDate) < now || b.status === 'COMPLETED' || b.status === 'CANCELLED');
+    return bookings.filter((b) => {
+      const d = new Date(b.travelDate);
+      d.setHours(23, 59, 59, 999);
+      return d.getTime() < now.getTime() || b.status === 'COMPLETED' || b.status === 'CANCELLED';
+    });
   }, [bookings]);
 
   const displayedBookings = useMemo(() => {
@@ -844,6 +848,16 @@ export default function AccountPage() {
                               <span>Voucher</span>
                             </a>
                             <a
+                              href={getWhatsAppUrl(`Hello Talago Concierge! I have a question regarding my booking reference: ${booking.bookingReference}.`)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/20 px-3.5 py-2 text-xs font-bold text-emerald-300 transition"
+                              title="Chat with Talago Concierge on WhatsApp"
+                            >
+                              <MessageSquare className="h-3.5 w-3.5 text-emerald-400" />
+                              <span>WhatsApp</span>
+                            </a>
+                            <a
                               href={`/booking/${booking.accessToken}`}
                               className="inline-flex items-center gap-1.5 rounded-xl bg-[#00E5FF] px-4 py-2 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-sm hover:scale-105 transition"
                             >
@@ -1085,6 +1099,17 @@ export default function AccountPage() {
                           >
                             <Ticket className="h-3.5 w-3.5" />
                             <span>Voucher</span>
+                          </a>
+
+                          <a
+                            href={getWhatsAppUrl(`Hello Talago Concierge! I have a question regarding my booking reference: ${booking.bookingReference} (${title}).`)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-3.5 py-2.5 text-xs font-bold text-emerald-300 transition"
+                            title="Chat with Talago Concierge on WhatsApp"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5 text-emerald-400" />
+                            <span>WhatsApp</span>
                           </a>
 
                           <a
