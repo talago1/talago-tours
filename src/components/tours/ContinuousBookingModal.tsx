@@ -1093,6 +1093,20 @@ export default function ContinuousBookingModal({
                   )}
                 </div>
 
+                {/* Trust Reassurance */}
+                {step === 4 && !errors.submit && (
+                  <div className="flex items-center justify-center gap-4 pt-1 text-[11px] text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <ShieldCheck className="h-3 w-3 text-emerald-400" />
+                      Zero booking fees
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-sky-400" />
+                      Instant e-voucher
+                    </span>
+                  </div>
+                )}
+
                 {errors.submit && (
                   <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 shrink-0" />

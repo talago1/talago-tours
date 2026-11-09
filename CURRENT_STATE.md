@@ -9,28 +9,31 @@
 
 ---
 
-## Recent Significant Upgrades (Merged in PR #15)
+## Recent Significant Upgrades (November 9, 2026)
 
-### 1. Booking Ownership & Linkage Resolution
-- **Problem Fixed:** Authenticated customers were unable to see their bookings in `/account` because checkouts were treated as guest orders or delayed token hydration dropped the authorization header.
-- **Implemented Fix:**
-  - Standardized `resolveRequestUser(request)` in [`src/server/customerSession.ts`](file:///d:/talago-tours/src/server/customerSession.ts) where the authoritative httpOnly `talago_session` cookie always wins over stale client bearer tokens.
-  - Automatic adoption engine (`adoptOwnedBookings`) in [`src/server/customerBookings.ts`](file:///d:/talago-tours/src/server/customerBookings.ts) matches past guest bookings by normalized national phone number and email variants and binds them to the customer profile.
-  - Added dedicated endpoint `POST /api/public/my-bookings/link` allowing customers to manually claim guest bookings using `bookingReference` and `phone`.
+### 1. Marketplace Conversion & Trust Signals (Phase 1 Implemented)
+- **Tour Card Trust Badges:** [`src/components/tours/PublicTourCard.tsx`](file:///d:/talago-tours/src/components/tours/PublicTourCard.tsx) now renders prominent contextual trust pills:
+  - 💵 *Pay on Arrival* (when `tour.allowPayAtLocation` is true)
+  - 📍 *Hotel Pickup* (when `tour.hotelPickupIncluded` is true)
+  - ⚡ *Instant Confirmation* & Star Ratings
+- **Catalog Query Enhancement:** [`src/app/(public)/tours/page.tsx`](file:///d:/talago-tours/src/app/(public)/tours/page.tsx) updated Prisma query to retrieve `allowPayAtLocation`, `hotelPickupIncluded`, and `freeCancellationHours`.
+- **Checkout Reassurance Microcopy:** Added security and trust microcopy under final submit buttons in:
+  - [`src/components/tours/BookingFormSteps.tsx`](file:///d:/talago-tours/src/components/tours/BookingFormSteps.tsx) (Zero booking fees, Instant voucher)
+  - [`src/components/tours/ContinuousBookingModal.tsx`](file:///d:/talago-tours/src/components/tours/ContinuousBookingModal.tsx) (Zero booking fees, Instant e-voucher on final step)
 
-### 2. Multi-Interface Checkout Parity
-- All 3 checkout paths now pre-fill user contact info on mount, display a status badge (Logged in / Guest), and forward authoritative auth headers:
-  1. Full page checkout: `/checkout/[tourId]`
-  2. Modal quick checkout: `ContinuousBookingModal.tsx`
-  3. Inline stepped checkout: `BookingFormSteps.tsx`
+### 2. Post-Booking Guest-to-Member Conversion (Phase 2 Implemented)
+- **1-Click Guest Onboarding:** [`src/app/(public)/tours/checkout/success/CheckoutSuccessContent.tsx`](file:///d:/talago-tours/src/app/(public)/tours/checkout/success/CheckoutSuccessContent.tsx) now features an inline account creation form:
+  - Allows guest bookers to set a password immediately after checkout without leaving the confirmation screen.
+  - Automatically triggers Supabase signup and connects the booking to their new account profile.
 
-### 3. Session Persistence & Refresh Token Sync
-- Added dual-token cookie storage: `talago_session` (7 days) and `talago_refresh` (30 days).
-- Supabase client automatically receives `setSession` upon SSR or server cookie authentication to eliminate client-side race conditions.
+### 3. Booking Ownership & Linkage Resolution (PR #15)
+- Standardized `resolveRequestUser(request)` in [`src/server/customerSession.ts`](file:///d:/talago-tours/src/server/customerSession.ts).
+- Automatic adoption engine (`adoptOwnedBookings`) in [`src/server/customerBookings.ts`](file:///d:/talago-tours/src/server/customerBookings.ts) with normalized Egyptian/international phone comparison.
+- Added endpoint `POST /api/public/my-bookings/link`.
 
 ### 4. Knowledge & Tooling Infrastructure
-- **Graphify:** Installed locally via `uv` (`graphifyy 0.9.104`). Persistent graph generated in `graphify-out/` with 2,830 nodes, 5,831 edges, and 194 wiki articles.
-- **REA (Reverse Engineer Anything):** Installed globally and aligned with Antigravity (`6.7.0`, 207 tools, MCP registered).
+- **Graphify:** AST knowledge graph updated to `2,893 nodes, 5,890 edges, 190 communities`.
+- **REA (Reverse Engineer Anything):** Installed globally (`6.7.0`, 207 tools, MCP registered).
 
 ---
 
@@ -45,4 +48,3 @@
 - `/account` — Customer portal (Overview, Bookings, Messages, Wishlist, Profile, Security).
 - `/my-bookings` — Guest booking lookup portal.
 - `/auth` & `/login` — Unified authentication (Google, Telegram, Email).
-
