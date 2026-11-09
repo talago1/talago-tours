@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { supabaseAdmin } from '@/lib/supabase/server';
-import { createClient } from '@supabase/supabase-js';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
-import { sanitizePlain, sanitizePhone, getPhoneSearchVariants } from '@/utils/sanitize';
+import { sanitizePlain, sanitizePhone } from '@/utils/sanitize';
+import { phoneDigits, phonesEquivalent } from '@/utils/phoneMatch';
+import { applySessionCookies, resolveRequestUser } from '@/server/customerSession';
+import { adoptOwnedBookings, resolveCustomerProfileForUser } from '@/server/customerBookings';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,65 +24,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // 1. Resolve authenticated user
-    const authHeader = request.headers.get('authorization');
-    let token =
-      (authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : null) ||
-      request.cookies.get('talago_session')?.value;
-    const refreshToken = request.cookies.get('talago_refresh')?.value;
-
-    if (!token && !refreshToken) {
+    const auth = await resolveRequestUser(request);
+    const user = auth?.user;
+    if (!user?.email) {
       return NextResponse.json({ authenticated: false, error: 'Unauthorized' }, { status: 401, headers: NO_STORE });
     }
 
-    let user: any = null;
-    if (token) {
-      const { data: userData, error: authError } = await supabaseAdmin.auth.getUser(token);
-      if (!authError && userData?.user?.email) {
-        user = userData.user;
-      }
-    }
-
-    if (!user && refreshToken) {
-      try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-        if (supabaseUrl && supabaseAnonKey) {
-          const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
-            auth: { persistSession: false, autoRefreshToken: false },
-          });
-          const { data: refreshData, error: refreshError } = await supabaseAnon.auth.refreshSession({
-            refresh_token: refreshToken,
-          });
-          if (!refreshError && refreshData?.session?.user?.email) {
-            user = refreshData.session.user;
-          }
-        }
-      } catch (e) {
-        console.warn('[my-bookings-link] auto-refresh notice:', e);
-      }
-    }
-
-    if (!user?.email) {
-      return NextResponse.json({ authenticated: false, error: 'Invalid session' }, { status: 401, headers: NO_STORE });
-    }
-
-    // 2. Resolve CustomerProfile
-    const telegramMatch = user.email.match(/^telegram-(\d+)@noreply\.talago\.com$/);
-    const profile = await prisma.customerProfile.findFirst({
-      where: {
-        OR: [
-          { email: user.email },
-          ...(telegramMatch ? [{ telegramId: telegramMatch[1] }] : []),
-        ],
-      },
-    });
-
+    const { profile } = await resolveCustomerProfileForUser(user);
     if (!profile) {
       return NextResponse.json({ error: 'Customer profile not found' }, { status: 404, headers: NO_STORE });
     }
 
-    // 3. Parse and validate input
     const body = await request.json().catch(() => ({}));
     const rawRef = typeof body.bookingReference === 'string' ? body.bookingReference : (body.reference || '');
     const rawPhone = typeof body.phone === 'string' ? body.phone : '';
@@ -96,31 +49,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const providedDigits = cleanPhone.replace(/[^\d]/g, '');
+    const providedDigits = phoneDigits(cleanPhone);
     if (providedDigits.length < 6) {
       return NextResponse.json(
-        { error: 'Please enter a valid phone number with country code.' },
+        { error: 'Please enter a valid phone number.' },
         { status: 400, headers: NO_STORE }
       );
     }
 
-    // 4. Find the booking by reference
     const booking = await prisma.booking.findFirst({
       where: {
         OR: [
           { bookingReference: cleanRef },
           { id: cleanRef },
         ],
-      },
-      include: {
-        tour: {
-          select: {
-            slug: true,
-            coverImage: true,
-            translations: true,
-            durationHours: true,
-          },
-        },
       },
     });
 
@@ -131,9 +73,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check phone match using search variants
-    const storedDigits = (booking.customerPhone || '').replace(/[^\d]/g, '');
+    const storedDigits = phoneDigits(booking.customerPhone);
     const matchesPhone =
+      phonesEquivalent(storedDigits, providedDigits) ||
       storedDigits === providedDigits ||
       storedDigits.endsWith(providedDigits) ||
       providedDigits.endsWith(storedDigits);
@@ -145,14 +87,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. If booking is already linked to another non-shadow profile, check ownership
     if (booking.customerProfileId && booking.customerProfileId !== profile.id) {
       const currentOwner = await prisma.customerProfile.findUnique({
         where: { id: booking.customerProfileId },
         select: { id: true, isShadow: true, email: true },
       });
 
-      if (currentOwner && !currentOwner.isShadow && currentOwner.email !== profile.email) {
+      if (currentOwner && !currentOwner.isShadow && currentOwner.email.toLowerCase() !== profile.email.toLowerCase()) {
         return NextResponse.json(
           { error: 'This booking is already linked to another verified account.' },
           { status: 409, headers: NO_STORE }
@@ -160,7 +101,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 6. Link booking to this profile
     await prisma.booking.update({
       where: { id: booking.id },
       data: {
@@ -168,7 +108,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // If profile phone is not set, set it to the verified booking phone
     if (!profile.phone && cleanPhone) {
       await prisma.customerProfile.update({
         where: { id: profile.id },
@@ -176,7 +115,14 @@ export async function POST(request: NextRequest) {
       }).catch(() => {});
     }
 
-    return NextResponse.json(
+    // Trigger adoption of any other matching bookings/leads for this phone/email
+    await adoptOwnedBookings({
+      profileId: profile.id,
+      emails: [user.email, profile.email, booking.customerEmail],
+      phones: [profile.phone, cleanPhone, booking.customerPhone],
+    }).catch(() => {});
+
+    const response = NextResponse.json(
       {
         success: true,
         message: 'Booking linked successfully to your account.',
@@ -191,6 +137,12 @@ export async function POST(request: NextRequest) {
       },
       { headers: NO_STORE }
     );
+
+    if (auth?.persist && auth.accessToken) {
+      applySessionCookies(response, auth.accessToken, auth.refreshToken);
+    }
+
+    return response;
   } catch (err: any) {
     console.error('[my-bookings-link] Error:', err);
     return NextResponse.json(
@@ -199,4 +151,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
