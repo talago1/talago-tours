@@ -13,6 +13,7 @@ import {
   Ticket,
   Flame,
   CheckCircle2,
+  Wallet,
   Heart,
 } from 'lucide-react';
 import CarouselImages from '@/components/ui/CarouselImages';
@@ -46,6 +47,8 @@ export interface PublicTourCardData {
   isNew?: boolean | null;
   customBadge?: string | null;
   hotelPickupIncluded?: boolean | null;
+  allowPayAtLocation?: boolean | null;
+  freeCancellationHours?: number | null;
   destination: { name: string; slug: string } | null;
 }
 
@@ -264,6 +267,23 @@ export default function PublicTourCard({ tour, priority = false }: { tour: Publi
               {title}
             </h3>
 
+            {/* Trust Pill Strip */}
+            {(tour.allowPayAtLocation || tour.hotelPickupIncluded) && (
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {tour.allowPayAtLocation && (
+                  <span className="flex items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                    <Wallet className="h-2.5 w-2.5" />
+                    Pay on Arrival
+                  </span>
+                )}
+                {tour.hotelPickupIncluded && (
+                  <span className="flex items-center gap-1 rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-400">
+                    <MapPin className="h-2.5 w-2.5" />
+                    Hotel Pickup
+                  </span>
+                )}
+              </div>
+            )}
             {/* Description excerpt */}
             {description && (
               <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-400">

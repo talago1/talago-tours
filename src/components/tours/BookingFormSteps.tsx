@@ -11,7 +11,7 @@ import {
   validateGuestTiers,
 } from '@/utils/bookingValidation';
 import { calculateTieredPrice } from '@/utils/priceCalculator';
-import { Users, Baby, UserRound } from 'lucide-react';
+import { Users, Baby, UserRound, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { useCurrency } from '@/context/CurrencyContext';
 import { supabaseClient } from '@/lib/supabase/client';
 
@@ -676,6 +676,18 @@ export default function BookingFormSteps({
                   'Confirm Booking'
                 )}
               </button>
+            </div>
+
+            {/* Trust Reassurance */}
+            <div className="flex items-center justify-center gap-5 pt-1 text-[11px] text-gray-400">
+              <span className="flex items-center gap-1">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                Zero booking fees
+              </span>
+              <span className="flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-sky-500" />
+                Instant voucher
+              </span>
             </div>
           </div>
         )}

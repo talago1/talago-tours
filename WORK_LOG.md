@@ -22,33 +22,30 @@
 4. **Installed & Configured Graphify:**
    - Installed locally via `uv tool install graphifyy`.
    - Executed `graphify antigravity install`.
-   - Generated full AST code knowledge graph (`2830 nodes`, `5831 edges`, `184 communities`).
+   - Generated and updated AST code knowledge graph (`2893 nodes`, `5890 edges`, `190 communities`).
    - Exported agent-crawlable wiki in `graphify-out/wiki/index.md` (194 articles).
 
 5. **Created Permanent Talago Memory Documents:**
-   - `PROJECT_MAP.md`
-   - `CURRENT_STATE.md`
-   - `BOOKING_FLOW.md`
-   - `AUTH_FLOW.md`
-   - `DECISIONS.md`
-   - `KNOWN_ISSUES.md`
-   - `WORK_LOG.md`
+   - `PROJECT_MAP.md`, `CURRENT_STATE.md`, `BOOKING_FLOW.md`, `AUTH_FLOW.md`, `DECISIONS.md`, `KNOWN_ISSUES.md`, `WORK_LOG.md`, `MARKETPLACE_RESEARCH.md`.
+
+6. **Implemented Phase 1 & Phase 2 Marketplace Upgrades (Sputnik8 & OTA Benchmark):**
+   - **Tour Card Trust Badges:** `PublicTourCard.tsx` now shows dynamic pills ("Pay on Arrival", "Hotel Pickup", "Instant Confirmation") based on tour flags.
+   - **Catalog Query Enhancement:** `tours/page.tsx` now fetches `allowPayAtLocation`, `hotelPickupIncluded`, `freeCancellationHours`.
+   - **Checkout Reassurance Microcopy:** Added security microcopy ("Zero booking fees", "Instant voucher") in `BookingFormSteps.tsx` and `ContinuousBookingModal.tsx`.
+   - **1-Click Guest Onboarding:** Added inline account creation form on `/tours/checkout/success` so guests can instantly set a password and permanently link their booking.
+   - **Build Validation:** Verified with `npx tsc --noEmit` (0 errors) and full Next.js `npm run build` (84/84 pages compiled green).
 
 ---
 
 ## Current Stopping Point
-- Local and remote `main` are synchronized, clean, and in production.
-- REA and Graphify are ready for research tasks.
-- Knowledge base is established.
+- Local workspace is verified and fully functional.
+- Changes are ready to be committed to git.
 
 ---
 
 ## Exact Next Steps (Immediate Priorities)
-1. **Reverse Engineer Sputnik8 (`https://www.sputnik8.com/en`) via REA & browser inspection:**
-   - Analyze catalog filters, tour card hierarchy, pricing presentation, and instant availability picker.
-   - Analyze mobile booking drawer and guest-to-member conversion.
-2. **Benchmark Secondary Platforms (Tripster, Viator, Booking.com):**
-   - Extract actionable patterns for social proof, instant booking reassurance, and voucher clarity.
-3. **Draft Structured Marketplace Enhancement Roadmap for Talago:**
-   - Prioritize high-impact, low-overhead UI/UX refinements.
-
+1. **Commit and push Phase 1 & 2 improvements to git.**
+2. **Phase 2 Post-Booking Actions:**
+   - Enhance `/account?tab=bookings` and `/tours/voucher/[token]` with 1-click WhatsApp concierge share & direct PDF download action strip.
+3. **Adaptive Paymob Redirect for Mobile Devices:**
+   - On smaller mobile viewports, optionally provide a full-screen redirect instead of the embedded iframe for smoother credit card payment UX.

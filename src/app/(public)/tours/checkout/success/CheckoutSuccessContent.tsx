@@ -3,13 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabaseClient } from '@/lib/supabase/client';
+import { UserPlus, Mail, Loader2, CheckCircle2, ChevronRight } from 'lucide-react';
 
 export default function CheckoutSuccessContent({ token }: { token: string }) {
   const { dict } = useLanguage();
-  // The reference is display-only and no longer travels in the URL, so it is
-  // read back through the token-authenticated endpoint.
   const [bookingReference, setBookingReference] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Guest onboarding state
+  const [onboardEmail, setOnboardEmail] = useState('');
+  const [onboardPassword, setOnboardPassword] = useState('');
+  const [onboardStatus, setOnboardStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [onboardError, setOnboardError] = useState('');
 
   useEffect(() => {
     fetch('/api/auth/session')
@@ -39,6 +44,30 @@ export default function CheckoutSuccessContent({ token }: { token: string }) {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [token]);
+
+  const handleGuestSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onboardEmail || !onboardPassword) return;
+    setOnboardStatus('loading');
+    setOnboardError('');
+    try {
+      const { error } = await supabaseClient.auth.signUp({
+        email: onboardEmail,
+        password: onboardPassword,
+        options: { emailRedirectTo: `${window.location.origin}/account?tab=bookings` },
+      });
+      if (error) {
+        setOnboardError(error.message);
+        setOnboardStatus('error');
+      } else {
+        setOnboardStatus('success');
+        setIsAuthenticated(true);
+      }
+    } catch {
+      setOnboardError('Something went wrong. Please try again.');
+      setOnboardStatus('error');
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[#070F1E] flex items-center justify-center px-4 py-12">
@@ -84,15 +113,66 @@ export default function CheckoutSuccessContent({ token }: { token: string }) {
           </a>
         </div>
 
+        {/* Guest Onboarding — save trip to account */}
         {!isAuthenticated && (
-          <div className="mt-4 pt-4 border-t border-white/5 text-xs text-slate-400">
-            <span>Want to track all your trips in one place? </span>
-            <a
-              href="/login?returnTo=/account"
-              className="text-[#00E5FF] hover:underline font-medium"
-            >
-              Sign in or create an account
-            </a>
+          <div className="mt-6 pt-6 border-t border-white/5">
+            {onboardStatus === 'success' ? (
+              <div className="flex flex-col items-center gap-2 text-sm text-emerald-300">
+                <CheckCircle2 className="h-6 w-6" />
+                <p className="font-semibold">Account created! Check your email to confirm.</p>
+                <p className="text-xs text-slate-400">Your booking is now saved to your account.</p>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-[#00E5FF]/15 bg-[#00E5FF]/5 p-5 text-left">
+                <div className="flex items-center gap-2 mb-3">
+                  <UserPlus className="h-4 w-4 text-[#00E5FF] shrink-0" />
+                  <p className="text-sm font-bold text-white">Save this trip to your account</p>
+                </div>
+                <p className="text-xs text-slate-400 mb-4">
+                  Create a free account to access boarding pass, receive trip reminders, and manage future bookings in one place.
+                </p>
+                <form onSubmit={handleGuestSignup} className="space-y-2">
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                    <input
+                      type="email"
+                      placeholder="Your email"
+                      value={onboardEmail}
+                      onChange={(e) => setOnboardEmail(e.target.value)}
+                      required
+                      className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#00E5FF]/40 focus:outline-none focus:ring-1 focus:ring-[#00E5FF]/30"
+                    />
+                  </div>
+                  <input
+                    type="password"
+                    placeholder="Choose a password (min 8 chars)"
+                    value={onboardPassword}
+                    onChange={(e) => setOnboardPassword(e.target.value)}
+                    minLength={8}
+                    required
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#00E5FF]/40 focus:outline-none focus:ring-1 focus:ring-[#00E5FF]/30"
+                  />
+                  {onboardError && (
+                    <p className="text-xs text-rose-400">{onboardError}</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={onboardStatus === 'loading'}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-md shadow-[#00E5FF]/20 transition hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
+                  >
+                    {onboardStatus === 'loading' ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /><span>Creating account...</span></>
+                    ) : (
+                      <><span>Create Account & Save Trip</span><ChevronRight className="h-3.5 w-3.5" /></>
+                    )}
+                  </button>
+                </form>
+                <p className="mt-2 text-center text-[11px] text-slate-500">
+                  Already have an account?{' '}
+                  <a href="/login?returnTo=/account" className="text-[#00E5FF] hover:underline">Sign in</a>
+                </p>
+              </div>
+            )}
           </div>
         )}
 
