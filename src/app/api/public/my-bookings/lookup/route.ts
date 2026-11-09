@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 import { sanitizePlain, sanitizePhone } from '@/utils/sanitize';
+import { phoneDigits, phonesEquivalent } from '@/utils/phoneMatch';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     const cleanRef = reference.toUpperCase();
-    const providedDigits = phone.replace(/[^\d]/g, '');
+    const providedDigits = phoneDigits(phone);
 
     if (providedDigits.length < 6) {
       return NextResponse.json(
@@ -44,12 +45,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Helper: checks if two phone strings share significant digits
+    // Helper: checks if two phone strings match using normalized comparison
     const matchesPhone = (storedPhone: string | null | undefined): boolean => {
       if (!storedPhone) return false;
-      const storedDigits = storedPhone.replace(/[^\d]/g, '');
+      const storedDigits = phoneDigits(storedPhone);
       if (storedDigits.length < 6) return false;
       return (
+        phonesEquivalent(storedPhone, phone) ||
         storedDigits === providedDigits ||
         storedDigits.endsWith(providedDigits) ||
         providedDigits.endsWith(storedDigits)
