@@ -19,37 +19,37 @@
    - In `src/app/(public)/tours/voucher/VoucherContent.tsx`, implemented responsive WhatsApp Concierge button (with pre-filled booking reference and tour title) and print-optimized PDF voucher download button.
    - In `src/app/(public)/account/page.tsx`, integrated direct WhatsApp Concierge action buttons on booking cards across both the Overview and My Bookings tabs.
 
-4. **Hardened Guest-to-Member Post-Booking Conversion:**
+4. **Hardened Guest-to-Member Post-Booking Conversion & Claim Flow:**
    - In `src/app/(public)/tours/checkout/success/CheckoutSuccessContent.tsx`, removed premature account-linking notices when email confirmation is pending.
-   - Added authoritative cookie synchronization and direct calls to `/api/public/my-bookings/link`.
+   - In `src/app/(public)/account/page.tsx`, enhanced "+ Link Guest Booking" modal to automatically pre-fill `linkPhone` with the customer's known profile phone number.
 
-5. **Trust Badges & Catalog Query Parity:**
+5. **Tour Scope Discipline & Payment Gateway Alignment:**
+   - Cleaned out confusing and out-of-scope "Flight Numbers" and "Bed Config" input fields from `src/components/tours/BookingFormSteps.tsx` and unused state in `src/components/tours/ContinuousBookingModal.tsx`.
+   - Standardized payment gateway URL handling to ensure seamless full-window redirection when online payment is chosen across all checkout flows.
+
+6. **Trust Badges & Catalog Query Parity:**
    - Updated `src/app/(public)/tours/page.tsx` Prisma query to retrieve `allowPayAtLocation`, `hotelPickupIncluded`, `freeCancellationHours`, and `instantConfirmation`.
    - Updated `src/components/tours/PublicTourCard.tsx` with dynamic badge rendering matching real tour data.
 
-6. **Removed Irrelevant Flight/Accommodation Fields (Tours Scope Discipline):**
-   - Cleaned out confusing and out-of-scope "Flight Numbers" and "Bed Config" input fields from `src/components/tours/BookingFormSteps.tsx` and unused state in `src/components/tours/ContinuousBookingModal.tsx`.
-   - Standardized payment gateway URL handling to ensure seamless full-window redirection when online payment is chosen.
-
 7. **Sputnik8 Reverse Engineering & Persistent Documentation:**
    - Authored `SPUTNIK8_REFERENCE.md` detailing the 4-step booking funnel, phone-first registration, guest auto-account creation, payment options clarity, and mobile drawer UX.
-   - Updated permanent documents: `CURRENT_STATE.md`, `WORK_LOG.md`.
+   - Updated permanent documents: `CURRENT_STATE.md`, `WORK_LOG.md`, `KNOWN_ISSUES.md`.
    - Rebuilt Graphify knowledge graph (`2,904 nodes`, `5,906 edges`, `199 communities`).
 
 8. **Build & Quality Validation:**
    - Verified TypeScript strict compliance: `npx tsc --noEmit` → **0 errors**.
    - Verified Next.js production build: `npm run build` → **84/84 pages green**.
-   - Merged PR #17 (`d1a2e21`) into `main`.
+   - Merged PR #17 (`d1a2e21`) and PR #18 (`6d538cb`) into `main`.
 
 ---
 
 ## Current Stopping Point
 - `main` branch is clean, up to date with `origin/main`, and all recent enhancements are verified.
-- Additional scope cleanups (`flightNumbers`/`bedConfiguration` removal, payment gateway redirect alignment) ready for next commit.
+- Additional refinement (Link modal pre-fill and KNOWN_ISSUES resolution) ready for commit.
 
 ---
 
 ## Exact Next Steps
-1. Create feature branch and commit the checkout scope cleanup and gateway redirect alignment.
+1. Create feature branch and commit the Link Modal phone pre-fill and documentation update.
 2. Open and merge PR to `main`.
-3. Perform end-to-end smoke verification on production deployment.
+3. Monitor Vercel production deployment.
