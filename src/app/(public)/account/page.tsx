@@ -458,6 +458,15 @@ export default function AccountPage() {
     }
   };
 
+  const openLinkModal = () => {
+    if (userProfile?.phone && !linkPhone) {
+      setLinkPhone(userProfile.phone);
+    }
+    setLinkError(null);
+    setLinkSuccess(null);
+    setShowLinkModal(true);
+  };
+
   // Link guest booking to account
   const handleLinkBooking = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -889,7 +898,7 @@ export default function AccountPage() {
                     </Link>
                     <button
                       type="button"
-                      onClick={() => setShowLinkModal(true)}
+                      onClick={() => openLinkModal()}
                       className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-slate-200 hover:bg-white/10 transition"
                     >
                       <Plus className="h-3.5 w-3.5 text-[#00E5FF]" />
@@ -967,7 +976,7 @@ export default function AccountPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => setShowLinkModal(true)}
+                  onClick={() => openLinkModal()}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-[#00E5FF]/30 bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 px-3.5 py-1.5 text-xs font-bold text-[#00E5FF] transition"
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -1204,7 +1213,7 @@ export default function AccountPage() {
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowLinkModal(true)}
+                    onClick={() => openLinkModal()}
                     className="inline-flex items-center gap-2 rounded-xl bg-[#00E5FF] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-md shadow-[#00E5FF]/20 hover:scale-105 transition"
                   >
                     <Plus className="h-3.5 w-3.5" />
