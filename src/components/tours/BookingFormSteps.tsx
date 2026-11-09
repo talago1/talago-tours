@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ZoneOption, CheckoutResponse, CheckoutError } from '@/types/booking';
 import {
   validateTravelDate,
@@ -158,6 +158,47 @@ export default function BookingFormSteps({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+
+  // Auto-populate authenticated customer contact info immediately on mount
+  useEffect(() => {
+    fetch('/api/auth/session')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((authData) => {
+        if (authData?.authenticated && authData.user) {
+          setCurrentUser(authData.user);
+          if (authData.accessToken) {
+            setSessionToken(authData.accessToken);
+            if (authData.refreshToken) {
+              supabaseClient.auth.setSession({
+                access_token: authData.accessToken,
+                refresh_token: authData.refreshToken,
+              }).catch(() => {});
+            }
+          }
+          const u = authData.user;
+          setCustomerName((prev) => {
+            if (prev && prev.trim() !== '') return prev;
+            const n = u.name;
+            if (n && n !== 'User' && !n.startsWith('Traveler #')) return n;
+            if (u.telegramUsername) return `@${u.telegramUsername}`;
+            return prev;
+          });
+          setCustomerPhone((prev) => {
+            if (prev && prev.trim() !== '') return prev;
+            if (u.phone && u.phone.trim() !== '') return u.phone;
+            return prev;
+          });
+          setCustomerEmail((prev) => {
+            if (prev && prev.trim() !== '') return prev;
+            if (u.email && !u.email.endsWith('@noreply.talago.com')) return u.email;
+            return prev;
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const selectedZone = zones.find((z) => z.id === zoneId);
 
@@ -230,11 +271,13 @@ export default function BookingFormSteps({
     setSubmitError(null);
 
     try {
-      let authToken: string | null = null;
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        authToken = session?.access_token || null;
-      } catch {}
+      let authToken: string | null = sessionToken;
+      if (!authToken) {
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          authToken = session?.access_token || null;
+        } catch {}
+      }
 
       const initHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -521,6 +564,28 @@ export default function BookingFormSteps({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5B00]/50 resize-none"
               />
             </div>
+
+            {/* Account Status Badge */}
+            {currentUser ? (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs text-emerald-800 flex items-center justify-between">
+                <span className="font-semibold">
+                  ✓ Logged in as <span className="underline">{currentUser.name || currentUser.email}</span>
+                </span>
+                <span className="text-[10px] text-emerald-700 bg-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+                  Auto-linked
+                </span>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-xs text-gray-600 flex items-center justify-between">
+                <span>Booking as a guest</span>
+                <a
+                  href={`/login?returnTo=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '/tours')}`}
+                  className="text-[#FF5B00] font-bold hover:underline"
+                >
+                  Log in to save
+                </a>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Full Name</label>
