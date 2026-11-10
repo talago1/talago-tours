@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
             coverImage: true,
             translations: true,
             durationHours: true,
+            freeCancellationHours: true,
           },
         },
         transaction: {
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest) {
             amountDueOnArrival: booking.amountDueOnArrival,
             amountPaidOnline: booking.amountPaidOnline,
             createdAt: booking.createdAt,
+            bookingAnswers: booking.bookingAnswers,
             tour: booking.tour,
             transaction: booking.transaction,
           },
