@@ -32,6 +32,7 @@ import {
   HelpCircle,
   Send,
   Inbox,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface AvailableTour {
@@ -465,6 +466,14 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
   const [selectedMonth, setSelectedMonth] = useState('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [filterCancellationsOnly, setFilterCancellationsOnly] = useState(false);
+
+  const pendingCancellationBookings = useMemo(() => {
+    return bookings.filter(
+      (b) => b.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW'
+    );
+  }, [bookings]);
+  const pendingCancellationCount = pendingCancellationBookings.length;
 
   // Multi-Selection State
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -545,7 +554,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
 
       return true;
     });
-  }, [bookings, searchQuery, selectedTourId, selectedCategory, selectedStatus, selectedMonth, startDate, endDate]);
+  }, [bookings, searchQuery, selectedTourId, selectedCategory, selectedStatus, selectedMonth, startDate, endDate, filterCancellationsOnly]);
 
   // Quick statistics for filtered set
   const stats = useMemo(() => {
@@ -585,6 +594,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
     setStartDate('');
     setEndDate('');
     setSelectedIds(new Set());
+    setFilterCancellationsOnly(false);
   };
 
   // Status and Single Row Handlers
@@ -757,6 +767,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
   }, [selectedIds, filteredBookings]);
 
   const hasActiveFilters =
+    filterCancellationsOnly ||
     searchQuery.trim() !== '' ||
     selectedTourId !== 'ALL' ||
     selectedCategory !== 'ALL' ||
@@ -767,6 +778,47 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
 
   return (
     <div className="space-y-6">
+
+      {/* Pending Cancellations Banner */}
+      {pendingCancellationCount > 0 && (
+        <div className="relative overflow-hidden rounded-2xl border-2 border-rose-500/60 bg-gradient-to-r from-rose-950/90 via-red-950/70 to-[#0B1528] p-4 sm:p-5 shadow-2xl shadow-rose-950/50 animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/40">
+                <AlertTriangle className="h-6 w-6 animate-pulse text-rose-400" />
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[10px] font-black text-white ring-2 ring-[#070F1E]">
+                  {pendingCancellationCount}
+                </span>
+              </span>
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                  <span>{pendingCancellationCount} Booking Cancellation Request{pendingCancellationCount > 1 ? 's' : ''} Awaiting Review</span>
+                  <span className="rounded-full bg-rose-500/30 border border-rose-500/50 px-2 py-0.5 text-[10px] font-bold text-rose-200 uppercase tracking-wider">
+                    Action Required
+                  </span>
+                </h3>
+                <p className="text-xs text-rose-200/90 mt-0.5">
+                  Customers requested cancellation. Click the button to inspect and approve or decline immediately.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setFilterCancellationsOnly((prev) => !prev)}
+                className={`rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider transition shadow-lg ${
+                  filterCancellationsOnly
+                    ? 'bg-white text-rose-950 hover:bg-slate-200 ring-2 ring-white/50'
+                    : 'bg-rose-600 text-white hover:bg-rose-500 shadow-rose-600/30'
+                }`}
+              >
+                {filterCancellationsOnly ? 'Show All Bookings' : `Show Requests (${pendingCancellationCount})`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 1. Statistics Cards Bar */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -875,6 +927,11 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
               className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2.5 text-xs text-white outline-none focus:border-[#00E5FF] transition-colors"
             >
               <option value="ALL">All Statuses</option>
+              {pendingCancellationCount > 0 && (
+                <option value="CANCELLATION_REQUESTED" className="text-rose-400 font-bold bg-[#070F1E]">
+                  ⚠️ Cancellation Requests ({pendingCancellationCount})
+                </option>
+              )}
               <option value="CONFIRMED">Confirmed</option>
               <option value="PENDING">Pending</option>
               <option value="COMPLETED">Completed</option>
@@ -1041,11 +1098,17 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
             <tbody className="divide-y divide-white/10">
               {filteredBookings.map((b) => {
                 const isSelected = selectedIds.has(b.id);
+                const isCancelPending = b.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW';
+                const cancelReq = b.bookingAnswers?._cancellationRequest;
                 return (
                   <React.Fragment key={b.id}>
                     <tr
                       className={`cursor-pointer transition-colors ${
-                        isSelected ? 'bg-[#00E5FF]/5' : 'hover:bg-white/[0.02]'
+                        isCancelPending
+                          ? 'bg-rose-950/40 hover:bg-rose-900/50 border-l-4 border-l-rose-500 ring-1 ring-rose-500/30'
+                          : isSelected
+                            ? 'bg-[#00E5FF]/5'
+                            : 'hover:bg-white/[0.02]'
                       }`}
                       onClick={() => toggleExpand(b.id)}
                     >
@@ -1123,29 +1186,62 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
 
                       {/* Status Badge */}
                       <td className="px-4 py-3 text-xs">
-                        <span
-                          className={`inline-block rounded-lg px-2.5 py-1 font-bold uppercase tracking-wider text-[10px] ${
-                            b.status === 'CONFIRMED'
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                              : b.status === 'COMPLETED'
-                                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                                : b.status === 'CANCELLED'
-                                  ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          }`}
-                        >
-                          {b.status}
-                        </span>
+                        {isCancelPending ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="inline-block rounded-lg px-2.5 py-1 font-black uppercase tracking-wider text-[10px] bg-rose-600 text-white border border-rose-500 shadow-sm animate-pulse">
+                              Cancel Review
+                            </span>
+                            <span className="text-[9px] text-rose-300 font-bold uppercase tracking-wider">
+                              {cancelReq?.isWithinPolicy ? '✓ In Policy' : '⚠️ Late Cutoff'}
+                            </span>
+                          </div>
+                        ) : (
+                          <span
+                            className={`inline-block rounded-lg px-2.5 py-1 font-bold uppercase tracking-wider text-[10px] ${
+                              b.status === 'CONFIRMED'
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                : b.status === 'COMPLETED'
+                                  ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                  : b.status === 'CANCELLED'
+                                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                    : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            }`}
+                          >
+                            {b.status}
+                          </span>
+                        )}
                       </td>
 
                       {/* Actions */}
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
+                          {isCancelPending && (
+                            <div className="flex items-center gap-1.5 mr-1">
+                              <button
+                                type="button"
+                                onClick={() => handleReviewCancellation(b.id, 'APPROVE')}
+                                className="rounded-lg bg-red-600 hover:bg-red-500 text-white px-2.5 py-1 text-[11px] font-bold shadow-sm transition"
+                                title="Approve Cancellation"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleReviewCancellation(b.id, 'DECLINE')}
+                                className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 px-2 py-1 text-[11px] font-semibold transition"
+                                title="Decline Cancellation"
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          )}
                         <BookingRowActions
                           ticket={b}
                           onStatusChange={handleStatusChange}
                           onUpdateBooking={handleUpdateBooking}
                           onDeleteBooking={handleDeleteBooking}
                         />
+                        </div>
                       </td>
                     </tr>
 
@@ -1169,15 +1265,55 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
       <div className="space-y-4 lg:hidden">
         {filteredBookings.map((b) => {
           const isSelected = selectedIds.has(b.id);
+          const isCancelPending = b.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW';
+          const cancelReq = b.bookingAnswers?._cancellationRequest;
           return (
             <div
               key={b.id}
               className={`space-y-3 rounded-2xl border p-4 transition-colors ${
-                isSelected
-                  ? 'border-[#00E5FF] bg-[#00E5FF]/5'
-                  : 'border-white/10 bg-[#0B1528]'
+                isCancelPending
+                  ? 'border-2 border-rose-500/80 bg-gradient-to-b from-rose-950/50 to-[#0B1528] shadow-lg shadow-rose-950/40 ring-1 ring-rose-500/30'
+                  : isSelected
+                    ? 'border-[#00E5FF] bg-[#00E5FF]/5'
+                    : 'border-white/10 bg-[#0B1528]'
               }`}
             >
+              {/* Outside Prominent Cancellation Alert (Mobile) */}
+              {isCancelPending && (
+                <div className="rounded-xl border border-rose-500/40 bg-rose-500/20 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-rose-300">
+                      <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0 animate-pulse" />
+                      <span>Cancellation Requested</span>
+                    </div>
+                    <span className="rounded-full bg-rose-950/80 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-200">
+                      ~{cancelReq?.hoursRemaining ?? '?'}h left
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-300">
+                    <strong className="text-white">Reason:</strong> {cancelReq?.reason || 'No reason provided'}
+                    {cancelReq?.notes && <span> ({cancelReq.notes})</span>}
+                  </p>
+
+                  <div className="flex items-center gap-2 pt-1 border-t border-rose-500/20">
+                    <button
+                      type="button"
+                      onClick={() => handleReviewCancellation(b.id, 'APPROVE')}
+                      className="flex-1 rounded-lg bg-red-600 hover:bg-red-500 text-white py-1.5 text-xs font-bold transition shadow-sm text-center"
+                    >
+                      Approve (Cancel)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReviewCancellation(b.id, 'DECLINE')}
+                      className="flex-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 py-1.5 text-xs font-semibold transition text-center"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              )}
               {/* Header: Select, Reference, Status Badge & Actions */}
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
@@ -1190,19 +1326,25 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                     {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
                   </button>
                   <span className="font-mono text-sm font-bold text-[#00E5FF]">{b.bookingReference}</span>
-                  <span
-                    className={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                      b.status === 'CONFIRMED'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : b.status === 'COMPLETED'
-                        ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                        : b.status === 'CANCELLED'
-                        ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                        : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                    }`}
-                  >
-                    {b.status}
-                  </span>
+                  {isCancelPending ? (
+                    <span className="inline-block rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-rose-600 text-white animate-pulse">
+                      Cancel Req
+                    </span>
+                  ) : (
+                    <span
+                      className={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                        b.status === 'CONFIRMED'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          : b.status === 'COMPLETED'
+                          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                          : b.status === 'CANCELLED'
+                          ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                      }`}
+                    >
+                      {b.status}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">

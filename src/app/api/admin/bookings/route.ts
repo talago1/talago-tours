@@ -37,6 +37,7 @@ export async function GET() {
         specialRequirements: b.specialRequirements,
         status: b.status as BookingStatus,
         language: b.language,
+        bookingAnswers: b.bookingAnswers,
       };
     });
 
