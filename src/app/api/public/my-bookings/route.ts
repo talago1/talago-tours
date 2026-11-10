@@ -6,6 +6,7 @@ import {
   listVisibleBookingIds,
   listVisibleLeadIds,
   resolveCustomerProfileForUser,
+  formatUserProfile,
 } from '@/server/customerBookings';
 
 export const dynamic = 'force-dynamic';
@@ -163,18 +164,12 @@ export async function GET(request: NextRequest) {
       hasUnreadAdminReply: false,
     }));
 
+    const userPayload = formatUserProfile(user, profile, telegramMatch);
+
     const response = NextResponse.json(
       {
         authenticated: true,
-        user: {
-          id: user.id,
-          email: profile.email || user.email,
-          name: displayName,
-          phone: profile.phone || profile.telegramPhone || null,
-          isTelegram,
-          telegramUsername: profile.telegramUsername || null,
-          telegramPhotoUrl: profile.telegramPhotoUrl || null,
-        },
+        user: userPayload,
         bookings,
         reservations: formattedReservations,
       },

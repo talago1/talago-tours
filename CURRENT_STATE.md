@@ -4,28 +4,34 @@
 - **Next.js:** 14.2.35
 - **TypeScript:** Strict Mode (`tsconfig.json: strict: true`), 0 type errors (`npx tsc --noEmit` green)
 - **Production Build:** `84/84 pages` compiled successfully with 0 errors
-- **Lint:** `npm run lint` green (0 errors)
+- **Lint:** `npm run lint` green (0 errors, only pre-existing next/image warnings)
 - **Deployment Platform:** Vercel Production (`https://talago-tours.vercel.app`)
-- **Active Git Branch:** `feat/sputnik8-strict-customer-rebuild` (branching from `main`)
+- **Active Git Branch:** `feat/clean-rebuild-account-auth` (branching from `main`)
 
 ---
 
-## Recent Significant Upgrades (November 10, 2026 — Sputnik8 Strict Rebuild)
+## Architectural Upgrades: Clean Rebuild of Customer Account & Auth (Nov 10, 2026)
 
-### 1. Unified Telegram Identity & Booking Adoption
-- **Identity Merging:** In [`src/app/api/auth/telegram/oidc-callback/route.ts`](file:///d:/talago-tours/src/app/api/auth/telegram/oidc-callback/route.ts), profile resolution first matches `telegramId`, then attempts matching by verified `phone`. If a profile with the same phone already exists (e.g. from a guest booking), the Telegram identity merges into it instead of creating a conflicting duplicate profile.
-- **Immediate Booking Adoption:** The callback immediately executes `adoptOwnedBookings` with synthetic email and verified phone variants, linking all historical guest bookings directly into the account.
-- **Widget & Callback Parity:** Both [`src/app/api/auth/telegram/verify/route.ts`](file:///d:/talago-tours/src/app/api/auth/telegram/verify/route.ts) and [`src/app/api/auth/telegram/callback/route.ts`](file:///d:/talago-tours/src/app/api/auth/telegram/callback/route.ts) also call `adoptOwnedBookings`.
+### 1. Root-Cause Fix: Account Loading Infinite Spinner
+- **The Issue:** `/account` suffered an infinite "Loading account..." state due to a recursive 3-path client loader interacting with a `loadingRef` guard. When inner recursive calls finished, the outer lock release prevented `setLoading(false)` from ever executing if errors or null states occurred.
+- **The Fix:** Replaced the fragile multi-path loader with a single authoritative pipeline:
+  1. Primary: Direct fetch to `/api/public/my-bookings` (with client Bearer token header if available).
+  2. Fallback/Sync: If unauthenticated (cookie missing/fresh OAuth), single POST to `/api/auth/session` to synchronize server cookies, followed immediately by `/api/public/my-bookings`.
+  3. Clean termination: `finally { setLoading(false) }` guaranteed to execute in every execution branch.
 
-### 2. Profile Sync & Cross-Identity Auto-Healing
-- **Full-Profile Adoption in Session Handler:** In [`src/app/api/auth/session/route.ts`](file:///d:/talago-tours/src/app/api/auth/session/route.ts), both POST and PATCH handlers call `adoptOwnedBookings` for all known emails and phones.
-- **Missing Phone Prompt:** In [`src/app/(public)/account/page.tsx`](file:///d:/talago-tours/src/app/(public)/account/page.tsx), when a user logged in without a phone (e.g. Telegram scope without phone permission), a prominent "Add phone number to link your bookings" button opens the profile edit drawer to save the phone and trigger immediate adoption.
+### 2. PostgreSQL Cast Bug in Phone Lookup (Resolved)
+- **The Issue:** `findIdsByNationalPhone` in `src/server/customerBookings.ts` passed raw JS integer literals into Prisma SQL queries calling PostgreSQL's `right(text, integer)` function. PostgreSQL interpreted the parameter as `bigint`, throwing `function right(text, bigint) does not exist`. This caused all phone-based booking queries to silently crash and fall back to empty booking lists.
+- **The Fix:** Explicit `::int` casts added across all 3 raw SQL queries (`right(b."customerPhone", ${len}::int)`, etc.). Direct and national-variant phone matching now operates with 100% database accuracy.
 
-### 3. Sputnik8-Model Booking-Centered Messaging Architecture
-- **Elimination of "General Concierge" Mixed Chat:** Removed the generic concierge channel button from `/account`. Conversations are strictly scoped per confirmed booking (`bookingReference`) or tour inquiry lead (`lead:${leadId}`).
-- **Zero On-Mount Generic Polling:** Removed aggressive background calls to `fetchChatMessages()` on initial page load, preventing anonymous session cookie creation and conversation contamination.
-- **Inquiry-to-Booking Progression:** In `/account` Bookings tab, reservation and inquiry cards now feature a direct "Book Tour" CTA linking directly to `/tours/[slug]` with date pre-filled alongside the dedicated inquiry chat button.
-- **Server-Authoritative Inquiry Pre-fill:** In [`src/components/modals/AskQuestionModal.tsx`](file:///d:/talago-tours/src/components/modals/AskQuestionModal.tsx), user credentials (name, email, phone) are fetched authoritatively from `/api/auth/session` with client Supabase session fallback.
+### 3. Server Route Simplification & Consolidation
+- **`src/app/api/auth/session/route.ts` Complete Refactor:**
+  - Removed duplicate `resolveUserProfile` implementations.
+  - Standardized on shared `resolveCustomerProfileForUser` and newly introduced `formatUserProfile` helper from `src/server/customerBookings.ts`.
+  - Removed leaking access/refresh tokens from POST response bodies.
+  - Normalized GET, POST, PATCH, and DELETE responses to uniform JSON contracts.
+- **`src/app/api/public/my-bookings/route.ts`:**
+  - Adopted the centralized `formatUserProfile` helper for consistent user payload serialization.
 
-### 4. Auth Navigation & Loop Elimination
-- **Session Check Hygiene:** [`src/app/(public)/auth/page.tsx`](file:///d:/talago-tours/src/app/(public)/auth/page.tsx) uses `window.location.replace` instead of `window.location.href`, preventing back-button traps and eliminating dead `supabaseClient.auth.setSession` attempts on GET responses.
+### 4. Auth Callback & Bridge Optimization
+- **Telegram OIDC Callback:** Removed redundant client-side `fetch('/api/auth/session')` POST roundtrip from the HTML bridge script. Server already sets `talago_session` and `talago_refresh` cookies on the response header. Replaced navigation with `window.location.replace` to prevent back-button loops.
+- **Google OAuth Callback:** Removed invalid `supabaseClient.auth.setSession` invocations on server session responses that no longer carry token bodies. Used `window.location.replace` for clean redirect to `/account`.
