@@ -59,3 +59,27 @@
 - **Multi-surface Customer UI:**
   - Available on `/account` (Overview & Bookings tabs), `/my-bookings` (direct card action), and `/booking/[token]`.
   - When cancellation is pending review, the button automatically transforms into a persistent `⏳ Cancellation Pending Review` badge.
+
+---
+
+## Immediate Exterior Cancellation Visibility & Performance Optimization (PR #25)
+- **Problem Solved:** Admin previously had to expand details of each booking to notice a cancellation request, both on Mobile and Desktop.
+- **Top Cancellation Alert Banner:**
+  - Placed prominently above the booking table whenever pending cancellations exist.
+  - Displays count of pending requests with a 1-click toggle (`Filter Requests (N)`) to view only actionable cancellations.
+- **Status Filter Integration:**
+  - Status filter dropdown now includes `⚠️ Cancellation Requests (N)` for instant filtering.
+- **Desktop Table View (`BookingQueue.tsx`):**
+  - Highlighted row with rose background tint (`bg-rose-950/40`) and left border accent (`border-l-4 border-l-rose-500`).
+  - Reference column displays a bold `Cancel Req (~Xh)` badge with warning icon.
+  - Status column displays an animated `Cancel Review` badge with policy status (`✓ In Policy` or `⚠️ Late Cutoff`).
+  - Actions column features direct 1-click `Approve` and `Decline` buttons right on the table row.
+- **Mobile Cards View (`BookingQueue.tsx`):**
+  - Exterior container styled with bold rose border (`border-2 border-rose-500/80`) and glow effect.
+  - Prominent banner rendered at the very top outside of the card, containing full reason, hours remaining, and 1-click `Approve (Cancel)` and `Decline` buttons without needing to expand details.
+  - Header badge displays `Cancel Req`.
+- **Next.js Performance & Security Hardening (`next.config.js`):**
+  - Enabled Gzip/Brotli compression (`compress: true`).
+  - Disabled `poweredByHeader` to reduce payload and obscure framework version.
+  - Configured cache control headers for optimized Next.js images.
+  - Added HTTP security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`).

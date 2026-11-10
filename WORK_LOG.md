@@ -45,3 +45,23 @@
    - TypeScript: `npx tsc --noEmit` → **0 errors**.
    - Production Build: `npm run build` → **84/84 pages green**.
    - PR #24 merged to `main` and deployed to production.
+
+---
+
+## Session Log: November 10, 2026 — Immediate Exterior Cancellation Alerts & Next.js Performance (PR #25)
+
+### Completed Tasks
+1. **Admin Exterior Cancellation Highlights (`BookingQueue.tsx`):**
+   - Added Top Actionable Alert Banner displaying total pending requests and a 1-click filter button.
+   - Added `⚠️ Cancellation Requests (N)` to the status dropdown filter.
+   - Highlighted Desktop table rows with rose accents, animated status badges, and inline Approve/Decline buttons.
+   - Highlighted Mobile cards with bold red borders and top cancellation banner with direct 1-click Approve/Decline actions without opening details.
+2. **Next.js Performance & Asset Caching:**
+   - Enabled compression and disabled `x-powered-by` in `next.config.js`.
+   - Set optimal cache headers for optimized images and security headers across all routes.
+3. **Data Pipeline Verification:**
+   - Included `bookingAnswers` in `GET /api/admin/bookings`.
+4. **Build & Release:**
+   - `npx tsc --noEmit` → **0 errors**.
+   - `npm run build` → **84/84 static & dynamic pages green**.
+   - Merged PR #25 into `main` and deployed to Vercel production.
