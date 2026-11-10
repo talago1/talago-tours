@@ -1,3 +1,4 @@
+import { adoptOwnedBookings } from '@/server/customerBookings';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest) {
     const syntheticEmail = `telegram-${id}@noreply.talago.com`;
     const fullName = [first_name, last_name].filter(Boolean).join(' ').trim() || (username ? `@${username}` : `Traveler #${id}`);
 
-    await prisma.customerProfile.upsert({
+    const profile = await prisma.customerProfile.upsert({
       where: { email: syntheticEmail },
       create: {
         email: syntheticEmail,
@@ -126,6 +127,12 @@ export async function GET(request: NextRequest) {
         isShadow: false,
       },
     });
+
+    await adoptOwnedBookings({
+      profileId: profile.id,
+      emails: [syntheticEmail],
+      phones: [profile.phone, profile.telegramPhone].filter((p): p is string => Boolean(p)),
+    }).catch(() => {});
 
     // 5. Session generation
     let accessToken: string | null = null;

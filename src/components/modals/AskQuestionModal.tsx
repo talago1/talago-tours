@@ -30,15 +30,47 @@ export default function AskQuestionModal({
   const [error, setError] = useState<string | null>(null);
   const [inquiryRef, setInquiryRef] = useState<string | null>(null);
 
-  // Pre-fill user profile if logged in
+  // Pre-fill user profile if logged in (authoritative server session first)
   useEffect(() => {
-    supabaseClient.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        if (session.user.email) setEmail(session.user.email);
-        const userName = session.user.user_metadata?.name || session.user.user_metadata?.full_name;
-        if (userName) setName(userName);
-      }
-    });
+    let active = true;
+    fetch('/api/auth/session')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!active) return;
+        if (data?.authenticated && data?.user) {
+          if (data.user.email && !data.user.email.includes('@noreply.talago.com')) {
+            setEmail(data.user.email);
+          }
+          if (data.user.name && data.user.name !== 'Traveler') {
+            setName(data.user.name);
+          }
+          if (data.user.phone) {
+            setPhone(data.user.phone);
+          }
+        } else {
+          supabaseClient.auth.getSession().then(({ data: { session } }) => {
+            if (!active || !session?.user) return;
+            if (session.user.email && !session.user.email.includes('@noreply.talago.com')) {
+              setEmail(session.user.email);
+            }
+            const userName = session.user.user_metadata?.name || session.user.user_metadata?.full_name;
+            if (userName) setName(userName);
+            if (session.user.user_metadata?.phone) setPhone(session.user.user_metadata.phone);
+          });
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
+          if (!active || !session?.user) return;
+          if (session.user.email && !session.user.email.includes('@noreply.talago.com')) {
+            setEmail(session.user.email);
+          }
+          const userName = session.user.user_metadata?.name || session.user.user_metadata?.full_name;
+          if (userName) setName(userName);
+        });
+      });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {

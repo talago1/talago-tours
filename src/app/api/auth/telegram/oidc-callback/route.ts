@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { prisma } from '@/lib/prisma';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
+import { adoptOwnedBookings } from '@/server/customerBookings';
 
 export const dynamic = 'force-dynamic';
 
@@ -183,14 +184,15 @@ export async function GET(request: NextRequest) {
 
   const syntheticEmail = `telegram-${telegramId}@noreply.talago.com`;
 
-  // ── Upsert CustomerProfile ─────────────────────────────────────────────────
+  // ── Upsert CustomerProfile & Unify Identity ───────────────────────────────
+  let resolvedProfileId: string | null = null;
   try {
     const existingByTgId = await prisma.customerProfile.findUnique({
       where: { telegramId },
     });
 
     if (existingByTgId) {
-      await prisma.customerProfile.update({
+      const updated = await prisma.customerProfile.update({
         where: { telegramId },
         data: {
           name: fullName,
@@ -202,31 +204,72 @@ export async function GET(request: NextRequest) {
           ...(telegramPhone ? { phone: telegramPhone, telegramPhone, telegramPhoneVerified: true } : {}),
         },
       });
+      resolvedProfileId = updated.id;
     } else {
-      await prisma.customerProfile.upsert({
-        where: { email: syntheticEmail },
-        create: {
-          email: syntheticEmail,
-          name: fullName,
-          telegramId,
-          telegramUsername,
-          telegramPhotoUrl,
-          telegramBotAccess,
-          telegramConnectedAt: new Date(),
-          isShadow: false,
-          ...(telegramPhone ? { phone: telegramPhone, telegramPhone, telegramPhoneVerified: true } : {}),
-        },
-        update: {
-          name: fullName,
-          telegramId,
-          telegramUsername,
-          telegramPhotoUrl,
-          telegramBotAccess,
-          telegramConnectedAt: new Date(),
-          isShadow: false,
-          ...(telegramPhone ? { phone: telegramPhone, telegramPhone, telegramPhoneVerified: true } : {}),
-        },
-      });
+      // Check if a profile with this verified phone number already exists
+      let existingByPhone = null;
+      if (telegramPhone) {
+        existingByPhone = await prisma.customerProfile.findFirst({
+          where: {
+            OR: [
+              { phone: telegramPhone },
+              { telegramPhone: telegramPhone },
+            ],
+          },
+        });
+      }
+
+      if (existingByPhone) {
+        const merged = await prisma.customerProfile.update({
+          where: { id: existingByPhone.id },
+          data: {
+            telegramId,
+            telegramUsername,
+            telegramPhotoUrl,
+            telegramBotAccess,
+            telegramConnectedAt: new Date(),
+            telegramPhone,
+            telegramPhoneVerified: true,
+            isShadow: false,
+            ...(!existingByPhone.phone && telegramPhone ? { phone: telegramPhone } : {}),
+          },
+        });
+        resolvedProfileId = merged.id;
+      } else {
+        const created = await prisma.customerProfile.upsert({
+          where: { email: syntheticEmail },
+          create: {
+            email: syntheticEmail,
+            name: fullName,
+            telegramId,
+            telegramUsername,
+            telegramPhotoUrl,
+            telegramBotAccess,
+            telegramConnectedAt: new Date(),
+            isShadow: false,
+            ...(telegramPhone ? { phone: telegramPhone, telegramPhone, telegramPhoneVerified: true } : {}),
+          },
+          update: {
+            name: fullName,
+            telegramId,
+            telegramUsername,
+            telegramPhotoUrl,
+            telegramBotAccess,
+            telegramConnectedAt: new Date(),
+            isShadow: false,
+            ...(telegramPhone ? { phone: telegramPhone, telegramPhone, telegramPhoneVerified: true } : {}),
+          },
+        });
+        resolvedProfileId = created.id;
+      }
+    }
+
+    if (resolvedProfileId) {
+      await adoptOwnedBookings({
+        profileId: resolvedProfileId,
+        emails: [syntheticEmail],
+        phones: [telegramPhone].filter(Boolean),
+      }).catch((e) => console.warn('[tg-oidc] initial adoption warning:', e));
     }
   } catch (err) {
     console.error('[tg-oidc-callback] CustomerProfile upsert error:', err);
@@ -236,6 +279,7 @@ export async function GET(request: NextRequest) {
   // We use generateLink with type: 'magiclink' + server-side verifyOtp.
   // This produces an authentic, signed JWT session from Supabase without requiring user interaction.
   let session: { access_token: string; refresh_token: string } | null = null;
+  let verifiedSupabaseUserId = '';
 
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -267,6 +311,7 @@ export async function GET(request: NextRequest) {
         };
 
         if (verifyData.user?.id) {
+          verifiedSupabaseUserId = verifyData.user.id;
           await supabaseAdmin.auth.admin.updateUserById(verifyData.user.id, {
             ...(telegramPhone ? { phone: telegramPhone } : {}),
             user_metadata: {
@@ -338,12 +383,13 @@ export async function GET(request: NextRequest) {
             expires_at: Math.floor(Date.now() / 1000) + 3600,
             token_type: 'bearer',
             user: {
-              id: ${JSON.stringify(claims.sub ? String(claims.sub) : '')},
+              id: ${JSON.stringify(verifiedSupabaseUserId || (claims.sub ? String(claims.sub) : ''))},
               email: ${JSON.stringify(syntheticEmail)},
               user_metadata: {
                 name: ${JSON.stringify(fullName)},
                 full_name: ${JSON.stringify(fullName)},
-                telegram_id: ${JSON.stringify(telegramId)}
+                telegram_id: ${JSON.stringify(telegramId)},
+                phone: ${JSON.stringify(telegramPhone || null)}
               }
             }
           };

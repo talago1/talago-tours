@@ -196,6 +196,14 @@ export async function GET(request: NextRequest) {
 
     const { userPayload, finalProfile, displayName } = await resolveUserProfile(user);
 
+    if (finalProfile) {
+      await adoptOwnedBookings({
+        profileId: finalProfile.id,
+        emails: [user.email, finalProfile.email].filter(Boolean),
+        phones: [finalProfile.phone, finalProfile.telegramPhone, user.phone].filter(Boolean),
+      }).catch((e) => console.warn('[session-post] adoptOwnedBookings notice:', e));
+    }
+
     const res = NextResponse.json(
       {
         authenticated: true,
@@ -371,6 +379,13 @@ export async function PATCH(request: NextRequest) {
         }
       }
     }
+
+        // Call unified adoptOwnedBookings for all known profile emails & phones
+    await adoptOwnedBookings({
+      profileId: profile.id,
+      emails: [user.email, updated.email].filter((e): e is string => Boolean(e)),
+      phones: [cleanPhone, updated.phone, updated.telegramPhone].filter((p): p is string => Boolean(p)),
+    }).catch((e) => console.warn('[session-patch] adoptOwnedBookings warning:', e));
 
     // Also update Supabase metadata if name changed
     if (cleanName) {
