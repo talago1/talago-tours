@@ -11,6 +11,7 @@ import { useWishlist } from '@/context/WishlistContext';
 import { LANGUAGES, type LanguageCode } from '@/lib/i18n';
 import type { SupportedCurrency } from '@/utils/currency';
 import WriteReviewModal from '@/components/modals/WriteReviewModal';
+import CancellationModal from '@/components/modals/CancellationModal';
 import { useContactSettings } from '@/hooks/useContactSettings';
 import {
   CalendarDays,
@@ -42,6 +43,7 @@ import {
   RefreshCw,
   Send,
   Plus,
+  XCircle,
 } from 'lucide-react';
 
 const LANGUAGE_NAMES: Record<LanguageCode, string> = {
@@ -88,7 +90,9 @@ interface BookingItem {
     coverImage: string | null;
     translations: unknown;
     durationHours: number | null;
+    freeCancellationHours?: number;
   } | null;
+  bookingAnswers?: any;
   transaction: { status: string } | null;
 }
 
@@ -155,6 +159,7 @@ export default function AccountPage() {
   type TabKey = 'overview' | 'bookings' | 'messages' | 'favorites' | 'profile' | 'preferences' | 'security';
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
+  const [cancelTargetBooking, setCancelTargetBooking] = useState<BookingItem | null>(null);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -756,6 +761,23 @@ export default function AccountPage() {
                               {booking.amountDueOnArrival ? formatPrice(booking.amountDueOnArrival) : '$0'}
                             </span>
                           </div>
+                          {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && (new Date(booking.travelDate) >= new Date()) && (
+                            booking.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW' ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs font-bold text-amber-300">
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>Cancellation Pending</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setCancelTargetBooking(booking)}
+                                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3.5 py-2.5 text-xs font-bold text-red-300 transition"
+                              >
+                                <XCircle className="h-3.5 w-3.5 text-red-400" />
+                                <span>Cancel</span>
+                              </button>
+                            )
+                          )}
                           <button
                             type="button"
                             onClick={() => {
@@ -1062,7 +1084,24 @@ export default function AccountPage() {
                             )}
                           </button>
 
-                          <button
+                                                    {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && !isPast && (
+                            booking.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW' ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs font-bold text-amber-300">
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>Cancellation Pending</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setCancelTargetBooking(booking)}
+                                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3.5 py-2.5 text-xs font-bold text-red-300 transition"
+                              >
+                                <XCircle className="h-3.5 w-3.5 text-red-400" />
+                                <span>Cancel</span>
+                              </button>
+                            )
+                          )}
+<button
                             type="button"
                             onClick={() => {
                               setSelectedChatBookingRef(booking.bookingReference);
@@ -1797,6 +1836,36 @@ export default function AccountPage() {
       )}
 
       {/* Link Guest Booking Modal */}
+      {cancelTargetBooking && (
+        <CancellationModal
+          isOpen={!!cancelTargetBooking}
+          onClose={() => setCancelTargetBooking(null)}
+          booking={{
+            id: cancelTargetBooking.id,
+            bookingReference: cancelTargetBooking.bookingReference,
+            accessToken: cancelTargetBooking.accessToken,
+            travelDate: cancelTargetBooking.travelDate,
+            tourTitle: getTourTitle(cancelTargetBooking.tour?.translations, language),
+            freeCancellationHours: cancelTargetBooking.tour?.freeCancellationHours ?? 24,
+          }}
+          onSuccess={(newReq) => {
+            setBookings((prev) =>
+              prev.map((b) =>
+                b.id === cancelTargetBooking.id
+                  ? {
+                      ...b,
+                      bookingAnswers: {
+                        ...(b.bookingAnswers || {}),
+                        _cancellationRequest: newReq,
+                      },
+                    }
+                  : b
+              )
+            );
+          }}
+        />
+      )}
+
       {showLinkModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0B1528] p-6 sm:p-8 shadow-2xl space-y-6">

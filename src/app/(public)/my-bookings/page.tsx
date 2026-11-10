@@ -25,8 +25,10 @@ import {
   ExternalLink,
   ChevronDown,
   Sparkles,
+  XCircle,
 } from 'lucide-react';
 import WriteReviewModal from '@/components/modals/WriteReviewModal';
+import CancellationModal from '@/components/modals/CancellationModal';
 
 interface BookingItem {
   id: string;
@@ -44,11 +46,13 @@ interface BookingItem {
   amountPaidOnline: number | null;
   createdAt: string;
   reviews?: { id: string; rating: number }[];
+  bookingAnswers?: any;
   tour: {
     slug: string;
     coverImage: string | null;
     translations: unknown;
     durationHours: number | null;
+    freeCancellationHours?: number;
   } | null;
   transaction: { status: string } | null;
 }
@@ -175,9 +179,11 @@ function ReservationCard({ reservation }: { reservation: ReservationItem }) {
 function BookingCard({
   booking,
   onOpenReview,
+  onOpenCancel,
 }: {
   booking: BookingItem;
   onOpenReview?: (booking: BookingItem) => void;
+  onOpenCancel?: (booking: BookingItem) => void;
 }) {
   const statusCfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.PENDING;
   const tourTitle = getTourTitle(booking.tour?.translations);
@@ -254,6 +260,28 @@ function BookingCard({
             </div>
 
             <div className="flex items-center gap-2">
+              {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && !isPast && onOpenCancel && (
+                booking.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-300">
+                    <Clock className="h-3 w-3" />
+                    Cancel Requested
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onOpenCancel(booking);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300 transition-all hover:bg-red-500/20 hover:scale-105"
+                  >
+                    <XCircle className="h-3 w-3 text-red-400" />
+                    Cancel
+                  </button>
+                )
+              )}
+
               {booking.reviews && booking.reviews.length > 0 ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/20 px-2.5 py-1 text-[11px] font-bold text-[#FFD700]">
                   <Star className="h-3 w-3 fill-[#FFD700]" />
@@ -294,6 +322,7 @@ export default function MyBookingsPage() {
   const [reservations, setReservations] = useState<ReservationItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [reviewTarget, setReviewTarget] = useState<BookingItem | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<BookingItem | null>(null);
 
   // Guest Lookup states (used in guest portal AND in authenticated lookup drawer)
   const [lookupRef, setLookupRef] = useState('');
@@ -759,7 +788,7 @@ export default function MyBookingsPage() {
               </h2>
               <div className="space-y-3">
                 {upcoming.map((b) => (
-                  <BookingCard key={b.id} booking={b} onOpenReview={(target) => setReviewTarget(target)} />
+                  <BookingCard key={b.id} booking={b} onOpenReview={(target) => setReviewTarget(target)} onOpenCancel={(target) => setCancelTarget(target)} />
                 ))}
               </div>
             </section>
@@ -774,7 +803,7 @@ export default function MyBookingsPage() {
               </h2>
               <div className="space-y-3 opacity-90">
                 {past.map((b) => (
-                  <BookingCard key={b.id} booking={b} onOpenReview={(target) => setReviewTarget(target)} />
+                  <BookingCard key={b.id} booking={b} onOpenReview={(target) => setReviewTarget(target)} onOpenCancel={(target) => setCancelTarget(target)} />
                 ))}
               </div>
             </section>

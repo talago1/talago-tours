@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { supabaseClient } from '@/lib/supabase/client';
 import { ChevronLeft, Ticket, ArrowRight, MessageSquare } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import CancellationModal from '@/components/modals/CancellationModal';
+import { XCircle } from 'lucide-react';
 
 interface BookingDetail {
   id: string;
@@ -49,6 +51,8 @@ export default function BookingConfirmationPage() {
   const [pageState, setPageState] = useState<PageState>('loading');
   const [retrying, setRetrying] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [cancellationPending, setCancellationPending] = useState(false);
 
   useEffect(() => {
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
@@ -304,6 +308,22 @@ export default function BookingConfirmationPage() {
           )}
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/10 pt-6">
+            {booking.status !== 'CANCELLED' && (
+              cancellationPending ? (
+                <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs font-bold text-amber-300">
+                  <span>⏳ Cancellation Pending Review</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsCancelOpen(true)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-300 hover:bg-red-500/20 transition-all"
+                >
+                  <XCircle className="h-4 w-4 text-red-400" />
+                  <span>Request Cancellation</span>
+                </button>
+              )
+            )}
             <Link
               href={isAuthenticated ? '/account?tab=bookings' : '/my-bookings'}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-6 py-3 text-sm font-bold text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20"
@@ -321,6 +341,24 @@ export default function BookingConfirmationPage() {
           </div>
         </div>
       </div>
+
+      {isCancelOpen && booking && (
+        <CancellationModal
+          isOpen={isCancelOpen}
+          onClose={() => setIsCancelOpen(false)}
+          booking={{
+            id: booking.bookingReference,
+            bookingReference: booking.bookingReference,
+            accessToken: token,
+            travelDate: booking.travelDate,
+            tourTitle: booking.bookingReference,
+            freeCancellationHours: 24,
+          }}
+          onSuccess={() => {
+            setCancellationPending(true);
+          }}
+        />
+      )}
     </main>
   );
 }

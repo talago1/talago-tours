@@ -64,7 +64,7 @@ function SkeletonRow() {
   );
 }
 
-function ExpandedDetails({ booking, onOpenChat }: { booking: ActiveQueueTicket; onOpenChat: (ref: string) => void }) {
+function ExpandedDetails({ booking, onOpenChat, onReviewCancellation }: { booking: ActiveQueueTicket; onOpenChat: (ref: string) => void; onReviewCancellation?: (id: string, action: 'APPROVE' | 'DECLINE') => void }) {
   const cleanPhone = (booking.customerPhone || '').replace(/[^0-9]/g, '');
   const cashDue = booking.amountDueOnArrival ?? (booking.paymentScheme === 'FULL' ? 0 : Math.max(0, booking.totalPriceUSD - (booking.amountPaidOnline ?? 0)));
   const paidOnline = booking.amountPaidOnline ?? (booking.paymentScheme === 'FULL' ? booking.totalPriceUSD : 0);
@@ -208,6 +208,52 @@ function ExpandedDetails({ booking, onOpenChat }: { booking: ActiveQueueTicket; 
           </div>
         </div>
       </div>
+
+      {booking.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW' && (
+        <div className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-rose-300 font-bold">
+                <AlertCircle className="h-4 w-4 text-rose-400" />
+                <span>Traveler Requested Cancellation</span>
+                {booking.bookingAnswers._cancellationRequest.isWithinPolicy ? (
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300 font-semibold border border-emerald-500/30">
+                    Within Policy Window ({booking.bookingAnswers._cancellationRequest.hoursRemaining}h remaining)
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-300 font-semibold border border-amber-500/30">
+                    Late Cutoff ({booking.bookingAnswers._cancellationRequest.hoursRemaining}h remaining)
+                  </span>
+                )}
+              </div>
+              <p className="mt-1.5 text-slate-300">
+                <strong className="text-white">Reason:</strong> {booking.bookingAnswers._cancellationRequest.reason}
+                {booking.bookingAnswers._cancellationRequest.notes && (
+                  <span> — <strong className="text-white">Notes:</strong> {booking.bookingAnswers._cancellationRequest.notes}</span>
+                )}
+              </p>
+            </div>
+            {onReviewCancellation && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onReviewCancellation(booking.id, 'APPROVE')}
+                  className="rounded-lg bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 text-xs font-bold transition shadow-sm"
+                >
+                  Approve (Cancel)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onReviewCancellation(booking.id, 'DECLINE')}
+                  className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 px-3 py-1.5 text-xs font-semibold transition"
+                >
+                  Decline
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {booking.specialRequirements && (
         <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.01] px-4 py-2 text-xs flex items-center gap-2 text-slate-300">
@@ -542,6 +588,42 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
   };
 
   // Status and Single Row Handlers
+  const handleReviewCancellation = async (id: string, action: 'APPROVE' | 'DECLINE') => {
+    try {
+      const res = await fetch('/api/admin/bookings/' + id + '/cancellation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Action failed' }));
+        alert(err.error || 'Failed to update cancellation request');
+        return;
+      }
+      setBookings((prev) =>
+        prev.map((b) => {
+          if (b.id !== id) return b;
+          const prevAnswers = typeof b.bookingAnswers === 'object' && b.bookingAnswers !== null ? b.bookingAnswers : {};
+          const prevReq = (prevAnswers && prevAnswers._cancellationRequest) || {};
+          return {
+            ...b,
+            status: action === 'APPROVE' ? ('CANCELLED' as BookingStatus) : b.status,
+            bookingAnswers: {
+              ...prevAnswers,
+              _cancellationRequest: {
+                ...prevReq,
+                status: action === 'APPROVE' ? 'APPROVED' : 'DECLINED',
+                reviewedAt: new Date().toISOString(),
+              },
+            },
+          };
+        })
+      );
+    } catch (err: any) {
+      alert((err && err.message) || 'Error processing cancellation review');
+    }
+  };
+
   const handleStatusChange = (id: string, newStatus: BookingStatus) => {
     setBookings((prev) =>
       prev.map((b) => (b.id === id ? { ...b, status: newStatus } : b))
@@ -612,7 +694,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
     ].filter(Boolean).join(' | ') || 'All visible bookings';
 
     const confirmed = window.confirm(
-      `⚠️ CAUTION: You are about to permanently delete all ${count} booking(s) matching the current filter:\n\n[ ${filterDesc} ]\n\nTotal value: $${stats.revenue.toFixed(2)} USD.\n\nAre you sure you want to delete all of them?`
+      `⚠️ CAUTION: You are about to permanently delete all ${count} booking(s) matching the current filter:\r\n\r\n[ ${filterDesc} ]\r\n\r\nTotal value: $${stats.revenue.toFixed(2)} USD.\r\n\r\nAre you sure you want to delete all of them?`
     );
     if (!confirmed) return;
 
@@ -990,7 +1072,14 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
 
                       {/* Booking Reference */}
                       <td className="px-4 py-3 text-sm font-mono font-bold text-white whitespace-nowrap">
-                        {b.bookingReference}
+                        <div className="flex items-center gap-1.5">
+                          <span>{b.bookingReference}</span>
+                          {b.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW' && (
+                            <span className="rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 px-1.5 py-0.5 text-[9px] font-sans font-black uppercase tracking-wider animate-pulse">
+                              Cancel Req
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Tour Title & Category */}
@@ -1064,7 +1153,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                     {expandedId === b.id && (
                       <tr key={`${b.id}-expanded`}>
                         <td colSpan={12} className="bg-white/[0.01] p-0">
-                          <ExpandedDetails booking={b} onOpenChat={(ref) => setChatBookingRef(ref)} />
+                          <ExpandedDetails booking={b} onOpenChat={(ref) => setChatBookingRef(ref)} onReviewCancellation={handleReviewCancellation} />
                         </td>
                       </tr>
                     )}
@@ -1185,7 +1274,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                 </button>
                 {expandedId === b.id && (
                   <div className="mt-3 pt-3 border-t border-white/10 animate-in fade-in duration-200">
-                    <ExpandedDetails booking={b} onOpenChat={setChatBookingRef} />
+                    <ExpandedDetails booking={b} onOpenChat={setChatBookingRef} onReviewCancellation={handleReviewCancellation} />
                   </div>
                 )}
               </div>

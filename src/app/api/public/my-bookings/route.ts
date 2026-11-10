@@ -100,16 +100,18 @@ export async function GET(request: NextRequest) {
           infantsCount: true,
           selectedAddons: true,
           specialRequirements: true,
+          bookingAnswers: true,
           reviews: {
             select: { id: true, rating: true },
             take: 1,
           },
           tour: {
             select: {
-              slug: true,
+                            slug: true,
               coverImage: true,
               translations: true,
               durationHours: true,
+              freeCancellationHours: true,
             },
           },
           transaction: {
