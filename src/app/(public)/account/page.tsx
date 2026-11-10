@@ -235,7 +235,25 @@ export default function AccountPage() {
         }
       }
 
-      // 2. If server session was not active but client has a Supabase token, sync once and retry
+      // 2. Check /api/auth/session fallback (e.g. Telegram or server cookie session)
+      try {
+        const sessRes = await fetch('/api/auth/session', {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        if (sessRes.ok) {
+          const sessData = await sessRes.json();
+          if (sessData.authenticated && sessData.user) {
+            setAuthenticated(true);
+            setUserProfile(sessData.user);
+            setEditName(sessData.user.name || '');
+            setEditPhone(sessData.user.phone || sessData.user.telegramPhone || '');
+            return;
+          }
+        }
+      } catch {}
+
+      // 3. If server session was not active but client has a Supabase token, sync once and retry
       try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (session?.access_token) {

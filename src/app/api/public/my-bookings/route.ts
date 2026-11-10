@@ -117,6 +117,9 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: { travelDate: 'asc' },
+      }).catch((err) => {
+        console.error('[my-bookings] bookings query error:', err);
+        return [];
       }),
 
       leadIds.length === 0
@@ -125,7 +128,7 @@ export async function GET(request: NextRequest) {
         where: {
           id: { in: leadIds },
           bookingId: null,
-          status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED', 'AWAITING_CUSTOMER', 'AWAITING_PAYMENT'] as any },
+          status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
         },
         select: {
           id: true,
@@ -142,6 +145,9 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { createdAt: 'desc' },
         take: 20,
+      }).catch((err) => {
+        console.error('[my-bookings] leads query error:', err);
+        return [];
       }),
     ]);
 
