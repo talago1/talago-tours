@@ -1,31 +1,27 @@
 # Talago Tours — Work Log & Next Steps
 
-## Session Log: November 10, 2026 — Sputnik8 Strict Customer Rebuild
+## Session Log: November 10, 2026 — Clean Rebuild of Customer Account & Authentication
 
 ### Completed Tasks
-1. **Unify Telegram Identity & Automatic Booking Adoption:**
-   - Updated `src/app/api/auth/telegram/oidc-callback/route.ts` to merge identities when a matching phone exists, avoiding duplicate customer profiles.
-   - Called `adoptOwnedBookings` immediately upon successful Telegram OIDC callback, widget verify, and callback redirect paths.
-   - Populated Supabase user metadata with `phone` and `telegramId`.
+1. **Root-Cause Fix for Account Loading (`/account`):**
+   - Eliminated the recursive 3-tier loading loop and `loadingRef` lock in `src/app/(public)/account/page.tsx`.
+   - Single authoritative load pipeline querying `/api/public/my-bookings`, with clean session synchronization via `/api/auth/session` only when unauthenticated.
+   - Guaranteed `finally { setLoading(false) }` execution to prevent any stuck spinner.
 
-2. **Session Route Adoption in POST & PATCH:**
-   - In `src/app/api/auth/session/route.ts`, added `adoptOwnedBookings` across both POST (session initialization) and PATCH (profile updates).
-   - Any manual phone number addition in `/account` profile tab automatically adopts all past guest bookings made with that phone number.
+2. **Fixed PostgreSQL Raw SQL Cast Bug in `findIdsByNationalPhone`:**
+   - In `src/server/customerBookings.ts`, added `::int` casts to all `right()` functions in raw Prisma queries.
+   - Prevents `function right(text, bigint) does not exist` runtime error that caused phone lookup queries to fail silently.
 
-3. **Rebuilt Customer Messaging around Sputnik8 Model:**
-   - Removed the generic "General Concierge" channel and multi-booking mixing from `src/app/(public)/account/page.tsx`.
-   - Dedicated conversations only: each thread maps strictly to a `bookingReference` or a tour inquiry `lead:${leadId}`.
-   - Stopped premature on-mount live chat fetching in `/account` which previously created anonymous session cookies.
-   - Added direct "Book Tour" CTA in `/account` reservation cards for instant conversion from tour inquiry to checkout.
-   - Added missing phone prompt in `/account` profile tab to guide travelers to link phone numbers.
+3. **Session Route Complete Refactor & Simplification:**
+   - In `src/app/api/auth/session/route.ts`, eliminated duplicate `resolveUserProfile` code.
+   - Created centralized `formatUserProfile()` in `src/server/customerBookings.ts` shared across session and my-bookings endpoints.
+   - Removed token exposure from API responses.
 
-4. **Authoritative Pre-fill in AskQuestionModal:**
-   - In `src/components/modals/AskQuestionModal.tsx`, replaced stale client-side session access with `/api/auth/session` server lookup for name, email, and verified phone.
+4. **Auth Callback Polish:**
+   - Removed redundant fetch roundtrip in `src/app/api/auth/telegram/oidc-callback/route.ts`.
+   - Standardized on `window.location.replace` across callbacks (`src/app/auth/callback/page.tsx`) to eliminate back-button redirect traps.
 
-5. **Auth Redirect Hygiene:**
-   - In `src/app/(public)/auth/page.tsx`, replaced `window.location.href` with `window.location.replace` to prevent back-button loops on auth landing.
-
-6. **Quality & Build Verification:**
+5. **Quality & Build Verification:**
    - TypeScript: `npx tsc --noEmit` → **0 errors**.
    - Linting: `npm run lint` → **0 errors**.
    - Production Build: `npm run build` → **84/84 pages green**.

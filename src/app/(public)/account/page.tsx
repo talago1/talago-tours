@@ -169,7 +169,6 @@ export default function AccountPage() {
   const { getWhatsAppUrl } = useContactSettings();
 
   // Auth & Profile state
-  const loadingRef = useRef(false); // Guard against concurrent loadData() calls
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -203,115 +202,79 @@ export default function AccountPage() {
   const [sendingMsg, setSendingMsg] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
-  // Init Auth & Load Customer Data
+  // Init Auth & Load Customer Data (Single Authoritative Request)
   const loadData = useCallback(async () => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
     setLoading(true);
     try {
-      // 1. Session verification from dual-path session API
-      const sessionRes = await fetch('/api/auth/session', { cache: 'no-store' });
-      const sessionData = await sessionRes.json();
-
-      if (sessionData?.authenticated && sessionData.user) {
-        setAuthenticated(true);
-        setUserProfile(sessionData.user);
-        setEditName(sessionData.user.name || '');
-        setEditPhone(sessionData.user.phone || sessionData.user.telegramPhone || '');
-
-
-        // 2. Fetch authenticated customer bookings (authoritatively using returned session token)
-        const token = sessionData.accessToken;
-        const bookingsHeaders: Record<string, string> = {};
-        if (token) {
-          bookingsHeaders['Authorization'] = `Bearer ${token}`;
-        } else {
-          const { data: { session: activeSession } } = await supabaseClient.auth.getSession();
-          if (activeSession?.access_token) {
-            bookingsHeaders['Authorization'] = `Bearer ${activeSession.access_token}`;
-          }
-        }
-        const bookingsRes = await fetch('/api/public/my-bookings', {
-          headers: bookingsHeaders,
-          credentials: 'same-origin',
-          cache: 'no-store',
-        });
-        if (bookingsRes.ok) {
-          const bData = await bookingsRes.json();
-          setBookings(Array.isArray(bData.bookings) ? bData.bookings : []);
-          setReservations(Array.isArray(bData.reservations) ? bData.reservations : []);
-        } else {
-          console.warn('[Account] /api/public/my-bookings status:', bookingsRes.status);
-        }
-
-        // Live chat messages are fetched on-demand when user opens a dedicated conversation
-      } else {
-        // Fallback: check Supabase client session in browser
+      // 1. Authoritative customer account data fetch
+      // Include client Bearer token as fallback for fresh browser sessions
+      const headers: Record<string, string> = {};
+      try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (session?.access_token) {
-          // Sync server cookie immediately
-          try {
-            const syncRes = await fetch('/api/auth/session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                access_token: session.access_token,
-                refresh_token: session.refresh_token,
-              }),
-            });
-            if (syncRes.ok) {
-              const syncData = await syncRes.json();
-              if (syncData?.authenticated && syncData.user) {
-                setAuthenticated(true);
-                setUserProfile(syncData.user);
-                setEditName(syncData.user.name || '');
-                setEditPhone(syncData.user.phone || syncData.user.telegramPhone || '');
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+      } catch {}
 
-                const bookingsRes = await fetch('/api/public/my-bookings', {
-                  headers: { Authorization: `Bearer ${session.access_token}` },
-                  cache: 'no-store',
-                });
-                if (bookingsRes.ok) {
-                  const bData = await bookingsRes.json();
-                  setBookings(Array.isArray(bData.bookings) ? bData.bookings : []);
-                  setReservations(Array.isArray(bData.reservations) ? bData.reservations : []);
-                }
+      const res = await fetch('/api/public/my-bookings', {
+        headers,
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          setAuthenticated(true);
+          setUserProfile(data.user);
+          setEditName(data.user.name || '');
+          setEditPhone(data.user.phone || data.user.telegramPhone || '');
+          setBookings(Array.isArray(data.bookings) ? data.bookings : []);
+          setReservations(Array.isArray(data.reservations) ? data.reservations : []);
+          return;
+        }
+      }
+
+      // 2. If server session was not active but client has a Supabase token, sync once and retry
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session?.access_token) {
+          const syncRes = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+            }),
+          });
+          if (syncRes.ok) {
+            const retryRes = await fetch('/api/public/my-bookings', {
+              credentials: 'same-origin',
+              cache: 'no-store',
+            });
+            if (retryRes.ok) {
+              const retryData = await retryRes.json();
+              if (retryData.authenticated && retryData.user) {
+                setAuthenticated(true);
+                setUserProfile(retryData.user);
+                setEditName(retryData.user.name || '');
+                setEditPhone(retryData.user.phone || retryData.user.telegramPhone || '');
+                setBookings(Array.isArray(retryData.bookings) ? retryData.bookings : []);
+                setReservations(Array.isArray(retryData.reservations) ? retryData.reservations : []);
                 return;
               }
             }
-          } catch {}
-
-          setAuthenticated(true);
-          const email = session.user.email || '';
-          const name = session.user.user_metadata?.full_name || session.user.user_metadata?.name || email.split('@')[0];
-          setUserProfile({
-            id: session.user.id,
-            name,
-            email,
-            phone: session.user.phone || null,
-            provider: session.user.app_metadata?.provider === 'google' ? 'google' : 'email',
-          });
-          setEditName(name);
-
-          // Fetch bookings using client token
-          const bookingsRes = await fetch('/api/public/my-bookings', {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-            cache: 'no-store',
-          });
-          if (bookingsRes.ok) {
-            const bData = await bookingsRes.json();
-            setBookings(Array.isArray(bData.bookings) ? bData.bookings : []);
-            setReservations(Array.isArray(bData.reservations) ? bData.reservations : []);
           }
-        } else {
-          setAuthenticated(false);
         }
-      }
+      } catch {}
+
+      setAuthenticated(false);
+      setUserProfile(null);
     } catch (err) {
       console.error('Account load error:', err);
       setAuthenticated(false);
+      setUserProfile(null);
     } finally {
-      loadingRef.current = false;
       setLoading(false);
     }
   }, []);
@@ -356,23 +319,13 @@ export default function AccountPage() {
   useEffect(() => {
     loadData();
 
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      if (session?.access_token && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-        // Only trigger if not already running to prevent circular loops
-        if (!loadingRef.current) loadData();
-      } else if (event === 'SIGNED_OUT') {
-        // Guard against client-init false logouts: check server session before clearing
-        try {
-          const check = await fetch('/api/auth/session', { cache: 'no-store' });
-          const checkData = await check.json();
-          if (!checkData?.authenticated) {
-            setAuthenticated(false);
-            setUserProfile(null);
-          }
-        } catch {
-          setAuthenticated(false);
-          setUserProfile(null);
-        }
+    // Listen only for explicit sign out events from other tabs
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        setAuthenticated(false);
+        setUserProfile(null);
+        setBookings([]);
+        setReservations([]);
       }
     });
 

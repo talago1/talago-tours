@@ -51,8 +51,8 @@ async function findIdsByNationalPhone(
         const rows = await db.$queryRaw<Array<{ id: string; phone: string }>>`
           SELECT id, "customerPhone" AS phone
           FROM "Booking"
-          WHERE char_length(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen} AND ${maxLen}
-            AND right(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g'), ${key.length}) = ${key}
+          WHERE char_length(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen}::int AND ${maxLen}::int
+            AND right(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g'), ${key.length}::int) = ${key}
         `;
         for (const row of rows) {
           if (phoneMatchKey(row.phone) === key) found.push(row);
@@ -61,8 +61,8 @@ async function findIdsByNationalPhone(
         const rows = await db.$queryRaw<Array<{ id: string; phone: string }>>`
           SELECT id, "customerPhone" AS phone
           FROM "booking_leads"
-          WHERE char_length(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen} AND ${maxLen}
-            AND right(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g'), ${key.length}) = ${key}
+          WHERE char_length(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen}::int AND ${maxLen}::int
+            AND right(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g'), ${key.length}::int) = ${key}
         `;
         for (const row of rows) {
           if (phoneMatchKey(row.phone) === key) found.push(row);
@@ -72,11 +72,11 @@ async function findIdsByNationalPhone(
           SELECT id, "phone" AS phone, "telegramPhone"
           FROM "CustomerProfile"
           WHERE (
-            char_length(regexp_replace(coalesce("phone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen} AND ${maxLen}
-            AND right(regexp_replace(coalesce("phone", ''), '[^0-9]', '', 'g'), ${key.length}) = ${key}
+            char_length(regexp_replace(coalesce("phone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen}::int AND ${maxLen}::int
+            AND right(regexp_replace(coalesce("phone", ''), '[^0-9]', '', 'g'), ${key.length}::int) = ${key}
           ) OR (
-            char_length(regexp_replace(coalesce("telegramPhone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen} AND ${maxLen}
-            AND right(regexp_replace(coalesce("telegramPhone", ''), '[^0-9]', '', 'g'), ${key.length}) = ${key}
+            char_length(regexp_replace(coalesce("telegramPhone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen}::int AND ${maxLen}::int
+            AND right(regexp_replace(coalesce("telegramPhone", ''), '[^0-9]', '', 'g'), ${key.length}::int) = ${key}
           )
         `;
         for (const row of rows) {
@@ -362,4 +362,47 @@ export async function claimBookingForProfile(
     data: { customerProfileId: profileId },
   });
   return updated.count > 0;
+}
+
+export function formatUserProfile(
+  user: SessionUser,
+  profile: any,
+  telegramMatch?: RegExpMatchArray | null,
+) {
+  const isTelegram = Boolean(telegramMatch || profile?.telegramId);
+  const isGoogle = Boolean(
+    user.app_metadata?.provider === 'google' ||
+    user.identities?.some((i: { provider?: string }) => i.provider === 'google')
+  );
+
+  let displayName = profile?.name;
+  if (!displayName || displayName === 'User' || displayName === 'Traveler' || displayName.startsWith('Traveler #')) {
+    if (profile?.telegramUsername) {
+      displayName = `@${profile.telegramUsername}`;
+    } else if (user.user_metadata?.name && user.user_metadata.name !== 'User') {
+      displayName = user.user_metadata.name;
+    } else if (user.user_metadata?.full_name && user.user_metadata.full_name !== 'User') {
+      displayName = user.user_metadata.full_name;
+    } else if (user.email) {
+      displayName = user.email.split('@')[0];
+    } else {
+      displayName = 'Traveler';
+    }
+  }
+
+  return {
+    id: user.id,
+    name: displayName,
+    email: profile?.email || user.email || '',
+    phone: profile?.phone || profile?.telegramPhone || user.phone || null,
+    isTelegram,
+    telegramId: profile?.telegramId || null,
+    telegramUsername: profile?.telegramUsername || null,
+    telegramPhotoUrl: profile?.telegramPhotoUrl || null,
+    telegramPhone: profile?.telegramPhone || null,
+    telegramPhoneVerified: Boolean(profile?.telegramPhoneVerified),
+    telegramBotAccess: Boolean(profile?.telegramBotAccess),
+    telegramConnectedAt: profile?.telegramConnectedAt ? new Date(profile.telegramConnectedAt).toISOString() : null,
+    provider: isTelegram ? ('telegram' as const) : isGoogle ? ('google' as const) : ('email' as const),
+  };
 }

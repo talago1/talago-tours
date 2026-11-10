@@ -100,7 +100,7 @@ function CallbackContent() {
           }
 
           if (!cancelled) {
-            window.location.href = next;
+            window.location.replace(next);
           }
           return;
         }
@@ -109,14 +109,8 @@ function CallbackContent() {
         const sessionCheck = await fetch('/api/auth/session', { cache: 'no-store' });
         const sessionCheckData = await sessionCheck.json().catch(() => ({}));
         if (sessionCheckData?.authenticated) {
-          if (sessionCheckData.accessToken && sessionCheckData.refreshToken) {
-            await supabaseClient.auth.setSession({
-              access_token: sessionCheckData.accessToken,
-              refresh_token: sessionCheckData.refreshToken,
-            }).catch(() => {});
-          }
           if (!cancelled) {
-            window.location.href = next;
+            window.location.replace(next);
           }
           return;
         }

@@ -397,16 +397,7 @@ export async function GET(request: NextRequest) {
         }
       } catch (e) {}
 
-      // 2. Synchronize server session cookie via same-origin first-party POST
-      try {
-        await fetch('/api/auth/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken })
-        });
-      } catch (e) {}
-
-      // 3. Clean navigation to destination
+      // 2. Clean instant navigation to destination (server cookies already set on response)
       window.location.replace(returnTo);
     })();
   </script>
