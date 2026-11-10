@@ -1,3 +1,4 @@
+import { adoptOwnedBookings } from '@/server/customerBookings';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
     const fullName = [first_name, last_name].filter(Boolean).join(' ').trim() || (username ? `@${username}` : `Traveler #${id}`);
 
     // Create or update CustomerProfile in PostgreSQL
-    await prisma.customerProfile.upsert({
+    const profile = await prisma.customerProfile.upsert({
       where: { email: syntheticEmail },
       create: {
         email: syntheticEmail,
@@ -132,6 +133,12 @@ export async function POST(request: NextRequest) {
         isShadow: false,
       },
     });
+
+    await adoptOwnedBookings({
+      profileId: profile.id,
+      emails: [syntheticEmail],
+      phones: [profile.phone, profile.telegramPhone].filter((p): p is string => Boolean(p)),
+    }).catch(() => {});
 
     // 6. Generate and exchange authentic Supabase Auth session
     const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL;

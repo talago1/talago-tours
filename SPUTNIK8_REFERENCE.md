@@ -80,3 +80,28 @@ This document serves as the persistent product reference guide reverse engineere
   - Tapping opens a smooth bottom drawer preserving the current tour context without navigating away.
 - Talago aligns with this pattern using responsive modals and sticky mobile action bars in `src/components/tours/` and `src/app/(public)/tours/[slug]/`.
 
+
+---
+
+## 5. Booking-Centered Messaging Architecture (Reverse-Engineered from Sputnik8)
+
+### Core Model
+1. **No Mixed/Aggregated Site Chat**:
+   - Sputnik8 does not have a generic global live chat bubble that mixes different inquiries or bookings into one conversation.
+   - Every conversation belongs strictly to a specific tour inquiry or a confirmed booking.
+
+2. **Before Booking: Tour-Specific Question**:
+   - Entry point: Located directly beside availability calendar ("Ask a question about this tour").
+   - Creates a dedicated `BookingLead` with a unique reference number.
+   - Spawns a dedicated `LiveChatConversation` with `visitorToken: "lead:<id>"`.
+   - Customer and admin communicate specifically about that tour, date, and party size.
+
+3. **Inquiry to Booking Progression**:
+   - Travelers can proceed directly from their inquiry in `/account` to checkout via a dedicated "Book Tour" CTA.
+   - When checking out, the inquiry reference and message history carry forward to the resulting booking record without creating disjointed threads.
+
+4. **After Booking: Order-Centered Communication**:
+   - Direct booking creates a dedicated `LiveChatConversation` with `visitorToken: "booking:<ref>"`.
+   - Multiple bookings by the same customer always have separate, clean message threads.
+   - Customers access conversation threads via their `/account` Bookings and Messages tabs.
+   - Admins operate directly inside `/admin/bookings` with inline chat per booking, keeping operations unified.

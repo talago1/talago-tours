@@ -161,6 +161,10 @@ export default function AccountPage() {
     if (tabParam && ['overview', 'bookings', 'messages', 'favorites', 'profile', 'preferences', 'security'].includes(tabParam)) {
       setActiveTab(tabParam as TabKey);
     }
+    const refParam = searchParams.get('ref') || searchParams.get('bookingRef') || searchParams.get('leadId');
+    if (refParam) {
+      setSelectedChatBookingRef(searchParams.get('leadId') ? `lead:${refParam}` : refParam);
+    }
   }, [searchParams]);
   const { getWhatsAppUrl } = useContactSettings();
 
@@ -240,8 +244,7 @@ export default function AccountPage() {
           console.warn('[Account] /api/public/my-bookings status:', bookingsRes.status);
         }
 
-        // 3. Fetch concierge live chat messages
-        fetchChatMessages();
+        // Live chat messages are fetched on-demand when user opens a dedicated conversation
       } else {
         // Fallback: check Supabase client session in browser
         const { data: { session } } = await supabaseClient.auth.getSession();
@@ -273,7 +276,6 @@ export default function AccountPage() {
                   setBookings(Array.isArray(bData.bookings) ? bData.bookings : []);
                   setReservations(Array.isArray(bData.reservations) ? bData.reservations : []);
                 }
-                fetchChatMessages();
                 return;
               }
             }
@@ -316,20 +318,15 @@ export default function AccountPage() {
 
   const fetchChatMessages = useCallback(async (refOverride?: string | null) => {
     const bookingRef = refOverride !== undefined ? refOverride : selectedChatBookingRef;
+    if (!bookingRef) {
+      setMessages([]);
+      return;
+    }
     setChatLoading(true);
     try {
-      // Ensure chat session exists with bookingReference context if applicable
-      await fetch('/api/public/live-chat/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pagePath: '/account',
-          bookingReference: bookingRef || undefined,
-        }),
-      });
-      const url = bookingRef
-        ? `/api/public/live-chat/messages?bookingReference=${encodeURIComponent(bookingRef)}`
-        : '/api/public/live-chat/messages';
+      const url = bookingRef.startsWith('lead:')
+        ? `/api/public/live-chat/messages?leadId=${encodeURIComponent(bookingRef.replace(/^lead:/, ''))}`
+        : `/api/public/live-chat/messages?bookingReference=${encodeURIComponent(bookingRef)}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -343,9 +340,18 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (activeTab === 'messages') {
-      fetchChatMessages();
+      if (!selectedChatBookingRef) {
+        if (bookings.length > 0) {
+          setSelectedChatBookingRef(bookings[0].bookingReference);
+        } else if (reservations.length > 0) {
+          const firstRes = reservations[0];
+          setSelectedChatBookingRef(firstRes.leadId ? `lead:${firstRes.leadId}` : (firstRes.reservationReference || firstRes.id));
+        }
+      } else {
+        fetchChatMessages();
+      }
     }
-  }, [activeTab, selectedChatBookingRef, fetchChatMessages]);
+  }, [activeTab, selectedChatBookingRef, bookings, reservations, fetchChatMessages]);
 
   useEffect(() => {
     loadData();
@@ -1258,17 +1264,28 @@ export default function AccountPage() {
                           {res.adults ? ` · ${res.adults + (res.children || 0)} guests` : ''}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedChatBookingRef(res.leadId ? `lead:${res.leadId}` : null);
-                          setActiveTab('messages');
-                        }}
-                        className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-3.5 py-2 text-xs font-bold text-amber-300 transition"
-                      >
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        <span>Chat</span>
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {res.tourSlug && (
+                          <Link
+                            href={`/tours/${res.tourSlug}${res.travelDate ? `?date=${res.travelDate}` : ''}`}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 px-3.5 py-2 text-xs font-black text-[#070F1E] transition shadow-sm"
+                          >
+                            <span>Book Tour</span>
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </Link>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedChatBookingRef(res.leadId ? `lead:${res.leadId}` : (res.reservationReference || res.id));
+                            setActiveTab('messages');
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-3.5 py-2 text-xs font-bold text-amber-300 transition"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          <span>Chat</span>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1292,41 +1309,43 @@ export default function AccountPage() {
                   <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
                   <div>
                     <h4 className="text-xs font-black uppercase tracking-wider text-white">
-                      {selectedChatBookingRef ? `Booking ${selectedChatBookingRef}` : 'Talago 24/7 Concierge'}
+                      {selectedChatBookingRef
+                        ? (selectedChatBookingRef.startsWith('lead:')
+                            ? `Tour Inquiry ${selectedChatBookingRef.replace(/^lead:/, '').slice(-8).toUpperCase()}`
+                            : `Booking ${selectedChatBookingRef}`)
+                        : 'Dedicated Tour Messages'}
                     </h4>
                     <p className="text-[10px] text-slate-400">
-                      {selectedChatBookingRef ? 'Dedicated booking assistance & dispatch' : 'Direct dispatch & itinerary support'}
+                      {selectedChatBookingRef
+                        ? 'Direct organizer & dispatch conversation'
+                        : 'Conversations are linked directly to each booking or inquiry'}
                     </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => fetchChatMessages()}
-                  className="p-2 text-slate-400 hover:text-white transition"
-                  title="Refresh chat"
-                >
-                  <RefreshCw className={`h-4 w-4 ${chatLoading ? 'animate-spin' : ''}`} />
-                </button>
+                {selectedChatBookingRef && (
+                  <button
+                    type="button"
+                    onClick={() => fetchChatMessages()}
+                    className="p-2 text-slate-400 hover:text-white transition"
+                    title="Refresh chat"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${chatLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                )}
               </div>
 
               {(bookings.length > 0 || reservations.length > 0) && (
                 <div className="px-4 py-2.5 border-b border-white/5 bg-white/[0.01] flex items-center gap-2 overflow-x-auto text-xs shrink-0">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">Channel:</span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedChatBookingRef(null)}
-                    className={`px-2.5 py-1 rounded-lg shrink-0 font-medium transition ${!selectedChatBookingRef ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/30' : 'text-slate-400 hover:text-white bg-white/5'}`}
-                  >
-                    General Concierge
-                  </button>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">Conversation:</span>
                   {bookings.map((b) => (
                     <button
                       key={b.id}
                       type="button"
                       onClick={() => setSelectedChatBookingRef(b.bookingReference)}
-                      className={`px-2.5 py-1 rounded-lg shrink-0 font-mono text-[11px] font-bold transition ${selectedChatBookingRef === b.bookingReference ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/30' : 'text-slate-400 hover:text-white bg-white/5'}`}
+                      className={`px-3 py-1.5 rounded-lg shrink-0 font-mono text-[11px] font-bold transition flex items-center gap-1.5 ${selectedChatBookingRef === b.bookingReference ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/30' : 'text-slate-400 hover:text-white bg-white/5'}`}
                     >
-                      {b.bookingReference}
+                      <Ticket className="h-3 w-3" />
+                      <span>{b.bookingReference}</span>
                     </button>
                   ))}
                   {reservations.map((r) => {
@@ -1336,9 +1355,10 @@ export default function AccountPage() {
                         key={r.id}
                         type="button"
                         onClick={() => setSelectedChatBookingRef(refKey)}
-                        className={`px-2.5 py-1 rounded-lg shrink-0 font-mono text-[11px] font-bold transition ${selectedChatBookingRef === refKey ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' : 'text-slate-400 hover:text-white bg-white/5'}`}
+                        className={`px-3 py-1.5 rounded-lg shrink-0 font-mono text-[11px] font-bold transition flex items-center gap-1.5 ${selectedChatBookingRef === refKey ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' : 'text-slate-400 hover:text-white bg-white/5'}`}
                       >
-                        {r.reservationReference || `REQ-${r.id.slice(-6).toUpperCase()}`}
+                        <MessageSquare className="h-3 w-3" />
+                        <span>Inquiry {r.reservationReference || `REQ-${r.id.slice(-6).toUpperCase()}`}</span>
                       </button>
                     );
                   })}
@@ -1347,7 +1367,23 @@ export default function AccountPage() {
 
               {/* Chat Messages Body */}
               <div className="flex-1 p-5 overflow-y-auto space-y-4">
-                {messages.length === 0 ? (
+                {!selectedChatBookingRef ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
+                    <MessageSquare className="h-10 w-10 text-slate-600" />
+                    <div>
+                      <p className="text-sm font-bold text-white">No active tour conversations</p>
+                      <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                        Each conversation belongs strictly to a specific tour inquiry or confirmed booking.
+                      </p>
+                    </div>
+                    <Link
+                      href="/tours"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#00E5FF] text-[#070F1E] text-xs font-black uppercase hover:scale-105 transition"
+                    >
+                      Explore Tours
+                    </Link>
+                  </div>
+                ) : messages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
                     <MessageSquare className="h-8 w-8 text-slate-600" />
                     <div>
@@ -1402,12 +1438,13 @@ export default function AccountPage() {
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder={dict.account.messages.typePlaceholder}
-                  className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
+                  disabled={!selectedChatBookingRef}
+                  placeholder={!selectedChatBookingRef ? 'Select a conversation above to reply' : dict.account.messages.typePlaceholder}
+                  className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none disabled:opacity-50"
                 />
                 <button
                   type="submit"
-                  disabled={!chatInput.trim() || sendingMsg}
+                  disabled={!selectedChatBookingRef || !chatInput.trim() || sendingMsg}
                   className="rounded-xl bg-[#00E5FF] px-4 py-2.5 text-xs font-black uppercase text-[#070F1E] shadow-sm disabled:opacity-40 hover:scale-105 active:scale-95 transition flex items-center gap-1.5"
                 >
                   <span>{dict.account.messages.sendButton}</span>
@@ -1553,11 +1590,24 @@ export default function AccountPage() {
                     <p className="text-sm font-semibold text-slate-200 mt-0.5">
                       {userProfile?.phone || userProfile?.telegramPhone || dict.account.profile.phoneNotShared}
                     </p>
-                    {userProfile?.telegramPhoneVerified && (
+                    {userProfile?.telegramPhoneVerified ? (
                       <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-400">
                         <CheckCircle2 className="h-3 w-3" />
                         {dict.account.profile.phoneVerified}
                       </span>
+                    ) : (
+                      !userProfile?.phone && (
+                        <div className="mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingProfile(true)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold hover:bg-amber-500/20 transition"
+                          >
+                            <Phone className="h-3.5 w-3.5" />
+                            Add phone number to link your bookings
+                          </button>
+                        </div>
+                      )
                     )}
                   </div>
 
