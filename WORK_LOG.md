@@ -25,3 +25,23 @@
    - TypeScript: `npx tsc --noEmit` → **0 errors**.
    - Linting: `npm run lint` → **0 errors**.
    - Production Build: `npm run build` → **84/84 pages green**.
+
+---
+
+## Session Log: November 10, 2026 — Sputnik8 Cancellation System Implementation (PR #24)
+
+### Completed Tasks
+1. **Reverse-Engineered Sputnik8 Cancellation Experience:**
+   - Implemented dynamic countdown based on `tour.freeCancellationHours` (24h/48h).
+   - Designed cancellation request workflow where customers can request cancellations, but late cancellations (under cutoff window) require operator review and are not automatically cancelled.
+2. **Built Public & Admin APIs:**
+   - `POST /api/public/bookings/cancel-request`: Verifies session or `accessToken`, computes time delta vs cutoff, updates `bookingAnswers._cancellationRequest`, writes to dedicated chat thread.
+   - `POST /api/admin/bookings/[id]/cancellation`: Handles operator `APPROVE` or `DECLINE`, updates booking status, notifies customer.
+3. **Reusable Cancellation Modal:**
+   - `CancellationModal.tsx`: Real-time countdown, policy badge, reason selector, custom notes.
+4. **Wired Across All Customer & Admin Surfaces:**
+   - Integrated into `/account` (Overview & Bookings tabs), `/my-bookings`, `/booking/[token]`, and Admin `BookingQueue.tsx`.
+5. **Quality & Build Verification:**
+   - TypeScript: `npx tsc --noEmit` → **0 errors**.
+   - Production Build: `npm run build` → **84/84 pages green**.
+   - PR #24 merged to `main` and deployed to production.

@@ -35,3 +35,27 @@
 ### 4. Auth Callback & Bridge Optimization
 - **Telegram OIDC Callback:** Removed redundant client-side `fetch('/api/auth/session')` POST roundtrip from the HTML bridge script. Server already sets `talago_session` and `talago_refresh` cookies on the response header. Replaced navigation with `window.location.replace` to prevent back-button loops.
 - **Google OAuth Callback:** Removed invalid `supabaseClient.auth.setSession` invocations on server session responses that no longer carry token bodies. Used `window.location.replace` for clean redirect to `/account`.
+
+---
+
+## Sputnik8-Inspired Customer Cancellation & Review Workflow (PR #24)
+- **Problem Solved:** Customers had no way to cancel or request cancellation of their bookings before departure (24h/48h window). Additionally, cancellations cannot be automatically approved if they violate the tour's late cancellation policy window.
+- **Customer Cancellation Modal (`src/components/modals/CancellationModal.tsx`):**
+  - Displays tour title, departure date, real-time countdown to departure (`hoursRemaining`).
+  - Evaluates remaining time against `tour.freeCancellationHours` (default 24h).
+  - Dynamic policy banner: Green badge when within free cancellation window; Amber warning when inside late cutoff window notifying the traveler that cancellation requires operator approval.
+  - Reason selector & optional notes.
+- **Public Cancellation API (`src/app/api/public/bookings/cancel-request/route.ts`):**
+  - Validates ownership via session or `accessToken`.
+  - Calculates `hoursRemaining` and policy compliance.
+  - Stores structured request under `bookingAnswers._cancellationRequest` with status `PENDING_REVIEW`.
+  - Logs `[SYSTEM]` message in the booking's dedicated `LiveChatConversation` thread.
+  - Records an alert in `NotificationLog`.
+- **Admin Review API & Dashboard (`src/app/api/admin/bookings/[id]/cancellation/route.ts`):**
+  - Integrated into `src/components/admin/BookingQueue.tsx` with prominent `Cancel Req` badge and red alert banner in expanded booking view.
+  - Admin has two 1-click actions:
+    - **Approve (Cancel):** Sets booking status to `CANCELLED`, marks request as `APPROVED`, logs confirmation to chat, sends customer notification.
+    - **Decline:** Keeps booking active, marks request as `DECLINED`, logs review reason to chat.
+- **Multi-surface Customer UI:**
+  - Available on `/account` (Overview & Bookings tabs), `/my-bookings` (direct card action), and `/booking/[token]`.
+  - When cancellation is pending review, the button automatically transforms into a persistent `⏳ Cancellation Pending Review` badge.
