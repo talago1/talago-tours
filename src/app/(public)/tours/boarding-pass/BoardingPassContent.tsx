@@ -1,6 +1,8 @@
 'use client';
 
 import { useLanguage } from '@/context/LanguageContext';
+import { useContactSettings } from '@/hooks/useContactSettings';
+import { MessageSquare, Printer } from 'lucide-react';
 
 interface BoardingPassContentProps {
   bookingReference: string;
@@ -39,6 +41,10 @@ export default function BoardingPassContent({
   qrSvg,
 }: BoardingPassContentProps) {
   const { dict } = useLanguage();
+  const { getWhatsAppUrl } = useContactSettings();
+
+  const whatsappMessage = `Hello Talago Concierge! I have a question regarding my boarding pass: ${bookingReference} for ${tourTitle} (${travelDate}).`;
+  const whatsappHref = getWhatsAppUrl(whatsappMessage);
 
   return (
     <main className="min-h-screen bg-gray-50 print:bg-white">
@@ -102,12 +108,25 @@ export default function BoardingPassContent({
           </div>
         </div>
 
-        <div className="mt-8 text-center print:hidden">
-          <button
-            onClick={() => window.print()}
-            className="inline-block rounded-lg bg-[#FF5B00] px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#e65200]"
+        {/* Boarding Pass Action Strip */}
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 print:hidden">
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-3 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition active:scale-[0.98]"
           >
-            {dict.voucherPage.printPass}
+            <MessageSquare className="h-4 w-4" />
+            <span>WhatsApp Concierge</span>
+          </a>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 px-4 py-3 text-xs font-bold text-gray-800 shadow-sm transition active:scale-[0.98]"
+          >
+            <Printer className="h-4 w-4 text-gray-600" />
+            <span>{dict.voucherPage.printPass}</span>
           </button>
         </div>
       </div>

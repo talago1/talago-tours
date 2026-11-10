@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -165,6 +165,7 @@ export default function AccountPage() {
   const { getWhatsAppUrl } = useContactSettings();
 
   // Auth & Profile state
+  const loadingRef = useRef(false); // Guard against concurrent loadData() calls
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -200,6 +201,8 @@ export default function AccountPage() {
 
   // Init Auth & Load Customer Data
   const loadData = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     try {
       // 1. Session verification from dual-path session API
@@ -212,16 +215,6 @@ export default function AccountPage() {
         setEditName(sessionData.user.name || '');
         setEditPhone(sessionData.user.phone || sessionData.user.telegramPhone || '');
 
-        // Sync Supabase client session if tokens are present
-        if (sessionData.accessToken && sessionData.refreshToken) {
-          const { data: { session: curSess } } = await supabaseClient.auth.getSession();
-          if (!curSess) {
-            await supabaseClient.auth.setSession({
-              access_token: sessionData.accessToken,
-              refresh_token: sessionData.refreshToken,
-            }).catch(() => {});
-          }
-        }
 
         // 2. Fetch authenticated customer bookings (authoritatively using returned session token)
         const token = sessionData.accessToken;
@@ -316,6 +309,7 @@ export default function AccountPage() {
       console.error('Account load error:', err);
       setAuthenticated(false);
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }, []);
@@ -358,7 +352,8 @@ export default function AccountPage() {
 
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (session?.access_token && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-        loadData();
+        // Only trigger if not already running to prevent circular loops
+        if (!loadingRef.current) loadData();
       } else if (event === 'SIGNED_OUT') {
         // Guard against client-init false logouts: check server session before clearing
         try {
@@ -1880,4 +1875,5 @@ export default function AccountPage() {
     </div>
   );
 }
+
 

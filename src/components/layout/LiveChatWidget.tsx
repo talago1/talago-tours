@@ -1,152 +1,48 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
-import { MessageCircle, Send, X } from 'lucide-react';
-import { supabaseClient } from '@/lib/supabase/client';
-import { useContactSettings } from '@/hooks/useContactSettings';
+/**
+ * WhatsApp Contact Button
+ *
+ * Replaces the former generic floating chat widget.
+ * Booking-specific conversations are now accessible from each
+ * booking card in /account and the booking detail view in /admin.
+ *
+ * This component renders a single WhatsApp button that:
+ * - Floats above the mobile sticky booking bar on tour-detail pages
+ * - Stays at a fixed bottom-right position on all other pages
+ */
 
-type ChatMessage = { id: string; sender: 'VISITOR' | 'ADMIN'; body: string; createdAt: string };
+import { usePathname } from 'next/navigation';
+import { useContactSettings } from '@/hooks/useContactSettings';
 
 export default function LiveChatWidget() {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  const [contactMenuOpen, setContactMenuOpen] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [text, setText] = useState('');
-  const [sending, setSending] = useState(false);
-  const [contact, setContact] = useState({ name: '', email: '' });
-  const [contactSaved, setContactSaved] = useState(false);
-  const [hasUnreadAdminReply, setHasUnreadAdminReply] = useState(false);
-  const [visibleAdminReply, setVisibleAdminReply] = useState<string | null>(null);
-  const knownAdminMessageIds = useRef(new Set<string>());
-  const didLoadMessages = useRef(false);
+  const { getWhatsAppUrl } = useContactSettings();
+  const whatsappUrl = getWhatsAppUrl('Hello TALAGO Marketplace, I need help with an experience.');
 
-  // Check if current page is a tour detail page where the mobile sticky booking bar is visible
+  // On tour detail pages the mobile sticky booking bar is visible — float above it
   const isTourDetailPage = Boolean(
     pathname &&
     /^\/tours\/[^/]+$/.test(pathname) &&
     !['checkout', 'boarding-pass', 'voucher'].includes(pathname.split('/')[2])
   );
 
-  const startSession = useCallback(async (details = {}) => {
-    const response = await fetch('/api/public/live-chat/session', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...details, pagePath: window.location.pathname }),
-    });
-    if (response.ok) setReady(true);
-  }, []);
-
-  const loadMessages = useCallback(async () => {
-    const response = await fetch('/api/public/live-chat/messages', { cache: 'no-store' });
-    if (!response.ok) return;
-    const payload = await response.json();
-    const nextMessages = payload.messages || [];
-    const newAdminReply = didLoadMessages.current && nextMessages.some((message: ChatMessage) => message.sender === 'ADMIN' && !knownAdminMessageIds.current.has(message.id));
-    nextMessages.filter((message: ChatMessage) => message.sender === 'ADMIN').forEach((message: ChatMessage) => knownAdminMessageIds.current.add(message.id));
-    didLoadMessages.current = true;
-    setMessages(nextMessages);
-    if (newAdminReply && !open) {
-      const latestReply = [...nextMessages].reverse().find((message: ChatMessage) => message.sender === 'ADMIN');
-      setHasUnreadAdminReply(true);
-      setVisibleAdminReply(latestReply?.body || 'You have a new message from TALAGO.');
-      window.setTimeout(() => setVisibleAdminReply(null), 10_000);
-    }
-  }, [open]);
-
-  useEffect(() => {
-    void supabaseClient.auth.getSession().then(({ data: { session } }) => {
-      const user = session?.user;
-      void startSession(user ? { name: user.user_metadata?.name, email: user.email } : {});
-    });
-  }, [startSession]);
-  useEffect(() => {
-    if (!ready) return;
-    void loadMessages();
-    const timer = window.setInterval(() => void loadMessages(), 10_000);
-    return () => window.clearInterval(timer);
-  }, [ready, loadMessages]);
-
-  const saveContact = async (event: FormEvent) => {
-    event.preventDefault();
-    await startSession(contact);
-    setContactSaved(true);
-  };
-
-  const send = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!text.trim() || sending) return;
-    setSending(true);
-    try {
-      const response = await fetch('/api/public/live-chat/messages', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }),
-      });
-      const payload = await response.json();
-      if (response.ok) {
-        setMessages((current) => [...current, payload.message]);
-        setText('');
-      }
-    } finally { setSending(false); }
-  };
-
-  const { getWhatsAppUrl } = useContactSettings();
-  const whatsappUrl = getWhatsAppUrl('Hello TALAGO Marketplace, I need help with an experience.');
-
   return (
-    <div
+    <a
+      href={whatsappUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Chat with TALAGO on WhatsApp"
       className={`fixed ${
         isTourDetailPage
           ? 'bottom-[calc(6.5rem+env(safe-area-inset-bottom))]'
           : 'bottom-[calc(1.5rem+env(safe-area-inset-bottom))]'
-      } right-[calc(1rem+env(safe-area-inset-right))] z-40 flex flex-col items-end lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]`}
+      } right-[calc(1rem+env(safe-area-inset-right))] z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-[#25D366]/30 transition-transform hover:scale-110 lg:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] lg:right-[calc(1.5rem+env(safe-area-inset-right))]`}
     >
-      {visibleAdminReply && !open && (
-        <button type="button" onClick={() => { setOpen(true); setHasUnreadAdminReply(false); setVisibleAdminReply(null); setContactMenuOpen(false); }} className="mb-3 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-cyan-300/40 bg-[#0B1528] p-4 text-left shadow-2xl shadow-black/50 transition hover:border-cyan-200">
-          <div className="flex items-start gap-3"><span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-300 text-xs font-black text-slate-950">T</span><span className="min-w-0"><strong className="block text-sm font-black text-white">New message from TALAGO</strong><span className="mt-1 block max-h-12 overflow-hidden text-xs leading-5 text-slate-300">{visibleAdminReply}</span><span className="mt-2 block text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-200">Open chat to reply</span></span></div>
-        </button>
-      )}
-      {contactMenuOpen && !open && (
-        <div className="mb-3 w-56 overflow-hidden rounded-lg border border-white/15 bg-[#0B1528] p-2 shadow-2xl shadow-black/50">
-          <button type="button" onClick={() => { setOpen(true); setHasUnreadAdminReply(false); setContactMenuOpen(false); }} className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm font-bold text-white hover:bg-white/[0.06]">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-300 text-slate-950"><MessageCircle className="h-4 w-4" /></span>
-            Chat on site
-          </button>
-          <a href={whatsappUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white hover:bg-white/[0.06]">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366] text-[10px] font-black text-slate-950">WA</span>
-            Chat on WhatsApp
-          </a>
-        </div>
-      )}
-      {open && (
-        <section className="mb-3 flex h-[min(32rem,calc(100vh-14rem))] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-white/15 bg-[#0B1528] shadow-2xl shadow-black/50">
-          <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-            <div><p className="text-sm font-bold text-white">Talago Marketplace Support</p><p className="text-xs text-emerald-300">We reply here while you browse</p></div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="p-1 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
-          </header>
-          <div className="flex-1 space-y-3 overflow-y-auto p-4">
-            {messages.length === 0 && <p className="rounded-lg bg-white/[0.04] p-3 text-sm leading-6 text-slate-300">Need help choosing an experience, comparing options, or managing a booking? Send our marketplace team a message.</p>}
-            {messages.map((message) => <div key={message.id} className={`max-w-[88%] rounded-lg px-3 py-2 text-sm leading-5 ${message.sender === 'ADMIN' ? 'bg-cyan-300 text-slate-950' : 'ml-auto bg-white/[0.08] text-white'}`}>{message.body}</div>)}
-          </div>
-          {!contactSaved && messages.length === 0 ? (
-            <form onSubmit={saveContact} className="space-y-2 border-t border-white/10 p-3">
-              <input value={contact.name} onChange={(e) => setContact((current) => ({ ...current, name: e.target.value }))} placeholder="Your name (optional)" className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none" />
-              <input value={contact.email} onChange={(e) => setContact((current) => ({ ...current, email: e.target.value }))} placeholder="Email for follow-up (optional)" type="email" className="w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none" />
-              <button type="submit" className="w-full rounded-md bg-cyan-300 px-3 py-2 text-sm font-bold text-slate-950">Start chat</button>
-            </form>
-          ) : (
-            <form onSubmit={send} className="flex gap-2 border-t border-white/10 p-3">
-              <input value={text} onChange={(e) => setText(e.target.value)} maxLength={1200} placeholder="Write a message" className="min-w-0 flex-1 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none" />
-              <button type="submit" disabled={!text.trim() || sending} aria-label="Send message" className="rounded-md bg-cyan-300 p-2 text-slate-950 disabled:opacity-40"><Send className="h-4 w-4" /></button>
-            </form>
-          )}
-        </section>
-      )}
-      <button type="button" onClick={() => { if (open) setOpen(false); else setContactMenuOpen((value) => !value); }} className="relative flex h-12 w-12 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-300/25" aria-label="Contact TALAGO">
-        {open || contactMenuOpen ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
-        {!open && hasUnreadAdminReply && <span className="absolute -left-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-[#070F1E] bg-rose-400 px-1 text-[10px] font-black text-slate-950" aria-label="New support reply">1</span>}
-        {!open && !contactMenuOpen && <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#070F1E] bg-[#25D366] text-[7px] font-black text-slate-950">WA</span>}
-      </button>
-    </div>
+      {/* WhatsApp SVG icon */}
+      <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+      </svg>
+    </a>
   );
 }
