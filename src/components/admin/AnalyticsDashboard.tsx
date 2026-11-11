@@ -191,6 +191,39 @@ export default function AnalyticsDashboard() {
         ) : null}
       </div>
 
+      {/* Booking Funnel */}
+      {!loading && data?.funnel && (
+        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-sm font-bold uppercase tracking-wide text-gray-500">
+            Booking Funnel
+          </h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {[
+              { label: 'Checkout Starts', value: data.funnel.checkoutStarts + data.funnel.confirmedBookings, color: 'text-gray-900' },
+              { label: 'Confirmed', value: data.funnel.confirmedBookings, color: 'text-emerald-700' },
+              { label: 'Abandoned', value: data.funnel.abandonedCheckouts, color: 'text-red-600' },
+              { label: 'Recovered', value: data.funnel.recoveredCheckouts, color: 'text-amber-600' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="rounded-lg bg-gray-50 p-4 text-center border border-gray-100">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">{label}</p>
+                <p className={`text-2xl font-bold ${color}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex items-center gap-3">
+            <div className="flex-1 h-2.5 rounded-full bg-gray-100 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                style={{ width: `${data.funnel.conversionRate}%` }}
+              />
+            </div>
+            <span className="text-sm font-bold text-emerald-700 whitespace-nowrap">
+              {data.funnel.conversionRate}% conversion
+            </span>
+          </div>
+        </section>
+      )}
+
       {!loading && data && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <section className="lg:col-span-1 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

@@ -17,6 +17,14 @@ export interface TourPerformanceItem {
   passengerCount: number;
 }
 
+export interface BookingFunnel {
+  checkoutStarts: number;       // AbandonedCheckout records created
+  confirmedBookings: number;    // status CONFIRMED or PAID
+  abandonedCheckouts: number;   // isRecovered=false, reminderSent flag ignored
+  conversionRate: number;       // confirmedBookings / (confirmedBookings + abandonedCheckouts) * 100
+  recoveredCheckouts: number;   // isRecovered=true
+}
+
 export interface ExecutiveDashboardStats {
   grossRevenueUSD: number;
   grossRevenueEGP: number;
@@ -26,5 +34,6 @@ export interface ExecutiveDashboardStats {
   topTourTitle: string;
   channelBreakdown: ChannelSummary[];
   onlineCapturedRevenueUSD?: number;
+  funnel?: BookingFunnel;
 }
 

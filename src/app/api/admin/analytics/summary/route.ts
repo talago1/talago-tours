@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       travelDate: { gte: startDate, lte: endDate },
     };
 
-    const [aggregation, channelGroups, tourGroups, transactionAggregation] = await Promise.all([
+    const [aggregation, channelGroups, tourGroups, transactionAggregation, abandonedCounts] = await Promise.all([
       prisma.booking.aggregate({
         where,
         _sum: { totalPriceUSD: true, guestCount: true },
@@ -109,10 +109,23 @@ export async function GET(request: NextRequest) {
         },
         _sum: { amountPaidOnline: true },
       }),
+      // Booking funnel: abandoned checkout counts within the same date window
+      Promise.all([
+        prisma.abandonedCheckout.count({ where: { createdAt: { gte: startDate, lte: endDate } } }),
+        prisma.abandonedCheckout.count({ where: { createdAt: { gte: startDate, lte: endDate }, isRecovered: false } }),
+        prisma.abandonedCheckout.count({ where: { createdAt: { gte: startDate, lte: endDate }, isRecovered: true } }),
+      ]),
     ]);
 
     const grossRevenueUSD = aggregation._sum.totalPriceUSD ?? 0;
     const onlineCapturedRevenueUSD = transactionAggregation._sum.amountPaidOnline ?? 0;
+
+    const [checkoutStarts, abandonedCheckouts, recoveredCheckouts] = abandonedCounts;
+    const confirmedBookings = aggregation._count;
+    const funnelDenominator = confirmedBookings + abandonedCheckouts;
+    const funnelConversionRate = funnelDenominator > 0
+      ? Math.round((confirmedBookings / funnelDenominator) * 1000) / 10
+      : 0;
 
     const tourIds = tourGroups.map((g) => g.tourId);
     const tours = await prisma.tour.findMany({
@@ -182,6 +195,13 @@ export async function GET(request: NextRequest) {
       topTourTitle,
       channelBreakdown,
       onlineCapturedRevenueUSD,
+      funnel: {
+        checkoutStarts,
+        confirmedBookings,
+        abandonedCheckouts,
+        recoveredCheckouts,
+        conversionRate: funnelConversionRate,
+      },
     };
 
     return NextResponse.json(response, {
