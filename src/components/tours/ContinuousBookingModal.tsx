@@ -128,6 +128,25 @@ export default function ContinuousBookingModal({
   const [preliminaryLeadId, setPreliminaryLeadId] = useState<string | null>(null);
   const [preliminaryReference, setPreliminaryReference] = useState<string | null>(null);
 
+  // Live availability — spots remaining for the selected date
+  const [availableSpots, setAvailableSpots] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!departureDate || !tour.id) { setAvailableSpots(null); return; }
+    const month = departureDate.slice(0, 7); // YYYY-MM
+    fetch(`/api/public/tours/${tour.id}/availability?month=${month}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && data[departureDate]) {
+          const day = data[departureDate] as { status: string; remaining: number };
+          setAvailableSpots(day.remaining ?? null);
+        } else {
+          setAvailableSpots(null);
+        }
+      })
+      .catch(() => setAvailableSpots(null));
+  }, [departureDate, tour.id]);
+
   // Sync initial values only when modal first opens
   const prevIsOpenRef = React.useRef(false);
   useEffect(() => {
@@ -615,6 +634,23 @@ export default function ContinuousBookingModal({
                         />
                         {errors.departureDate && (
                           <p className="text-[11px] text-rose-400 mt-1 font-medium">{errors.departureDate}</p>
+                        )}
+                        {/* Scarcity indicator — only shown when spots are genuinely low */}
+                        {availableSpots !== null && availableSpots <= 5 && availableSpots > 0 && (
+                          <div className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                            <span className="text-[11px] font-bold text-amber-400">
+                              Only {availableSpots} spot{availableSpots !== 1 ? 's' : ''} left on this date
+                            </span>
+                          </div>
+                        )}
+                        {availableSpots === 0 && (
+                          <div className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-red-500/10 border border-red-500/20 px-2.5 py-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+                            <span className="text-[11px] font-bold text-red-400">
+                              Sold out on this date — please choose another
+                            </span>
+                          </div>
                         )}
                       </div>
 

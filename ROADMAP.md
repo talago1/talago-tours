@@ -38,12 +38,13 @@ Talago is positioned as a mature, high-converting, tech-forward experience marke
 
 ---
 
-### Phase 3: Catalog Authority & Content Standardization (IN PROGRESS)
+### Phase 3: Catalog Authority & Content Standardization (COMPLETE)
 - [x] **Unified Tour Editor:** Multi-language tabbed editor with route stop manager, inclusions/exclusions, and gallery upload.
 - [x] **Catalog Completeness Engine Audit:**
   - Evaluated all 38 tours across 12 weighted quality checks (`calculateTourCompleteness`).
   - Average catalog quality is 84% with zero critical defects.
   - Actionable priority backlog created for 4 high-priority tours (<70%) to add highlights and itinerary milestones without inventing unverified facts.
+- [x] **Admin Completeness Badge:** Live `calcCompleteness()` score displayed on each tour card in `/admin/tours` (green ≥90%, amber 70–89%, red <70%) with hover tooltip listing missing sections.
 
 ---
 
@@ -61,7 +62,7 @@ Talago is positioned as a mature, high-converting, tech-forward experience marke
 - [x] **Secured Post-Trip Review Invitation Loop:**
   - Registered 4-hour recurring cron (`0 */4 * * *`) calling `/api/notifications/post-tour-reviews`.
   - Scoped Review Token (`src/utils/reviewToken.ts`): HMAC-signed tokens with 60-day expiration, zero booking management or payment credential exposure.
-  - WhatsApp Opt-in Enforcement: Checks `booking.whatsappOptIn === true`; skips and logs opt-outs.
+  - WhatsApp Opt-in Enforcement: Checks `booking.whatsappOptIn === true`; email fallback for opted-out customers with real email via `sendEmail()`.
   - Meta Template Architecture: Structured message (`talago_tour_review_invitation_v1`) with mandatory unsubscribe option (`Reply STOP`).
   - Dedicated Mobile Review Route: `/reviews/submit?token=...` and `/api/public/reviews/verify-token` for 1-click verified review submission.
   - Protected by `CRON_SECRET` and idempotent audit logs in `NotificationLog` preventing duplicate traveler pings.
@@ -72,4 +73,29 @@ Talago is positioned as a mature, high-converting, tech-forward experience marke
 - [x] **Executive Analytics Summary:** `/api/admin/analytics/summary` (Gross/net revenue, passenger counts, EGP/USD conversions).
 - [x] **Sales CSV Export:** `/api/admin/reports/export` with sanitization against CSV formula injection.
 
+---
+
+### Phase 7: Conversion Signals & Discovery (COMPLETE)
+- [x] **Truth-in-Inventory Availability Fetch in Booking Modal:** `ContinuousBookingModal` now fetches `/api/public/tours/[tourId]/availability` on date selection and shows:
+  - Amber "Only X spots left on this date" banner when `remaining ≤ 5`.
+  - Red "Sold out on this date" banner when `remaining = 0`.
+  - Zero fabricated scarcity — strictly derived from confirmed + pending booking counts.
+- [x] **Email Fallback for Review Invitations:** `dispatchPostTourReviewInvitation` falls back to HTML email (Resend/Brevo) for customers who opted out of WhatsApp but have a real email address. Dedup via `NotificationLog` channel `POST_TOUR_REVIEW_EMAIL`.
+
+---
+
+### Phase 8: Loyalty Points Schema (PENDING — Awaiting DB Migration Approval)
+- [ ] Add `loyaltyPoints Int @default(0)` and `loyaltyTier String @default("EXPLORER")` to `CustomerProfile` model.
+- [ ] Auto-accrue points when booking status transitions to `COMPLETED`.
+- [ ] Display point balance and tier progress on `/account` overview.
+- **Note:** Requires `prisma db push` on production DB — needs explicit user approval before execution.
+
+---
+
+### Phase 9: Remaining Roadmap Items (NEXT)
+- [ ] **Telegram/Google Identity Linking:** Reliable one-tap identity merge for returning customers.
+- [ ] **Per-Booking Conversation Thread:** Dedicated WhatsApp/admin message thread integrated into `/admin/bookings`.
+- [ ] **Referral & Repeat-Customer Incentives:** Promo code auto-generation for returning customers.
+- [ ] **Tour Catalog SEO Enrichment:** Prioritize `seoTitle`/`seoDescription` completion for 4 high-priority incomplete tours via admin editor.
+- [ ] **International SEO:** `hreflang` tags, structured data for 7 language variants.
 

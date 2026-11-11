@@ -48,6 +48,9 @@ export default async function AdminToursPage() {
         isBestSeller: true,
         tourOptions: true,
         pickupTimes: true,
+        highlights: true,
+        inclusions: true,
+        safetyGuidelines: true,
         destination: { select: { name: true } },
       },
     }),
@@ -96,6 +99,10 @@ export default async function AdminToursPage() {
     ratingCount: t.ratingCount ?? undefined,
     tourOptions: Array.isArray(t.tourOptions) ? (t.tourOptions as unknown as any[]) : null,
     pickupTimes: Array.isArray(t.pickupTimes) ? t.pickupTimes : [],
+    highlights: Array.isArray(t.highlights) ? t.highlights as string[] : [],
+    inclusions: Array.isArray(t.inclusions) ? t.inclusions as string[] : [],
+    safetyGuidelines: Array.isArray(t.safetyGuidelines) ? t.safetyGuidelines as string[] : [],
+    galleryImages: Array.isArray(t.galleryImages) ? t.galleryImages : [],
   }));
 
   return (

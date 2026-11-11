@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { parseSettingValue, DEFAULT_SETTINGS } from '@/lib/systemSettings';
 import { generateReviewToken } from '@/utils/reviewToken';
+import { sendEmail } from '@/lib/email';
 
 async function getNotificationSettings() {
   try {
@@ -547,18 +548,74 @@ export async function dispatchPostTourReviewInvitation(
       return { success: false, error: 'Booking or tour not found' };
     }
 
-    // 1. Enforce WhatsApp Opt-in requirement
+    // 1. Enforce WhatsApp Opt-in requirement — fall back to email if opted out
+    const isSyntheticEmail =
+      !booking.customerEmail ||
+      booking.customerEmail.endsWith('@noreply.talago.com');
+
     if (!booking.whatsappOptIn) {
+      // Try email fallback for opted-out customers who have a real email
+      if (!isSyntheticEmail) {
+        // Check dedup for email channel
+        const existingEmailLog = await prisma.notificationLog.findFirst({
+          where: {
+            bookingId: booking.id,
+            channel: 'POST_TOUR_REVIEW_EMAIL',
+            status: { in: ['SENT', 'DELIVERED'] },
+          },
+        });
+        if (existingEmailLog) return { success: true };
+
+        const baseUrl = getBaseUrl();
+        const tourTranslations = booking.tour.translations as Record<string, { title?: string }> | null;
+        const tourTitle =
+          tourTranslations?.[booking.language]?.title ||
+          tourTranslations?.en?.title ||
+          booking.tour.slug;
+        const reviewToken = generateReviewToken({ bookingId: booking.id, tourId: booking.tour.id });
+        const reviewUrl = `${baseUrl}/reviews/submit?token=${encodeURIComponent(reviewToken)}`;
+
+        try {
+          await sendEmail({
+            to: booking.customerEmail!,
+            subject: `How was your experience? Leave a review for ${tourTitle}`,
+            html: `<p>Hi ${booking.customerName},</p><p>We hope you had an amazing time on <strong>${tourTitle}</strong>!</p><p>We&rsquo;d love to hear your thoughts &mdash; it only takes a minute:</p><p><a href="${reviewUrl}" style="background:#00E5FF;color:#070F1E;padding:12px 24px;border-radius:8px;font-weight:bold;text-decoration:none;display:inline-block">&#11088; Leave a Review</a></p><p>Thank you for choosing Talago Tours!</p>`,
+          });
+          await prisma.notificationLog.create({
+            data: {
+              bookingId: booking.id,
+              channel: 'POST_TOUR_REVIEW_EMAIL',
+              recipient: booking.customerEmail!,
+              status: 'SENT',
+            },
+          });
+          return { success: true };
+        } catch (emailErr) {
+          const errMsg = emailErr instanceof Error ? emailErr.message : 'Email send failed';
+          await prisma.notificationLog.create({
+            data: {
+              bookingId: booking.id,
+              channel: 'POST_TOUR_REVIEW_EMAIL',
+              recipient: booking.customerEmail!,
+              status: 'FAILED',
+              errorMessage: errMsg,
+            },
+          });
+          return { success: false, error: errMsg };
+        }
+      }
+
+      // No WhatsApp opt-in and no real email — log and skip
       await prisma.notificationLog.create({
         data: {
           bookingId: booking.id,
           channel: 'POST_TOUR_REVIEW',
           recipient: booking.customerPhone || booking.customerEmail || 'unknown',
           status: 'SKIPPED',
-          errorMessage: 'Customer did not opt in to WhatsApp updates (whatsappOptIn = false)',
+          errorMessage: 'Customer did not opt in to WhatsApp updates and has no real email',
         },
       });
-      return { success: false, error: 'Customer did not opt in to WhatsApp' };
+      return { success: false, error: 'Customer did not opt in to WhatsApp and has no real email' };
     }
 
     // 2. Prevent duplicate invitations

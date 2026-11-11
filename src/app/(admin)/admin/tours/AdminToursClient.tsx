@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -60,6 +60,64 @@ interface Tour {
   ratingAverage?: number;
   ratingCount?: number;
   tourOptions?: Array<{ id: string; title?: string; name?: string; labels?: Record<string, string>; price: number; priceType?: string }> | null;
+  // completeness-relevant extra fields passed from server
+  galleryImages?: (string | null)[];
+  itinerary?: unknown[];
+  highlights?: string[];
+  inclusions?: string[];
+  safetyGuidelines?: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Catalog Completeness Scorer (mirrors audit_catalog_completeness.js logic)
+// ---------------------------------------------------------------------------
+
+interface CompletenessResult {
+  score: number; // 0–100
+  missing: string[];
+}
+
+function calcCompleteness(tour: Tour): CompletenessResult {
+  const trans = (tour.translations as Record<string, Record<string, unknown>> | null) ?? {};
+  const en = (trans.en ?? {}) as Record<string, unknown>;
+
+  const gallery = ((tour.galleryImages ?? []) as (string | null)[]).filter(Boolean);
+  const itinerary = Array.isArray(tour.itinerary) ? tour.itinerary : [];
+  const pickupTimes = Array.isArray(tour.pickupTimes) ? tour.pickupTimes : [];
+  const highlights = [
+    ...(Array.isArray(tour.highlights) ? tour.highlights : []),
+    ...(Array.isArray(en.highlights) ? en.highlights as unknown[] : []),
+  ];
+  const inclusions = [
+    ...(Array.isArray(tour.inclusions) ? tour.inclusions : []),
+    ...(Array.isArray(en.inclusions) ? en.inclusions as unknown[] : []),
+  ];
+  const safetyGuidelines = [
+    ...(Array.isArray(tour.safetyGuidelines) ? tour.safetyGuidelines : []),
+    ...(Array.isArray(en.safetyGuidelines) ? en.safetyGuidelines as unknown[] : []),
+  ];
+
+  const checks: { name: string; complete: boolean; weight: number }[] = [
+    { name: 'Title & Slug', complete: Boolean(tour.slug?.trim() && (en.title as string | undefined)?.trim()), weight: 15 },
+    { name: 'Destination', complete: Boolean(tour.zoneId || tour.destinationId), weight: 10 },
+    { name: 'Cover Image', complete: Boolean(tour.coverImage?.trim()), weight: 15 },
+    { name: 'Gallery (2+)', complete: gallery.length >= 2, weight: 5 },
+    { name: 'Pricing & Capacity', complete: Boolean((tour.adultPrice > 0 || tour.basePriceUSD > 0) && tour.durationHours > 0 && tour.maxCapacity > 0), weight: 15 },
+    { name: 'Highlights & Inclusions', complete: highlights.length >= 3 && inclusions.length >= 3, weight: 10 },
+    { name: 'Itinerary / Timeline', complete: itinerary.length >= 2, weight: 10 },
+    { name: 'Description', complete: Boolean((en.description as string | undefined)?.trim() && ((en.description as string).length ?? 0) > 80), weight: 10 },
+    { name: 'Pickup & Logistics', complete: Boolean((tour.pickupTime?.trim() || pickupTimes.length > 0) && tour.hotelPickupIncluded !== undefined), weight: 5 },
+    { name: 'SEO Metadata', complete: Boolean((en.seoTitle as string | undefined)?.trim() || (en.seoDescription as string | undefined)?.trim()), weight: 5 },
+    { name: 'Cancellation Policy', complete: Boolean(tour.cancellationPolicy?.trim()), weight: 5 },
+    { name: 'Safety Guidelines', complete: safetyGuidelines.length >= 2, weight: 5 },
+  ];
+
+  const totalWeight = checks.reduce((s, c) => s + c.weight, 0);
+  const earned = checks.filter(c => c.complete).reduce((s, c) => s + c.weight, 0);
+  const score = Math.round((earned / totalWeight) * 100);
+  const missing = checks.filter(c => !c.complete).map(c => c.name);
+
+  return { score, missing };
 }
 
 interface AdminToursClientProps {
@@ -477,8 +535,9 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
         {/* Tours Card Grid */}
         <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
           {filtered.map((tour) => {
-            const gallery = ((tour as unknown as { galleryImages?: (string | null)[] }).galleryImages || []).filter(Boolean) as string[];
+            const gallery = ((tour.galleryImages ?? []) as (string | null)[]).filter(Boolean) as string[];
             const allImages = [tour.coverImage, ...gallery].filter((x): x is string => typeof x === 'string' && x.length > 0);
+            const completeness = calcCompleteness(tour);
 
             return (
               <div
@@ -580,6 +639,30 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
                       <span className="text-xl font-black text-white">${tour.adultPrice.toFixed(0)}</span>
                       <span className="text-xs text-slate-500 font-medium">/ person</span>
                     </div>
+
+                    {/* Completeness badge */}
+                    {(() => {
+                      const { score, missing } = completeness;
+                      const color = score >= 90
+                        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
+                        : score >= 70
+                        ? 'bg-amber-500/15 text-amber-400 border-amber-500/25'
+                        : 'bg-red-500/15 text-red-400 border-red-500/25';
+                      const dot = score >= 90 ? 'bg-emerald-400' : score >= 70 ? 'bg-amber-400' : 'bg-red-400';
+                      const title = missing.length > 0
+                        ? `Missing: ${missing.join(', ')}`
+                        : 'Tour content is complete';
+                      return (
+                        <div
+                          className={`mt-2.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black cursor-help ${color}`}
+                          title={title}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+                          {score}% complete
+                          {missing.length > 0 && <span className="opacity-60">· {missing.length} missing</span>}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Actions */}
