@@ -39,9 +39,17 @@ import { useCurrency } from '@/context/CurrencyContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { supabaseClient } from '@/lib/supabase/client';
 import TourCard from '@/components/public/TourCard';
-import WriteReviewModal from '@/components/modals/WriteReviewModal';
-import AskQuestionModal from '@/components/modals/AskQuestionModal';
-import ContinuousBookingModal from '@/components/tours/ContinuousBookingModal';
+import dynamic from 'next/dynamic';
+
+const ContinuousBookingModal = dynamic(() => import('@/components/tours/ContinuousBookingModal'), {
+  ssr: false,
+});
+const AskQuestionModal = dynamic(() => import('@/components/modals/AskQuestionModal'), {
+  ssr: false,
+});
+const WriteReviewModal = dynamic(() => import('@/components/modals/WriteReviewModal'), {
+  ssr: false,
+});
 import type { PublicTour } from '@/types/publicTour';
 import { useRouter } from 'next/navigation';
 

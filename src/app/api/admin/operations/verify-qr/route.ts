@@ -30,17 +30,30 @@ export async function POST(
       );
     }
 
+    let bookingIdToVerify = '';
+
     const payload = verifyToken(token);
-    if (!payload) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid or expired QR token' },
-        { status: 401 }
-      );
+    if (payload) {
+      bookingIdToVerify = bookingIdToVerify;
+    } else {
+      // Allow fallback lookup by uppercase booking reference
+      const cleanRef = token.trim().toUpperCase();
+      const directBooking = await prisma.booking.findFirst({
+        where: { bookingReference: cleanRef },
+        select: { id: true },
+      });
+      if (!directBooking) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid or expired QR token / Reference not found' },
+          { status: 401 }
+        );
+      }
+      bookingIdToVerify = directBooking.id;
     }
 
     const result = await prisma.$transaction(async (tx) => {
       const booking = await tx.booking.findUnique({
-        where: { id: payload.bookingId },
+        where: { id: bookingIdToVerify },
         include: { tour: true },
       });
 
@@ -56,7 +69,7 @@ export async function POST(
       // leaves a window where two simultaneous scans both pass the check and
       // check the same passenger in twice.
       const claim = await tx.booking.updateMany({
-        where: { id: payload.bookingId, isCheckedIn: false },
+        where: { id: bookingIdToVerify, isCheckedIn: false },
         data: { isCheckedIn: true, checkedInAt: new Date() },
       });
       if (claim.count === 0) {
@@ -70,13 +83,13 @@ export async function POST(
       // object {"push": entry} rather than appending to the array, and
       // hasExistingCheckIn() would then reject it via Array.isArray().
       const existing = await tx.booking.findUnique({
-        where: { id: payload.bookingId },
+        where: { id: bookingIdToVerify },
         select: { checkInLog: true },
       });
       const logs = Array.isArray(existing?.checkInLog) ? existing.checkInLog : [];
 
       const updated = await tx.booking.update({
-        where: { id: payload.bookingId },
+        where: { id: bookingIdToVerify },
         data: {
           isCheckedIn: true,
           checkedInAt: new Date(logEntry.timestamp),

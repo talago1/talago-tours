@@ -23,6 +23,7 @@ import {
   Plane,
 } from 'lucide-react';
 import CountryCodeSelector from '@/components/checkout/CountryCodeSelector';
+import { saveBookingDraft, loadBookingDraft, clearBookingDraft } from '@/utils/bookingDraftStorage';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { PaymentScheme } from '@/types/checkout';
@@ -131,12 +132,36 @@ export default function ContinuousBookingModal({
   const prevIsOpenRef = React.useRef(false);
   useEffect(() => {
     if (isOpen && !prevIsOpenRef.current) {
-      if (initialDate) setDepartureDate(initialDate);
-      if (initialTime) setSelectedTime(initialTime);
-      if (initialAdults) setAdultsCount(initialAdults);
-      setChildrenCount(initialChildren);
-      setInfantsCount(initialInfants);
-      setSelectedAddons(initialAddons || {});
+      const draft = loadBookingDraft(tour.id);
+      if (draft) {
+        if (draft.departureDate) setDepartureDate(draft.departureDate);
+        else if (initialDate) setDepartureDate(initialDate);
+        if (draft.selectedTime) setSelectedTime(draft.selectedTime);
+        else if (initialTime) setSelectedTime(initialTime);
+        if (draft.adultsCount) setAdultsCount(draft.adultsCount);
+        else if (initialAdults) setAdultsCount(initialAdults);
+        if (typeof draft.childrenCount === 'number') setChildrenCount(draft.childrenCount);
+        else setChildrenCount(initialChildren);
+        if (typeof draft.infantsCount === 'number') setInfantsCount(draft.infantsCount);
+        else setInfantsCount(initialInfants);
+        if (draft.selectedAddons) setSelectedAddons(draft.selectedAddons);
+        else setSelectedAddons(initialAddons || {});
+        if (draft.leadName) setLeadName(draft.leadName);
+        if (draft.phone) setPhone(draft.phone);
+        if (draft.email) setEmail(draft.email);
+        if (draft.pickupType && ['HOTEL', 'MEETING_POINT', 'AIRPORT'].includes(draft.pickupType)) setPickupType(draft.pickupType as any);
+        if (draft.hotelName) setHotelName(draft.hotelName);
+        if (draft.roomNumber) setRoomNumber(draft.roomNumber);
+        if (draft.specialRequirements) setSpecialRequirements(draft.specialRequirements);
+        if (draft.selectedZoneId) setSelectedZoneId(draft.selectedZoneId);
+      } else {
+        if (initialDate) setDepartureDate(initialDate);
+        if (initialTime) setSelectedTime(initialTime);
+        if (initialAdults) setAdultsCount(initialAdults);
+        setChildrenCount(initialChildren);
+        setInfantsCount(initialInfants);
+        setSelectedAddons(initialAddons || {});
+      }
       // Auto-select zone if only 1 zone exists
       if (zones.length === 1 && zones[0]?.id) {
         setSelectedZoneId(zones[0].id);
@@ -321,6 +346,22 @@ export default function ContinuousBookingModal({
 
   const handleNext = () => {
     if (validateStep(step)) {
+      saveBookingDraft(tour.id, {
+        departureDate,
+        selectedTime,
+        adultsCount,
+        childrenCount,
+        infantsCount,
+        selectedAddons,
+        leadName,
+        phone,
+        email,
+        pickupType,
+        hotelName,
+        roomNumber,
+        specialRequirements,
+        selectedZoneId,
+      });
       setStep((prev) => (Math.min(4, prev + 1) as 1 | 2 | 3 | 4));
     }
   };
@@ -409,6 +450,7 @@ export default function ContinuousBookingModal({
       }
 
       // Confirmed reservation
+      clearBookingDraft(tour.id);
       setConfirmedBooking({
         bookingReference: data.bookingReference || `TLG-${data.bookingId?.slice(-6).toUpperCase()}`,
         accessToken: data.accessToken,

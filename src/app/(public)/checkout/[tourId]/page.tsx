@@ -34,6 +34,7 @@ import type { PromoDiscount } from '@/utils/promo';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { supabaseClient } from '@/lib/supabase/client';
+import { saveBookingDraft, loadBookingDraft, clearBookingDraft } from '@/utils/bookingDraftStorage';
 
 interface ZoneOption {
   id: string;
@@ -417,6 +418,28 @@ export default function CheckoutPage() {
 
   // Synchronize counts from search parameters on mount
   useEffect(() => {
+    const draft = loadBookingDraft(tourId);
+    if (draft) {
+      if (draft.departureDate) setDepartureDate(draft.departureDate);
+      if (draft.selectedTime) setForm((prev) => ({ ...prev, pickupTime: draft.selectedTime || prev.pickupTime }));
+      if (draft.adultsCount) setAdultsCount(draft.adultsCount);
+      if (typeof draft.childrenCount === 'number') setChildrenCount(draft.childrenCount);
+      if (typeof draft.infantsCount === 'number') setInfantsCount(draft.infantsCount);
+      if (draft.selectedAddons) setSelectedAddons(draft.selectedAddons);
+      if (draft.selectedZoneId) {
+        setSelectedZoneId(draft.selectedZoneId);
+      }
+      setForm((prev) => ({
+        ...prev,
+        leadName: prev.leadName.trim() ? prev.leadName : (draft.leadName || prev.leadName),
+        phone: prev.phone.trim() ? prev.phone : (draft.phone || prev.phone),
+        email: prev.email.trim() ? prev.email : (draft.email || prev.email),
+        pickupType: draft.pickupType || prev.pickupType,
+        hotelName: draft.hotelName || prev.hotelName,
+        roomNumber: draft.roomNumber || prev.roomNumber,
+        specialRequirements: draft.specialRequirements || prev.specialRequirements,
+      }));
+    }
     const queryAdults = searchParams.get('adults');
     if (queryAdults) setAdultsCount(Math.max(1, parseInt(queryAdults, 10)));
     const queryChildren = searchParams.get('children');
@@ -558,7 +581,26 @@ export default function CheckoutPage() {
   }, [tourId]);
 
   const handleFieldChange = useCallback((field: keyof CheckoutFormData, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const updated = { ...prev, [field]: value };
+      saveBookingDraft(tourId, {
+        departureDate,
+        selectedTime: updated.pickupTime,
+        adultsCount,
+        childrenCount,
+        infantsCount,
+        leadName: updated.leadName,
+        phone: updated.phone,
+        email: updated.email,
+        pickupType: updated.pickupType,
+        hotelName: updated.hotelName,
+        roomNumber: updated.roomNumber,
+        specialRequirements: updated.specialRequirements,
+        selectedZoneId,
+        selectedAddons,
+      });
+      return updated;
+    });
     setErrors((prev) => {
       const next = { ...prev };
       delete next[field];
@@ -677,6 +719,7 @@ export default function CheckoutPage() {
         return;
       }
 
+      clearBookingDraft(tourId);
       setConfirmData(responseData);
 
       if (responseData.scheme === PaymentScheme.PAY_ON_ARRIVAL) {

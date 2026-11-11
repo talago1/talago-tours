@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { parseSettingValue, DEFAULT_SETTINGS } from '@/lib/systemSettings';
+import { generateReviewToken } from '@/utils/reviewToken';
 
 async function getNotificationSettings() {
   try {
@@ -521,5 +522,164 @@ Need help or have questions? WhatsApp us directly at +20 122 243 4602.
     });
   } catch (err) {
     console.error('[notificationDispatcher] Abandoned checkout reminder failed:', err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Post-Tour Review Invitation Dispatcher
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends a post-tour review invitation via WhatsApp and Email for completed excursions.
+ */
+export async function dispatchPostTourReviewInvitation(
+  bookingId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        tour: { select: { id: true, slug: true, translations: true } },
+      },
+    });
+
+    if (!booking || !booking.tour) {
+      return { success: false, error: 'Booking or tour not found' };
+    }
+
+    // 1. Enforce WhatsApp Opt-in requirement
+    if (!booking.whatsappOptIn) {
+      await prisma.notificationLog.create({
+        data: {
+          bookingId: booking.id,
+          channel: 'POST_TOUR_REVIEW',
+          recipient: booking.customerPhone || booking.customerEmail || 'unknown',
+          status: 'SKIPPED',
+          errorMessage: 'Customer did not opt in to WhatsApp updates (whatsappOptIn = false)',
+        },
+      });
+      return { success: false, error: 'Customer did not opt in to WhatsApp' };
+    }
+
+    // 2. Prevent duplicate invitations
+    const existingLog = await prisma.notificationLog.findFirst({
+      where: {
+        bookingId: booking.id,
+        channel: 'POST_TOUR_REVIEW',
+        status: { in: ['SENT', 'DELIVERED', 'READ'] },
+      },
+    });
+
+    if (existingLog) {
+      return { success: true };
+    }
+
+    if (!booking.customerPhone) {
+      await prisma.notificationLog.create({
+        data: {
+          bookingId: booking.id,
+          channel: 'POST_TOUR_REVIEW',
+          recipient: booking.customerEmail || 'unknown',
+          status: 'FAILED',
+          errorMessage: 'Customer phone number is missing',
+        },
+      });
+      return { success: false, error: 'Customer phone number missing' };
+    }
+
+    const baseUrl = getBaseUrl();
+    const tourTranslations = booking.tour.translations as Record<string, { title?: string }> | null;
+    const tourTitle =
+      tourTranslations?.[booking.language]?.title ||
+      tourTranslations?.en?.title ||
+      booking.tour.slug;
+
+    // 3. Generate review-specific scoped access token (NO full booking management accessToken exposed)
+    const reviewToken = generateReviewToken({
+      bookingId: booking.id,
+      tourId: booking.tour.id,
+    });
+    const reviewUrl = `${baseUrl}/reviews/submit?token=${encodeURIComponent(reviewToken)}`;
+
+    // 4. Meta-compliant template structure (talago_tour_review_invitation_v1)
+    const waMessage = `Hello ${booking.customerName}! 🌊
+
+We hope you had an unforgettable experience on *${tourTitle}*!
+
+We would love to hear your feedback to help future travelers:
+⭐️ Leave a 1-click review:
+${reviewUrl}
+
+Thank you for choosing Talago Tours! 🐬
+
+(Reply STOP to opt out of trip updates)`;
+
+    // 5. WhatsApp Invitation via Green-API
+    const instanceId = process.env.GREEN_API_ID;
+    const token = process.env.GREEN_API_TOKEN;
+
+    if (!instanceId || !token) {
+      await prisma.notificationLog.create({
+        data: {
+          bookingId: booking.id,
+          channel: 'POST_TOUR_REVIEW',
+          recipient: booking.customerPhone,
+          status: 'FAILED',
+          errorMessage: 'GREEN-API credentials not configured in environment',
+        },
+      });
+      return { success: false, error: 'GREEN-API credentials not configured' };
+    }
+
+    const chatId = `${sanitizePhoneForWhatsApp(booking.customerPhone)}@c.us`;
+    const waUrl = `https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`;
+
+    const res = await fetch(waUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId, message: waMessage }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      await prisma.notificationLog.create({
+        data: {
+          bookingId: booking.id,
+          channel: 'POST_TOUR_REVIEW',
+          recipient: booking.customerPhone,
+          status: 'FAILED',
+          errorMessage: `GREEN-API HTTP ${res.status}: ${errText}`,
+        },
+      });
+      return { success: false, error: `GREEN-API HTTP ${res.status}: ${errText}` };
+    }
+
+    const result = (await res.json());
+
+    // Record delivery state
+    await prisma.notificationLog.create({
+      data: {
+        bookingId: booking.id,
+        channel: 'POST_TOUR_REVIEW',
+        recipient: booking.customerPhone,
+        status: 'SENT',
+        messageId: result.idMessage || null,
+      },
+    });
+
+    return { success: true };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Failed to dispatch review invite';
+    console.error('[notificationDispatcher] Post-tour review invite failed:', err);
+    await prisma.notificationLog.create({
+      data: {
+        bookingId,
+        channel: 'POST_TOUR_REVIEW',
+        recipient: 'unknown',
+        status: 'FAILED',
+        errorMessage: errorMsg,
+      },
+    }).catch(() => {});
+    return { success: false, error: errorMsg };
   }
 }

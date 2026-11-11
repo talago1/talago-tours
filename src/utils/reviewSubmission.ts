@@ -30,7 +30,7 @@ export class ReviewSubmissionError extends Error {
 
 interface ReviewCreateDelegate {
   create(args: {
-    data: Omit<ReviewSubmissionPayload, 'bookingAccessToken'> & { status: 'PENDING' };
+    data: Omit<ReviewSubmissionPayload, 'bookingAccessToken' | 'reviewToken'> & { status: 'PENDING' };
     select: { id: true; status: true; createdAt: true };
   }): Promise<{ id: string; status: string; createdAt: Date }>;
 }
@@ -42,7 +42,8 @@ export interface SubmitVerifiedReviewDependencies {
   verifyEligibility?: (
     bookingId: string,
     tourId: string,
-    bookingAccessToken: string,
+    bookingAccessToken?: string,
+    reviewToken?: string,
   ) => Promise<EligibilityResult>;
 }
 
@@ -57,8 +58,18 @@ export function validateReviewSubmissionPayload(body: unknown): ValidationResult
     return { error: 'bookingId is required.' };
   }
 
-  if (!payload.bookingAccessToken || typeof payload.bookingAccessToken !== 'string') {
-    return { error: 'bookingAccessToken is required.' };
+  const bookingAccessToken =
+    typeof payload.bookingAccessToken === 'string' && payload.bookingAccessToken.trim()
+      ? payload.bookingAccessToken.trim()
+      : undefined;
+
+  const reviewToken =
+    typeof payload.reviewToken === 'string' && payload.reviewToken.trim()
+      ? payload.reviewToken.trim()
+      : undefined;
+
+  if (!bookingAccessToken && !reviewToken) {
+    return { error: 'Either reviewToken or bookingAccessToken is required.' };
   }
 
   if (!payload.tourId || typeof payload.tourId !== 'string') {
@@ -91,7 +102,8 @@ export function validateReviewSubmissionPayload(body: unknown): ValidationResult
   return {
     data: {
       bookingId: payload.bookingId,
-      bookingAccessToken: payload.bookingAccessToken,
+      bookingAccessToken,
+      reviewToken,
       tourId: payload.tourId,
       customerName,
       rating,
@@ -106,7 +118,12 @@ export async function submitVerifiedReview(
 ): Promise<SubmittedReviewResult> {
   const prismaClient = dependencies.prismaClient ?? prisma;
   const verifyEligibility = dependencies.verifyEligibility ?? verifyBookingEligibility;
-  const eligibility = await verifyEligibility(payload.bookingId, payload.tourId, payload.bookingAccessToken);
+  const eligibility = await verifyEligibility(
+    payload.bookingId,
+    payload.tourId,
+    payload.bookingAccessToken,
+    payload.reviewToken,
+  );
 
   if (!eligibility.eligible) {
     throw new ReviewSubmissionError(
@@ -116,7 +133,7 @@ export async function submitVerifiedReview(
   }
 
   const actualBookingId = eligibility.resolvedBookingId || payload.bookingId;
-  const { bookingAccessToken: _bookingAccessToken, ...reviewData } = payload;
+  const { bookingAccessToken: _bookingAccessToken, reviewToken: _reviewToken, ...reviewData } = payload;
 
   try {
     const review = await prismaClient.review.create({

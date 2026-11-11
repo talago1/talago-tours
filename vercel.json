@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/notifications/abandoned-recovery",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/notifications/post-tour-reviews",
+      "schedule": "0 */4 * * *"
+    }
+  ]
+}

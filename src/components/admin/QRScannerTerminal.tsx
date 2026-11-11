@@ -23,6 +23,7 @@ export default function QRScannerTerminal() {
   const [state, setState] = useState<ScanState>({ status: 'idle' });
   const streamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number>(0);
+  const [manualRef, setManualRef] = useState('');
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -32,7 +33,7 @@ export default function QRScannerTerminal() {
     cancelAnimationFrame(animFrameRef.current);
   }, []);
 
-  const verifyToken = useCallback(async (token: string) => {
+  const verifyCheckIn = useCallback(async (opts: { token?: string; reference?: string }) => {
     setState({ status: 'decoding' });
     stopCamera();
 
@@ -40,7 +41,7 @@ export default function QRScannerTerminal() {
       const res = await fetch('/api/admin/operations/verify-qr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify(opts),
       });
       const data = await res.json();
 
@@ -63,6 +64,10 @@ export default function QRScannerTerminal() {
       setState({ status: 'error', error: 'Network error. Please try again.' });
     }
   }, [stopCamera]);
+
+  const verifyToken = useCallback(async (token: string) => {
+    return verifyCheckIn({ token });
+  }, [verifyCheckIn]);
 
   const startDecodeLoop = useCallback(() => {
     const loop = async () => {
@@ -135,13 +140,41 @@ export default function QRScannerTerminal() {
         <svg className="mb-4 h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
         </svg>
-        <p className="mb-4 text-sm text-gray-500">Tap below to start scanning QR codes</p>
+        <p className="mb-4 text-sm text-gray-500">Point camera at boarding pass QR or enter reference</p>
         <button
           onClick={startCamera}
-          className="rounded-lg bg-[#FF5B00] px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#e65200]"
+          className="rounded-xl bg-[#00E5FF] px-8 py-3 text-sm font-bold text-[#070F1E] shadow-lg shadow-cyan-500/20 transition hover:bg-[#00D4F0]"
         >
-          Start Scanner
+          Start Camera Scanner
         </button>
+
+        <div className="mt-8 w-full max-w-xs border-t border-gray-200 pt-6 text-center">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Or Enter Booking Ref</p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (manualRef.trim()) {
+                verifyCheckIn({ reference: manualRef.trim() });
+              }
+            }}
+            className="flex gap-2"
+          >
+            <input
+              type="text"
+              value={manualRef}
+              onChange={(e) => setManualRef(e.target.value.toUpperCase())}
+              placeholder="e.g. TLG-ABC123"
+              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono uppercase text-gray-800 placeholder-gray-400 outline-none focus:border-[#00E5FF]"
+            />
+            <button
+              type="submit"
+              disabled={!manualRef.trim()}
+              className="rounded-lg bg-gray-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-gray-800 disabled:opacity-40"
+            >
+              Verify
+            </button>
+          </form>
+        </div>
       </div>
     );
   }

@@ -10,8 +10,10 @@ import { useCurrency } from '@/context/CurrencyContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { LANGUAGES, type LanguageCode } from '@/lib/i18n';
 import type { SupportedCurrency } from '@/utils/currency';
-import WriteReviewModal from '@/components/modals/WriteReviewModal';
-import CancellationModal from '@/components/modals/CancellationModal';
+import dynamic from 'next/dynamic';
+
+const WriteReviewModal = dynamic(() => import('@/components/modals/WriteReviewModal'), { ssr: false });
+const CancellationModal = dynamic(() => import('@/components/modals/CancellationModal'), { ssr: false });
 import { useContactSettings } from '@/hooks/useContactSettings';
 import {
   CalendarDays,

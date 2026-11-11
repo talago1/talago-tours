@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { isPlausibleAccessToken } from './bookingToken';
+import { verifyReviewToken } from './reviewToken';
 
 export interface EligibilityResult {
   eligible: boolean;
@@ -12,7 +13,7 @@ export interface EligibilityResult {
 /**
  * Verifies that a booking is eligible for a review submission.
  * A booking is eligible when:
- * - It is addressed by its internal id and matching secret access token
+ * - Either a signed review-specific token OR a booking access token is provided and valid
  * - Its status is CONFIRMED or COMPLETED
  * - The provided tourId matches the booking's tourId
  * - No Review row already exists for this bookingId
@@ -20,18 +21,29 @@ export interface EligibilityResult {
 export async function verifyBookingEligibility(
   bookingId: string,
   tourId: string,
-  bookingAccessToken: string,
+  bookingAccessToken?: string,
+  reviewToken?: string,
 ): Promise<EligibilityResult> {
-  if (!isPlausibleAccessToken(bookingAccessToken)) {
-    return { eligible: false, error: 'A valid booking access token is required.', statusCode: 401 };
+  let isReviewTokenAuth = false;
+
+  if (reviewToken) {
+    const verified = verifyReviewToken(reviewToken);
+    if (!verified || verified.bookingId !== bookingId || verified.tourId !== tourId) {
+      return { eligible: false, error: 'Invalid or expired review access token.', statusCode: 401 };
+    }
+    isReviewTokenAuth = true;
+  } else if (bookingAccessToken) {
+    if (!isPlausibleAccessToken(bookingAccessToken)) {
+      return { eligible: false, error: 'A valid booking access token is required.', statusCode: 401 };
+    }
+  } else {
+    return { eligible: false, error: 'A valid review token or booking access token is required.', statusCode: 401 };
   }
 
   const booking = await prisma.booking.findFirst({
-    where: {
-      id: bookingId,
-      tourId,
-      accessToken: bookingAccessToken,
-    },
+    where: isReviewTokenAuth
+      ? { id: bookingId, tourId }
+      : { id: bookingId, tourId, accessToken: bookingAccessToken },
     select: {
       id: true,
       tourId: true,

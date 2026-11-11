@@ -3,10 +3,45 @@
 ## System Health & Build Status
 - **Next.js:** 14.2.35
 - **TypeScript:** Strict Mode (`tsconfig.json: strict: true`), 0 type errors (`npx tsc --noEmit` green)
-- **Production Build:** `84/84 pages` compiled successfully with 0 errors
+- **Production Build:** `85/85 pages` compiled successfully with 0 errors (including dedicated `/reviews/submit`)
 - **Lint:** `npm run lint` green (0 errors, only pre-existing next/image warnings)
 - **Deployment Platform:** Vercel Production (`https://talago-tours.vercel.app`)
-- **Active Git Branch:** `feat/clean-rebuild-account-auth` (branching from `main`)
+- **Active Git Branch:** `main`
+- **Graphify Knowledge Graph:** Rebuilt (4625 nodes, 8779 edges, 365 communities)
+
+---
+
+## Phase 1 Production Stabilization Upgrades (Nov 11, 2026)
+
+### 1. Dynamic Imports & Bundle Splitting (Vercel React Best Practices)
+- **`TourDetailsClient.tsx` (Catalog Route):** Dynamic imports (`next/dynamic` with `ssr: false`) for heavy modals:
+  - `ContinuousBookingModal`
+  - `AskQuestionModal`
+  - `WriteReviewModal`
+  - **Result:** Decreased initial page JS payload on `/tours/[slug]` from `28.4 kB` to `19.3 kB` (32% reduction).
+- **`/account` (Customer Hub):** Dynamic imports for:
+  - `WriteReviewModal`
+  - `CancellationModal`
+  - **Result:** Decreased `/account` initial payload from `20.1 kB` to `17.2 kB`.
+
+### 2. Production Visibility & Error Resilience
+- **Global Error Boundary (`src/app/global-error.tsx`):** Added root layout error boundary catching unhandled client errors with error ID digest logging and branded fallback UI.
+- **Custom 404 Handler (`src/app/not-found.tsx`):** Branded fallback page for missing or discontinued tours.
+- **Health Check API (`src/app/api/health/route.ts`):** Lightweight probe endpoint (`/api/health`) executing `SELECT 1` on PostgreSQL with response time tracking and uptime metrics for production uptime monitoring.
+
+---
+
+## Phase 2 Booking Conversion & Draft Persistence (Nov 11, 2026)
+
+### 1. Booking Form Persistence (`src/utils/bookingDraftStorage.ts`)
+- **Scoped Session Storage:** Implemented secure, short-lived (`MAX_AGE_MS = 24h`) draft persistence avoiding sensitive card data or credentials.
+- **`ContinuousBookingModal.tsx`:** Automatically persists guest choices (departure date, pickup time, adult/child/infant counts, add-on selections, hotel details) across modal closures or step transitions, restoring them on reopen.
+- **`/checkout/[tourId]`:** Auto-restores draft selections on initial load and synchronizes inputs via `handleFieldChange`.
+- **Automatic Lifecycle Cleanup:** Automatically calls `clearBookingDraft(tourId)` upon successful booking initialization (`confirm` state) or payment completion.
+
+### 2. Verified Availability & Scarcity Integrity
+- Verified real-time capacity and scarcity indicator (`Only X spots left!`).
+- Strictly driven by actual capacity data from `/api/public/tours/[tourId]/availability` (`remaining <= 5` vs `maxCapacity` and active bookings). No artificial counters or fake scarcity.
 
 ---
 
