@@ -23,7 +23,7 @@ if (typeof window !== 'undefined') {
 // ---------------------------------------------------------------------------
 
 const GEMINI_API_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
 
 const COOLDOWN_MS = 60_000; // 60 seconds before a rate-limited key is retried
 

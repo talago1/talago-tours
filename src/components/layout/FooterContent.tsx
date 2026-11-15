@@ -57,6 +57,7 @@ export default function FooterContent() {
       links: [
         { label: dict.navbar?.aboutUs || 'About Us', href: '/about' },
         { label: dict.footer?.safetyPolicies || 'Safety & Standards', href: '/safety-policies' },
+        { label: 'Concierge Help', href: '/concierge-help' },
         { label: dict.footer?.flexibleProtection || 'Flexible Protection', href: '/flexible-protection' },
       ],
     },
@@ -66,9 +67,11 @@ export default function FooterContent() {
       links: [
         { label: dict.footer?.contactUs || 'Contact Concierge', href: '/support' },
         { label: dict.navbar?.myBookings || 'My Bookings & Tickets', href: '/my-bookings' },
-        { label: dict.footer?.cancellationPolicy || dict.cancellationPage?.badge || 'Cancellation Policy', href: '/cancellation' },
+        { label: 'Terms of Service', href: '/terms' },
         { label: dict.footer?.bookingTerms || 'Booking Terms', href: '/booking-terms' },
+        { label: dict.footer?.cancellationPolicy || dict.cancellationPage?.badge || 'Cancellation Policy', href: '/cancellation' },
         { label: dict.footer?.privacyPolicy || dict.privacyPage?.title || 'Privacy Policy', href: '/privacy' },
+        { label: 'Payments & Pricing', href: '/payments-and-pricing' },
       ],
     },
   ];

@@ -69,7 +69,7 @@ export async function getAiProviders(includeSecrets = false): Promise<AiProvider
         name: 'Google Gemini Flash (Primary Env)',
         type: 'gemini',
         apiKey: primaryGemini,
-        modelId: 'gemini-3.8-flash',
+        modelId: 'gemini-3.5-flash',
         isActive: true,
         priority: 1,
       });
@@ -84,7 +84,7 @@ export async function getAiProviders(includeSecrets = false): Promise<AiProvider
           name: `Google Gemini Flash (Pool #${i})`,
           type: 'gemini',
           apiKey: extraKey,
-          modelId: 'gemini-3.8-flash',
+          modelId: 'gemini-3.5-flash',
           isActive: true,
           priority: i,
         });
@@ -176,10 +176,10 @@ export async function saveAiProviders(providers: AiProviderConfig[]): Promise<vo
  * Models that have been sunset by Google – automatically redirected to supported equivalents.
  */
 const GEMINI_MODEL_ALIASES: Record<string, string> = {
-  'gemini-1.5-flash': 'gemini-3.8-flash',
-  'gemini-1.5-flash-latest': 'gemini-3.8-flash',
-  'gemini-2.5-flash': 'gemini-3.8-flash',
-  'gemini-2.5-flash-preview': 'gemini-3.8-flash',
+  'gemini-1.5-flash': 'gemini-3.5-flash',
+  'gemini-1.5-flash-latest': 'gemini-3.5-flash',
+  'gemini-2.5-flash': 'gemini-3.5-flash',
+  'gemini-2.5-flash-preview': 'gemini-3.5-flash',
 };
 
 async function callProvider(provider: AiProviderConfig, options: GenerateOptions): Promise<string> {
@@ -215,18 +215,21 @@ async function callProvider(provider: AiProviderConfig, options: GenerateOptions
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      // On 503 (capacity spike), automatically retry with gemini-3.5-flash fallback
-      if (res.status === 503 && resolvedModel === 'gemini-3.8-flash') {
-        console.warn('[ai-router] gemini-3.8-flash returned 503, retrying with gemini-3.5-flash…');
-        const fallbackEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${provider.apiKey}`;
+      // On 503 (capacity spike), automatically retry with fallback
+      if (res.status === 503) {
+        console.warn(`[ai-router] ${resolvedModel} returned 503, retrying with alternative Gemini model…`);
+        const fallbackModel = resolvedModel === 'gemini-3.5-flash' ? 'gemini-2.5-flash-lite' : 'gemini-3.5-flash';
+        const fallbackEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${provider.apiKey}`;
         const fallbackRes = await fetch(fallbackEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
+          signal: AbortSignal.timeout(30_000),
         });
         if (fallbackRes.ok) {
           const fallbackData = await fallbackRes.json();
@@ -275,6 +278,7 @@ async function callProvider(provider: AiProviderConfig, options: GenerateOptions
         Authorization: `Bearer ${provider.apiKey}`,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!res.ok) {

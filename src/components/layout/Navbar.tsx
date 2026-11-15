@@ -112,6 +112,7 @@ export default function Navbar() {
         {/* Mobile Menu Button */}
         <button
           type="button"
+          aria-label="Toggle navigation menu"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition-all hover:bg-white/10 hover:text-white lg:hidden"
         >

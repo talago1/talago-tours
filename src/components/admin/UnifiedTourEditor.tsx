@@ -2545,19 +2545,30 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
 
             {activeSection === 'important-info' && (
               <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
-                    Important Information ({activeLang.toUpperCase()})
-                  </label>
-                  <p className="text-xs text-slate-400">
-                    Need-to-know details guests should read before booking — ID/passport rules, restrictions, what is not suitable, and good-to-know notes.
-                  </p>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
+                      Important Information ({activeLang.toUpperCase()})
+                    </label>
+                    <p className="text-xs text-slate-400">
+                      Optional custom traveler advisory. If left empty, nothing will appear on the public page. (Requirements, age restrictions, pickup instructions, and exclusions are already displayed automatically in their dedicated sections).
+                    </p>
+                  </div>
+                  {currentLocale.importantInfo ? (
+                    <button
+                      type="button"
+                      onClick={() => updateLocalized({ importantInfo: '' })}
+                      className="shrink-0 text-xs text-amber-400 hover:text-amber-300 underline font-medium"
+                    >
+                      Clear Field
+                    </button>
+                  ) : null}
                 </div>
                 <textarea
                   rows={6}
                   value={currentLocale.importantInfo || ''}
                   onChange={(e) => updateLocalized({ importantInfo: e.target.value })}
-                  placeholder="Please bring your passport. Not recommended for pregnant guests or children under 6. Entrance fees are not included..."
+                  placeholder="Optional custom advisory notes specific to this tour..."
                   className="w-full resize-y rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                 />
               </div>

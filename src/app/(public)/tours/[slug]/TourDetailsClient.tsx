@@ -752,8 +752,14 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
     ? tour.faqItems
     : [];
 
+  const rawLangImportantInfo = (langTranslation as any)?.importantInfo;
+  const rawEnImportantInfo = (enTranslation as any)?.importantInfo;
   const localizedImportantInfo: string =
-    (langTranslation as any).importantInfo || (enTranslation as any).importantInfo || '';
+    typeof rawLangImportantInfo === 'string' && rawLangImportantInfo.trim().length > 0
+      ? rawLangImportantInfo.trim()
+      : typeof rawEnImportantInfo === 'string' && rawEnImportantInfo.trim().length > 0
+      ? rawEnImportantInfo.trim()
+      : '';
 
   const pricePerAdult = tour.adultPrice ?? tour.basePrice;
   const effectiveChildPrice = tour.childPrice ?? null;
@@ -1152,8 +1158,17 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
               )}
 
               {/* ── Know Before You Go (Tour-Driven Content) ── */}
-              {(localizedWhatToBringItems.length > 0 || localizedImportantInfo || tour.ageRestrictionsNotes) && (
-              <Accordion title={dict.tourDetails.whatToBring ? `Know Before You Go (${dict.tourDetails.whatToBring})` : 'Know Before You Go'} defaultOpen>
+              {(localizedWhatToBringItems.length > 0 || Boolean(localizedImportantInfo)) && (
+              <Accordion
+                title={
+                  localizedWhatToBringItems.length > 0 && !localizedImportantInfo
+                    ? (dict.tourDetails.whatToBring || 'What to Bring')
+                    : dict.tourDetails.whatToBring
+                    ? `Know Before You Go (${dict.tourDetails.whatToBring})`
+                    : 'Know Before You Go'
+                }
+                defaultOpen
+              >
                 <div className="space-y-6">
                   {/* Subsection 1: What to Bring */}
                   {localizedWhatToBringItems.length > 0 && (
@@ -1162,13 +1177,10 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                       <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#FFD700]/15 text-[#FFD700]">
                         <Check className="h-3.5 w-3.5" />
                       </div>
-                      <h4 className="text-sm font-bold text-white">What to bring</h4>
+                      <h4 className="text-sm font-bold text-white">{dict.tourDetails.whatToBring || 'What to bring'}</h4>
                     </div>
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                      {(localizedWhatToBringItems.length > 0
-                        ? localizedWhatToBringItems
-                        : []
-                      ).map((item, i) => (
+                      {localizedWhatToBringItems.map((item, i) => (
                         <div key={i} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3 transition-colors hover:bg-white/[0.04]">
                           <Check className="h-4 w-4 shrink-0 text-[#FFD700]" />
                           <span className="text-xs text-slate-300">{item}</span>
@@ -1178,25 +1190,18 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                   </div>
                   )}
 
-                  {/* Subsection 2: Good to know / Health & Safety advisory */}
-                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
-                      <div className="space-y-1.5 text-xs text-slate-300 leading-relaxed">
-                        <p className="font-bold text-amber-300">Important Traveler Guidelines</p>
-                        {localizedImportantInfo && (
-                          <p className="whitespace-pre-line text-slate-200 mb-2">{localizedImportantInfo}</p>
-                        )}
-                        <ul className="list-disc pl-4 space-y-1 text-slate-400">
-                          <li>Instant confirmation: show your smartphone voucher at pickup; no physical printout is required.</li>
-                          <li>Hotel pickup time will be re-confirmed via WhatsApp or email the evening prior to departure.</li>
-                          {tour.ageRestrictionsNotes ? (
-                            <li>{tour.ageRestrictionsNotes}</li>
-                          ) : null}
-                                                  </ul>
+                  {/* Subsection 2: Custom Traveler Advisory (ONLY rendered if text entered by admin) */}
+                  {localizedImportantInfo ? (
+                    <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
+                        <div className="space-y-1.5 text-xs text-slate-300 leading-relaxed">
+                          <p className="font-bold text-amber-300">Important Traveler Guidelines</p>
+                          <p className="whitespace-pre-line text-slate-200">{localizedImportantInfo}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
               </Accordion>
               )}
