@@ -1,5 +1,29 @@
 # Talago Tours — Work Log & Next Steps
 
+## Session Log: November 15, 2026 — Critical Tour Importer Multiline Text Preservation Fix
+
+### Completed Tasks
+1. **Root-Cause Analysis of Multiline Content Truncation (`src/utils/tourTextParser.ts`):**
+   - **Flaw 1 (Invalid `\Z` anchor in JS RegExp):** In JavaScript RegExp, `\Z` is not an end-of-string token; it matches the literal character `'Z'`. Consequently, any multiline field at the end of input or at the end of a section block failed to match `getBlock()`, falling back to `getField()` which matched only the first line (`$`).
+   - **Flaw 2 (Missing same-line text support):** `getBlock()` enforced `\s*:\s*\n`, causing pasted text starting on the same line as the field label (`DESCRIPTION: First line...`) to fail `getBlock()` and fall back to single-line extraction.
+   - **Flaw 3 (Section block heading bleed):** Sections 14 (Itinerary), 18 (What to Bring), 19 (Requirements), and 22 (Cancellation Policy) fell back directly to `secX`, including raw field labels or discarding subsequent lines.
+   - **Flaw 4 (`parseList` timestamp mangling):** In `parseList()`, `replace(/^[-*•\d.)\]]\s*/, '')` stripped the leading `0` from milestones like `09:00`, leaving `9:00`.
+2. **Implementation of Bulletproof Multiline Extractor:**
+   - Standardized all line endings to `\n` in `SectionExtractor` constructor, eliminating OS-specific CRLF issues.
+   - Rebuilt `getBlock()` without `'m'` flag so `$` properly represents the true end of the text/section. Lookahead gracefully terminates at `\n\s*#{1,4}\s`, `\n\s*(?:KNOWN_FIELD_KEYS)\s*:`, or `$`.
+   - Supported both same-line and next-line content initiation after colons.
+   - Fixed `parseList()` to strip only true list prefixes (`(?:[-*•]|\d{1,3}[.)\]])\s+`), preserving time tags like `09:00` and filtering out accidental field label headers.
+   - Added section cleaners for `whatToBring`, `importantInfo`, `requirements`, and `cancellationPolicy`.
+   - Added `multilineStats` returning character counts and paragraph counts for every multiline block.
+3. **Import Preview Multiline Audit Card (`src/components/admin/UnifiedTourEditor.tsx`):**
+   - Added a dedicated "Multiline Text Preservation Audit" box in the preview summary displaying full description, exact character counts, and paragraph counts so administrators can visually verify 100% data retention before applying.
+4. **Verification & Regression Testing:**
+   - 6-case regression test suite executed (`scratch/test_parser.ts`): all 6 passed 100% (same-line, next-line, section headings, itinerary at EOF, Arabic/Unicode, JSON DB roundtrip, and 5,000+ character stress tests).
+   - `npx tsc --noEmit` → **0 type errors**.
+   - `npm run build` → **85/85 static & dynamic pages successfully generated**.
+
+---
+
 ## Session Log: November 15, 2026 — Focused Improvement Sprint: Email, Tour Creation, Importer & Policies
 
 ### Completed Tasks

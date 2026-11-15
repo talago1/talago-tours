@@ -3431,6 +3431,47 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                     </div>
                   </div>
 
+                  {/* Multiline Text Preservation Audit */}
+                  <div className="rounded-xl border border-white/10 bg-[#060D1A]/80 p-3.5 space-y-3">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-200">
+                      <span className="flex items-center gap-1.5 text-[#00E5FF]">
+                        <FileText className="w-3.5 h-3.5" />
+                        Multiline Text Preservation Audit
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        {importPreview.multilineStats?.descriptionChars || 0} chars &middot; {importPreview.multilineStats?.descriptionParagraphs || 0} paragraphs
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs">
+                      <p className="text-[11px] font-semibold text-slate-400">Description Full Content:</p>
+                      <div className="max-h-36 overflow-y-auto rounded-lg bg-black/40 border border-white/5 p-2.5 font-mono text-[11px] text-slate-300 leading-relaxed whitespace-pre-wrap">
+                        {importPreview.data.translations?.en?.description || (
+                          <span className="text-amber-400/80 italic">No description detected</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
+                      <div className="rounded-lg bg-white/5 p-2 text-slate-300">
+                        <span className="text-slate-500 block text-[10px]">What to Bring</span>
+                        <span className="font-semibold text-white">{importPreview.multilineStats?.whatToBringChars || 0} chars</span>
+                      </div>
+                      <div className="rounded-lg bg-white/5 p-2 text-slate-300">
+                        <span className="text-slate-500 block text-[10px]">Important Info</span>
+                        <span className="font-semibold text-white">{importPreview.multilineStats?.importantInfoChars || 0} chars</span>
+                      </div>
+                      <div className="rounded-lg bg-white/5 p-2 text-slate-300">
+                        <span className="text-slate-500 block text-[10px]">Cancellation Policy</span>
+                        <span className="font-semibold text-white">{importPreview.multilineStats?.cancellationPolicyChars || 0} chars</span>
+                      </div>
+                      <div className="rounded-lg bg-white/5 p-2 text-slate-300">
+                        <span className="text-slate-500 block text-[10px]">Highlights</span>
+                        <span className="font-semibold text-white">{importPreview.multilineStats?.highlightsCount || 0} items</span>
+                      </div>
+                    </div>
+                  </div>
+
                   {importPreview.warnings.length > 0 && (
                     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
                       <p className="font-bold mb-1">Optional Suggestions:</p>

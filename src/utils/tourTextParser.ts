@@ -27,6 +27,17 @@ export interface TourTextParseResult {
   warnings: ParseValidationError[];
   completeness: number;
   parsedSectionsCount: number;
+  multilineStats: {
+    descriptionChars: number;
+    descriptionParagraphs: number;
+    itineraryCount: number;
+    highlightsCount: number;
+    inclusionsCount: number;
+    exclusionsCount: number;
+    whatToBringChars: number;
+    importantInfoChars: number;
+    cancellationPolicyChars: number;
+  };
 }
 
 function parseBoolean(val: string | undefined, fallback: boolean = false): boolean {
@@ -48,8 +59,13 @@ function parseList(text: string | undefined): string[] {
   if (!text) return [];
   return text
     .split('\n')
-    .map((l) => l.replace(/^[-*•\d.)\]]\s*/, '').trim())
-    .filter((l) => l.length > 0 && !l.startsWith('#'));
+    .map((l) => l.replace(/^(?:[-*•]|\d{1,3}[.)\]])\s+/, '').trim())
+    .filter(
+      (l) =>
+        l.length > 0 &&
+        !l.startsWith('#') &&
+        !/^(?:ITINERARY|HIGHLIGHTS|INCLUSIONS|EXCLUSIONS|ACTIVITIES|SAFETY_GUIDELINES|QUESTIONS|ADD-ONS|WHAT_TO_BRING|GALLERY|PHOTOS|ROUTE_STOPS)\s*:/i.test(l)
+    );
 }
 
 function parseCommaList(text: string | undefined): string[] {
@@ -61,10 +77,10 @@ function parseCommaList(text: string | undefined): string[] {
 }
 
 /**
- * Comprehensive list of official template field keys.
+ * Comprehensive list of official template field keys and aliases.
  * A multiline block (e.g. DESCRIPTION, ITINERARY, WHAT_TO_BRING) will only terminate
  * when encountering a new markdown heading (#{1,4}) or one of these specific field keys,
- * ensuring words like "NOTE:", "TIP:", "DAY 1:", or "VIP:" inside user descriptions are preserved in full.
+ * ensuring internal notes (e.g. "NOTE:", "TIP:", "DAY 1:", "VIP:") are preserved in full.
  */
 const KNOWN_FIELD_KEYS = [
   'TITLE', 'TOUR_TITLE', 'EXPERIENCE_TITLE', 'SLUG', 'CATEGORY', 'TYPE', 'TOUR_TYPE',
@@ -74,53 +90,61 @@ const KNOWN_FIELD_KEYS = [
   'LONGITUDE', 'LNG', 'COVER_IMAGE', 'HERO_IMAGE', 'MAIN_IMAGE', 'GALLERY_IMAGES',
   'GALLERY', 'PHOTOS', 'VIDEO_URL', 'VIDEO', 'OPERATOR_NAME', 'OPERATOR_PHONE',
   'OPERATOR_EMAIL', 'DISPATCH_NOTES', 'OPERATOR_NOTES', 'ADULT_PRICE', 'BASE_PRICE_USD',
-  'ORIGINAL_PRICE', 'PRIVATE_PRICE', 'ALLOW_DEPOSIT', 'DEPOSIT_PERCENTAGE',
-  'ALLOW_PAY_AT_LOCATION', 'CHILD_ENABLED', 'CHILD_PRICE', 'CHILD_MIN_AGE', 'CHILD_MAX_AGE',
-  'INFANT_ENABLED', 'INFANT_PRICE', 'INFANT_MIN_AGE', 'INFANT_MAX_AGE', 'MAX_CAPACITY',
-  'MIN_GUESTS', 'CUTOFF_HOURS', 'INSTANT_CONFIRMATION', 'DURATION_HOURS', 'DURATION_DISPLAY',
-  'PICKUP_TIMES', 'HOTEL_PICKUP_INCLUDED', 'PICKUP_TYPE', 'PICKUP_DESCRIPTION',
-  'PICKUP_AREAS', 'MEETING_POINT_NAME', 'MEETING_POINT_ADDRESS', 'MEETING_POINT_LANDMARK',
-  'MEETING_POINT_INSTRUCTIONS', 'MEETING_POINT_MAP_URL', 'MEETING_POINT_IMAGE_URL',
-  'VEHICLE_TYPE', 'FLEET_SPECIFICATIONS', 'FLEET_AMENITIES', 'ROUTE_STOPS', 'ITINERARY',
-  'HIGHLIGHTS', 'ACTIVITIES', 'INCLUSIONS', 'EXCLUSIONS', 'WHAT_TO_BRING', 'IMPORTANT_INFO',
-  'IMPORTANT_INFORMATION', 'FAQS', 'FITNESS_LEVEL', 'MIN_AGE', 'SWIMMING_REQUIRED',
-  'REQUIREMENTS', 'WHEELCHAIR_ACCESSIBLE', 'STROLLER_ACCESSIBLE', 'ACCESSIBILITY_NOTES',
-  'SAFETY_EQUIPMENT', 'INSURANCE_INCLUDED', 'EMERGENCY_CONTACT', 'SAFETY_GUIDELINES',
-  'FREE_CANCELLATION_HOURS', 'CANCELLATION_HOURS', 'CANCELLATION_POLICY', 'CANCELLATION',
-  'BOOKING_QUESTIONS', 'SEO_TITLE', 'SEO_DESCRIPTION', 'SEO_KEYWORDS', 'STATUS',
+  'BASE_PRICE', 'PRICE', 'ORIGINAL_PRICE', 'STRIKE_PRICE', 'PRIVATE_PRICE', 'ALLOW_DEPOSIT',
+  'DEPOSIT_PERCENTAGE', 'ALLOW_PAY_AT_LOCATION', 'CHILD_ENABLED', 'CHILD_PRICE',
+  'CHILD_MIN_AGE', 'CHILD_MAX_AGE', 'INFANT_ENABLED', 'INFANT_PRICE', 'INFANT_MIN_AGE',
+  'INFANT_MAX_AGE', 'MAX_CAPACITY', 'CAPACITY', 'MIN_GUESTS', 'CUTOFF_HOURS', 'CUT_OFF',
+  'INSTANT_CONFIRMATION', 'INSTANT', 'DURATION_HOURS', 'DURATION_DISPLAY', 'DURATION',
+  'PICKUP_TIMES', 'DEPARTURE_TIMES', 'HOTEL_PICKUP_INCLUDED', 'PICKUP_TYPE', 'TRANSFER_TYPE',
+  'PICKUP_DESCRIPTION', 'PICKUP_INSTRUCTIONS', 'PICKUP_AREAS', 'TRANSFER_AREAS',
+  'MEETING_POINT_NAME', 'MEETING_POINT', 'MEETING_POINT_ADDRESS', 'MEETING_POINT_LANDMARK',
+  'MEETING_POINT_INSTRUCTIONS', 'MEETING_POINT_MAP_URL', 'MAP_URL', 'MEETING_POINT_IMAGE_URL',
+  'MEETING_POINT_LAT', 'MEETING_POINT_LNG', 'VEHICLE_TYPE', 'BOAT_TYPE', 'AIR_CONDITIONED',
+  'AC', 'TRANSFER_NOTES', 'FLEET_NOTES', 'FLEET_SPECIFICATIONS', 'FLEET_AMENITIES',
+  'ROUTE_STOPS', 'ITINERARY', 'HIGHLIGHTS', 'ACTIVITIES', 'INCLUSIONS', 'EXCLUSIONS',
+  'WHAT_TO_BRING', 'IMPORTANT_INFO', 'IMPORTANT_INFORMATION', 'FAQS', 'FAQ', 'FITNESS_LEVEL',
+  'MIN_AGE', 'SWIMMING_REQUIRED', 'REQUIREMENTS', 'WHEELCHAIR_ACCESSIBLE', 'STROLLER_ACCESSIBLE',
+  'MOBILITY_NOTES', 'ACCESSIBILITY_NOTES', 'SAFETY_EQUIPMENT', 'INSURANCE_INCLUDED',
+  'EMERGENCY_CONTACT', 'SAFETY_GUIDELINES', 'FREE_CANCELLATION_HOURS', 'CANCELLATION_HOURS',
+  'CANCELLATION_POLICY', 'CANCELLATION', 'BOOKING_QUESTIONS', 'SEO_TITLE', 'META_TITLE',
+  'SEO_DESCRIPTION', 'META_DESCRIPTION', 'SEO_KEYWORDS', 'KEYWORDS', 'STATUS',
   'INTERNAL_NOTES',
 ].join('|');
 
 /**
- * Extracts a key-value or block content under section headings
+ * Robust Multiline & Unicode-Safe Section Extractor
  */
 class SectionExtractor {
   private content: string;
 
   constructor(raw: string) {
-    this.content = raw;
+    // Standardize all line breaks to \n for reliable regex processing across OSes
+    this.content = (raw || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   }
 
   /**
-   * Find value for a specific field line e.g. "ADULT_PRICE: 45" or "PRICE: $45"
+   * Find value for a single-line field e.g. "ADULT_PRICE: 45" or "PRICE: $45"
    */
   getField(keyPattern: string): string {
-    const regex = new RegExp(`^(?:[#*\\s-]*)${keyPattern}\\s*:\\s*(.+)$`, 'im');
+    const regex = new RegExp(`(?:^|\\n)[#*\\s-]*(?:${keyPattern})\\s*:\\s*(.+?)(?=\\r?\\n|$)`, 'i');
     const match = this.content.match(regex);
     return match ? match[1].trim() : '';
   }
 
   /**
-   * Extracts a multiline block starting with a key until next markdown # section
-   * or a recognized official field key. Never truncates internal notes, bullets, or paragraphs.
+   * Extracts a multiline block starting with a key until next markdown # section,
+   * next recognized official field key, or the end of input.
+   * Preserves all paragraphs, blank lines, bullets, internal colons (e.g. "NOTE:"), and Unicode.
    */
   getBlock(keyPattern: string): string {
     const regex = new RegExp(
-      `^(?:[#*\\s-]*)${keyPattern}\\s*:\\s*\\n([\\s\\S]*?)(?=(?:\\n\\s*#{1,4}\\s|\\n\\s*(?:${KNOWN_FIELD_KEYS})\\s*:|\\Z))`,
-      'im'
+      `(?:^|\\n)[#*\\s-]*(?:${keyPattern})\\s*:[ \\t]*(?:\\n)?([\\s\\S]*?)(?=(?:\\n\\s*#{1,4}\\s|\\n\\s*(?:${KNOWN_FIELD_KEYS})\\s*:|$))`,
+      'i'
     );
     const match = this.content.match(regex);
-    if (match && match[1].trim()) return match[1].trim();
+    if (match && match[1].trim()) {
+      return match[1].trim();
+    }
 
     // Fallback: single line field
     return this.getField(keyPattern);
@@ -132,8 +156,8 @@ class SectionExtractor {
   getSectionBlock(sectionNameOrNumber: string): string {
     const escaped = sectionNameOrNumber.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
     const regex = new RegExp(
-      `^(?:#{1,4}\\s*(?:SECTION\\s*)?(?:${escaped})[^\\n]*)\\n([\\s\\S]*?)(?=(?:\\n\\s*#{1,4}\\s|\\Z))`,
-      'im'
+      `(?:^|\\n)#{1,4}\\s*(?:SECTION\\s*)?(?:${escaped})[^\\n]*(?:\\n)?([\\s\\S]*?)(?=(?:\\n\\s*#{1,4}\\s|$))`,
+      'i'
     );
     const match = this.content.match(regex);
     return match ? match[1].trim() : '';
@@ -152,7 +176,24 @@ export function parseTourText(rawText: string): TourTextParseResult {
   const trimmed = rawText.trim();
   if (!trimmed) {
     errors.push({ section: 'Input', field: 'content', message: 'Input text is empty.', severity: 'error' });
-    return { data: resultData, errors, warnings, completeness: 0, parsedSectionsCount: 0 };
+    return {
+      data: resultData,
+      errors,
+      warnings,
+      completeness: 0,
+      parsedSectionsCount: 0,
+      multilineStats: {
+        descriptionChars: 0,
+        descriptionParagraphs: 0,
+        itineraryCount: 0,
+        highlightsCount: 0,
+        inclusionsCount: 0,
+        exclusionsCount: 0,
+        whatToBringChars: 0,
+        importantInfoChars: 0,
+        cancellationPolicyChars: 0,
+      },
+    };
   }
 
   // Support JSON full objects if pasted
@@ -162,12 +203,24 @@ export function parseTourText(rawText: string): TourTextParseResult {
       if (typeof parsedJson === 'object' && parsedJson !== null) {
         Object.assign(resultData, parsedJson);
         const completeness = calculateTourCompleteness(resultData).score;
+        const descEn = resultData.translations?.en?.description || '';
         return {
           data: resultData,
           errors: [],
           warnings: [],
           completeness,
           parsedSectionsCount: 28,
+          multilineStats: {
+            descriptionChars: descEn.length,
+            descriptionParagraphs: descEn ? descEn.split(/\n\s*\n/).filter((p: string) => p.trim().length > 0).length : 0,
+            itineraryCount: resultData.itinerary?.length || 0,
+            highlightsCount: resultData.highlights?.length || 0,
+            inclusionsCount: resultData.inclusions?.length || 0,
+            exclusionsCount: resultData.exclusions?.length || 0,
+            whatToBringChars: (resultData.whatToBring || '').length,
+            importantInfoChars: (resultData.translations?.en?.importantInfo || '').length,
+            cancellationPolicyChars: (resultData.cancellationPolicy || '').length,
+          },
         };
       }
     } catch {
@@ -570,7 +623,8 @@ export function parseTourText(rawText: string): TourTextParseResult {
 
   // ─── 14. ITINERARY TIMELINE ────────────────────────────────────────────────
   const sec14 = ex.getSectionBlock('14') || ex.getSectionBlock('ITINERARY');
-  const itBlock = sec14 || ex.getBlock('ITINERARY');
+  const ex14 = new SectionExtractor(sec14 || trimmed);
+  const itBlock = ex14.getBlock('ITINERARY') || sec14;
   if (itBlock) {
     const lines = parseList(itBlock);
     const milestones: ItineraryMilestone[] = [];
@@ -616,7 +670,8 @@ export function parseTourText(rawText: string): TourTextParseResult {
 
   // ─── 15. ACTIVITIES & HIGHLIGHTS ───────────────────────────────────────────
   const sec15 = ex.getSectionBlock('15') || ex.getSectionBlock('ACTIVITIES');
-  const hlBlock = sec15 || ex.getBlock('HIGHLIGHTS');
+  const ex15 = new SectionExtractor(sec15 || trimmed);
+  const hlBlock = ex15.getBlock('(?:HIGHLIGHTS|ACTIVITIES)') || sec15;
   if (hlBlock) {
     const highlights = parseList(hlBlock);
     if (highlights.length > 0) {
@@ -628,7 +683,8 @@ export function parseTourText(rawText: string): TourTextParseResult {
 
   // ─── 16. INCLUDED FEATURES ─────────────────────────────────────────────────
   const sec16 = ex.getSectionBlock('16') || ex.getSectionBlock('INCLUSIONS');
-  const incBlock = sec16 || ex.getBlock('INCLUSIONS');
+  const ex16 = new SectionExtractor(sec16 || trimmed);
+  const incBlock = ex16.getBlock('INCLUSIONS') || sec16;
   if (incBlock) {
     const inclusions = parseList(incBlock);
     if (inclusions.length > 0) {
@@ -640,7 +696,8 @@ export function parseTourText(rawText: string): TourTextParseResult {
 
   // ─── 17. EXCLUDED ITEMS ────────────────────────────────────────────────────
   const sec17 = ex.getSectionBlock('17') || ex.getSectionBlock('EXCLUSIONS');
-  const excBlock = sec17 || ex.getBlock('EXCLUSIONS');
+  const ex17 = new SectionExtractor(sec17 || trimmed);
+  const excBlock = ex17.getBlock('EXCLUSIONS') || sec17;
   if (excBlock) {
     const exclusions = parseList(excBlock);
     if (exclusions.length > 0) {
@@ -652,7 +709,8 @@ export function parseTourText(rawText: string): TourTextParseResult {
 
   // ─── 18. WHAT TO BRING ─────────────────────────────────────────────────────
   const sec18 = ex.getSectionBlock('18') || ex.getSectionBlock('WHAT TO BRING');
-  const bringBlock = sec18 || ex.getBlock('WHAT_TO_BRING');
+  const ex18 = new SectionExtractor(sec18 || trimmed);
+  const bringBlock = ex18.getBlock('WHAT_TO_BRING') || (sec18 ? sec18.replace(/^[#*\\s-]*WHAT_TO_BRING\\s*:[ \\t]*(?:\\n)?/i, '').trim() : '');
   if (bringBlock) {
     resultData.whatToBring = bringBlock;
     resultData.translations.en.whatToBring = bringBlock;
@@ -661,7 +719,8 @@ export function parseTourText(rawText: string): TourTextParseResult {
 
   // ─── 18a. IMPORTANT INFORMATION ───────────────────────────────────────────
   const sec18a = ex.getSectionBlock('18a') || ex.getSectionBlock('IMPORTANT INFO');
-  const infoBlock = sec18a || ex.getBlock('(?:IMPORTANT_INFO|IMPORTANT_INFORMATION)');
+  const ex18a = new SectionExtractor(sec18a || trimmed);
+  const infoBlock = ex18a.getBlock('(?:IMPORTANT_INFO|IMPORTANT_INFORMATION)') || (sec18a ? sec18a.replace(/^[#*\\s-]*(?:IMPORTANT_INFO|IMPORTANT_INFORMATION)\\s*:[ \\t]*(?:\\n)?/i, '').trim() : '');
   if (infoBlock) {
     resultData.translations.en.importantInfo = infoBlock;
     parsedSectionsCount++;
@@ -709,7 +768,7 @@ export function parseTourText(rawText: string): TourTextParseResult {
   const ex19 = new SectionExtractor(sec19 || trimmed);
 
   const fitness = ex19.getField('FITNESS_LEVEL');
-  const reqText = ex19.getBlock('REQUIREMENTS');
+  const reqText = ex19.getBlock('REQUIREMENTS') || (sec19 ? sec19.replace(/^[#*\\s-]*REQUIREMENTS\\s*:[ \\t]*(?:\\n)?/i, '').trim() : '');
   if (fitness) resultData.fitnessLevel = fitness;
   if (reqText) {
     resultData.requirements = reqText;
@@ -759,7 +818,14 @@ export function parseTourText(rawText: string): TourTextParseResult {
   const ex22 = new SectionExtractor(sec22 || trimmed);
 
   const cancelHours = parseNumber(ex22.getField('(?:FREE_CANCELLATION_HOURS|CANCELLATION_HOURS)'), 24);
-  const cancelPolicy = ex22.getBlock('CANCELLATION_POLICY') || sec22;
+  const cancelPolicy =
+    ex22.getBlock('(?:CANCELLATION_POLICY|CANCELLATION)') ||
+    (sec22
+      ? sec22
+          .replace(/^[#*\\s-]*(?:FREE_CANCELLATION_HOURS|CANCELLATION_HOURS)\\s*:[^\\n]*(?:\\n)?/i, '')
+          .replace(/^[#*\\s-]*(?:CANCELLATION_POLICY|CANCELLATION)\\s*:[ \\t]*(?:\\n)?/i, '')
+          .trim()
+      : '');
 
   resultData.freeCancellationHours = cancelHours;
   if (cancelPolicy) {
@@ -856,11 +922,25 @@ export function parseTourText(rawText: string): TourTextParseResult {
   // Calculate completeness score
   const completeness = calculateTourCompleteness(resultData).score;
 
+  const descEn = resultData.translations.en.description || '';
+  const multilineStats = {
+    descriptionChars: descEn.length,
+    descriptionParagraphs: descEn ? descEn.split(/\n\s*\n/).filter((p) => p.trim().length > 0).length : 0,
+    itineraryCount: resultData.itinerary?.length || 0,
+    highlightsCount: resultData.highlights?.length || 0,
+    inclusionsCount: resultData.inclusions?.length || 0,
+    exclusionsCount: resultData.exclusions?.length || 0,
+    whatToBringChars: (resultData.whatToBring || '').length,
+    importantInfoChars: (resultData.translations.en.importantInfo || '').length,
+    cancellationPolicyChars: (resultData.cancellationPolicy || '').length,
+  };
+
   return {
     data: resultData,
     errors,
     warnings,
     completeness,
     parsedSectionsCount,
+    multilineStats,
   };
 }

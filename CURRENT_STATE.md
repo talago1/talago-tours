@@ -9,7 +9,7 @@
 - **Active Git Branch:** `main`
 - **Email Dispatch:** Brevo API v3 (primary provider, sender configured via `BREVO_FROM_EMAIL`)
 - **Tour Wizard:** 8-Step Logical Flow with Media Folder integration & 1-click Gallery assignment
-- **Tour Importer:** Truncation fixed, supports markdown, colons and milestones (`TOUR_IMPORT_TEMPLATE.md`)
+- **Tour Importer:** Full multiline text preservation verified (all paragraphs, blank lines, bullets, Unicode, and internal colons like `NOTE:` preserved without truncation; dedicated Multiline Audit preview card added)
 - **Partner Portal:** Safely deactivated in navigation and public routes until supplier rollout
 
 ---
