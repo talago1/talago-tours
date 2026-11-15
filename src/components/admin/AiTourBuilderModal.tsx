@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Sparkles,
   Globe,
@@ -72,6 +72,26 @@ export default function AiTourBuilderModal({
   const [generatedDraft, setGeneratedDraft] = useState<Partial<TourEditorData> | null>(null);
   const [reviewRequiredFields, setReviewRequiredFields] = useState<string[]>([]);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -159,10 +179,20 @@ export default function AiTourBuilderModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/85 backdrop-blur-md" onClick={onClose} />
+    <div className="fixed inset-0 z-[200] overflow-y-auto overscroll-contain">
+      {/* Dark Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-      <div className="relative z-10 w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl border border-cyan-500/30 bg-[#0B1528] p-6 sm:p-8 shadow-2xl">
+      {/* Modal Positioning Container */}
+      <div className="flex min-h-full items-center justify-center p-3 sm:p-6">
+        <div
+          className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-y-auto overscroll-contain rounded-3xl border border-cyan-500/30 bg-[#0B1528] p-5 sm:p-8 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Header */}
         <div className="flex items-start justify-between border-b border-white/10 pb-5 mb-6">
           <div className="flex items-center gap-3">
@@ -640,6 +670,7 @@ export default function AiTourBuilderModal({
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

@@ -259,7 +259,6 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
         body: JSON.stringify({
           source: {
             title: sourceTitle,
-            cardExcerpt: enContent.cardExcerpt || '',
             description: enContent.description || '',
             highlights: enContent.highlights?.length ? enContent.highlights : data.highlights,
             inclusions: enContent.inclusions?.length ? enContent.inclusions : data.inclusions,
@@ -267,12 +266,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
             whatToBring: enContent.whatToBring || '',
             requirements: enContent.requirements || '',
             cancellationPolicy: enContent.cancellationPolicy || '',
-            safetyGuidelines: enContent.safetyGuidelines?.length ? enContent.safetyGuidelines : data.safetyGuidelines,
-            seoTitle: enContent.seoTitle || '',
-            seoDescription: enContent.seoDescription || '',
             faqItems: enContent.faqItems || [],
             itinerary: (data.itinerary || []).map((i) => ({
-              timeTag: i.timeTag || (i as any).time,
+              timeTag: i.timeTag,
               title: typeof i.title === 'string' ? i.title : (i.title?.en || ''),
               description: typeof i.description === 'string' ? i.description : (i.description?.en || ''),
             })),
@@ -611,33 +607,12 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               >
                 {data.status}
               </span>
-              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+            </div>
             <p className="truncate text-xs font-mono text-slate-400">
               slug: /{data.slug || 'generating-slug...'}
             </p>
-            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+          </div>
+        </div>
 
         {/* Global Controls & Actions */}
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
@@ -663,23 +638,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 className="h-full bg-gradient-to-r from-amber-400 to-[#00E5FF] transition-all duration-300"
                 style={{ width: `${completeness.score}%` }}
               />
-              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+            </div>
             <span className="font-bold text-[#00E5FF]">{completeness.score}%</span>
-            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+          </div>
 
           {/* Language Switcher */}
           <div className="flex max-w-full overflow-x-auto rounded-xl border border-white/10 bg-[#070F1E] p-1">
@@ -698,14 +659,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 <span className="uppercase">{lang.code}</span>
               </button>
             ))}
-            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+          </div>
 
           {/* AI Auto-Translate Button */}
           <button
@@ -775,14 +729,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
             <Rocket className="w-4 h-4" />
             Publish
           </button>
-          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+        </div>
       </header>
 
       {/* Notifications Bar */}
@@ -791,23 +738,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
           <div className="flex items-center gap-2 font-medium">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             {saveSuccessMessage}
-            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+          </div>
           <button type="button" onClick={() => setSaveSuccessMessage(null)} className="text-emerald-400 hover:text-white">✕</button>
-          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+        </div>
       )}
 
       {errorMessage && (
@@ -815,23 +748,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
           <div className="flex items-center gap-2 font-medium">
             <AlertCircle className="w-4 h-4 text-red-400" />
             {errorMessage}
-            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+          </div>
           <button type="button" onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-white">✕</button>
-          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+        </div>
       )}
 
       {/* ── 8-Step Wizard Stepper (Priority 2) ── */}
@@ -861,34 +780,13 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     Step {step.stepNumber}
                   </span>
                   {isPast && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
                 <span className="text-xs font-bold truncate w-full">{step.shortLabel}</span>
               </button>
             );
           })}
-          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+        </div>
+      </div>
 
       {/* Main Split Layout: Left Grouped Nav + Right Editor Panel */}
       <div className="max-w-[1700px] w-full mx-auto px-4 md:px-6 mt-6 flex-1 flex flex-col md:flex-row gap-6">
@@ -901,37 +799,16 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   Step {activeStep} of 8
                 </span>
                 <span className="text-[10px] font-bold text-slate-400 uppercase">{activeLang}</span>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
               <h3 className="text-xs font-bold text-white truncate">{currentStep.title}</h3>
               <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2">{currentStep.description}</p>
-              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+            </div>
 
             <div className="mb-2 px-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 Step Sections ({stepSections.length})
               </span>
-              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+            </div>
 
             <nav className="space-y-1">
               {stepSections.map((sec) => {
@@ -949,14 +826,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   >
                     <div className="min-w-0 truncate">
                       <span className="truncate">{sec.shortLabel}</span>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     {sec.isEssential && (
                       <span
                         className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
@@ -998,23 +868,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     </button>
                   );
                 })}
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             </details>
-            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+          </div>
         </aside>
 
         {/* Right Section Content Panel */}
@@ -1030,147 +886,51 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       {currentMeta?.title}
                     </h2>
                     <p className="mt-1 text-xs text-slate-400">{currentMeta?.description}</p>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                   <div className="flex items-center gap-2 text-xs font-semibold bg-white/5 px-3 py-1.5 rounded-full border border-white/5 text-slate-300">
                     <Globe className="w-3.5 h-3.5 text-[#00E5FF]" />
                     Target: <span className="text-[#00E5FF] font-bold uppercase">{activeLang}</span>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
               );
             })()}
 
             {/* Render Selected Section */}
             {activeSection === 'basic-info' && (
               <div className="space-y-6">
-                {/* Quick Start Options */}
-                <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-blue-950/40 via-cyan-950/20 to-purple-950/30 p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-[#00E5FF] flex items-center gap-1.5">
-                        <Sparkles className="h-4 w-4" />
-                        Tour Creation Modes
-                      </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Start fresh with AI, import structured text, apply a curated template, or fill details manually.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setShowAiBuilderModal(true)}
-                        className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-blue-500 px-3.5 py-2 text-xs font-black text-[#070F1E] hover:brightness-110 transition shadow-sm"
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        AI Tour Builder
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setShowImportModal(true); setImportPreview(null); setImportErrors([]); setImportText(''); }}
-                        className="flex items-center gap-1.5 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs font-bold text-orange-300 hover:bg-orange-500/20 transition"
-                      >
-                        <FileText className="h-3.5 w-3.5 text-orange-400" />
-                        Text Importer
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowTemplateModal(true)}
-                        className="flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-xs font-bold text-purple-300 hover:bg-purple-500/20 transition"
-                      >
-                        <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-                        Presets
-                      </button>
-                    </div>
+                {/* Compact Quick Creation Tools Strip */}
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-[#00E5FF]" />
+                    <span className="text-xs font-bold text-white">Creation Shortcuts:</span>
+                    <span className="text-xs text-slate-400 hidden sm:inline">Use AI to generate a complete draft, or import from text/presets.</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAiBuilderModal(true)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-black text-cyan-300 hover:bg-cyan-500/20 transition"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-[#00E5FF]" />
+                      AI Tour Builder
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowImportModal(true); setImportPreview(null); setImportErrors([]); setImportText(''); }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-bold text-orange-300 hover:bg-orange-500/20 transition"
+                    >
+                      <FileText className="h-3.5 w-3.5 text-orange-400" />
+                      Text Importer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowTemplateModal(true)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-bold text-purple-300 hover:bg-purple-500/20 transition"
+                    >
+                      Presets
+                    </button>
                   </div>
                 </div>
-                {/* Quick Start Options */}
-                <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-blue-950/40 via-cyan-950/20 to-purple-950/30 p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-[#00E5FF] flex items-center gap-1.5">
-                        <Sparkles className="h-4 w-4" />
-                        Tour Creation Modes
-                      </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Start fresh with AI, import structured text, apply a curated template, or fill details manually.
-                      </p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setShowAiBuilderModal(true)}
-                        className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-blue-500 px-3.5 py-2 text-xs font-black text-[#070F1E] hover:brightness-110 transition shadow-sm"
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        AI Tour Builder
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setShowImportModal(true); setImportPreview(null); setImportErrors([]); setImportText(''); }}
-                        className="flex items-center gap-1.5 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs font-bold text-orange-300 hover:bg-orange-500/20 transition"
-                      >
-                        <FileText className="h-3.5 w-3.5 text-orange-400" />
-                        Text Importer
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowTemplateModal(true)}
-                        className="flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-xs font-bold text-purple-300 hover:bg-purple-500/20 transition"
-                      >
-                        <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-                        Presets
-                      </button>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1183,14 +943,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="e.g. VIP Giftun Island & Coral Snorkeling Safari"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1203,14 +956,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="vip-giftun-island-snorkeling"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-mono focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1224,14 +970,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <option value="SHARED">Shared Group Experience</option>
                       <option value="PRIVATE">Private VIP Experience</option>
                     </select>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1244,14 +983,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="sea / safari / culture / diving"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1264,14 +996,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="Giftun Island VIP"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div className="md:col-span-2">
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1287,14 +1012,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="Crystal waters, private reef stops and fresh seafood buffet on board."
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div className="md:col-span-2">
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1307,22 +1025,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="Detailed overview of the experience, what travelers will feel and encounter..."
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 {/* Badges and Highlights */}
                 <div className="rounded-xl border border-white/5 bg-[#070F1E] p-4">
@@ -1351,30 +1055,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                         <span className="font-semibold">{label}</span>
                       </label>
                     ))}
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'destination-location' && (
@@ -1394,14 +1077,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                         <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1417,14 +1093,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                         <option key={z.id} value={z.id}>{z.name}</option>
                       ))}
                     </select>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1437,14 +1106,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="EG / IT / AE / FR"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-mono focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1457,14 +1119,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="Red Sea, Lazio, Île-de-France..."
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1477,14 +1132,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="Africa/Cairo, Europe/Rome, Asia/Dubai..."
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-mono focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1498,14 +1146,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="27.2579"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-mono focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -1519,30 +1160,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="33.8116"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-mono focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'media' && (
@@ -1558,14 +1178,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <p className="text-xs text-slate-400 mt-0.5">
                         Assign an entire existing Media Library folder directly to this tour gallery, or pick individual photos.
                       </p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     {folderMediaItems.length > 0 && (
                       <button
                         type="button"
@@ -1577,14 +1190,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                         Assign Entire Folder ({folderMediaItems.length} photos)
                       </button>
                     )}
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                     <div>
@@ -1607,14 +1213,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           </option>
                         ))}
                       </select>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
 
                     <div className="flex items-end">
                       <button
@@ -1625,35 +1224,14 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                         <ImageIcon className="w-4 h-4 text-[#00E5FF]" />
                         Browse All in Media Modal
                       </button>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
+                  </div>
 
                   {loadingFolderMedia && (
                     <div className="flex items-center justify-center p-6 text-xs text-slate-400 gap-2">
                       <Loader2 className="w-4 h-4 animate-spin text-[#00E5FF]" />
                       Loading folder photos...
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   )}
 
                   {!loadingFolderMedia && folderMediaItems.length > 0 && (
@@ -1694,49 +1272,14 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                                 ) : (
                                   <span className="text-emerald-400 text-[9px] font-bold">In Gallery</span>
                                 )}
-                                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                              </div>
+                            </div>
                           );
                         })}
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
+                    </div>
                   )}
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 {/* 2. Cover Hero Image */}
                 <div>
@@ -1753,27 +1296,13 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                         Remove Cover
                       </button>
                     )}
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                   {data.coverImage ? (
                     <div className="relative w-full h-56 rounded-2xl overflow-hidden border border-[#00E5FF]/40 bg-[#070F1E] shadow-2xl">
                       <img src={data.coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
                       <div className="absolute top-3 left-3 bg-[#00E5FF] text-[#070F1E] text-xs font-black px-3 py-1 rounded-lg shadow-md">
                         Active Cover Hero
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
                       <button
                         type="button"
                         onClick={() => setMediaPickerTarget('cover')}
@@ -1781,14 +1310,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       >
                         Change Cover
                       </button>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   ) : (
                     <div
                       onClick={() => setMediaPickerTarget('cover')}
@@ -1797,23 +1319,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <ImageIcon className="w-8 h-8 text-slate-500 mx-auto mb-2" />
                       <p className="text-xs font-bold text-slate-300">No cover image selected</p>
                       <p className="text-[11px] text-slate-500 mt-1">Click to select from Media Library or pick from the folder above</p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   )}
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 {/* 3. Tour Gallery Images */}
                 <div>
@@ -1825,14 +1333,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <p className="text-[11px] text-slate-500">
                         Click &quot;Make Cover&quot; on any photo to set it as the primary cover image.
                       </p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setMediaPickerTarget('gallery')}
@@ -1841,14 +1342,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <Plus className="w-3.5 h-3.5" />
                       Add More Photos
                     </button>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   {data.galleryImages.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
@@ -1881,43 +1375,15 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
-                              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                            </div>
+                          </div>
                         );
                       })}
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   ) : (
                     <div className="border border-white/5 rounded-xl p-6 text-center text-xs text-slate-500">
                       No gallery images yet. Pick a folder above or click &quot;Add More Photos&quot;.
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   )}
 
                   {/* Manual URL input fallback */}
@@ -1937,14 +1403,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       className="mt-2 w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-xs text-white font-mono focus:border-[#00E5FF] outline-none"
                     />
                   </details>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 {/* 4. Promotional Video */}
                 <div>
@@ -1958,22 +1417,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="https://www.youtube.com/watch?v=..."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-mono focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
             {/* Media Library Picker Modal */}
             {mediaPickerTarget && (
@@ -1998,14 +1443,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 <div className="rounded-xl border border-white/10 bg-[#070F1E] p-4 text-xs text-slate-400">
                   <p className="font-bold text-white mb-1">Operator & Operations Intelligence</p>
                   Internal records for local service suppliers, guides, drivers, and dispatch coordination. This information is private to the operations team and never displayed publicly.
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -2019,14 +1457,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="e.g. Red Sea Marine Excursions Co."
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -2039,14 +1470,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="+20 100 123 4567"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -2059,22 +1483,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="dispatch@supplier.com"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -2087,22 +1497,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="Boat berth #14 at Hurghada New Marina. Captain Hassan (+20101...). Lead divemaster must confirm equipment inventory 30 min before departure."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'pricing' && (
@@ -2121,14 +1517,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="45"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-bold focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -2143,14 +1532,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="60"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -2165,22 +1547,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="25"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 <div className="rounded-xl border border-white/10 bg-[#070F1E] p-4 space-y-4">
                   <span className="block text-xs font-bold uppercase text-slate-300">
@@ -2198,14 +1566,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <div>
                         <span className="text-xs font-bold text-white block">Cash / Pay at Location</span>
                         <span className="text-[11px] text-slate-400">Allow travelers to pay in cash upon pickup</span>
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
                     </label>
 
                     <label className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/5 p-3 cursor-pointer">
@@ -2218,23 +1579,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <div>
                         <span className="text-xs font-bold text-white block">Online Deposit</span>
                         <span className="text-[11px] text-slate-400">Require partial down payment online</span>
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
                     </label>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   {data.allowDeposit && (
                     <div className="pt-2 space-y-3">
@@ -2258,22 +1605,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                               {dt === 'PERCENTAGE' ? '% Percentage' : '$ Fixed Amount'}
                             </button>
                           ))}
-                          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                        </div>
+                      </div>
 
                       {/* Percentage input */}
                       {(data.depositType || 'PERCENTAGE') === 'PERCENTAGE' && (
@@ -2292,14 +1625,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           <p className="text-[11px] text-slate-500 mt-1">
                             Customer pays {data.depositPercentage}% online, remainder on arrival.
                           </p>
-                          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                        </div>
                       )}
 
                       {/* Fixed amount input */}
@@ -2322,40 +1648,12 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           <p className="text-[11px] text-slate-500 mt-1">
                             Customer pays a flat ${data.depositAmount ?? '?'} USD online, remainder on arrival.
                           </p>
-                          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                        </div>
                       )}
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   )}
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'guest-types' && (
@@ -2365,28 +1663,14 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     <div>
                       <span className="text-sm font-bold text-white block">Children Pricing Tier</span>
                       <span className="text-xs text-slate-400">Allow discounted tickets for children</span>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <input
                       type="checkbox"
                       checked={data.childEnabled}
                       onChange={(e) => updateData({ childEnabled: e.target.checked })}
                       className="h-5 w-5 rounded border-white/20 text-[#00E5FF]"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   {data.childEnabled && (
                     <div className="grid grid-cols-3 gap-3 pt-2">
@@ -2398,14 +1682,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           onChange={(e) => updateData({ childPrice: parseFloat(e.target.value) || 0 })}
                           className="w-full rounded-xl border border-white/10 bg-[#0B1528] px-3 py-2 text-sm text-white"
                         />
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Min Age</label>
                         <input
@@ -2414,14 +1691,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           onChange={(e) => updateData({ childMinAge: parseInt(e.target.value, 10) || 3 })}
                           className="w-full rounded-xl border border-white/10 bg-[#0B1528] px-3 py-2 text-sm text-white"
                         />
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Max Age</label>
                         <input
@@ -2430,59 +1700,24 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           onChange={(e) => updateData({ childMaxAge: parseInt(e.target.value, 10) || 11 })}
                           className="w-full rounded-xl border border-white/10 bg-[#0B1528] px-3 py-2 text-sm text-white"
                         />
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
+                    </div>
                   )}
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 <div className="rounded-xl border border-white/10 bg-[#070F1E] p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-bold text-white block">Infants Pricing Tier</span>
                       <span className="text-xs text-slate-400">Infants (usually free or small transfer seat fee)</span>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <input
                       type="checkbox"
                       checked={data.infantEnabled}
                       onChange={(e) => updateData({ infantEnabled: e.target.checked })}
                       className="h-5 w-5 rounded border-white/20 text-[#00E5FF]"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   {data.infantEnabled && (
                     <div className="grid grid-cols-3 gap-3 pt-2">
@@ -2494,14 +1729,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           onChange={(e) => updateData({ infantPrice: parseFloat(e.target.value) || 0 })}
                           className="w-full rounded-xl border border-white/10 bg-[#0B1528] px-3 py-2 text-sm text-white"
                         />
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Min Age</label>
                         <input
@@ -2510,14 +1738,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           onChange={(e) => updateData({ infantMinAge: parseInt(e.target.value, 10) || 0 })}
                           className="w-full rounded-xl border border-white/10 bg-[#0B1528] px-3 py-2 text-sm text-white"
                         />
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Max Age</label>
                         <input
@@ -2526,31 +1747,10 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           onChange={(e) => updateData({ infantMaxAge: parseInt(e.target.value, 10) || 2 })}
                           className="w-full rounded-xl border border-white/10 bg-[#0B1528] px-3 py-2 text-sm text-white"
                         />
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
+                    </div>
                   )}
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 <div className="rounded-xl border border-white/10 bg-[#070F1E] p-4 space-y-2">
                   <div>
@@ -2558,14 +1758,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     <span className="text-xs text-slate-400">
                       Optional flat price for a fully private departure (leave empty to disable).
                     </span>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                   <div className="max-w-[220px]">
                     <label className="block text-xs text-slate-400 mb-1">Private Price (USD)</label>
                     <input
@@ -2576,22 +1769,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="0.00"
                       className="w-full rounded-xl border border-white/10 bg-[#0B1528] px-3 py-2 text-sm text-white"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -2604,22 +1783,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="e.g. Children under 16 must be accompanied by an adult."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'addons' && (
@@ -2629,14 +1794,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   activeLanguage={activeLang}
                   onChange={(newAddons) => updateData({ addons: newAddons })}
                 />
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             )}
 
             {activeSection === 'availability' && (
@@ -2653,14 +1811,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       onChange={(e) => updateData({ maxCapacity: parseInt(e.target.value, 10) || 10 })}
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-bold focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -2673,14 +1824,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       onChange={(e) => updateData({ durationHours: parseInt(e.target.value, 10) || 1 })}
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-bold focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -2693,22 +1837,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       onChange={(e) => updateData({ cutoffHours: parseInt(e.target.value, 10) || 12 })}
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                     Customer-Facing Duration
@@ -2721,14 +1851,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
                   <p className="mt-1 text-xs text-slate-400">Use this for the exact duration shown to travellers; the numeric duration is used for scheduling.</p>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 {/* Phase 6 — Structured Availability: only meaningful for saved tours */}
                 {data.id && (
@@ -2740,28 +1863,14 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       defaultCapacity={data.maxCapacity}
                       defaultAdultPrice={data.adultPrice}
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                 )}
                 {!data.id && (
                   <p className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-slate-500">
                     💡 Save the tour first to configure schedule rules and date-specific availability.
                   </p>
                 )}
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             )}
 
             {activeSection === 'schedule' && (
@@ -2791,14 +1900,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                         </button>
                       </span>
                     ))}
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div className="flex gap-2 max-w-sm">
                     <input
@@ -2820,30 +1922,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     >
                       Add Slot
                     </button>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'pickup' && (
@@ -2889,36 +1970,15 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                               {option.label}
                             </span>
                             {isSelected && <Check className="w-3.5 h-3.5 text-[#00E5FF]" />}
-                            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                          </div>
                           <span className="text-[11px] text-slate-400 line-clamp-2 leading-tight">
                             {option.desc}
                           </span>
                         </button>
                       );
                     })}
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 {/* Hotel Pickup Specifics */}
                 {((data.pickupType || 'hotel') === 'hotel' || data.pickupType === 'both') && (
@@ -2932,14 +1992,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     <div>
                       <span className="text-sm font-bold text-white block">Hotel Pickup & Return Included in Price</span>
                       <span className="text-xs text-slate-400">Complimentary transfer from all resorts inside the selected zone</span>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   </label>
                 )}
 
@@ -2961,14 +2014,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="We pick you up directly from your hotel lobby. Exact pickup time confirmed via WhatsApp 12 hours prior."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none placeholder:text-slate-600"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
               
                 {/* Per-Tour Pickup Areas & Custom Transfer Pricing */}
                 <div className="rounded-2xl border border-white/10 bg-[#070F1E] p-5 space-y-4">
@@ -2983,14 +2029,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <p className="text-xs text-slate-400 mt-1">
                         Configure specific pickup locations and their transfer prices for this tour (e.g. Makadi Bay $15, El Gouna $20, Hurghada Center $0/Free). Overrides default destination zone fees.
                       </p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -3008,14 +2047,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <Plus className="w-3.5 h-3.5" />
                       Add Pickup Area
                     </button>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   {(!data.pickupAreas || data.pickupAreas.length === 0) ? (
                     <div className="rounded-xl border border-dashed border-white/10 p-5 text-center">
@@ -3025,14 +2057,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <p className="text-[11px] text-slate-500 mt-1">
                         Click &ldquo;Add Pickup Area&rdquo; to customize pickup regions and surcharges specifically for this tour.
                       </p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       {data.pickupAreas.map((area, index) => (
@@ -3055,14 +2080,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                               placeholder="e.g. Makadi Bay, El Gouna, Sahl Hasheesh"
                               className="w-full rounded-lg border border-white/10 bg-[#060D1A] px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-[#00E5FF] outline-none"
                             />
-                            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                          </div>
 
                           <div className="w-full sm:w-36">
                             <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
@@ -3084,22 +2102,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                                   area.isFree ? 'opacity-40 cursor-not-allowed' : 'focus:border-[#00E5FF]'
                                 }`}
                               />
-                              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                            </div>
+                          </div>
 
                           <div className="flex items-center gap-3 pt-2 sm:pt-4">
                             <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -3131,48 +2135,13 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
-                            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                          </div>
+                        </div>
                       ))}
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   )}
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'meeting-point' && (
@@ -3189,14 +2158,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="e.g. Hurghada Marina Gate 2"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none placeholder:text-slate-600"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                       Physical Street Address
@@ -3208,22 +2170,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="e.g. Marina Boulevard, Hurghada, Egypt"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none placeholder:text-slate-600"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 {/* GPS Coordinates */}
                 <div>
@@ -3243,14 +2191,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                         placeholder="27.2289"
                         className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-2.5 text-sm text-white focus:border-[#00E5FF] outline-none placeholder:text-slate-600"
                       />
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <div>
                       <label className="block text-[11px] text-slate-400 mb-1">Longitude (e.g. 33.8441)</label>
                       <input
@@ -3263,30 +2204,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                         placeholder="33.8441"
                         className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-2.5 text-sm text-white focus:border-[#00E5FF] outline-none placeholder:text-slate-600"
                       />
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Landmark & Map Reference */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3304,14 +2224,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="e.g. Beside the main lighthouse tower"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none placeholder:text-slate-600"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                       Google Maps or Navigation Link
@@ -3323,22 +2236,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="https://maps.google.com/?q=..."
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none placeholder:text-slate-600"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 {/* Visual Image Reference */}
                 <div>
@@ -3355,14 +2254,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   <p className="text-[11px] text-slate-500 mt-1">
                     Customers see this photo on their boarding pass and voucher to spot the guide immediately.
                   </p>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 {/* Directions & Instructions */}
                 <div>
@@ -3379,22 +2271,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="Look for the Talago Tours uniform / banner opposite the marina fountain. Please arrive 15 minutes before departure."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none placeholder:text-slate-600"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'transportation' && (
@@ -3411,14 +2289,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="e.g. Modern Toyota HiAce / Mercedes Sprinter"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -3431,22 +2302,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="e.g. 3-Deck Luxury Marine Yacht with Flybridge"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#070F1E] p-4">
                   <input
@@ -3459,14 +2316,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   <label htmlFor="airConditionedToggle" className="text-sm font-semibold text-white cursor-pointer">
                     Air-Conditioned Passenger Fleet (Vehicles & Salon)
                   </label>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -3479,22 +2329,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="Drivers arrive in uniform with TALAGO Tours signage. Child safety booster seats available on advance request."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'route' && (
@@ -3503,14 +2339,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   <div>
                     <h3 className="text-sm font-bold text-white">Route Waypoints & Geographical Stops</h3>
                     <p className="text-xs text-slate-400">Map waypoints along the tour journey</p>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
@@ -3527,28 +2356,14 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     <Plus className="w-4 h-4" />
                     Add Waypoint
                   </button>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 {(!data.routeStops || data.routeStops.length === 0) ? (
                   <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center">
                     <Compass className="w-8 h-8 text-slate-600 mx-auto mb-2" />
                     <p className="text-sm font-bold text-white">No route stops configured yet</p>
                     <p className="text-xs text-slate-500 mt-1">Add waypoints to show customers an interactive tour journey map</p>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     {data.routeStops.map((stop, idx) => (
@@ -3580,22 +2395,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                               placeholder="Description / activity"
                               className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white"
                             />
-                            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                          </div>
+                        </div>
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-1.5 text-xs text-slate-400">
                             <span>Duration:</span>
@@ -3611,14 +2412,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                               className="w-16 rounded border border-white/10 bg-white/5 px-2 py-1 text-xs text-white text-center"
                             />
                             <span>min</span>
-                            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                          </div>
                           <button
                             type="button"
                             onClick={() => {
@@ -3629,40 +2423,12 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
-                          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                        </div>
+                      </div>
                     ))}
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                 )}
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             )}
 
             {activeSection === 'itinerary' && (
@@ -3673,14 +2439,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   errors={{}}
                   onChange={(items) => updateData({ itinerary: items })}
                 />
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             )}
 
             {activeSection === 'activities' && (
@@ -3699,14 +2458,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="e.g. Snorkeling, Desert safari, Cultural sightseeing"
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                     Key Highlights / Selling Points ({activeLang.toUpperCase()})
@@ -3725,22 +2477,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="Swim with wild dolphins at Dolphin House\nEnjoy fresh open-buffet seafood lunch on board\nAll high-grade snorkeling gear provided"
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'inclusions' && (
@@ -3761,14 +2499,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   placeholder="Hotel pickup and drop-off\nProfessional multilingual snorkel guide\nLife jackets & snorkeling masks\nLunch buffet and soft drinks"
                   className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                 />
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             )}
 
             {activeSection === 'exclusions' && (
@@ -3789,14 +2520,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   placeholder="National park entrance fee ($5 per person)\nProfessional photo and video session\nPersonal expenses and tips"
                   className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                 />
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             )}
 
             {activeSection === 'what-to-bring' && (
@@ -3816,14 +2540,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   placeholder="Swimwear, beach towels, sunglasses, sun cream, camera or waterproof phone case."
                   className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                 />
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             )}
 
             {activeSection === 'important-info' && (
@@ -3835,14 +2552,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   <p className="text-xs text-slate-400">
                     Need-to-know details guests should read before booking — ID/passport rules, restrictions, what is not suitable, and good-to-know notes.
                   </p>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
                 <textarea
                   rows={6}
                   value={currentLocale.importantInfo || ''}
@@ -3850,14 +2560,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   placeholder="Please bring your passport. Not recommended for pregnant guests or children under 6. Entrance fees are not included..."
                   className="w-full resize-y rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                 />
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             )}
 
             {activeSection === 'faqs' && (
@@ -3870,14 +2573,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     <p className="text-xs text-slate-400">
                       Questions and answers shown on the public tour page accordion.
                     </p>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() =>
@@ -3887,26 +2583,12 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   >
                     + Add FAQ
                   </button>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 {(currentLocale.faqItems || []).length === 0 ? (
                   <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-xs text-slate-500">
                     No FAQs yet for {activeLang.toUpperCase()}. Click &quot;Add FAQ&quot; to create localized FAQ content.
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     {(currentLocale.faqItems || []).map((faq, i) => (
@@ -3933,14 +2615,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           >
                             ✕
                           </button>
-                          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                        </div>
                         <textarea
                           rows={2}
                           value={faq.answer}
@@ -3952,32 +2627,11 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           placeholder="Answer"
                           className="w-full resize-y rounded-lg border border-white/10 bg-[#0B1528] px-3 py-2 text-sm text-white outline-none focus:border-[#00E5FF]"
                         />
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
                     ))}
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                 )}
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             )}
 
             {activeSection === 'requirements' && (
@@ -3997,14 +2651,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <option value="Challenging">Challenging - Active hiking, deep diving, or long transfers</option>
                       <option value="Strenuous">Strenuous - Advanced physical endurance required</option>
                     </select>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -4017,22 +2664,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="e.g. Not recommended for pregnant women or guests with back conditions"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -4050,22 +2683,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="Basic swimming capability recommended for marine activities. All divers must present a valid C-card. Quad bike drivers must be at least 16 years old."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'accessibility' && (
@@ -4082,14 +2701,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     <label htmlFor="wheelchairToggle" className="text-sm font-semibold text-white cursor-pointer">
                       Wheelchair Accessible (Vehicle ramps & accessible pathways)
                     </label>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#070F1E] p-4">
                     <input
@@ -4102,22 +2714,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     <label htmlFor="strollerToggle" className="text-sm font-semibold text-white cursor-pointer">
                       Stroller / Pram Accessible
                     </label>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -4133,22 +2731,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="Wheelchair users can be accommodated on our private transport with ramps. Lower deck of the marine vessel is accessible. Please inform us 24h in advance."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'safety' && (
@@ -4165,14 +2749,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     <label htmlFor="insuranceToggle" className="text-sm font-semibold text-white cursor-pointer">
                       Comprehensive Activity & Passenger Insurance Included
                     </label>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -4185,22 +2762,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       placeholder="+20 100 000 0000"
                       className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                     />
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -4219,22 +2782,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="Certified marine rescue diver on duty during all water sessions\nLife jackets mandatory in open water\nFirst aid kit and oxygen tank onboard\nFollow guides instructions at all times"
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'cancellation' && (
@@ -4251,22 +2800,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <option value={48}>Up to 48 hours before (Strict)</option>
                       <option value={0}>Non-refundable</option>
                     </select>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -4284,22 +2819,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="Full refund if cancelled at least 24 hours prior to scheduled departure. No refund for no-shows."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'booking-questions' && (
@@ -4308,14 +2829,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   questions={data.bookingQuestions || []}
                   onChange={(questions) => updateData({ bookingQuestions: questions })}
                 />
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             )}
 
             {activeSection === 'seo' && (
@@ -4332,14 +2846,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
                   <p className="mt-1 text-[11px] text-slate-500">Recommended length: 50-60 characters</p>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -4353,14 +2860,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
                   <p className="mt-1 text-[11px] text-slate-500">Recommended length: 140-160 characters</p>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -4377,14 +2877,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="dolphin house, hurghada snorkeling, red sea safari, boat trip"
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 <div className="border-t border-white/10 pt-4">
                   <div className="flex items-center gap-3 mb-3">
@@ -4398,14 +2891,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     <label htmlFor="showExcerptToggle" className="text-sm font-semibold text-white cursor-pointer">
                       Show Card Excerpt in Catalog Card
                     </label>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                     Card Excerpt (One sentence preview in search results)
@@ -4417,22 +2903,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="Encounter wild spinner dolphins and explore pristine virgin reefs on a luxury yacht."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'publishing' && (
@@ -4463,22 +2935,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                         <span className="text-[11px] opacity-75">{s.desc}</span>
                       </button>
                     ))}
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
 
                 {/* Publish readiness reminder */}
                 {data.status !== 'DRAFT' && data.status !== 'ARCHIVED' && completeness.score < 60 && (
@@ -4490,31 +2948,10 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                         This tour will be visible to customers but may underperform in search rankings and conversions.
                         Complete more fields to improve your score to at least 60%.
                       </p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
+                  </div>
                 )}
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             )}
 
             {activeSection === 'completeness' && (
@@ -4525,14 +2962,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   <p className="text-xs text-slate-400 max-w-md mx-auto">
                     A higher score improves conversion, customer satisfaction, and international SEO ranking.
                   </p>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 <div className="space-y-2">
                   {completeness.checks.map((c, i) => (
@@ -4551,32 +2981,11 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           <AlertCircle className="w-4 h-4 text-amber-400" />
                         )}
                         <span>{c.name}: {c.message}</span>
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
                       <span className="font-mono opacity-60">+{c.weight} pts</span>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   ))}
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
                   <button
@@ -4593,22 +3002,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   >
                     Publish to Global Catalog
                   </button>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
 
             {activeSection === 'advanced' && (
@@ -4618,14 +3013,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     <div>
                       <h3 className="text-sm font-bold text-white">Tour Variants (Phase 11)</h3>
                       <p className="text-xs text-slate-400">Offer multiple service tiers (Standard, VIP, Sunset, Private Boat) on the same tour</p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -4643,26 +3031,12 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <Plus className="w-4 h-4" />
                       Add Variant
                     </button>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   {(!data.variants || data.variants.length === 0) ? (
                     <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-xs text-slate-500">
                       No variants defined. The tour will use the default standard pricing tier.
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       {data.variants.map((v, i) => (
@@ -4702,22 +3076,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                                 }}
                                 className="w-20 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white"
                               />
-                              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                            </div>
+                          </div>
                           <button
                             type="button"
                             onClick={() => {
@@ -4728,32 +3088,11 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
-                          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                        </div>
                       ))}
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   )}
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 <div className="border-t border-white/10 pt-4">
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -4766,31 +3105,10 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="Custom operational guidelines, seasonal blackout notes, or special handling rules."
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
             )}
-            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+          </div>
 
           {/* ── 8-Step Bottom Wizard Navigator (Priority 2) ── */}
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
@@ -4817,14 +3135,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   ← {prevSection.shortLabel}
                 </button>
               ) : <div />}
-              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+            </div>
 
             <div className="flex items-center gap-3">
               <span className="hidden sm:inline-block text-xs font-bold text-slate-400 bg-white/[0.03] border border-white/5 px-3 py-1.5 rounded-full">
@@ -4865,31 +3176,10 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   Publish Experience
                 </button>
               )}
-              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+            </div>
+          </div>
         </main>
-        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+      </div>
 
       {/* Global Tour Template Library Modal (Phase 12) */}
       {showTemplateModal && (
@@ -4899,33 +3189,12 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-purple-500/20 text-purple-400">
                   <Sparkles className="h-5 w-5" />
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
                 <div>
                   <h3 className="text-lg font-black text-white">Global Tour Template Library</h3>
                   <p className="text-xs text-slate-400">Instantly populate all 27 sections from a curated production preset</p>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowTemplateModal(false)}
@@ -4933,14 +3202,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               >
                 ✕
               </button>
-              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {TOUR_TEMPLATES.map((tmpl) => (
@@ -4954,28 +3216,14 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <span className="rounded-full bg-[#00E5FF]/10 px-2.5 py-0.5 text-[10px] font-black uppercase text-[#00E5FF]">
                         {tmpl.badge}
                       </span>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <h4 className="text-sm font-bold text-white group-hover:text-[#00E5FF] transition">
                       {tmpl.title}
                     </h4>
                     <p className="mt-2 text-xs text-slate-400 leading-relaxed">
                       {tmpl.description}
                     </p>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                   <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-300">
                       ${tmpl.price} · {tmpl.duration}
@@ -4992,47 +3240,12 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     >
                       Apply Template
                     </button>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
               ))}
-              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Import from Text Modal ── */}
@@ -5045,23 +3258,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               <div>
                 <h3 className="text-lg font-black text-white">Import Trip from Text</h3>
                 <p className="text-xs text-slate-400 mt-0.5">Paste structured text or import the complete JSON template. Review every field before saving.</p>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
               <button type="button" onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-white p-1 text-sm font-bold">✕</button>
-              {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+            </div>
 
             {/* Template Example */}
             {!importPreview && (
@@ -5165,14 +3364,7 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                   {loadingSample ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
                   Load Sample 28-Section Text
                 </button>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+              </div>
             )}
 
             {/* Textarea */}
@@ -5191,14 +3383,7 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                     {importErrors.map((e, i) => (
                       <p key={i} className="text-xs text-red-300 font-mono">⚠ {e}</p>
                     ))}
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
                 )}
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   <span className="text-[11px] text-slate-500">
@@ -5240,22 +3425,8 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                       <Check className="h-3.5 w-3.5" />
                       Parse &amp; Validate (28 Sections)
                     </button>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
               </>
             )}
 
@@ -5273,163 +3444,58 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                         <p className="text-[11px] text-emerald-300/80">
                           Health score: {importPreview.completeness}% completeness
                         </p>
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
+                    </div>
                     <span className="rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-bold text-emerald-300">
                       Ready to Apply
                     </span>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                     <div className="rounded-xl bg-[#060D1A]/60 p-3">
                       <p className="text-slate-500 text-[10px] font-bold uppercase">Title</p>
                       <p className="font-semibold text-white truncate mt-0.5">{importPreview.data.translations?.en?.title || '—'}</p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <div className="rounded-xl bg-[#060D1A]/60 p-3">
                       <p className="text-slate-500 text-[10px] font-bold uppercase">Price</p>
                       <p className="font-semibold text-[#00E5FF] mt-0.5">${importPreview.data.adultPrice} / adult</p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <div className="rounded-xl bg-[#060D1A]/60 p-3">
                       <p className="text-slate-500 text-[10px] font-bold uppercase">Duration & Capacity</p>
                       <p className="font-semibold text-white mt-0.5">{importPreview.data.durationHours}h &middot; Max {importPreview.data.maxCapacity} guests</p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <div className="rounded-xl bg-[#060D1A]/60 p-3">
                       <p className="text-slate-500 text-[10px] font-bold uppercase">Category & Type</p>
                       <p className="font-semibold text-white mt-0.5">{importPreview.data.category} &middot; {importPreview.data.type}</p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <div className="rounded-xl bg-[#060D1A]/60 p-3">
                       <p className="text-slate-500 text-[10px] font-bold uppercase">Location</p>
                       <p className="font-semibold text-white mt-0.5">{importPreview.data.city}, {importPreview.data.countryCode}</p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <div className="rounded-xl bg-[#060D1A]/60 p-3">
                       <p className="text-slate-500 text-[10px] font-bold uppercase">Pickup</p>
                       <p className="font-semibold text-white mt-0.5">{importPreview.data.pickupType} (incl: {String(importPreview.data.hotelPickupIncluded)})</p>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1">
                     <div className="flex items-center gap-1.5 text-slate-300">
                       <Check className="h-3.5 w-3.5 text-emerald-400" />
                       <span>{importPreview.data.itinerary?.length || 0} Itinerary Stops</span>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <div className="flex items-center gap-1.5 text-slate-300">
                       <Check className="h-3.5 w-3.5 text-emerald-400" />
                       <span>{importPreview.data.routeStops?.length || 0} Waypoints</span>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <div className="flex items-center gap-1.5 text-slate-300">
                       <Check className="h-3.5 w-3.5 text-emerald-400" />
                       <span>{importPreview.data.addons?.length || 0} Add-on Upgrades</span>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                     <div className="flex items-center gap-1.5 text-slate-300">
                       <Check className="h-3.5 w-3.5 text-emerald-400" />
                       <span>{importPreview.data.faqItems?.length || 0} FAQs</span>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
+                  </div>
 
                   {/* Multiline Text Preservation Audit */}
                   <div className="rounded-xl border border-white/10 bg-[#060D1A]/80 p-3.5 space-y-3">
@@ -5441,14 +3507,7 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                       <span className="text-[11px] text-slate-400">
                         {importPreview.multilineStats?.descriptionChars || 0} chars &middot; {importPreview.multilineStats?.descriptionParagraphs || 0} paragraphs
                       </span>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
 
                     <div className="space-y-1.5 text-xs">
                       <p className="text-[11px] font-semibold text-slate-400">Description Full Content:</p>
@@ -5456,84 +3515,28 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                         {importPreview.data.translations?.en?.description || (
                           <span className="text-amber-400/80 italic">No description detected</span>
                         )}
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
+                    </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
                       <div className="rounded-lg bg-white/5 p-2 text-slate-300">
                         <span className="text-slate-500 block text-[10px]">What to Bring</span>
                         <span className="font-semibold text-white">{importPreview.multilineStats?.whatToBringChars || 0} chars</span>
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
                       <div className="rounded-lg bg-white/5 p-2 text-slate-300">
                         <span className="text-slate-500 block text-[10px]">Important Info</span>
                         <span className="font-semibold text-white">{importPreview.multilineStats?.importantInfoChars || 0} chars</span>
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
                       <div className="rounded-lg bg-white/5 p-2 text-slate-300">
                         <span className="text-slate-500 block text-[10px]">Cancellation Policy</span>
                         <span className="font-semibold text-white">{importPreview.multilineStats?.cancellationPolicyChars || 0} chars</span>
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
                       <div className="rounded-lg bg-white/5 p-2 text-slate-300">
                         <span className="text-slate-500 block text-[10px]">Highlights</span>
                         <span className="font-semibold text-white">{importPreview.multilineStats?.highlightsCount || 0} items</span>
-                        {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                      </div>
+                    </div>
+                  </div>
 
                   {importPreview.warnings.length > 0 && (
                     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
@@ -5541,23 +3544,9 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                       {importPreview.warnings.map((w, idx) => (
                         <p key={idx} className="text-[11px] text-amber-300/90">&bull; [{w.section}] {w.message}</p>
                       ))}
-                      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                    </div>
                   )}
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                </div>
 
                 <div className="flex items-center justify-between pt-2">
                   <button
@@ -5600,56 +3589,14 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                       <Rocket className="h-3.5 w-3.5" />
                       Apply All 28 Sections to Editor
                     </button>
-                    {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                  {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-                {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+                  </div>
+                </div>
+              </div>
             )}
-            {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
-          {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
-    </div>
+          </div>
+        </div>
       )}
 
-      {/* ── AI Tour Builder Modal ── */}
-      <AiTourBuilderModal
-        isOpen={showAiBuilderModal}
-        onClose={() => setShowAiBuilderModal(false)}
-        destinations={destinations}
-        onApplyDraft={handleApplyAiDraft}
-      />
       {/* ── AI Tour Builder Modal ── */}
       <AiTourBuilderModal
         isOpen={showAiBuilderModal}
