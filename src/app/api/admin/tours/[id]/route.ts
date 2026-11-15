@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema, TourAddonSchema, isValidCoverImage } from '@/utils/tourJsonSchemas';
@@ -441,6 +442,20 @@ export async function PUT(
       data: updateData,
     });
 
+    if (tour.slug) {
+      try {
+        revalidatePath(`/tours/${tour.slug}`);
+      } catch (e) {
+        console.warn('[revalidate] Failed for tour slug:', e);
+      }
+    }
+    try {
+      revalidatePath('/tours');
+      revalidatePath('/');
+    } catch (e) {
+      console.warn('[revalidate] Failed for catalog:', e);
+    }
+
     return NextResponse.json({ tour, message: 'Tour updated successfully' });
   } catch (error) {
     console.error('Update tour error:', error);
@@ -507,6 +522,20 @@ export async function PATCH(
       where: { id: params.id },
       data: updateData,
     });
+
+    if (tour.slug) {
+      try {
+        revalidatePath(`/tours/${tour.slug}`);
+      } catch (e) {
+        console.warn('[revalidate] Failed for tour slug:', e);
+      }
+    }
+    try {
+      revalidatePath('/tours');
+      revalidatePath('/');
+    } catch (e) {
+      console.warn('[revalidate] Failed for catalog:', e);
+    }
 
     return NextResponse.json({ tour, message: 'Tour updated successfully' });
   } catch (error) {
@@ -595,6 +624,16 @@ export async function DELETE(
         where: { id: params.id },
       });
     });
+
+    if (existing?.slug) {
+      try {
+        revalidatePath(`/tours/${existing.slug}`);
+      } catch (e) {}
+    }
+    try {
+      revalidatePath('/tours');
+      revalidatePath('/');
+    } catch (e) {}
 
     return NextResponse.json({
       message: bookingsCount > 0

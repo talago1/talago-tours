@@ -228,14 +228,18 @@ async function callGemini(prompt: string, jsonMode = true): Promise<string> {
 export interface TourTranslationPayload {
   title: string;
   description: string;
+  cardExcerpt?: string;
   highlights?: string[];
   inclusions?: string[];
   exclusions?: string[];
   whatToBring?: string;
   requirements?: string;
   cancellationPolicy?: string;
+  safetyGuidelines?: string[];
   faqItems?: Array<{ question: string; answer: string }>;
   itinerary?: Array<{ timeTag?: string; title: string; description: string }>;
+  seoTitle?: string;
+  seoDescription?: string;
 }
 
 export type SupportedLanguage = 'de' | 'ru' | 'fr' | 'it' | 'pl' | 'es' | 'uk';
@@ -320,15 +324,19 @@ Maintain professional, compelling, and localized tone suitable for tourists. Do 
 Return a JSON object where keys are the language codes (${targetLangs.join(', ')}), and each value has the matching translated structure:
 {
   "title": string,
+  "cardExcerpt"?: string,
   "description": string,
   "highlights": string[],
   "inclusions": string[],
   "exclusions": string[],
-  "whatToBring": string,
-  "requirements": string,
-  "cancellationPolicy": string,
-  "faqItems": [{"question": string, "answer": string}],
-  "itinerary": [{"timeTag": string, "title": string, "description": string}]
+  "whatToBring"?: string,
+  "requirements"?: string,
+  "cancellationPolicy"?: string,
+  "safetyGuidelines"?: string[],
+  "seoTitle"?: string,
+  "seoDescription"?: string,
+  "faqItems"?: [{"question": string, "answer": string}],
+  "itinerary"?: [{"timeTag": string, "title": string, "description": string}]
 }
 
 Input English data:

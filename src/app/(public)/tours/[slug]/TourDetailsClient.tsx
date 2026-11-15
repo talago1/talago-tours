@@ -720,9 +720,9 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
 
   const localizedWhatToBringItems: string[] = (() => {
     const raw = langTranslation.whatToBring || enTranslation.whatToBring || tour.whatToBring;
-    if (Array.isArray(raw) && raw.length > 0) return raw;
+    if (Array.isArray(raw) && raw.length > 0) return raw.map(String).map((s) => s.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
     if (typeof raw === 'string' && raw) {
-      return raw.split(',').map((s: string) => s.trim()).filter(Boolean);
+      return raw.split(/[\r\n,]+/).map((s: string) => s.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
     }
     return [];
   })();
@@ -956,7 +956,9 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                     </div>
                     <div>
                       <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Cancellation</h4>
-                      <p className="mt-0.5 text-xs font-bold text-emerald-400">Free cancellation</p>
+                      <p className={`mt-0.5 text-xs font-bold ${cancelHours > 0 ? 'text-emerald-400' : 'text-slate-300'}`}>
+                        {cancelHours > 0 ? 'Free cancellation' : 'Non-refundable'}
+                      </p>
                       <p className="text-[11px] text-slate-400 mt-0.5">{cancelHoursText}</p>
                     </div>
                   </div>
@@ -1149,10 +1151,12 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 </Accordion>
               )}
 
-              {/* ── Know Before You Go (GetYourGuide / Viator Comprehensive Guide) ── */}
+              {/* ── Know Before You Go (Tour-Driven Content) ── */}
+              {(localizedWhatToBringItems.length > 0 || localizedImportantInfo || tour.ageRestrictionsNotes) && (
               <Accordion title={dict.tourDetails.whatToBring ? `Know Before You Go (${dict.tourDetails.whatToBring})` : 'Know Before You Go'} defaultOpen>
                 <div className="space-y-6">
                   {/* Subsection 1: What to Bring */}
+                  {localizedWhatToBringItems.length > 0 && (
                   <div>
                     <div className="mb-3 flex items-center gap-2">
                       <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#FFD700]/15 text-[#FFD700]">
@@ -1163,7 +1167,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       {(localizedWhatToBringItems.length > 0
                         ? localizedWhatToBringItems
-                        : ['Official Passport or Photo ID', 'Comfortable walking footwear']
+                        : []
                       ).map((item, i) => (
                         <div key={i} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3 transition-colors hover:bg-white/[0.04]">
                           <Check className="h-4 w-4 shrink-0 text-[#FFD700]" />
@@ -1172,32 +1176,9 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                       ))}
                     </div>
                   </div>
+                  )}
 
-                  {/* Subsection 2: Not Allowed */}
-                  <div>
-                    <div className="mb-3 flex items-center gap-2">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-500/15 text-rose-400">
-                        <Ban className="h-3.5 w-3.5" />
-                      </div>
-                      <h4 className="text-sm font-bold text-white">Not allowed</h4>
-                    </div>
-                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                      {[
-                        'Luggage or large suitcases',
-                        'Drones / aerial cameras (strictly regulated in Egypt)',
-                        'Pets or non-service animals',
-                        'Glass bottles or sharp objects',
-                        'Smoking in closed vehicles or marine reserves',
-                      ].map((item, i) => (
-                        <div key={i} className="flex items-center gap-3 rounded-xl border border-rose-500/10 bg-rose-500/[0.03] p-3">
-                          <Ban className="h-3.5 w-3.5 shrink-0 text-rose-400" />
-                          <span className="text-xs text-slate-300">{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Subsection 3: Good to know / Health & Safety advisory */}
+                  {/* Subsection 2: Good to know / Health & Safety advisory */}
                   <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
@@ -1212,13 +1193,13 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                           {tour.ageRestrictionsNotes ? (
                             <li>{tour.ageRestrictionsNotes}</li>
                           ) : null}
-                          <li>Not recommended for travelers with severe back injuries or pregnant travelers on rugged terrain excursions.</li>
-                        </ul>
+                                                  </ul>
                       </div>
                     </div>
                   </div>
                 </div>
               </Accordion>
+              )}
 
               {/* Pickup & Meeting Point Info */}
               {(localizedPickupDescription || tour.hotelPickupIncluded || tour.meetingPointName || tour.pickupType) && (
