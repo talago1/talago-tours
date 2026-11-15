@@ -10,6 +10,7 @@ import {
   Sparkles,
   AlertCircle,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Layers,
   MapPin,
@@ -37,6 +38,7 @@ import {
   Loader2,
   Download,
   Copy,
+  FolderOpen,
 } from 'lucide-react';
 
 import type {
@@ -49,10 +51,12 @@ import type {
   TourAddon,
   ItineraryMilestone,
   TourVariant,
+  PrimaryTourStep,
 } from '@/types/tourEditor';
 import {
   ALL_LANGUAGES,
   TOUR_EDITOR_SECTIONS,
+  PRIMARY_TOUR_STEPS,
   createDefaultTourEditorData,
   createDefaultLocalizedContent,
   calculateTourCompleteness
@@ -114,6 +118,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   });
 
   const [activeSection, setActiveSection] = useState<TourEditorSectionId>('basic-info');
+  const [activeStep, setActiveStep] = useState<number>(1);
   const [quickMode, setQuickMode] = useState(false);
   const [activeLang, setActiveLang] = useState<LanguageCode>('en');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -129,6 +134,62 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   const [loadingSample, setLoadingSample] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [mediaPickerTarget, setMediaPickerTarget] = useState<'cover' | 'gallery' | null>(null);
+
+  // Folder Media Integration (Priority 3)
+  const [mediaFolders, setMediaFolders] = useState<Array<{ id: string; name: string; prefix: string; bucket: string }>>([]);
+  const [selectedFolderPrefix, setSelectedFolderPrefix] = useState<string>('');
+  const [folderMediaItems, setFolderMediaItems] = useState<Array<{ id: string; name: string; url: string }>>([]);
+  const [loadingFolderMedia, setLoadingFolderMedia] = useState(false);
+  const [assigningFolder, setAssigningFolder] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/admin/media/folders')
+      .then((res) => (res.ok ? res.json() : { folders: [] }))
+      .then((d) => {
+        if (Array.isArray(d.folders)) {
+          setMediaFolders(d.folders);
+        }
+      })
+      .catch((err) => console.warn('[UnifiedTourEditor] Could not load media folders:', err));
+  }, []);
+
+  const handleSelectFolder = async (folderPrefix: string, bucket: string = 'talago-tour-media') => {
+    setSelectedFolderPrefix(folderPrefix);
+    if (!folderPrefix) {
+      setFolderMediaItems([]);
+      return;
+    }
+    setLoadingFolderMedia(true);
+    try {
+      const res = await fetch(`/api/admin/media?folder=${encodeURIComponent(folderPrefix)}&bucket=${bucket}`);
+      if (res.ok) {
+        const d = await res.json();
+        setFolderMediaItems(d.items || []);
+      }
+    } catch (err) {
+      console.warn('[UnifiedTourEditor] Failed to fetch folder items:', err);
+    } finally {
+      setLoadingFolderMedia(false);
+    }
+  };
+
+  const handleAssignFolderToGallery = () => {
+    if (folderMediaItems.length === 0) return;
+    setAssigningFolder(true);
+    setData((prev) => {
+      const incomingUrls = folderMediaItems.map((item) => item.url).filter((u) => !prev.galleryImages.includes(u));
+      const mergedGallery = [...prev.galleryImages, ...incomingUrls];
+      const newCover = prev.coverImage || mergedGallery[0] || '';
+      return {
+        ...prev,
+        galleryImages: mergedGallery,
+        coverImage: newCover,
+      };
+    });
+    setIsDirty(true);
+    setAssigningFolder(false);
+    setSaveSuccessMessage(`Assigned ${folderMediaItems.length} photos from folder to tour gallery!`);
+  };
 
   const isEditing = Boolean(data.id);
 
@@ -255,6 +316,15 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
 
   // Completeness score
   const completeness = useMemo(() => calculateTourCompleteness(data), [data]);
+
+  // Current Active 8-Step Wizard Meta
+  const currentStep = useMemo(() => {
+    return PRIMARY_TOUR_STEPS[activeStep - 1] || PRIMARY_TOUR_STEPS[0];
+  }, [activeStep]);
+
+  const stepSections = useMemo(() => {
+    return TOUR_EDITOR_SECTIONS.filter((s) => currentStep.sectionIds.includes(s.id));
+  }, [currentStep]);
 
   // Filtered sections for Quick vs Full Mode
   const displayedSections = useMemo(() => {
@@ -650,22 +720,65 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
         </div>
       )}
 
+      {/* ── 8-Step Wizard Stepper (Priority 2) ── */}
+      <div className="mx-auto max-w-[1700px] w-full px-4 md:px-6 mt-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 bg-[#0B1528] border border-white/10 rounded-2xl p-2 shadow-lg">
+          {PRIMARY_TOUR_STEPS.map((step) => {
+            const isCurrent = activeStep === step.stepNumber;
+            const isPast = activeStep > step.stepNumber;
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => {
+                  setActiveStep(step.stepNumber);
+                  setActiveSection(step.sectionIds[0]);
+                }}
+                className={`flex flex-col items-start p-2.5 rounded-xl text-left transition-all ${
+                  isCurrent
+                    ? 'bg-[#00E5FF] text-[#070F1E] font-black shadow-md shadow-[#00E5FF]/20'
+                    : isPast
+                    ? 'bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-white'
+                    : 'text-slate-500 hover:bg-white/[0.02] hover:text-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full mb-1">
+                  <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isCurrent ? 'text-[#070F1E]' : isPast ? 'text-[#00E5FF]' : 'text-slate-500'}`}>
+                    Step {step.stepNumber}
+                  </span>
+                  {isPast && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                </div>
+                <span className="text-xs font-bold truncate w-full">{step.shortLabel}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Main Split Layout: Left Grouped Nav + Right Editor Panel */}
       <div className="max-w-[1700px] w-full mx-auto px-4 md:px-6 mt-6 flex-1 flex flex-col md:flex-row gap-6">
         {/* Left Sections Sidebar */}
         <aside className="w-full shrink-0 md:w-80">
           <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-3 shadow-xl md:sticky md:top-24 md:flex md:max-h-[calc(100vh-8rem)] md:flex-col md:overflow-y-auto">
-            <div className="px-3 py-2 border-b border-white/5 mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                {quickMode ? 'Fast Path Configuration' : 'Master 27 Sections'}
-              </span>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Editing language: <strong className="text-white uppercase">{activeLang}</strong>
-              </p>
+            <div className="px-3 py-2 border-b border-white/5 mb-3 bg-white/[0.02] rounded-xl">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#00E5FF]">
+                  Step {activeStep} of 8
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">{activeLang}</span>
+              </div>
+              <h3 className="text-xs font-bold text-white truncate">{currentStep.title}</h3>
+              <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2">{currentStep.description}</p>
             </div>
 
-            <nav className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:block md:space-y-1">
-              {displayedSections.map((sec) => {
+            <div className="mb-2 px-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Step Sections ({stepSections.length})
+              </span>
+            </div>
+
+            <nav className="space-y-1">
+              {stepSections.map((sec) => {
                 const isActive = activeSection === sec.id;
                 return (
                   <button
@@ -696,6 +809,34 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 );
               })}
             </nav>
+
+            {/* Collapsible All 27 Sections for Power Users */}
+            <details className="mt-4 border-t border-white/5 pt-3">
+              <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 py-1 px-1">
+                All 27 Sections ({displayedSections.length})
+              </summary>
+              <div className="mt-2 space-y-0.5 max-h-48 overflow-y-auto pr-1">
+                {displayedSections.map((sec) => {
+                  const isActive = activeSection === sec.id;
+                  return (
+                    <button
+                      key={sec.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveSection(sec.id);
+                        const step = PRIMARY_TOUR_STEPS.find((s) => s.sectionIds.includes(sec.id));
+                        if (step) setActiveStep(step.stepNumber);
+                      }}
+                      className={`flex w-full items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-[11px] transition ${
+                        isActive ? 'text-[#00E5FF] font-black bg-[#00E5FF]/10' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="truncate">{sec.shortLabel}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </details>
           </div>
         </aside>
 
@@ -959,86 +1100,257 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
             )}
 
             {activeSection === 'media' && (
-              <div className="space-y-6">
-                {/* Cover Image */}
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
-                    Primary Cover Hero Image URL *
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={data.coverImage}
-                      onChange={(e) => updateData({ coverImage: e.target.value })}
-                      placeholder="https://... or pick from Media Library"
-                      className="flex-1 rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-mono focus:border-[#00E5FF] outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setMediaPickerTarget('cover')}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#00E5FF]/30 bg-[#00E5FF]/10 text-[#00E5FF] text-sm font-semibold hover:bg-[#00E5FF]/20 transition-colors whitespace-nowrap"
-                    >
-                      <ImageIcon className="w-4 h-4" />
-                      Media Library
-                    </button>
-                  </div>
-                  {data.coverImage && (
-                    <div className="mt-3 relative w-full h-48 rounded-xl overflow-hidden border border-white/10 bg-[#070F1E]">
-                      <img src={data.coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
+              <div className="space-y-8">
+                {/* 1. Media Library Folder Selection & Assignment (Priority 3) */}
+                <div className="rounded-2xl border border-[#00E5FF]/20 bg-gradient-to-br from-[#00E5FF]/5 to-transparent p-5 sm:p-6 shadow-xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-wider text-[#00E5FF] flex items-center gap-2">
+                        <FolderOpen className="w-4 h-4" />
+                        Media Library Folders
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Assign an entire existing Media Library folder directly to this tour gallery, or pick individual photos.
+                      </p>
+                    </div>
+                    {folderMediaItems.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => updateData({ coverImage: '' })}
-                        className="absolute top-2 right-2 bg-black/60 hover:bg-red-600/80 text-white rounded-lg p-1.5 transition-colors"
-                        title="Remove cover image"
+                        disabled={assigningFolder}
+                        onClick={handleAssignFolderToGallery}
+                        className="flex items-center gap-2 rounded-xl bg-[#00E5FF] px-4 py-2 text-xs font-black text-[#070F1E] hover:opacity-90 transition disabled:opacity-50"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        {assigningFolder ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Layers className="w-3.5 h-3.5" />}
+                        Assign Entire Folder ({folderMediaItems.length} photos)
                       </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
+                        Select Media Folder
+                      </label>
+                      <select
+                        value={selectedFolderPrefix}
+                        onChange={(e) => {
+                          const prefix = e.target.value;
+                          const f = mediaFolders.find((item) => item.prefix === prefix);
+                          handleSelectFolder(prefix, f?.bucket || 'talago-tour-media');
+                        }}
+                        className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-2.5 text-xs text-white focus:border-[#00E5FF] outline-none"
+                      >
+                        <option value="">-- Choose an existing folder --</option>
+                        {mediaFolders.map((f) => (
+                          <option key={f.id} value={f.prefix}>
+                            📁 {f.name} ({f.prefix})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => setMediaPickerTarget('gallery')}
+                        className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-white/10 transition"
+                      >
+                        <ImageIcon className="w-4 h-4 text-[#00E5FF]" />
+                        Browse All in Media Modal
+                      </button>
+                    </div>
+                  </div>
+
+                  {loadingFolderMedia && (
+                    <div className="flex items-center justify-center p-6 text-xs text-slate-400 gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#00E5FF]" />
+                      Loading folder photos...
+                    </div>
+                  )}
+
+                  {!loadingFolderMedia && folderMediaItems.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                        Photos in this folder ({folderMediaItems.length}) &mdash; Click to set cover or add to gallery:
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 max-h-56 overflow-y-auto p-2 bg-[#070F1E] rounded-xl border border-white/5">
+                        {folderMediaItems.map((item) => {
+                          const isCover = data.coverImage === item.url;
+                          const inGallery = data.galleryImages.includes(item.url);
+                          return (
+                            <div key={item.id} className="group relative aspect-video rounded-lg overflow-hidden border border-white/10 bg-black/40">
+                              <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                              {isCover && (
+                                <span className="absolute top-1 left-1 bg-[#00E5FF] text-[#070F1E] text-[9px] font-black px-1.5 py-0.5 rounded shadow">
+                                  Cover
+                                </span>
+                              )}
+                              <div className="absolute inset-0 bg-black/75 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 p-1 transition-opacity">
+                                {!isCover && (
+                                  <button
+                                    type="button"
+                                    onClick={() => updateData({ coverImage: item.url })}
+                                    className="bg-[#00E5FF] text-[#070F1E] text-[9px] font-bold px-1.5 py-0.5 rounded w-full text-center hover:opacity-90"
+                                  >
+                                    Set Cover
+                                  </button>
+                                )}
+                                {!inGallery ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => updateData({ galleryImages: [...data.galleryImages, item.url] })}
+                                    className="bg-white/20 hover:bg-white/30 text-white text-[9px] font-bold px-1.5 py-0.5 rounded w-full text-center"
+                                  >
+                                    + Gallery
+                                  </button>
+                                ) : (
+                                  <span className="text-emerald-400 text-[9px] font-bold">In Gallery</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {/* Gallery Images */}
+                {/* 2. Cover Hero Image */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-2">
                     <label className="block text-xs font-bold uppercase text-slate-300">
-                      Gallery Images ({data.galleryImages.length})
+                      Primary Cover Hero Image *
                     </label>
+                    {data.coverImage && (
+                      <button
+                        type="button"
+                        onClick={() => updateData({ coverImage: '' })}
+                        className="text-[11px] text-red-400 hover:text-red-300 font-bold"
+                      >
+                        Remove Cover
+                      </button>
+                    )}
+                  </div>
+                  {data.coverImage ? (
+                    <div className="relative w-full h-56 rounded-2xl overflow-hidden border border-[#00E5FF]/40 bg-[#070F1E] shadow-2xl">
+                      <img src={data.coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
+                      <div className="absolute top-3 left-3 bg-[#00E5FF] text-[#070F1E] text-xs font-black px-3 py-1 rounded-lg shadow-md">
+                        Active Cover Hero
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setMediaPickerTarget('cover')}
+                        className="absolute bottom-3 right-3 bg-black/80 hover:bg-black text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/20 backdrop-blur transition"
+                      >
+                        Change Cover
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => setMediaPickerTarget('cover')}
+                      className="border-2 border-dashed border-white/10 hover:border-[#00E5FF]/40 rounded-2xl p-8 text-center cursor-pointer transition bg-white/[0.01]"
+                    >
+                      <ImageIcon className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                      <p className="text-xs font-bold text-slate-300">No cover image selected</p>
+                      <p className="text-[11px] text-slate-500 mt-1">Click to select from Media Library or pick from the folder above</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Tour Gallery Images */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-300">
+                        Tour Gallery ({data.galleryImages.length} images)
+                      </label>
+                      <p className="text-[11px] text-slate-500">
+                        Click &quot;Make Cover&quot; on any photo to set it as the primary cover image.
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setMediaPickerTarget('gallery')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#00E5FF]/30 bg-[#00E5FF]/10 text-[#00E5FF] text-xs font-semibold hover:bg-[#00E5FF]/20 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#00E5FF]/30 bg-[#00E5FF]/10 text-[#00E5FF] text-xs font-bold hover:bg-[#00E5FF]/20 transition"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      Add from Media Library
+                      Add More Photos
                     </button>
                   </div>
-                  <textarea
-                    rows={3}
-                    value={data.galleryImages.join('\n')}
-                    onChange={(e) =>
-                      updateData({
-                        galleryImages: e.target.value.split('\n').map((u) => u.trim()).filter(Boolean),
-                      })
-                    }
-                    placeholder="Paste URLs manually (one per line) — or use the button above to pick from Media Library"
-                    className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-mono focus:border-[#00E5FF] outline-none"
-                  />
-                  {data.galleryImages.length > 0 && (
-                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {data.galleryImages.map((img, i) => (
-                        <div key={i} className="relative h-24 rounded-lg overflow-hidden border border-white/10 bg-[#070F1E] group">
-                          <img src={img} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => updateData({ galleryImages: data.galleryImages.filter((_, idx) => idx !== i) })}
-                            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-black/60 hover:bg-red-600/80 text-white rounded p-1 transition-all"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
+
+                  {data.galleryImages.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                      {data.galleryImages.map((img, i) => {
+                        const isCover = data.coverImage === img;
+                        return (
+                          <div key={i} className={`relative group aspect-video rounded-xl overflow-hidden border ${isCover ? 'border-[#00E5FF] shadow-lg shadow-[#00E5FF]/20 ring-2 ring-[#00E5FF]/30' : 'border-white/10'} bg-[#070F1E]`}>
+                            <img src={img} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
+                            {isCover && (
+                              <span className="absolute top-1.5 left-1.5 bg-[#00E5FF] text-[#070F1E] text-[9px] font-black px-1.5 py-0.5 rounded shadow">
+                                Cover
+                              </span>
+                            )}
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity p-2">
+                              {!isCover && (
+                                <button
+                                  type="button"
+                                  onClick={() => updateData({ coverImage: img })}
+                                  className="bg-[#00E5FF] text-[#070F1E] text-[10px] font-bold px-2 py-1 rounded hover:opacity-90 transition"
+                                  title="Set as Cover Hero"
+                                >
+                                  Make Cover
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => updateData({ galleryImages: data.galleryImages.filter((_, idx) => idx !== i) })}
+                                className="bg-red-600/80 hover:bg-red-600 text-white text-[10px] font-bold p-1 rounded transition"
+                                title="Remove from gallery"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="border border-white/5 rounded-xl p-6 text-center text-xs text-slate-500">
+                      No gallery images yet. Pick a folder above or click &quot;Add More Photos&quot;.
                     </div>
                   )}
+
+                  {/* Manual URL input fallback */}
+                  <details className="mt-3 text-xs">
+                    <summary className="cursor-pointer text-slate-400 hover:text-white">
+                      Edit photo URLs manually (raw list)
+                    </summary>
+                    <textarea
+                      rows={3}
+                      value={data.galleryImages.join('\n')}
+                      onChange={(e) =>
+                        updateData({
+                          galleryImages: e.target.value.split('\n').map((u) => u.trim()).filter(Boolean),
+                        })
+                      }
+                      placeholder="Paste URLs manually (one per line)"
+                      className="mt-2 w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-xs text-white font-mono focus:border-[#00E5FF] outline-none"
+                    />
+                  </details>
+                </div>
+
+                {/* 4. Promotional Video */}
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
+                    Promotional Video URL (YouTube, Vimeo, or MP4)
+                  </label>
+                  <input
+                    type="text"
+                    value={data.videoUrl || ''}
+                    onChange={(e) => updateData({ videoUrl: e.target.value })}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white font-mono focus:border-[#00E5FF] outline-none"
+                  />
                 </div>
               </div>
             )}
@@ -2732,33 +3044,73 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
             )}
           </div>
 
-          {/* Bottom Section Navigator */}
-          <div className="mt-8 flex items-center justify-between gap-2 border-t border-white/10 pt-5">
-            {prevSection ? (
-              <button
-                type="button"
-                onClick={() => setActiveSection(prevSection.id)}
-                className="flex max-w-[40%] truncate items-center gap-1.5 text-xs font-bold text-slate-400 transition hover:text-white"
-              >
-                ← {prevSection.shortLabel}
-              </button>
-            ) : <div />}
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">
-                Section {currentIndex + 1} of {displayedSections.length}
-              </span>
+          {/* ── 8-Step Bottom Wizard Navigator (Priority 2) ── */}
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6">
+            <div>
+              {activeStep > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const prevStepNum = activeStep - 1;
+                    setActiveStep(prevStepNum);
+                    setActiveSection(PRIMARY_TOUR_STEPS[prevStepNum - 1].sectionIds[0]);
+                  }}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-white/10 hover:text-white transition"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Back: {PRIMARY_TOUR_STEPS[activeStep - 2]?.shortLabel}
+                </button>
+              ) : prevSection ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveSection(prevSection.id)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white transition"
+                >
+                  ← {prevSection.shortLabel}
+                </button>
+              ) : <div />}
             </div>
 
-            {nextSection ? (
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:inline-block text-xs font-bold text-slate-400 bg-white/[0.03] border border-white/5 px-3 py-1.5 rounded-full">
+                Step {activeStep} of 8: <strong className="text-white">{currentStep.shortLabel}</strong>
+              </span>
+
               <button
                 type="button"
-                onClick={() => setActiveSection(nextSection.id)}
-                className="flex max-w-[40%] truncate items-center gap-1.5 text-xs font-bold text-[#00E5FF] transition hover:text-cyan-300"
+                disabled={isSubmitting}
+                onClick={() => handleSave('DRAFT')}
+                className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-200 hover:bg-white/10 transition disabled:opacity-50"
               >
-                {nextSection.shortLabel} →
+                <Save className="w-4 h-4 text-amber-400" />
+                Save Draft
               </button>
-            ) : <div />}
+
+              {activeStep < 8 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextStepNum = activeStep + 1;
+                    setActiveStep(nextStepNum);
+                    setActiveSection(PRIMARY_TOUR_STEPS[nextStepNum - 1].sectionIds[0]);
+                  }}
+                  className="flex items-center gap-2 rounded-xl bg-[#00E5FF] px-5 py-2.5 text-xs font-black text-[#070F1E] hover:opacity-95 shadow-md shadow-[#00E5FF]/20 transition"
+                >
+                  Next: {PRIMARY_TOUR_STEPS[activeStep]?.shortLabel}
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => handleSave('ACTIVE')}
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-400 to-[#00E5FF] px-6 py-2.5 text-xs font-black text-[#070F1E] hover:opacity-95 shadow-lg shadow-emerald-500/20 transition disabled:opacity-50"
+                >
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+                  Publish Experience
+                </button>
+              )}
+            </div>
           </div>
         </main>
       </div>

@@ -1,5 +1,48 @@
 # Talago Tours — Work Log & Next Steps
 
+## Session Log: November 15, 2026 — Focused Improvement Sprint: Email, Tour Creation, Importer & Policies
+
+### Completed Tasks
+1. **Priority 1 — Centralized Email Configuration & Brevo Integration (`src/lib/brevo.ts`, `src/lib/email.ts`):**
+   - Eliminated hardcoded fallback senders like `noreply@talago.com` and `info@talago.com` across all modules.
+   - Built centralized `getBrevoSender()` honoring `BREVO_FROM_EMAIL` and `BREVO_FROM_NAME`, falling back to Brevo account verified email with clear configuration instructions.
+   - Made Brevo the primary transactional provider by default (`EMAIL_PROVIDER=brevo`); Resend is optional and only used when explicitly requested.
+   - Standardized `sendEmail()` to return `SendEmailResult { success, messageId, provider }` without exposing credentials or sensitive internals.
+   - Created comprehensive `EMAIL_CONFIGURATION.md` guide for Vercel environment setup and Brevo sender verification.
+   - Verified live email dispatch: Brevo accepted and queued Magic Link email via `smtp-relay.mailin.fr`.
+
+2. **Priority 2 — Streamlined 8-Step Tour Creation Wizard (`src/types/tourEditor.ts`, `src/components/admin/UnifiedTourEditor.tsx`):**
+   - Restructured the 27 flat sections into 8 logical primary steps (Basics & Location, Content & Itinerary, Inclusions & Rules, Pricing & Guests, Schedule & Logistics, Photos & Media, Policies, i18n & SEO, Review & Publish).
+   - Added sticky responsive Stepper bar with visual progress, step indicators, and section jump capabilities.
+   - Preserved 100% of existing schema fields, child policy tables, pickup definitions, and collapsible advanced sections.
+   - Added Bottom Navigation controls (`Back: [Step]`, `Save Draft`, `Next: [Step]`, `Publish`). Power users retain a collapsible "All 27 Sections" index.
+
+3. **Priority 3 — Tour Media & Media Library Folder Integration (`src/components/admin/UnifiedTourEditor.tsx`):**
+   - Added Media Library Folder selector querying `/api/admin/media/folders`.
+   - Added 1-click "Assign Entire Folder to Gallery" action to populate tours directly from existing assets.
+   - Added folder photo grid preview with "Set as Cover" and "+ Add to Gallery" buttons.
+   - Added "Make Cover" and "Remove" quick actions to existing gallery image cards.
+
+4. **Priority 4 & 6 — Tour Details UX & Dynamic Free Cancellation Hours (`src/app/(public)/tours/[slug]/...`):**
+   - Replaced hardcoded "24 hours" with dynamic `freeCancellationHours` loaded from Prisma (e.g., "Up to 48 hours before start", "Up to 24 hours before start", or "Non-refundable").
+   - Cleaned up generic infant placeholders and removed speculative fallback notices from `TourDetailsClient.tsx`.
+
+5. **Priority 5 — Text Importer Robustness & Documentation (`src/utils/tourTextParser.ts`, `TOUR_IMPORT_TEMPLATE.md`):**
+   - Fixed section truncation bug in `SectionExtractor.getBlock()` by replacing generic uppercase token matching with explicit `KNOWN_FIELD_KEYS` list (`ITINERARY`, `INCLUSIONS`, `HIGHLIGHTS`, etc.), preventing words like `NOTE:`, `TIP:`, `DAY 1:`, `VIP:` inside tour bodies from prematurely truncating content.
+   - Enhanced milestone parser to support both hyphen-pipe (`09:00 - Spot | Desc`) and hyphen-colon (`09:00 - Spot: Desc`) formats.
+   - Published `TOUR_IMPORT_TEMPLATE.md` with complete reference and copy-paste samples.
+
+6. **Priority 7 — Temporarily Disable Supplier / Partner Portal:**
+   - Hidden public navigation links ("Partner with Us") in `Navbar.tsx` and `FooterContent.tsx`.
+   - Guarded `/partners` public route with friendly "Coming Soon" concierge notice, while allowing Admins preview access.
+   - Guarded `/api/public/partners/apply` against submissions when portal is deactivated.
+   - Added inactive state guard to `/partner/dashboard` and `/partner/tours/new`.
+
+7. **Verification & Quality Assurance:**
+   - `npx tsc --noEmit` → **0 type errors**.
+   - `npm run build` → **85/85 static & dynamic pages successfully generated**.
+
+
 ## Session Log: November 11, 2026 — Phase 5: Automated Post-Tour Review Invitation Engine
 
 ### Completed Tasks

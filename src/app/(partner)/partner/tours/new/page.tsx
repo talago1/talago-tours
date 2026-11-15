@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -48,6 +48,35 @@ export default function NewPartnerTourPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [portalStatus, setPortalStatus] = useState<{ enabled: boolean; isAdmin: boolean; checked: boolean }>({
+    enabled: false,
+    isAdmin: false,
+    checked: false,
+  });
+
+  useEffect(() => {
+    fetch('/api/public/partners/apply')
+      .then((r) => r.json())
+      .then((d) => setPortalStatus({ enabled: Boolean(d.enabled), isAdmin: Boolean(d.isAdmin), checked: true }))
+      .catch(() => setPortalStatus({ enabled: false, isAdmin: false, checked: true }));
+  }, []);
+
+  if (portalStatus.checked && !portalStatus.enabled && !portalStatus.isAdmin) {
+    return (
+      <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-8 text-center max-w-xl mx-auto my-12">
+        <h2 className="text-xl font-bold text-white mb-2">Partner Submission Inactive</h2>
+        <p className="text-xs text-slate-400 leading-relaxed mb-6">
+          Direct partner tour submission is currently paused. Please contact our concierge team at support@talago-tours.com.
+        </p>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#00E5FF] px-5 py-2.5 text-xs font-bold text-[#070F1E]"
+        >
+          Return to Marketplace Home
+        </Link>
+      </div>
+    );
+  }
 
   const [form, setForm] = useState({
     title: '',

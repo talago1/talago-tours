@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 import { parseSettingValue, serializeSettingValue } from '@/lib/systemSettings';
 import { sanitizeEmail, sanitizePlain, sanitizeText } from '@/utils/sanitize';
+import { isAdminRequest } from '@/utils/adminAuth';
 
 // 5 partner submissions per IP per 10 minutes
 const LIMIT = 5;
@@ -25,6 +26,26 @@ export interface PartnerApplication {
   createdAt: string;
 }
 
+/**
+ * GET /api/public/partners/apply
+ * Checks if the supplier / partner portal is currently activated.
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const modulesSetting = await prisma.systemSetting.findUnique({ where: { key: 'modules' } });
+    const modules = modulesSetting
+      ? parseSettingValue<{ supplierPortal?: boolean; partners?: boolean }>(modulesSetting.value, { supplierPortal: false, partners: false })
+      : { supplierPortal: false, partners: false };
+
+    const enabled = Boolean(modules.supplierPortal || modules.partners);
+    const isAdmin = isAdminRequest(request);
+
+    return NextResponse.json({ enabled, isAdmin });
+  } catch {
+    return NextResponse.json({ enabled: false, isAdmin: false });
+  }
+}
+
 export async function POST(request: NextRequest) {
   const limit = rateLimit(clientKey(request, 'partner-apply'), LIMIT, WINDOW_MS);
   if (!limit.allowed) {
@@ -32,6 +53,21 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Priority 7: Guard partner application submission when portal is deactivated
+    const modulesSetting = await prisma.systemSetting.findUnique({ where: { key: 'modules' } });
+    const modules = modulesSetting
+      ? parseSettingValue<{ supplierPortal?: boolean; partners?: boolean }>(modulesSetting.value, { supplierPortal: false, partners: false })
+      : { supplierPortal: false, partners: false };
+
+    const isEnabled = Boolean(modules.supplierPortal || modules.partners);
+    const isAdmin = isAdminRequest(request);
+
+    if (!isEnabled && !isAdmin) {
+      return NextResponse.json(
+        { error: 'Supplier and partner applications are currently paused for public onboarding.' },
+        { status: 403 }
+      );
+    }
     const body = await request.json();
     const {
       companyName,

@@ -207,6 +207,82 @@ export const TOUR_EDITOR_SECTIONS: SectionMeta[] = [
   { id: 'completeness', title: '27. Completeness & Review', shortLabel: 'Review', description: 'Health check, missing fields audit and final launch action', group: 'publishing', isEssential: true },
 ];
 
+export interface PrimaryTourStep {
+  stepNumber: number;
+  id: string;
+  title: string;
+  shortLabel: string;
+  description: string;
+  sectionIds: TourEditorSectionId[];
+}
+
+export const PRIMARY_TOUR_STEPS: PrimaryTourStep[] = [
+  {
+    stepNumber: 1,
+    id: 'step-basics',
+    title: '1. Basic Info & Destination',
+    shortLabel: 'Basics & Location',
+    description: 'Title, category, slug, destination, pickup zone, and internal operator contacts',
+    sectionIds: ['basic-info', 'destination-location', 'operator'],
+  },
+  {
+    stepNumber: 2,
+    id: 'step-content',
+    title: '2. Content, Highlights & Itinerary',
+    shortLabel: 'Content & Itinerary',
+    description: 'Overview, card excerpt, highlights, step-by-step itinerary, and route stops',
+    sectionIds: ['activities', 'itinerary', 'route'],
+  },
+  {
+    stepNumber: 3,
+    id: 'step-rules',
+    title: '3. Inclusions & Tour Rules',
+    shortLabel: 'Inclusions & Rules',
+    description: "What's included, excluded, what to bring, traveler guidelines, safety, and FAQs",
+    sectionIds: ['inclusions', 'exclusions', 'what-to-bring', 'important-info', 'requirements', 'accessibility', 'safety', 'faqs'],
+  },
+  {
+    stepNumber: 4,
+    id: 'step-pricing',
+    title: '4. Pricing, Guests & Upgrades',
+    shortLabel: 'Pricing & Guests',
+    description: 'Adult, child, infant pricing, age limits, deposits, and optional add-ons',
+    sectionIds: ['pricing', 'guest-types', 'addons'],
+  },
+  {
+    stepNumber: 5,
+    id: 'step-logistics',
+    title: '5. Schedule & Pickup Logistics',
+    shortLabel: 'Schedule & Logistics',
+    description: 'Duration, pickup times, max capacity, cutoff window, hotel pickup, and meeting point',
+    sectionIds: ['schedule', 'availability', 'pickup', 'meeting-point', 'transportation'],
+  },
+  {
+    stepNumber: 6,
+    id: 'step-media',
+    title: '6. Photos & Media Library',
+    shortLabel: 'Photos & Media',
+    description: 'Media Library folder selection, gallery assignment, cover image, and promo video',
+    sectionIds: ['media'],
+  },
+  {
+    stepNumber: 7,
+    id: 'step-policies-seo',
+    title: '7. Cancellation, Translations & SEO',
+    shortLabel: 'Policies, i18n & SEO',
+    description: 'Per-tour cancellation hours, custom booking questions, multi-language translations, and search meta',
+    sectionIds: ['cancellation', 'booking-questions', 'seo'],
+  },
+  {
+    stepNumber: 8,
+    id: 'step-review',
+    title: '8. Review & Publishing',
+    shortLabel: 'Review & Publish',
+    description: 'Completeness check, data preview, active/draft status toggle, and final save',
+    sectionIds: ['completeness', 'publishing', 'advanced'],
+  },
+];
+
 export interface TourEditorData {
   // Identity
   id?: string;

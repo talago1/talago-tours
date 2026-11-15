@@ -30,8 +30,18 @@ interface PartnerTour {
 export default function PartnerDashboardPage() {
   const [tours, setTours] = useState<PartnerTour[]>([]);
   const [loading, setLoading] = useState(true);
+  const [portalStatus, setPortalStatus] = useState<{ enabled: boolean; isAdmin: boolean; checked: boolean }>({
+    enabled: false,
+    isAdmin: false,
+    checked: false,
+  });
 
   useEffect(() => {
+    fetch('/api/public/partners/apply')
+      .then((r) => r.json())
+      .then((d) => setPortalStatus({ enabled: Boolean(d.enabled), isAdmin: Boolean(d.isAdmin), checked: true }))
+      .catch(() => setPortalStatus({ enabled: false, isAdmin: false, checked: true }));
+
     async function loadTours() {
       try {
         const res = await fetch('/api/partner/tours');
@@ -47,6 +57,23 @@ export default function PartnerDashboardPage() {
     }
     loadTours();
   }, []);
+
+  if (portalStatus.checked && !portalStatus.enabled && !portalStatus.isAdmin) {
+    return (
+      <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-8 text-center max-w-xl mx-auto my-12">
+        <h2 className="text-xl font-bold text-white mb-2">Partner Portal Inactive</h2>
+        <p className="text-xs text-slate-400 leading-relaxed mb-6">
+          Access to the supplier and partner dashboard is currently paused while we upgrade our operator systems.
+        </p>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#00E5FF] px-5 py-2.5 text-xs font-bold text-[#070F1E]"
+        >
+          Return to Marketplace Home
+        </Link>
+      </div>
+    );
+  }
 
   const counts = {
     total: tours.length,

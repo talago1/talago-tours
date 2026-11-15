@@ -77,6 +77,7 @@ interface TourData {
   pickupTime?: string | null;
   pickupTimes?: string[];
   cancellationPolicy?: string | null;
+  freeCancellationHours?: number | null;
   hotelPickupIncluded: boolean | null;
   pickupType?: string | null;
   meetingPointName?: string | null;
@@ -835,6 +836,8 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
     }
   }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, totalPrice, selectedDate, selectedTime, isStartingReservation]);
 
+  const cancelHours = tour.freeCancellationHours ?? 24;
+  const cancelHoursText = cancelHours > 0 ? `Up to ${cancelHours} hours before start` : "Non-refundable";
   const whatToBringItems = localizedWhatToBringItems;
   const itineraryItems = localizedItineraryItems;
 
@@ -954,7 +957,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                     <div>
                       <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Cancellation</h4>
                       <p className="mt-0.5 text-xs font-bold text-emerald-400">Free cancellation</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">Up to 24 hours before start</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{cancelHoursText}</p>
                     </div>
                   </div>
 
@@ -1101,7 +1104,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                   <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
                       <p className="text-xs font-black uppercase tracking-[0.12em] text-[#FFD700]">{dict.tourDetails.freeCancellation}</p>
-                      <p className="mt-1 text-xs text-slate-400">{dict.tourDetails.upTo24h}</p>
+                      <p className="mt-1 text-xs text-slate-400">{cancelHoursText}</p>
                     </div>
                     <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
                       <p className="text-xs font-black uppercase tracking-[0.12em] text-[#00E5FF]">{dict.tourDetails.secureCheckout}</p>
@@ -1160,13 +1163,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       {(localizedWhatToBringItems.length > 0
                         ? localizedWhatToBringItems
-                        : [
-                            'Passport or official photo ID',
-                            'Comfortable walking shoes & sunglasses',
-                            'Sunscreen & beach towel (for coastal/boat tours)',
-                            'Camera or smartphone for memories',
-                            'Cash for personal expenses or tips',
-                          ]
+                        : ['Official Passport or Photo ID', 'Comfortable walking footwear']
                       ).map((item, i) => (
                         <div key={i} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3 transition-colors hover:bg-white/[0.04]">
                           <Check className="h-4 w-4 shrink-0 text-[#FFD700]" />
@@ -1214,9 +1211,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                           <li>Hotel pickup time will be re-confirmed via WhatsApp or email the evening prior to departure.</li>
                           {tour.ageRestrictionsNotes ? (
                             <li>{tour.ageRestrictionsNotes}</li>
-                          ) : (
-                            <li>Infants (ages 0–2) participate free of charge; child rates apply for ages 3–11.</li>
-                          )}
+                          ) : null}
                           <li>Not recommended for travelers with severe back injuries or pregnant travelers on rugged terrain excursions.</li>
                         </ul>
                       </div>

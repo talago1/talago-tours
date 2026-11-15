@@ -82,17 +82,21 @@ export async function POST(request: NextRequest) {
 
     const magicLink = data.properties.action_link;
 
-    // 4. Send via Resend
-    await sendMagicLinkEmail(normalizedEmail, magicLink);
+    // 4. Send via configured transactional provider (Brevo primary)
+    const result = await sendMagicLinkEmail(normalizedEmail, magicLink);
+    console.info(`[magic-link] Sign-in email dispatched via ${result.provider} (msg: ${result.messageId}) for ${normalizedEmail}`);
 
     return NextResponse.json(
-      { message: 'Magic link sent. Check your inbox.' },
+      {
+        message: 'Magic link sent. Check your inbox.',
+        provider: result.provider,
+      },
       { status: 200, headers: NO_STORE },
     );
-  } catch (err) {
-    console.error('[magic-link] Unexpected error:', err);
+  } catch (err: any) {
+    console.error('[magic-link] Email dispatch failed:', err?.message || err);
     return NextResponse.json(
-      { error: 'An unexpected error occurred. Please try again.' },
+      { error: err?.message || 'Failed to send sign-in link. Please verify email configuration or try again.' },
       { status: 500, headers: NO_STORE },
     );
   }

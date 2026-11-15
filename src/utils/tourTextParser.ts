@@ -61,6 +61,37 @@ function parseCommaList(text: string | undefined): string[] {
 }
 
 /**
+ * Comprehensive list of official template field keys.
+ * A multiline block (e.g. DESCRIPTION, ITINERARY, WHAT_TO_BRING) will only terminate
+ * when encountering a new markdown heading (#{1,4}) or one of these specific field keys,
+ * ensuring words like "NOTE:", "TIP:", "DAY 1:", or "VIP:" inside user descriptions are preserved in full.
+ */
+const KNOWN_FIELD_KEYS = [
+  'TITLE', 'TOUR_TITLE', 'EXPERIENCE_TITLE', 'SLUG', 'CATEGORY', 'TYPE', 'TOUR_TYPE',
+  'BADGES', 'CUSTOM_BADGE', 'TAGS', 'CARD_EXCERPT', 'SHORT_EXCERPT', 'EXCERPT',
+  'DESCRIPTION', 'OVERVIEW', 'SUMMARY', 'COUNTRY', 'COUNTRY_CODE', 'CITY', 'REGION',
+  'DESTINATION', 'DESTINATION_ID', 'ZONE', 'ZONE_ID', 'ADDRESS', 'LATITUDE', 'LAT',
+  'LONGITUDE', 'LNG', 'COVER_IMAGE', 'HERO_IMAGE', 'MAIN_IMAGE', 'GALLERY_IMAGES',
+  'GALLERY', 'PHOTOS', 'VIDEO_URL', 'VIDEO', 'OPERATOR_NAME', 'OPERATOR_PHONE',
+  'OPERATOR_EMAIL', 'DISPATCH_NOTES', 'OPERATOR_NOTES', 'ADULT_PRICE', 'BASE_PRICE_USD',
+  'ORIGINAL_PRICE', 'PRIVATE_PRICE', 'ALLOW_DEPOSIT', 'DEPOSIT_PERCENTAGE',
+  'ALLOW_PAY_AT_LOCATION', 'CHILD_ENABLED', 'CHILD_PRICE', 'CHILD_MIN_AGE', 'CHILD_MAX_AGE',
+  'INFANT_ENABLED', 'INFANT_PRICE', 'INFANT_MIN_AGE', 'INFANT_MAX_AGE', 'MAX_CAPACITY',
+  'MIN_GUESTS', 'CUTOFF_HOURS', 'INSTANT_CONFIRMATION', 'DURATION_HOURS', 'DURATION_DISPLAY',
+  'PICKUP_TIMES', 'HOTEL_PICKUP_INCLUDED', 'PICKUP_TYPE', 'PICKUP_DESCRIPTION',
+  'PICKUP_AREAS', 'MEETING_POINT_NAME', 'MEETING_POINT_ADDRESS', 'MEETING_POINT_LANDMARK',
+  'MEETING_POINT_INSTRUCTIONS', 'MEETING_POINT_MAP_URL', 'MEETING_POINT_IMAGE_URL',
+  'VEHICLE_TYPE', 'FLEET_SPECIFICATIONS', 'FLEET_AMENITIES', 'ROUTE_STOPS', 'ITINERARY',
+  'HIGHLIGHTS', 'ACTIVITIES', 'INCLUSIONS', 'EXCLUSIONS', 'WHAT_TO_BRING', 'IMPORTANT_INFO',
+  'IMPORTANT_INFORMATION', 'FAQS', 'FITNESS_LEVEL', 'MIN_AGE', 'SWIMMING_REQUIRED',
+  'REQUIREMENTS', 'WHEELCHAIR_ACCESSIBLE', 'STROLLER_ACCESSIBLE', 'ACCESSIBILITY_NOTES',
+  'SAFETY_EQUIPMENT', 'INSURANCE_INCLUDED', 'EMERGENCY_CONTACT', 'SAFETY_GUIDELINES',
+  'FREE_CANCELLATION_HOURS', 'CANCELLATION_HOURS', 'CANCELLATION_POLICY', 'CANCELLATION',
+  'BOOKING_QUESTIONS', 'SEO_TITLE', 'SEO_DESCRIPTION', 'SEO_KEYWORDS', 'STATUS',
+  'INTERNAL_NOTES',
+].join('|');
+
+/**
  * Extracts a key-value or block content under section headings
  */
 class SectionExtractor {
@@ -80,15 +111,16 @@ class SectionExtractor {
   }
 
   /**
-   * Extracts a multiline block starting with a key until next UPPERCASE_KEY: or markdown # section
+   * Extracts a multiline block starting with a key until next markdown # section
+   * or a recognized official field key. Never truncates internal notes, bullets, or paragraphs.
    */
   getBlock(keyPattern: string): string {
     const regex = new RegExp(
-      `^(?:[#*\\s-]*)${keyPattern}\\s*:\\s*\\n([\\s\\S]*?)(?=(?:\\n\\s*#{1,4}\\s|\\n\\s*[A-Z0-9_]{3,30}\\s*:|\\Z))`,
+      `^(?:[#*\\s-]*)${keyPattern}\\s*:\\s*\\n([\\s\\S]*?)(?=(?:\\n\\s*#{1,4}\\s|\\n\\s*(?:${KNOWN_FIELD_KEYS})\\s*:|\\Z))`,
       'im'
     );
     const match = this.content.match(regex);
-    if (match) return match[1].trim();
+    if (match && match[1].trim()) return match[1].trim();
 
     // Fallback: single line field
     return this.getField(keyPattern);
@@ -548,7 +580,18 @@ export function parseTourText(rawText: string): TourTextParseResult {
       const timeMatch = line.match(/^(\d{1,2}:\d{2})\s*[-–]\s*(.+)/);
       const milestone = createEmptyMilestone();
       const rawTextPart = timeMatch ? timeMatch[2].trim() : line;
-      const parts = rawTextPart.split('|').map((s) => s.trim());
+      let milestoneTitle = rawTextPart;
+      let milestoneDesc = '';
+
+      if (rawTextPart.includes('|')) {
+        const parts = rawTextPart.split('|').map((s) => s.trim());
+        milestoneTitle = parts[0];
+        milestoneDesc = parts.slice(1).join(' | ');
+      } else if (rawTextPart.includes(': ')) {
+        const colonIdx = rawTextPart.indexOf(': ');
+        milestoneTitle = rawTextPart.slice(0, colonIdx).trim();
+        milestoneDesc = rawTextPart.slice(colonIdx + 2).trim();
+      }
 
       milestones.push({
         ...milestone,
@@ -556,11 +599,11 @@ export function parseTourText(rawText: string): TourTextParseResult {
         timeTag: timeMatch ? timeMatch[1] : `${idx + 1}`,
         title: {
           ...milestone.title,
-          en: parts[0],
+          en: milestoneTitle,
         },
         description: {
           ...milestone.description,
-          en: parts[1] || '',
+          en: milestoneDesc,
         },
       });
     });

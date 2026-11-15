@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Globe,
@@ -15,6 +15,9 @@ import {
   ArrowRight,
   Building2,
   Award,
+  Lock,
+  Mail,
+  MessageCircle,
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -31,6 +34,11 @@ const EXPERIENCE_CATEGORIES = [
 
 export default function PartnersPage() {
   const { dict } = useLanguage();
+  const [portalStatus, setPortalStatus] = useState<{ enabled: boolean; isAdmin: boolean; checked: boolean }>({
+    enabled: false,
+    isAdmin: false,
+    checked: false,
+  });
   const [formState, setFormState] = useState({
     companyName: '',
     contactName: '',
@@ -47,6 +55,13 @@ export default function PartnersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/public/partners/apply')
+      .then((r) => r.json())
+      .then((d) => setPortalStatus({ enabled: Boolean(d.enabled), isAdmin: Boolean(d.isAdmin), checked: true }))
+      .catch(() => setPortalStatus({ enabled: false, isAdmin: false, checked: true }));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -73,8 +88,53 @@ export default function PartnersPage() {
     }
   }
 
+  // When disabled publicly and not viewed by an admin
+  if (portalStatus.checked && !portalStatus.enabled && !portalStatus.isAdmin) {
+    return (
+      <main className="min-h-screen bg-[#070F1E] text-white flex items-center justify-center px-4 py-24">
+        <div className="max-w-xl w-full text-center rounded-3xl border border-white/10 bg-[#0B1528] p-8 sm:p-12 shadow-2xl">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[#00E5FF]/10 text-[#00E5FF] mb-6">
+            <Lock className="h-8 w-8" />
+          </div>
+          <span className="block text-xs font-black uppercase tracking-[0.24em] text-[#00E5FF] mb-2">
+            Supplier Portal Notice
+          </span>
+          <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+            Partner Portal Coming Soon
+          </h1>
+          <p className="mt-4 text-sm leading-relaxed text-slate-300">
+            Public online supplier onboarding is temporarily paused while we calibrate our operator dispatch network.
+            If you are a licensed Egyptian excursion operator or yacht fleet owner interested in working with TALAGO,
+            please reach out directly to our concierge operations desk.
+          </p>
+
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href="mailto:support@talago-tours.com"
+              className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-[#00E5FF] px-6 py-3 text-xs font-black text-[#070F1E] hover:opacity-90 transition"
+            >
+              <Mail className="h-4 w-4" />
+              Email Concierge Desk
+            </a>
+            <Link
+              href="/"
+              className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-xs font-bold text-slate-300 hover:bg-white/10 transition"
+            >
+              Back to Home
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#070F1E] text-white">
+      {portalStatus.isAdmin && !portalStatus.enabled && (
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-center text-xs text-amber-300 font-bold">
+          ⚠️ Admin Preview Mode &mdash; Public partner onboarding is currently paused in Settings. Only administrators can view this form.
+        </div>
+      )}
       {/* ─── Hero Section ─── */}
       <section className="relative overflow-hidden border-b border-white/10 px-5 pb-20 pt-28 lg:px-10 lg:pt-36">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(0,229,255,0.12),transparent_60%)]" />

@@ -56,7 +56,6 @@ export default function FooterContent() {
       icon: Globe,
       links: [
         { label: dict.navbar?.aboutUs || 'About Us', href: '/about' },
-        { label: dict.footer?.becomePartner || 'Partner with Us', href: '/partners' },
         { label: dict.footer?.safetyPolicies || 'Safety & Standards', href: '/safety-policies' },
         { label: dict.footer?.flexibleProtection || 'Flexible Protection', href: '/flexible-protection' },
       ],

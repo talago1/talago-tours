@@ -11,11 +11,33 @@
 const BREVO_API_BASE = 'https://api.brevo.com/v3';
 
 export function getBrevoApiKey(): string | null {
-  return process.env.BREVO_API_KEY || null;
+  return process.env.BREVO_API_KEY?.trim() || null;
 }
 
 export function isBrevoConfigured(): boolean {
-  return Boolean(process.env.BREVO_API_KEY);
+  return Boolean(getBrevoApiKey());
+}
+
+export interface BrevoSender {
+  name: string;
+  email: string;
+}
+
+/**
+ * Returns the centrally configured sender for Brevo transactional and marketing emails.
+ * Never uses unverified hardcoded addresses like noreply@talago.com.
+ */
+export function getBrevoSender(): BrevoSender {
+  const email = process.env.BREVO_FROM_EMAIL?.trim();
+  const name = process.env.BREVO_FROM_NAME?.trim() || 'TALAGO Experiences';
+
+  if (!email) {
+    throw new Error(
+      'Missing BREVO_FROM_EMAIL environment variable. Configure BREVO_FROM_EMAIL with your verified Brevo sender address in Vercel or .env.'
+    );
+  }
+
+  return { email, name };
 }
 
 function getHeaders(): HeadersInit {
@@ -30,17 +52,12 @@ function getHeaders(): HeadersInit {
   };
 }
 
-export interface BrevoSender {
-  name: string;
-  email: string;
-}
-
 export interface BrevoTransactionalEmailOptions {
   to: Array<{ email: string; name?: string }> | string;
   subject: string;
   htmlContent: string;
   sender?: BrevoSender;
-  replyTo?: BrevoSender;
+  replyTo?: { email: string; name?: string };
 }
 
 export interface BrevoCampaignOptions {
@@ -56,15 +73,14 @@ export interface BrevoCampaignOptions {
  * Send transactional email via Brevo SMTP API
  */
 export async function sendBrevoTransactionalEmail(options: BrevoTransactionalEmailOptions): Promise<{ messageId: string }> {
-  const defaultSenderEmail = process.env.BREVO_FROM_EMAIL || process.env.RESEND_FROM_EMAIL?.replace(/.*<([^>]+)>.*/, '$1') || 'noreply@talago.com';
-  const defaultSenderName = process.env.BREVO_FROM_NAME || 'TALAGO Experiences';
+  const sender = options.sender || getBrevoSender();
 
   const recipients = typeof options.to === 'string'
     ? [{ email: options.to }]
     : options.to;
 
   const payload = {
-    sender: options.sender || { name: defaultSenderName, email: defaultSenderEmail },
+    sender,
     to: recipients,
     subject: options.subject,
     htmlContent: options.htmlContent,
@@ -81,23 +97,23 @@ export async function sendBrevoTransactionalEmail(options: BrevoTransactionalEma
 
   if (!response.ok) {
     const errorMsg = data.message || `Brevo API error: ${response.status}`;
+    console.error('[sendBrevoTransactionalEmail] Failed:', errorMsg, 'Sender:', sender.email);
     throw new Error(errorMsg);
   }
 
-  return { messageId: data.messageId || 'unknown' };
+  return { messageId: data.messageId || 'accepted' };
 }
 
 /**
  * Create a marketing email campaign in Brevo
  */
 export async function createBrevoCampaign(options: BrevoCampaignOptions): Promise<{ id: number }> {
-  const defaultSenderEmail = process.env.BREVO_FROM_EMAIL || 'info@talago.com';
-  const defaultSenderName = process.env.BREVO_FROM_NAME || 'TALAGO';
+  const sender = options.sender || getBrevoSender();
 
   const payload: Record<string, any> = {
     name: options.name,
     subject: options.subject,
-    sender: options.sender || { name: defaultSenderName, email: defaultSenderEmail },
+    sender,
     type: 'classic',
     htmlContent: options.htmlContent,
   };

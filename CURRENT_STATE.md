@@ -3,11 +3,39 @@
 ## System Health & Build Status
 - **Next.js:** 14.2.35
 - **TypeScript:** Strict Mode (`tsconfig.json: strict: true`), 0 type errors (`npx tsc --noEmit` green)
-- **Production Build:** `85/85 pages` compiled successfully with 0 errors (including dedicated `/reviews/submit`)
+- **Production Build:** `85/85 pages` compiled successfully with 0 errors
 - **Lint:** `npm run lint` green (0 errors, only pre-existing next/image warnings)
 - **Deployment Platform:** Vercel Production (`https://talago-tours.vercel.app`)
 - **Active Git Branch:** `main`
-- **Graphify Knowledge Graph:** Rebuilt (4625 nodes, 8779 edges, 365 communities)
+- **Email Dispatch:** Brevo API v3 (primary provider, sender configured via `BREVO_FROM_EMAIL`)
+- **Tour Wizard:** 8-Step Logical Flow with Media Folder integration & 1-click Gallery assignment
+- **Tour Importer:** Truncation fixed, supports markdown, colons and milestones (`TOUR_IMPORT_TEMPLATE.md`)
+- **Partner Portal:** Safely deactivated in navigation and public routes until supplier rollout
+
+---
+
+## Focused Improvement Sprint Updates (Nov 15, 2026)
+
+### 1. Centralized Email Configuration & Brevo Primary Dispatch
+- **Provider Priority:** Default is Brevo (`EMAIL_PROVIDER=brevo`); Resend is optional.
+- **Configurable Sender:** Sender email and name configured via `BREVO_FROM_EMAIL` and `BREVO_FROM_NAME`, with fallback to verified account email. Hardcoded unverified domains (`noreply@talago.com`) removed.
+- **Documentation:** Complete setup and verification guide in `EMAIL_CONFIGURATION.md`.
+
+### 2. 8-Step Tour Creation Experience
+- **Restructured Flow:** The 27 flat sections are now grouped into 8 logical screens with a sticky Stepper bar, step overview, and bottom navigation.
+- **100% Data Preservation:** All fields, child policies, custom questions, and pickup settings remain intact.
+
+### 3. Media Library Folder Integration
+- **Folder Quick-Import:** Dropdown to browse folders and 1-click "Assign Entire Folder to Gallery" action in the Tour Editor.
+- **Image Management:** Quick actions to set cover image or add to gallery directly from folder preview.
+
+### 4. Robust Text Importer
+- **Fixed Truncation:** Replaced generic uppercase token lookahead with explicit `KNOWN_FIELD_KEYS` list, so words like `NOTE:`, `VIP:`, `DAY 1:` within itineraries or descriptions no longer truncate text.
+- **Template & Guide:** Added `TOUR_IMPORT_TEMPLATE.md`.
+
+### 5. Dynamic Cancellation Hours & Partner Portal Guard
+- **Dynamic Hours:** Tour page reads `tour.freeCancellationHours` (e.g. 24h, 48h, or non-refundable) dynamically.
+- **Supplier Portal Guard:** "Partner with Us" hidden from header and footer; public page shows "Coming Soon" for guests with Admin preview access.
 
 ---
 

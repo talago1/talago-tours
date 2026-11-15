@@ -1,19 +1,43 @@
 /**
- * Email utility supporting Resend and Brevo (dual provider).
+ * Email utility supporting Brevo (primary) and Resend (optional).
  * All email sending is server-side only — this file must never be imported by
  * client components (no 'use client' directive should ever be added here).
  *
  * Configured via:
- *   RESEND_API_KEY  (primary)
- *   BREVO_API_KEY   (Brevo v3 provider / fallback)
- *   RESEND_FROM_EMAIL / BREVO_FROM_EMAIL
+ *   EMAIL_PROVIDER     ("brevo" [default] | "resend")
+ *   BREVO_API_KEY      (Primary transactional provider)
+ *   BREVO_FROM_EMAIL   (Single source of truth for sender address, e.g. verified Brevo sender)
+ *   BREVO_FROM_NAME    (Sender display name, e.g. "TALAGO Experiences")
+ *   RESEND_API_KEY     (Optional fallback/secondary provider)
+ *   RESEND_FROM_EMAIL  (Optional Resend sender address)
  */
 
 import { Resend } from 'resend';
-import { isBrevoConfigured, sendBrevoTransactionalEmail } from '@/lib/brevo';
+import { isBrevoConfigured, sendBrevoTransactionalEmail, getBrevoSender } from '@/lib/brevo';
 
 if (typeof window !== 'undefined') {
   throw new Error('Security Violation: Email utility imported into browser bundle.');
+}
+
+export type EmailProviderType = 'brevo' | 'resend' | 'none';
+
+/**
+ * Returns the currently active transactional email provider.
+ * Brevo is the designated primary provider.
+ */
+export function getEmailProvider(): EmailProviderType {
+  const explicit = process.env.EMAIL_PROVIDER?.toLowerCase().trim();
+  if (explicit === 'brevo') {
+    return isBrevoConfigured() ? 'brevo' : 'none';
+  }
+  if (explicit === 'resend') {
+    return process.env.RESEND_API_KEY ? 'resend' : 'none';
+  }
+
+  // Default priority: Brevo if API key present, otherwise Resend if present
+  if (isBrevoConfigured()) return 'brevo';
+  if (process.env.RESEND_API_KEY) return 'resend';
+  return 'none';
 }
 
 function getResendClient(): Resend {
@@ -86,7 +110,7 @@ function tableRow(label: string, value: string): string {
 // Magic Link / OTP email
 // ---------------------------------------------------------------------------
 
-export async function sendMagicLinkEmail(to: string, magicLink: string): Promise<void> {
+export async function sendMagicLinkEmail(to: string, magicLink: string): Promise<SendEmailResult> {
   const html = layout(`
     <h2 style="margin:0 0 12px;font-size:22px;font-weight:900;color:#fff;">Sign in to TALAGO</h2>
     <p style="margin:0 0 20px;color:rgba(255,255,255,0.6);line-height:1.7;font-size:14px;">
@@ -98,7 +122,7 @@ export async function sendMagicLinkEmail(to: string, magicLink: string): Promise
     </p>
   `);
 
-  await sendEmail({
+  return await sendEmail({
     to,
     subject: 'Your TALAGO sign-in link',
     html,
@@ -122,7 +146,7 @@ export interface BookingConfirmationData {
 export async function sendBookingConfirmationEmail(
   to: string,
   data: BookingConfirmationData,
-): Promise<void> {
+): Promise<SendEmailResult> {
   const html = layout(`
     <div style="text-align:center;margin-bottom:28px;">
       <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:linear-gradient(135deg,#10b981,#059669);border-radius:50%;font-size:26px;">✓</div>
@@ -152,7 +176,7 @@ export async function sendBookingConfirmationEmail(
     </div>
   `);
 
-  await sendEmail({
+  return await sendEmail({
     to,
     subject: `Booking Confirmed — ${data.tourName} (${data.bookingReference})`,
     html,
@@ -174,7 +198,7 @@ export interface AdminReplyEmailData {
 export async function sendAdminReplyEmail(
   to: string,
   data: AdminReplyEmailData,
-): Promise<void> {
+): Promise<SendEmailResult> {
   const isInquiry = data.reference.startsWith('INQ-');
   const refLabel = isInquiry ? 'Inquiry Reference' : 'Reservation Reference';
 
@@ -199,7 +223,7 @@ export async function sendAdminReplyEmail(
     </div>
   `);
 
-  await sendEmail({
+  return await sendEmail({
     to,
     subject: `TALAGO replied to your ${isInquiry ? 'inquiry' : 'reservation'} (${data.reference})`,
     html,
@@ -221,7 +245,7 @@ export interface AbandonedCheckoutEmailData {
 export async function sendAbandonedCheckoutEmail(
   to: string,
   data: AbandonedCheckoutEmailData,
-): Promise<void> {
+): Promise<SendEmailResult> {
   const html = layout(`
     <div style="text-align:center;margin-bottom:24px;">
       <span style="display:inline-block;padding:6px 14px;background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.3);border-radius:999px;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#06b6d4;">
@@ -256,7 +280,7 @@ export async function sendAbandonedCheckoutEmail(
     </p>
   `);
 
-  await sendEmail({
+  return await sendEmail({
     to,
     subject: `Did you leave something behind? Your ${data.tourName} experience awaits 🌊`,
     html,
@@ -264,47 +288,69 @@ export async function sendAbandonedCheckoutEmail(
 }
 
 // ---------------------------------------------------------------------------
-// Generic helper with automatic dual-provider fallback (Resend / Brevo)
+// Generic helper with centralized provider dispatch (Brevo primary)
 // ---------------------------------------------------------------------------
+
+export interface SendEmailResult {
+  success: boolean;
+  messageId: string;
+  provider: 'brevo' | 'resend';
+}
 
 export async function sendEmail(options: {
   to: string;
   subject: string;
   html: string;
-}): Promise<void> {
-  const hasResend = Boolean(process.env.RESEND_API_KEY);
-  const hasBrevo = isBrevoConfigured();
+  replyTo?: { email: string; name?: string };
+}): Promise<SendEmailResult> {
+  const provider = getEmailProvider();
 
-  if (hasResend) {
+  if (provider === 'none') {
+    const errorMsg =
+      'No active transactional email provider configured. Please configure BREVO_API_KEY and BREVO_FROM_EMAIL in your environment settings.';
+    console.error(`[sendEmail] ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
+  // Primary Path: Brevo
+  if (provider === 'brevo') {
+    try {
+      const res = await sendBrevoTransactionalEmail({
+        to: options.to,
+        subject: options.subject,
+        htmlContent: options.html,
+        replyTo: options.replyTo,
+      });
+      return { success: true, messageId: res.messageId, provider: 'brevo' };
+    } catch (err: any) {
+      console.error('[sendEmail] Brevo dispatch failed for recipient:', options.to, 'Error:', err?.message || err);
+      throw new Error(`Email delivery failed via Brevo: ${err?.message || 'Unknown provider error'}`);
+    }
+  }
+
+  // Secondary/Optional Path: Resend (only if explicitly selected or configured without Brevo)
+  if (provider === 'resend') {
     try {
       const resend = getResendClient();
-      const { error } = await resend.emails.send({
+      const { data, error } = await resend.emails.send({
         from: FROM_EMAIL,
         to: options.to,
         subject: options.subject,
         html: options.html,
+        replyTo: options.replyTo?.email,
       });
-      if (!error) return;
-      console.warn('[sendEmail] Resend error:', error.message);
-      if (!hasBrevo) {
+
+      if (error) {
+        console.error('[sendEmail] Resend error:', error.message);
         throw new Error(`Resend email failed: ${error.message}`);
       }
+
+      return { success: true, messageId: data?.id || 'resend-ok', provider: 'resend' };
     } catch (err: any) {
-      if (!hasBrevo) throw err;
-      console.warn('[sendEmail] Resend failed, attempting fallback to Brevo:', err.message);
+      console.error('[sendEmail] Resend dispatch failed:', err?.message || err);
+      throw new Error(`Email delivery failed via Resend: ${err?.message || 'Unknown error'}`);
     }
   }
 
-  if (hasBrevo) {
-    await sendBrevoTransactionalEmail({
-      to: options.to,
-      subject: options.subject,
-      htmlContent: options.html,
-    });
-    return;
-  }
-
-  // No provider available — log a warning and return silently.
-  // Email is a secondary channel; booking flows must never fail due to missing email config.
-  console.warn('[sendEmail] No email provider configured (RESEND_API_KEY / BREVO_API_KEY missing). Email skipped.');
+  throw new Error(`Unsupported email provider: ${provider}`);
 }
