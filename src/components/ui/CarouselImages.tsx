@@ -109,8 +109,11 @@ export default function CarouselImages({
     );
   }
 
-  // Mount only the visible slide and its immediate neighbours for performance
+  // Mount the active slide, its neighbours, and always keep slide 0 for fast
+  // first-paint. Unmounting slides more than 1 step away avoids loading dozens
+  // of images upfront while still allowing a seamless forward/back transition.
   const mounted = new Set<number>([
+    0, // always keep the cover image mounted
     index,
     (index - 1 + images.length) % images.length,
     (index + 1) % images.length,
@@ -119,7 +122,7 @@ export default function CarouselImages({
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full"
+      className="relative h-full w-full overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -130,13 +133,14 @@ export default function CarouselImages({
             src={url}
             alt=""
             fill
-            sizes="(max-width: 640px) 42vw, (max-width: 1024px) 50vw, 25vw"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
             priority={priority && i === 0}
             unoptimized={isSupabaseStorageImage(url)}
             loading={priority && i === 0 ? undefined : 'lazy'}
             className={`object-cover transition-opacity duration-500 ${
-              i === index ? 'opacity-100' : 'opacity-0'
+              i === index ? 'opacity-100 z-10' : 'opacity-0 z-0'
             }`}
+            style={{ position: 'absolute', inset: 0, zIndex: i === index ? 1 : 0 }}
           />
         ) : null
       )}

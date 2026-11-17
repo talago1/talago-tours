@@ -180,10 +180,7 @@ export default function PublicTourCard({
     <article
       className="group relative overflow-hidden rounded-xl sm:rounded-[2rem] min-h-0 border border-white/10 bg-gradient-to-b from-white/[0.05] via-[#0B1528]/60 to-[#070F1E] shadow-xl shadow-black/40 transition-all duration-300 hover:-translate-y-1 sm:hover:-translate-y-1.5 hover:border-[#00E5FF]/40 hover:shadow-[#00E5FF]/10"
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => {
-        setIsHovered(false);
-        // Desktop hover ends — stop any desktop hover-based slideshow
-      }}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* ── Wishlist Heart Button ── */}
       <button
@@ -205,17 +202,18 @@ export default function PublicTourCard({
 
       {/* ════════════════════════════════════════════════════════════════
           MOBILE LAYOUT  (< sm)
-          Flex-row: image left (42%) + content right (58%)
+          Flex-row: image left (44%) + content right (56%)
+          Minimum card height ensures comfortable readability.
           Image area: tap → slideshow toggle (no navigation)
           Content area: tap → tour page navigation
           ════════════════════════════════════════════════════════════════ */}
-      <div className="flex flex-row h-full sm:hidden">
+      <div className="flex flex-row sm:hidden" style={{ minHeight: '140px' }}>
         {/* Mobile Image Area — no Link, tap toggles slideshow */}
         <div
           className={`relative flex-shrink-0 self-stretch overflow-hidden bg-white/[0.02] ${
             hasMultipleImages ? 'cursor-pointer' : 'cursor-default'
           }`}
-          style={{ width: '42%', minWidth: '42%' }}
+          style={{ width: '44%', minWidth: '44%' }}
           onClick={handleImageTap}
           role={hasMultipleImages ? 'button' : undefined}
           aria-label={
@@ -281,11 +279,11 @@ export default function PublicTourCard({
         {/* Mobile Content Area — IS a Link for navigation */}
         <Link
           href={`/tours/${tour.slug}`}
-          className="flex flex-1 flex-col justify-between p-2.5 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00E5FF]"
+          className="flex flex-1 flex-col justify-between p-3 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00E5FF]"
         >
           <div>
             {/* Top Row: Location & Rating */}
-            <div className="flex items-center justify-between gap-1 mb-1 text-[11px]">
+            <div className="flex items-center justify-between gap-1 mb-1.5 text-[11px]">
               <span className="font-bold text-[#00E5FF] truncate max-w-[130px]">
                 {tour.destination?.name || 'Red Sea'} · {getLocalizedCategory(cat)}
               </span>
@@ -301,19 +299,19 @@ export default function PublicTourCard({
             </div>
 
             {/* Title */}
-            <h3 className="text-[13px] font-black leading-snug text-white transition-colors group-hover:text-[#00E5FF] line-clamp-2">
+            <h3 className="text-sm font-black leading-snug text-white transition-colors group-hover:text-[#00E5FF] line-clamp-2">
               {title}
             </h3>
 
             {/* Duration — compact single row */}
-            <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-400">
-              <Clock className="h-2.5 w-2.5 text-[#FFD700] shrink-0" />
+            <div className="mt-1.5 flex items-center gap-1 text-xs text-slate-400">
+              <Clock className="h-3 w-3 text-[#FFD700] shrink-0" />
               <span>{duration}</span>
             </div>
           </div>
 
           {/* Mobile Footer: Price & View arrow */}
-          <div className="mt-1.5 border-t border-white/[0.06] pt-1">
+          <div className="mt-2 border-t border-white/[0.06] pt-1.5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
