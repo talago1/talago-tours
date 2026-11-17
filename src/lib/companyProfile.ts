@@ -185,52 +185,73 @@ export function calculateProfileCompleteness(
  * Filter profile to ONLY return public approved fields for client rendering.
  * NEVER exposes private tax card, commercial registration numbers, or private documents
  * unless explicitly approved by the owner in the disclosure settings.
+ * Fails closed: unverified or empty fields are omitted rather than showing mock/placeholder data.
  */
 export function sanitizePublicCompanyProfile(profile: CompanyLegalProfile) {
+  const hasLegalName = Boolean(profile.identity.legalName && profile.identity.legalName.trim().length > 0);
+  const hasCr = Boolean(profile.identity.commercialRegisterNumber && profile.identity.commercialRegisterNumber.trim().length > 0);
+  const hasTaxCard = Boolean(profile.identity.taxCardNumber && profile.identity.taxCardNumber.trim().length > 0);
+
+  const hasAddress = Boolean(
+    profile.address.isPublic &&
+    (profile.address.registeredStreet || profile.address.city || profile.address.governorate)
+  );
+
+  const hasContact = Boolean(
+    profile.contact.isPublic &&
+    (profile.contact.officialSupportEmail || profile.contact.phoneNumber || profile.contact.whatsAppNumber)
+  );
+
+  const hasOperatingModel = Boolean(
+    profile.operatingModel.isPublic &&
+    profile.operatingModel.supplierRelationship &&
+    profile.operatingModel.supplierRelationship.trim().length > 0
+  );
+
   return {
     tradingName: profile.identity.tradingName || 'TALAGO',
-    legalName: profile.disclosure.showCrOnLegalPages
+    legalName: profile.disclosure.showCrOnLegalPages && hasLegalName
       ? profile.identity.legalName
       : undefined,
-    commercialRegisterNumber: profile.disclosure.showCrOnLegalPages
+    commercialRegisterNumber: profile.disclosure.showCrOnLegalPages && hasCr
       ? profile.identity.commercialRegisterNumber
       : undefined,
-    taxCardNumber: profile.disclosure.showTaxCardOnLegalPages
+    taxCardNumber: profile.disclosure.showTaxCardOnLegalPages && hasTaxCard
       ? profile.identity.taxCardNumber
       : undefined,
-    address: profile.address.isPublic
+    address: hasAddress
       ? {
-          city: profile.address.city,
-          governorate: profile.address.governorate,
-          country: profile.address.country,
+          city: profile.address.city || undefined,
+          governorate: profile.address.governorate || undefined,
+          country: profile.address.country || 'Egypt',
           street: profile.disclosure.showFullAddressInFooter
-            ? profile.address.registeredStreet
+            ? profile.address.registeredStreet || undefined
             : undefined,
           building: profile.disclosure.showFullAddressInFooter
-            ? profile.address.buildingOffice
+            ? profile.address.buildingOffice || undefined
             : undefined,
         }
       : undefined,
-    contact: profile.contact.isPublic
+    contact: hasContact
       ? {
-          supportEmail: profile.contact.officialSupportEmail,
-          phone: profile.contact.phoneNumber,
-          whatsApp: profile.contact.whatsAppNumber,
-          supportHours: profile.contact.supportHours,
-          timezone: profile.contact.timezone,
+          supportEmail: profile.contact.officialSupportEmail || undefined,
+          phone: profile.contact.phoneNumber || undefined,
+          whatsApp: profile.contact.whatsAppNumber || undefined,
+          supportHours: profile.contact.supportHours || undefined,
+          timezone: profile.contact.timezone || undefined,
         }
       : undefined,
-    operatingModel: profile.operatingModel.isPublic
+    operatingModel: hasOperatingModel
       ? {
           role: profile.operatingModel.marketplaceRole,
           summary: profile.operatingModel.supplierRelationship,
-          experienceProvider: profile.operatingModel.experienceProvider,
-          bookingConfirmation: profile.operatingModel.bookingConfirmationEntity,
-          taxFeeNotice: profile.operatingModel.taxFeeStructure,
+          experienceProvider: profile.operatingModel.experienceProvider || undefined,
+          bookingConfirmation: profile.operatingModel.bookingConfirmationEntity || undefined,
+          taxFeeNotice: profile.operatingModel.taxFeeStructure || undefined,
         }
       : undefined,
     publicLicenses: profile.licenses
-      .filter((l) => l.isPublic && l.status === 'active')
+      .filter((l) => l.isPublic && l.status === 'active' && Boolean(l.licenseNumber))
       .map((l) => ({
         authority: l.licensingAuthority,
         type: l.licenseType,

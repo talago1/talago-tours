@@ -1,9 +1,9 @@
 export type VerificationStatus =
   | 'missing'
-  | 'draft'
-  | 'awaiting_approval'
+  | 'entered'
+  | 'pending_verification'
   | 'verified'
-  | 'public_approved';
+  | 'approved_public';
 
 export interface LicenseRecord {
   id: string;
@@ -94,9 +94,9 @@ export const DEFAULT_COMPANY_PROFILE: CompanyLegalProfile = {
     legalName: '',
     arabicLegalName: '',
     tradingName: 'TALAGO',
-    entityType: 'Limited Liability Company (LLC)',
+    entityType: '',
     countryOfRegistration: 'Egypt',
-    registeredJurisdiction: 'Red Sea Governorate, Arab Republic of Egypt',
+    registeredJurisdiction: '',
     incorporationDate: '',
     commercialRegisterNumber: '',
     taxCardNumber: '',
@@ -110,49 +110,41 @@ export const DEFAULT_COMPANY_PROFILE: CompanyLegalProfile = {
     registeredStreet: '',
     buildingOffice: '',
     district: '',
-    city: 'Hurghada',
-    governorate: 'Red Sea',
+    city: '',
+    governorate: '',
     postalCode: '',
     country: 'Egypt',
     correspondenceAddress: '',
-    isPublic: true,
+    isPublic: false,
   },
   contact: {
-    officialSupportEmail: 'support@talago-tours.com',
-    generalContactEmail: 'info@talago-tours.com',
-    phoneNumber: '+20 100 000 0000',
-    whatsAppNumber: '+20 100 000 0000',
-    legalCorrespondenceEmail: 'legal@talago-tours.com',
-    complaintsContactEmail: 'care@talago-tours.com',
-    supportHours: '08:00 - 22:00 (EET / UTC+2), Daily',
-    timezone: 'Africa/Cairo (EET / UTC+2)',
-    isPublic: true,
+    officialSupportEmail: '',
+    generalContactEmail: '',
+    phoneNumber: '',
+    whatsAppNumber: '',
+    legalCorrespondenceEmail: '',
+    complaintsContactEmail: '',
+    supportHours: '',
+    timezone: 'Africa/Cairo',
+    isPublic: false,
   },
   operatingModel: {
     marketplaceRole: 'intermediary_marketplace',
-    supplierRelationship:
-      'TALAGO operates as an Egyptian tourism discovery and booking platform connecting travellers with vetted, independent licensed local tour operators.',
-    experienceProvider:
-      'All excursions, guided activities, safari expeditions, and marine transfers are performed directly by independent, licensed Egyptian operating partners.',
-    bookingConfirmationEntity:
-      'TALAGO issues instant digital vouchers and boarding passes confirming guest reservations with local suppliers.',
-    paymentCollectionEntity:
-      'TALAGO processes customer payments through licensed payment service providers in accordance with local banking regulations.',
-    refundProcessingEntity:
-      'Eligible refunds are processed back to the customer’s original payment method in compliance with stated cancellation policies.',
-    taxFeeStructure:
-      'All public prices include statutory fees and value-added taxes where applicable without hidden charges.',
-    insuranceArrangements:
-      'Local excursion suppliers are independently responsible for maintaining passenger liability coverage required by Egyptian tourism authorities.',
-    licensingDeclaration:
-      'Commercial activities are conducted under Egyptian commercial registry and applicable e-commerce provisions.',
-    isPublic: true,
+    supplierRelationship: '',
+    experienceProvider: '',
+    bookingConfirmationEntity: '',
+    paymentCollectionEntity: '',
+    refundProcessingEntity: '',
+    taxFeeStructure: '',
+    insuranceArrangements: '',
+    licensingDeclaration: '',
+    isPublic: false,
   },
   disclosure: {
     showCrOnLegalPages: false,
     showTaxCardOnLegalPages: false,
-    showFullAddressInFooter: true,
-    showOperatingModelSummary: true,
+    showFullAddressInFooter: false,
+    showOperatingModelSummary: false,
     requireOwnerSignOff: true,
   },
 };

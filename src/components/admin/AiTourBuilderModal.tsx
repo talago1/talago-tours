@@ -71,6 +71,13 @@ export default function AiTourBuilderModal({
   const [blockedNotice, setBlockedNotice] = useState<string | null>(null);
   const [generatedDraft, setGeneratedDraft] = useState<Partial<TourEditorData> | null>(null);
   const [reviewRequiredFields, setReviewRequiredFields] = useState<string[]>([]);
+  const [completenessReport, setCompletenessReport] = useState<{
+    score: number;
+    completedFields: string[];
+    missingRequiredFields: string[];
+    fieldsNeedingConfirmation: string[];
+    inapplicableFields: string[];
+  } | null>(null);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
 
   // Prevent background scrolling when modal is open
@@ -160,6 +167,7 @@ export default function AiTourBuilderModal({
         }
         setGeneratedDraft(data.tourData);
         setReviewRequiredFields(data.reviewRequiredFields || []);
+        setCompletenessReport(data.completenessReport || null);
         setAiExplanation(data.explanation || null);
       } else {
         throw new Error('AI returned an empty response. Please try again with more details.');
@@ -245,6 +253,37 @@ export default function AiTourBuilderModal({
                 Regenerate / Edit Prompt
               </button>
             </div>
+
+            {/* Completeness Assessment Badge */}
+            {completenessReport && (
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Structured Completeness: {completenessReport.score}%
+                  </span>
+                  <span className="text-xs font-bold text-slate-300">
+                    {completenessReport.completedFields.length} Sections Populated
+                  </span>
+                </div>
+                <div className="w-full bg-white/10 rounded-full h-2 mb-3">
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 to-[#00E5FF] h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${completenessReport.score}%` }}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {completenessReport.completedFields.map((f, idx) => (
+                    <span
+                      key={idx}
+                      className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300"
+                    >
+                      ✓ {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* AI Explanation */}
             {aiExplanation && (

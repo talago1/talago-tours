@@ -5,6 +5,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 import BookingRowActions from './BookingRowActions';
 import BookingInvoiceModal from './BookingInvoiceModal';
+import BulkBookingManagementModal from './BulkBookingManagementModal';
 import {
   ChevronDown,
   ChevronRight,
@@ -479,6 +480,10 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Date Basis & Bulk Management State
+  const [dateBasis, setDateBasis] = useState<'travelDate' | 'createdAt'>('travelDate');
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+
   // Invoice Modal State
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
 
@@ -486,12 +491,13 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
   const distinctMonths = useMemo(() => {
     const months = new Set<string>();
     bookings.forEach((b) => {
-      if (b.travelDate && b.travelDate.length >= 7) {
-        months.add(b.travelDate.slice(0, 7));
+      const d = dateBasis === 'travelDate' ? b.travelDate : b.createdAt?.split('T')[0];
+      if (d && d.length >= 7) {
+        months.add(d.slice(0, 7));
       }
     });
     return Array.from(months).sort().reverse();
-  }, [bookings]);
+  }, [bookings, dateBasis]);
 
   // Extract distinct categories
   const distinctCategories = useMemo(() => {
@@ -537,24 +543,26 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
         return false;
       }
 
+      const activeDate = dateBasis === 'travelDate' ? b.travelDate : b.createdAt?.split('T')[0];
+
       // Month filter (YYYY-MM)
       if (selectedMonth !== 'ALL') {
-        if (!b.travelDate || !b.travelDate.startsWith(selectedMonth)) {
+        if (!activeDate || !activeDate.startsWith(selectedMonth)) {
           return false;
         }
       }
 
       // Custom date range
-      if (startDate && b.travelDate < startDate) {
+      if (startDate && (!activeDate || activeDate < startDate)) {
         return false;
       }
-      if (endDate && b.travelDate > endDate) {
+      if (endDate && (!activeDate || activeDate > endDate)) {
         return false;
       }
 
       return true;
     });
-  }, [bookings, searchQuery, selectedTourId, selectedCategory, selectedStatus, selectedMonth, startDate, endDate, filterCancellationsOnly]);
+  }, [bookings, searchQuery, selectedTourId, selectedCategory, selectedStatus, selectedMonth, startDate, endDate, filterCancellationsOnly, dateBasis]);
 
   // Quick statistics for filtered set
   const stats = useMemo(() => {
@@ -943,6 +951,32 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
         {/* Row 2: Date Filters & Action Buttons */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-white/5 pt-4">
           <div className="flex flex-wrap items-center gap-2">
+            {/* Date Basis Toggle */}
+            <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-[#070F1E] p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setDateBasis('travelDate')}
+                className={`rounded-lg px-2.5 py-1 font-bold transition-all ${
+                  dateBasis === 'travelDate'
+                    ? 'bg-[#00E5FF] text-[#070F1E] shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Travel Date
+              </button>
+              <button
+                type="button"
+                onClick={() => setDateBasis('createdAt')}
+                className={`rounded-lg px-2.5 py-1 font-bold transition-all ${
+                  dateBasis === 'createdAt'
+                    ? 'bg-[#00E5FF] text-[#070F1E] shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Booking Date
+              </button>
+            </div>
+
             {/* Quick Month Selector */}
             <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#070F1E] px-3 py-1.5 text-xs text-slate-300">
               <Calendar className="h-3.5 w-3.5 text-[#00E5FF]" />
@@ -1003,6 +1037,16 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
 
           {/* Action Buttons: Invoice Generation & Bulk Delete */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Bulk Month Management Button */}
+            <button
+              type="button"
+              onClick={() => setIsBulkModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-purple-500/40 bg-purple-500/10 px-3.5 py-2 text-xs font-bold text-purple-300 transition-all hover:bg-purple-500 hover:text-white"
+            >
+              <Calendar className="h-4 w-4" />
+              <span>Bulk Month Actions</span>
+            </button>
+
             {/* Generate Invoice / Statement Button */}
             <button
               type="button"
@@ -1439,6 +1483,22 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
         onClose={() => setIsInvoiceOpen(false)}
         bookings={invoiceBookings}
         filterLabel={invoiceFilterDescription}
+      />
+
+      {/* 7. Bulk Month Management Modal */}
+      <BulkBookingManagementModal
+        isOpen={isBulkModalOpen}
+        onClose={() => setIsBulkModalOpen(false)}
+        initialYear={selectedMonth !== 'ALL' ? selectedMonth.slice(0, 4) : '2026'}
+        initialMonth={selectedMonth !== 'ALL' ? selectedMonth.slice(5, 7) : 'ALL'}
+        initialDateBasis={dateBasis}
+        initialStatus={selectedStatus}
+        initialTourId={selectedTourId}
+        onCompleted={() => {
+          if (typeof window !== 'undefined') {
+            window.location.reload();
+          }
+        }}
       />
     </div>
   );

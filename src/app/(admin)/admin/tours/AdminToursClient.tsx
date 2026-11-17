@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import TourDeleteWorkflowModal from '@/components/admin/TourDeleteWorkflowModal';
 import {
   Edit3,
   Plus,
@@ -307,6 +308,7 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
   const [previewTour, setPreviewTour] = useState<Tour | null>(null);
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const [togglingStatusId, setTogglingStatusId] = useState<string | null>(null);
+  const [deleteWorkflowTour, setDeleteWorkflowTour] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     setTours(initialTours);
@@ -387,46 +389,11 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
     }
   }
 
-  async function handleDelete(tourId: string, tourTitle?: string) {
-    if (!confirm(`Are you sure you want to delete "${tourTitle || 'this experience'}"?`)) return;
-
-    try {
-      const response = await fetch(`/api/admin/tours/${tourId}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        if (data.hasBookings) {
-          const choice = confirm(
-            `⚠️ This tour has ${data.bookingsCount} active booking(s)!\n\n` +
-            `• Click [OK] to DEACTIVATE (Hide) the tour from public catalog while preserving booking records.\n` +
-            `• Click [Cancel] to abort.`
-          );
-
-          if (choice) {
-            const archiveRes = await fetch(`/api/admin/tours/${tourId}?action=archive`, {
-              method: 'DELETE',
-            });
-            if (archiveRes.ok) {
-              setTours((prev) =>
-                prev.map((t) => (t.id === tourId ? { ...t, status: 'INACTIVE' } : t))
-              );
-              alert('Tour has been deactivated and hidden from the public catalog.');
-              return;
-            }
-          }
-          return;
-        }
-
-        throw new Error(data.error || 'Failed to delete tour');
-      }
-
-      setTours((prev) => prev.filter((t) => t.id !== tourId));
-    } catch (err: any) {
-      alert(err?.message || 'Failed to delete experience');
-    }
+  function handleDelete(tourId: string, tourTitle?: string) {
+    setDeleteWorkflowTour({
+      id: tourId,
+      title: tourTitle || 'Experience',
+    });
   }
 
   const statusCounts = {
@@ -709,6 +676,21 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
           tour={previewTour}
           onClose={() => setPreviewTour(null)}
           getTourTitle={getTourTitle}
+        />
+      )}
+
+      {/* Delete / Replace Tour Workflow Modal */}
+      {deleteWorkflowTour && (
+        <TourDeleteWorkflowModal
+          isOpen={Boolean(deleteWorkflowTour)}
+          tourId={deleteWorkflowTour.id}
+          tourTitle={deleteWorkflowTour.title}
+          onClose={() => setDeleteWorkflowTour(null)}
+          onSuccess={(msg) => {
+            setTours((prev) => prev.filter((t) => t.id !== deleteWorkflowTour.id));
+            setDeleteWorkflowTour(null);
+            alert(msg);
+          }}
         />
       )}
     </main>

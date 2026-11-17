@@ -228,7 +228,7 @@ export default async function DestinationPage({
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {tours.map((tour, index) => (
               <PublicTourCard key={tour.id} tour={tour} priority={index < 3} />
             ))}

@@ -19,7 +19,7 @@ export default function ToursGrid({ tours }: { tours: PublicTourCardData[] }) {
 
   if (tours.length === 0) {
     return (
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
         <ToursEmptyState />
       </div>
     );
@@ -30,7 +30,7 @@ export default function ToursGrid({ tours }: { tours: PublicTourCardData[] }) {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
         {visible.map((tour, index) => (
           <PublicTourCard key={tour.id} tour={tour} priority={index === 0} />
         ))}

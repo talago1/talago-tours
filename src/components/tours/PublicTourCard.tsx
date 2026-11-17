@@ -147,99 +147,131 @@ export default function PublicTourCard({ tour, priority = false }: { tour: Publi
 
   return (
     <article
-      className="group relative flex flex-col justify-between overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/[0.05] via-[#0B1528]/60 to-[#070F1E] shadow-2xl shadow-black/40 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#00E5FF]/40 hover:shadow-[#00E5FF]/10"
+      className="group relative flex flex-col justify-between overflow-hidden rounded-2xl sm:rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/[0.05] via-[#0B1528]/60 to-[#070F1E] shadow-xl shadow-black/40 transition-all duration-300 hover:-translate-y-1 sm:hover:-translate-y-1.5 hover:border-[#00E5FF]/40 hover:shadow-[#00E5FF]/10"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* ── Wishlist Heart Button (outside Link to prevent navigation) ── */}
+      {/* ── Wishlist Heart Button ── */}
       <button
         type="button"
         onClick={handleWishlistToggle}
         aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
-        className={`absolute right-3.5 top-[calc(45%-1rem)] z-20 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md transition-all duration-200 ${
+        className={`absolute right-2.5 top-2.5 sm:right-3.5 sm:top-3.5 z-20 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full border backdrop-blur-md transition-all duration-200 ${
           wishlisted
             ? 'border-rose-500/60 bg-rose-500/90 shadow-lg shadow-rose-500/40'
-            : 'border-white/20 bg-[#070F1E]/70 opacity-0 group-hover:opacity-100'
+            : 'border-white/20 bg-[#070F1E]/70 opacity-80 sm:opacity-0 group-hover:opacity-100'
         } ${wishAnim ? 'scale-125' : 'scale-100'}`}
       >
         <Heart
-          className={`h-3.5 w-3.5 transition-all duration-200 ${
+          className={`h-3 w-3 sm:h-3.5 sm:w-3.5 transition-all duration-200 ${
             wishlisted ? 'fill-white text-white' : 'text-white/80'
           }`}
         />
       </button>
-      {/* The whole card is one link: clicking the image, title, price or the
-          action row all navigate to the tour, so there is no separate target to
-          aim for. */}
+
+      {/* Whole card link: Split list-card on mobile (< sm), grid card on desktop (>= sm) */}
       <Link
         href={`/tours/${tour.slug}`}
-        className="flex h-full cursor-pointer flex-col justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00E5FF]"
+        className="flex flex-row sm:flex-col h-full cursor-pointer justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00E5FF]"
       >
-        {/* Top Media Container */}
-        <div>
-          <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/[0.02]">
-            {allImages.length > 0 ? (
-              <CarouselImages
-                images={allImages}
-                isHovered={isHovered}
-                tourId={tour.id}
-                priority={priority}
-              />
-            ) : (
-              <div className={`h-full w-full bg-gradient-to-br ${getCategoryGradient(cat)}`}>
-                <div className="flex h-full items-end p-6">
-                  <span className="text-sm font-bold text-white">{getLocalizedCategory(cat)}</span>
-                </div>
+        {/* Media Container: left-side thumbnail on mobile, full aspect-[4/3] on desktop */}
+        <div className="relative w-32 min-w-[128px] max-w-[136px] self-stretch sm:w-full sm:min-w-0 sm:max-w-none sm:aspect-[4/3] overflow-hidden bg-white/[0.02]">
+          {allImages.length > 0 ? (
+            <CarouselImages
+              images={allImages}
+              isHovered={isHovered}
+              tourId={tour.id}
+              priority={priority}
+            />
+          ) : (
+            <div className={`h-full w-full bg-gradient-to-br ${getCategoryGradient(cat)}`}>
+              <div className="flex h-full items-end p-3 sm:p-6">
+                <span className="text-xs sm:text-sm font-bold text-white">{getLocalizedCategory(cat)}</span>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Top Badges */}
-            <div className="absolute left-3.5 right-3.5 top-3.5 z-10 flex items-center justify-between gap-2">
-              {/* Destination Tag */}
-              <span className="flex items-center gap-1.5 rounded-full border border-white/20 bg-[#070F1E]/85 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#00E5FF] backdrop-blur-md">
-                <MapPin className="h-3 w-3 text-[#00E5FF]" />
-                {tour.destination?.name || 'Red Sea'}
+          {/* Top Badges (Desktop) */}
+          <div className="hidden sm:flex absolute left-3.5 right-3.5 top-3.5 z-10 items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 rounded-full border border-white/20 bg-[#070F1E]/85 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#00E5FF] backdrop-blur-md">
+              <MapPin className="h-3 w-3 text-[#00E5FF]" />
+              {tour.destination?.name || 'Red Sea'}
+            </span>
+
+            {tour.isBestSeller ? (
+              <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FFD700] to-[#EAB308] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#070F1E] shadow-lg">
+                <Flame className="h-3 w-3 fill-[#070F1E]" />
+                {dict.catalog.bestSeller}
               </span>
-
-              {/* Best Seller / Promotion Tag */}
-              {tour.isBestSeller ? (
-                <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-[#FFD700] to-[#EAB308] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#070F1E] shadow-lg">
-                  <Flame className="h-3 w-3 fill-[#070F1E]" />
-                  {dict.catalog.bestSeller}
-                </span>
-              ) : tour.isFeatured ? (
-                <span className="flex items-center gap-1 rounded-full border border-[#00E5FF]/40 bg-[#00E5FF]/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#00E5FF]">
-                  <Sparkles className="h-3 w-3" />
-                  {dict.catalog.featured}
-                </span>
-              ) : tour.isNew ? (
-                <span className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-400">
-                  {dict.catalog.isNew}
-                </span>
-              ) : hasDiscount ? (
-                <span className="rounded-full border border-red-500/40 bg-red-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-400">
-                  -{discountPercent}%
-                </span>
-              ) : null}
-            </div>
-
-            {/* Bottom Image Overlay: Category & Duration */}
-            <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#070F1E]/80 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-md">
-                {getCategoryIcon(cat)}
-                <span>{getLocalizedCategory(cat)}</span>
-              </div>
-              <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-[#070F1E]/80 px-2.5 py-1 text-xs font-bold text-slate-300 backdrop-blur-md">
-                <Clock className="h-3 w-3 text-slate-400" />
-                <span>{duration}</span>
-              </div>
-            </div>
+            ) : tour.isFeatured ? (
+              <span className="flex items-center gap-1 rounded-full border border-[#00E5FF]/40 bg-[#00E5FF]/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#00E5FF]">
+                <Sparkles className="h-3 w-3" />
+                {dict.catalog.featured}
+              </span>
+            ) : tour.isNew ? (
+              <span className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                {dict.catalog.isNew}
+              </span>
+            ) : hasDiscount ? (
+              <span className="rounded-full border border-red-500/40 bg-red-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-400">
+                -{discountPercent}%
+              </span>
+            ) : null}
           </div>
 
-          {/* Card Body */}
-          <div className="p-5">
-            {/* Rating Row */}
-            <div className="mb-2.5 flex items-center justify-between">
+          {/* Mobile Badge Overlay (Top Left of Thumbnail) */}
+          <div className="sm:hidden absolute left-2 top-2 z-10">
+            {tour.isBestSeller ? (
+              <span className="rounded bg-gradient-to-r from-[#FFD700] to-[#EAB308] px-1.5 py-0.5 text-[9px] font-black uppercase text-[#070F1E] shadow">
+                Best Seller
+              </span>
+            ) : hasDiscount ? (
+              <span className="rounded bg-red-500/90 px-1.5 py-0.5 text-[9px] font-black uppercase text-white shadow">
+                -{discountPercent}%
+              </span>
+            ) : (
+              <span className="rounded bg-[#070F1E]/85 px-1.5 py-0.5 text-[9px] font-black uppercase text-[#00E5FF] border border-white/20">
+                {tour.destination?.name || 'Red Sea'}
+              </span>
+            )}
+          </div>
+
+          {/* Bottom Image Overlay on Desktop */}
+          <div className="hidden sm:flex absolute bottom-3 left-3 right-3 z-10 items-center justify-between">
+            <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#070F1E]/80 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-md">
+              {getCategoryIcon(cat)}
+              <span>{getLocalizedCategory(cat)}</span>
+            </div>
+            <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-[#070F1E]/80 px-2.5 py-1 text-xs font-bold text-slate-300 backdrop-blur-md">
+              <Clock className="h-3 w-3 text-slate-400" />
+              <span>{duration}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Content Body: compact right side on mobile, full width on desktop */}
+        <div className="flex flex-1 flex-col justify-between p-3 sm:p-5 min-w-0">
+          <div>
+            {/* Mobile Top Row: Location & Rating */}
+            <div className="flex sm:hidden items-center justify-between gap-1 mb-1 text-[11px]">
+              <span className="font-bold text-[#00E5FF] truncate max-w-[130px]">
+                {tour.destination?.name || 'Red Sea'} · {getLocalizedCategory(cat)}
+              </span>
+              {tour.ratingCount > 0 ? (
+                <span className="flex items-center gap-0.5 font-bold text-white shrink-0">
+                  <Star className="h-3 w-3 fill-[#FFD700] text-[#FFD700]" />
+                  <span>{tour.ratingAverage.toFixed(1)}</span>
+                  <span className="text-[10px] text-slate-400">({tour.ratingCount})</span>
+                </span>
+              ) : (
+                <span className="text-[10px] font-semibold text-[#00E5FF] shrink-0">
+                  New
+                </span>
+              )}
+            </div>
+
+            {/* Desktop Rating Row */}
+            <div className="hidden sm:flex mb-2.5 items-center justify-between">
               {tour.ratingCount > 0 ? (
                 <div className="flex items-center gap-1.5">
                   <RatingStars ratingAverage={tour.ratingAverage} />
@@ -266,60 +298,64 @@ export default function PublicTourCard({ tour, priority = false }: { tour: Publi
             </div>
 
             {/* Title */}
-            <h3 className="text-base font-black leading-snug text-white transition-colors group-hover:text-[#00E5FF] line-clamp-2">
+            <h3 className="text-sm sm:text-base font-black leading-snug text-white transition-colors group-hover:text-[#00E5FF] line-clamp-2">
               {title}
             </h3>
 
-            {/* Trust Pill Strip */}
-            {(tour.allowPayAtLocation || tour.hotelPickupIncluded || Boolean(tour.freeCancellationHours && tour.freeCancellationHours > 0)) && (
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {tour.allowPayAtLocation && (
-                  <span className="flex items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-                    <Wallet className="h-2.5 w-2.5" />
-                    Pay on Arrival
-                  </span>
-                )}
-                {tour.hotelPickupIncluded && (
-                  <span className="flex items-center gap-1 rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-400">
-                    <MapPin className="h-2.5 w-2.5" />
-                    Hotel Pickup
-                  </span>
-                )}
-                {Boolean(tour.freeCancellationHours && tour.freeCancellationHours > 0) && (
-                  <span className="flex items-center gap-1 rounded-md border border-teal-500/25 bg-teal-500/10 px-2 py-0.5 text-[10px] font-bold text-teal-400">
-                    <CheckCircle2 className="h-2.5 w-2.5" />
-                    Free cancel ({tour.freeCancellationHours}h)
-                  </span>
-                )}
-              </div>
-            )}
-            {/* Description excerpt */}
+            {/* Trust Pill Strip & Duration */}
+            <div className="mt-1.5 sm:mt-2.5 flex flex-wrap items-center gap-1.5">
+              <span className="flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold text-slate-300">
+                <Clock className="h-2.5 w-2.5 text-[#FFD700]" />
+                {duration}
+              </span>
+              {Boolean(tour.freeCancellationHours && tour.freeCancellationHours > 0) && (
+                <span className="rounded-md border border-teal-500/25 bg-teal-500/10 px-1.5 py-0.5 text-[10px] font-bold text-teal-400">
+                  Free cancel ({tour.freeCancellationHours}h)
+                </span>
+              )}
+              {tour.hotelPickupIncluded && (
+                <span className="hidden sm:inline-flex items-center gap-1 rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-400">
+                  <MapPin className="h-2.5 w-2.5" />
+                  Hotel Pickup
+                </span>
+              )}
+              {tour.allowPayAtLocation && (
+                <span className="hidden sm:inline-flex items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                  <Wallet className="h-2.5 w-2.5" />
+                  Pay on Arrival
+                </span>
+              )}
+            </div>
+
+            {/* Description excerpt (Desktop only for compactness) */}
             {description && (
-              <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-400">
+              <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-400 hidden sm:block">
                 {description}
               </p>
             )}
           </div>
-        </div>
 
-        {/* Card Footer: Price & Action. No divider and no button — the entire card is
-            the link, so this row is purely informational. */}
-        <div className="p-5 pt-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                {dict.catalog.startingAt}
-              </p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-black text-[#FFD700]">
-                  {price != null ? formatPrice(price, { round: true }) : formatPrice(0, { round: true })}
-                </span>
-                {hasDiscount && (
-                  <span className="text-xs text-slate-500 line-through">
-                    {formatPrice(tour.originalPrice!, { round: true })}
+          {/* Card Footer: Price & Action */}
+          <div className="mt-2 sm:mt-4 border-t border-white/5 pt-1.5 sm:pt-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  {dict.catalog.startingAt}
+                </p>
+                <div className="flex items-baseline gap-1 sm:gap-1.5">
+                  <span className="text-base sm:text-xl font-black text-[#FFD700]">
+                    {price != null ? formatPrice(price, { round: true }) : formatPrice(0, { round: true })}
                   </span>
-                )}
+                  {hasDiscount && (
+                    <span className="text-[10px] sm:text-xs text-slate-500 line-through">
+                      {formatPrice(tour.originalPrice!, { round: true })}
+                    </span>
+                  )}
+                </div>
               </div>
+              <span className="sm:hidden text-xs font-bold text-[#00E5FF] flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+                View →
+              </span>
             </div>
           </div>
         </div>

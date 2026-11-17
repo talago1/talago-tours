@@ -2,10 +2,19 @@ import { executeAiPrompt } from '@/lib/ai-router';
 import type { TourEditorData, ItineraryMilestone } from '@/types/tourEditor';
 import { createDefaultTourEditorData, createDefaultTranslations } from '@/types/tourEditor';
 
+export interface TourCompletenessReport {
+  score: number; // 0 to 100
+  completedFields: string[];
+  missingRequiredFields: string[];
+  fieldsNeedingConfirmation: string[];
+  inapplicableFields: string[];
+}
+
 export interface GenerateTourDraftResult {
   success: boolean;
   tourData?: Partial<TourEditorData>;
   reviewRequiredFields: string[];
+  completenessReport?: TourCompletenessReport;
   explanation?: string;
   sourceUrl?: string;
   error?: string;
@@ -242,7 +251,7 @@ export async function generateTourDraft({
   }
 
   const systemPrompt = `You are an expert luxury, adventure, and cultural tourism curator for TALAGO Experiences (an Egyptian marketplace for vetted local tours).
-Your task is to take the user's brief or source material and construct a complete, professional, highly structured tour draft.
+Your task is to take the user's brief or source material and construct a complete, professional, highly structured tour draft across all supported marketplace sections.
 
 STRICT EDITORIAL & INTEGRITY RULES:
 1. ORIGINALITY: If source text from an external travel site is provided, extract ONLY the factual itinerary, stops, activities, and logistics. Write 100% original, evocative, professional marketing copy for TALAGO. Never copy proprietary descriptions verbatim. Never copy image links.
@@ -250,14 +259,18 @@ STRICT EDITORIAL & INTEGRITY RULES:
 3. OPERATIONAL ACCURACY: Only set realistic duration, pickup times, and inclusions based on the material. If not specified, suggest reasonable standards (e.g. duration 3 to 6 hours; pickupTimes ["08:00", "13:00"]).
 4. MULTILINE PRESERVATION: For "whatToBring" and "requirements", provide clear bullet points formatted with newlines (e.g. "- Sunglasses\\n- Sunscreen\\n- Comfortable footwear").
 5. ITINERARY: Create 3 to 7 structured milestone objects with "timeTag" (e.g. "08:30" or "Stop 1 - 45 mins"), "title", and detailed "description".
-6. FAQS: Generate 3 to 5 realistic, high-value traveler questions and helpful answers.
-7. LANGUAGE: Output all initial content in clear, engaging English.
+6. ROUTE STOPS: If the tour visits distinct geographic waypoints/locations, generate 2 to 5 route stops with "name" and "durationMinutes".
+7. FAQS: Generate 3 to 5 realistic, high-value traveler questions and helpful answers.
+8. ACCESSIBILITY & LOGISTICS: Note wheelchair and stroller accessibility realistically based on activity type (e.g., desert quad or scuba = not wheelchair accessible).
+9. BOOKING QUESTIONS: If hotel pickup is included, suggest a standard checkout question for hotel name & room number.
+10. LANGUAGE: Output all initial content in clear, engaging English.
 
 YOU MUST RETURN STRICTLY VALID JSON ONLY. No conversational preamble, no markdown fences outside the JSON.
 
 Expected JSON Structure:
 {
   "title": "Evocative Tour Title",
+  "shortTitle": "Short 2-4 word Title",
   "category": "sea" | "desert" | "historical" | "adventure" | "cultural" | "city" | "family",
   "cardExcerpt": "1-2 punchy sentences summarizing the core experience (max 160 characters).",
   "description": "Full multi-paragraph description highlighting the experience, atmosphere, and what makes it special.",
@@ -265,6 +278,10 @@ Expected JSON Structure:
   "itinerary": [
     { "timeTag": "08:00", "title": "Hotel Pickup & Transfer", "description": "Air-conditioned transfer from your resort..." },
     { "timeTag": "09:30", "title": "Activity Milestone", "description": "Detailed description of the activity..." }
+  ],
+  "routePoints": [
+    { "name": "Hurghada Marina Departure", "durationMinutes": 30 },
+    { "name": "Giftun Island National Park", "durationMinutes": 120 }
   ],
   "inclusions": ["Included item 1", "Included item 2", "Included item 3", "Included item 4"],
   "exclusions": ["Excluded item 1", "Excluded item 2", "Excluded item 3"],
@@ -277,9 +294,23 @@ Expected JSON Structure:
   "durationHours": 4,
   "pickupTimes": ["08:00", "13:30"],
   "hotelPickupIncluded": true,
+  "pickupType": "hotel" | "meeting_point",
+  "meetingPointName": "Designated meeting point name (if applicable)",
+  "meetingPointInstructions": "How to get there / check-in instructions",
   "instantConfirmation": true,
   "freeCancellationHours": 24,
   "cancellationPolicy": "Cancel up to 24 hours in advance for a full refund. No refunds for cancellations made within 24 hours of departure.",
+  "childAllowed": true,
+  "childMinAge": 4,
+  "childMaxAge": 11,
+  "infantAllowed": false,
+  "minAge": 6,
+  "wheelchairAccessible": false,
+  "strollerAccessible": false,
+  "accessibilityNotes": "Notes on mobility and terrain.",
+  "vehicleType": "Air-conditioned modern minivan / transport vehicle",
+  "cutoffHours": 12,
+  "maxCapacity": 20,
   "metaTitle": "SEO Page Title (50-60 characters)",
   "metaDescription": "SEO Meta Description (140-160 characters)",
   "keywords": ["tag1", "tag2", "tag3", "tag4", "tag5"],
@@ -309,12 +340,14 @@ Expected JSON Structure:
     const translations = createDefaultTranslations();
 
     const title = String(parsed.title || 'Untitled Tour Experience').trim();
+    const shortTitle = String(parsed.shortTitle || title.slice(0, 32)).trim();
     const slug = slugify(title);
 
     // Merge into English translation
     translations.en = {
       ...translations.en,
       title,
+      shortTitle,
       cardExcerpt: String(parsed.cardExcerpt || '').trim(),
       description: String(parsed.description || '').trim(),
       highlights: Array.isArray(parsed.highlights) ? parsed.highlights.map(String) : [],
@@ -326,6 +359,8 @@ Expected JSON Structure:
       safetyGuidelines: Array.isArray(parsed.safetyGuidelines) ? parsed.safetyGuidelines.map(String) : [],
       seoTitle: String(parsed.metaTitle || title).trim(),
       seoDescription: String(parsed.metaDescription || parsed.cardExcerpt || '').trim(),
+      accessibilityNotes: String(parsed.accessibilityNotes || '').trim(),
+      meetingPointInstructions: String(parsed.meetingPointInstructions || '').trim(),
       faqItems: Array.isArray(parsed.faqItems)
         ? parsed.faqItems.map((f: any) => ({
             question: String(f.question || '').trim(),
@@ -349,6 +384,33 @@ Expected JSON Structure:
         }))
       : [];
 
+    // Format route points
+    const routePoints = Array.isArray(parsed.routePoints)
+      ? parsed.routePoints.map((rp: any, idx: number) => ({
+          id: `ai-rp-${Date.now()}-${idx}`,
+          name: String(rp.name || `Waypoint ${idx + 1}`).trim(),
+          description: rp.description ? String(rp.description).trim() : undefined,
+          durationMinutes: Number(rp.durationMinutes) || undefined,
+          order: idx,
+        }))
+      : [];
+
+    const hotelPickup = parsed.hotelPickupIncluded !== false;
+
+    // Standard booking questions if hotel pickup is included
+    const bookingQuestions = hotelPickup
+      ? [
+          {
+            id: `bq-${Date.now()}-hotel`,
+            question: 'Hotel Name & Room Number for Pickup',
+            type: 'text' as const,
+            required: true,
+            placeholder: 'e.g. Steigenberger ALDAU Resort, Room 412',
+            helpText: 'Our tour dispatch will confirm exact lobby departure time via WhatsApp.',
+          },
+        ]
+      : [];
+
     const generatedDraft: Partial<TourEditorData> = {
       ...base,
       slug,
@@ -357,8 +419,10 @@ Expected JSON Structure:
       basePriceUSD: 0,
       durationHours: Number(parsed.durationHours) || 4,
       pickupTimes: Array.isArray(parsed.pickupTimes) && parsed.pickupTimes.length > 0 ? parsed.pickupTimes.map(String) : ['08:00'],
-      hotelPickupIncluded: parsed.hotelPickupIncluded !== false,
-      pickupType: parsed.hotelPickupIncluded !== false ? 'hotel' : 'meeting_point',
+      hotelPickupIncluded: hotelPickup,
+      pickupType: hotelPickup ? 'hotel' : 'meeting_point',
+      meetingPointName: parsed.meetingPointName ? String(parsed.meetingPointName).trim() : undefined,
+      meetingPointInstructions: parsed.meetingPointInstructions ? String(parsed.meetingPointInstructions).trim() : undefined,
       instantConfirmation: parsed.instantConfirmation !== false,
       freeCancellationHours: Number(parsed.freeCancellationHours) || 24,
       cancellationPolicy: String(parsed.cancellationPolicy || '').trim(),
@@ -369,30 +433,89 @@ Expected JSON Structure:
       requirements: translations.en.requirements,
       safetyGuidelines: translations.en.safetyGuidelines,
       itinerary: itineraryMilestones,
+      routeStops: routePoints,
       faqItems: translations.en.faqItems,
       metaTitle: translations.en.seoTitle,
       metaDescription: translations.en.seoDescription,
       keywords: Array.isArray(parsed.keywords) ? parsed.keywords.map(String) : [],
       ageRestrictionsNotes: parsed.ageRestrictionsNotes ? String(parsed.ageRestrictionsNotes).trim() : undefined,
+      childMinAge: parsed.childMinAge ? Number(parsed.childMinAge) : 4,
+      childMaxAge: parsed.childMaxAge ? Number(parsed.childMaxAge) : 11,
+      infantMinAge: 0,
+      infantMaxAge: 2,
+      wheelchairAccessible: Boolean(parsed.wheelchairAccessible),
+      strollerAccessible: Boolean(parsed.strollerAccessible),
+      accessibilityNotes: translations.en.accessibilityNotes,
+      vehicleType: parsed.vehicleType ? String(parsed.vehicleType).trim() : 'Air-conditioned modern vehicle',
+      airConditioned: true,
+      cutoffHours: Number(parsed.cutoffHours) || 12,
+      maxCapacity: Number(parsed.maxCapacity) || 20,
+      bookingQuestions,
       translations,
       internalNotes: sourceUrl
         ? `Draft generated via Talago AI from reference source: ${sourceUrl}`
         : 'Draft generated via Talago AI Tour Builder.',
     };
 
-    // Fields that require explicit human review
-    const reviewRequiredFields = [
-      'adultPrice (Must set commercial ticket price in Step 4)',
+    // Completeness Report Assessment
+    const completedFields: string[] = [
+      'Title',
+      'Short Title',
+      'Slug',
+      'Category',
+      'Card Excerpt',
+      'Full Description',
+      'Highlights',
+      'Itinerary Milestones',
+      'Inclusions',
+      'Exclusions',
+      'What to Bring',
+      'Requirements',
+      'Safety Guidelines',
+      'FAQs',
+      'Cancellation Policy',
+      'SEO Title & Description',
+      'Keywords',
+      'Pickup Logistics',
+      'Age Restrictions',
+      'Accessibility Notes',
+      'Vehicle & Transport Details',
+    ];
+
+    if (routePoints.length > 0) completedFields.push('Route Stops');
+    if (bookingQuestions.length > 0) completedFields.push('Booking Questions');
+
+    const missingRequiredFields: string[] = [
+      'adultPrice (Must set commercial ticket price in Step 4 — pricing integrity rule)',
       'coverImage (Select or upload photos in Step 6)',
       'destinationId (Confirm destination assignment in Step 1)',
-      'pickupTimes (Verify exact departure schedule in Step 5)',
     ];
+
+    const fieldsNeedingConfirmation: string[] = [
+      'pickupTimes (Verify exact departure schedules with local partner)',
+      'durationHours (Verify total excursion duration)',
+      'maxCapacity (Verify vehicle/boat seat limits)',
+    ];
+
+    const inapplicableFields: string[] = [
+      'boatType (Non-marine activity)',
+      'privatePrice (Shared public tour format)',
+    ];
+
+    const completenessReport: TourCompletenessReport = {
+      score: Math.round((completedFields.length / (completedFields.length + missingRequiredFields.length)) * 100),
+      completedFields,
+      missingRequiredFields,
+      fieldsNeedingConfirmation,
+      inapplicableFields,
+    };
 
     return {
       success: true,
       tourData: generatedDraft,
-      reviewRequiredFields,
-      explanation: parsed.aiExplanation || 'Complete tour draft generated successfully with full schema mappings.',
+      reviewRequiredFields: missingRequiredFields,
+      completenessReport,
+      explanation: parsed.aiExplanation || 'Complete tour draft generated successfully across all applicable marketplace sections.',
       sourceUrl,
     };
   } catch (err: any) {

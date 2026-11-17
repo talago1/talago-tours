@@ -179,10 +179,13 @@ export async function GET(request: NextRequest) {
   const telegramUsername = (claims.preferred_username as string) || null;
   const telegramPhotoUrl = (claims.picture as string) || null;
   const telegramBotAccess = !!(claims['telegram:bot_access']);
-  // Phone is only present if the user granted the 'phone' scope
+  // Phone is only present if the user granted the 'phone' scope.
+  // SECURITY & IDENTITY INTEGRITY:
+  // Never mark a phone number verified simply because a value exists.
+  // Only consider verified when explicitly asserted as true by the validated OIDC provider claims.
   const rawPhone = (claims.phone_number as string) || null;
   const telegramPhone = rawPhone && rawPhone.trim().length > 0 ? rawPhone.trim() : null;
-  const telegramPhoneVerified = Boolean(claims.phone_number_verified ?? (telegramPhone ? true : false));
+  const telegramPhoneVerified = Boolean(claims.phone_number_verified === true);
 
   const syntheticEmail = `telegram-${telegramId}@noreply.talago.com`;
 
@@ -203,14 +206,21 @@ export async function GET(request: NextRequest) {
           telegramBotAccess,
           telegramConnectedAt: new Date(),
           isShadow: false,
-          ...(telegramPhone ? { phone: telegramPhone, telegramPhone, telegramPhoneVerified: true } : {}),
+          ...(telegramPhone
+            ? {
+                phone: existingByTgId.phone || (telegramPhoneVerified ? telegramPhone : undefined),
+                telegramPhone,
+                telegramPhoneVerified,
+              }
+            : {}),
         },
       });
       resolvedProfileId = updated.id;
     } else {
-      // Check if a profile with this verified phone number already exists
+      // Check if a profile with this phone number already exists
+      // ONLY link by phone if the phone claim is explicitly verified by the provider
       let existingByPhone = null;
-      if (telegramPhone) {
+      if (telegramPhone && telegramPhoneVerified) {
         existingByPhone = await prisma.customerProfile.findFirst({
           where: {
             OR: [
@@ -231,9 +241,9 @@ export async function GET(request: NextRequest) {
             telegramBotAccess,
             telegramConnectedAt: new Date(),
             telegramPhone,
-            telegramPhoneVerified: true,
+            telegramPhoneVerified,
             isShadow: false,
-            ...(!existingByPhone.phone && telegramPhone ? { phone: telegramPhone } : {}),
+            ...(!existingByPhone.phone && telegramPhoneVerified ? { phone: telegramPhone } : {}),
           },
         });
         resolvedProfileId = merged.id;
@@ -249,7 +259,13 @@ export async function GET(request: NextRequest) {
             telegramBotAccess,
             telegramConnectedAt: new Date(),
             isShadow: false,
-            ...(telegramPhone ? { phone: telegramPhone, telegramPhone, telegramPhoneVerified: true } : {}),
+            ...(telegramPhone
+              ? {
+                  phone: telegramPhoneVerified ? telegramPhone : null,
+                  telegramPhone,
+                  telegramPhoneVerified,
+                }
+              : {}),
           },
           update: {
             name: fullName,
@@ -259,7 +275,13 @@ export async function GET(request: NextRequest) {
             telegramBotAccess,
             telegramConnectedAt: new Date(),
             isShadow: false,
-            ...(telegramPhone ? { phone: telegramPhone, telegramPhone, telegramPhoneVerified: true } : {}),
+            ...(telegramPhone
+              ? {
+                  phone: telegramPhoneVerified ? telegramPhone : undefined,
+                  telegramPhone,
+                  telegramPhoneVerified,
+                }
+              : {}),
           },
         });
         resolvedProfileId = created.id;
@@ -270,7 +292,7 @@ export async function GET(request: NextRequest) {
       await adoptOwnedBookings({
         profileId: resolvedProfileId,
         emails: [syntheticEmail],
-        phones: [telegramPhone].filter(Boolean),
+        phones: [telegramPhoneVerified ? telegramPhone : null].filter((p): p is string => Boolean(p)),
       }).catch((e) => console.warn('[tg-oidc] initial adoption warning:', e));
     }
   } catch (err) {

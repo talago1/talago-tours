@@ -1103,35 +1103,6 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
               </div>
             )}
 
-            {/* Cancellation Policy Card — Gold-bordered */}
-            <div className="mb-8 mt-6 rounded-[2rem] border border-[#FFD700]/20 bg-gradient-to-br from-[#FFD700]/5 to-transparent p-6 shadow-lg shadow-[#FFD700]/5 lg:p-8">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFD700]/10">
-                  <ShieldCheck className="h-6 w-6 text-[#FFD700]" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-white">{dict.tourDetails.freeCancellation}</h3>
-                  <p className="mt-1 text-sm leading-7 text-slate-300">
-                    {localizedCancelPolicy}
-                  </p>
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-[#FFD700]">{dict.tourDetails.freeCancellation}</p>
-                      <p className="mt-1 text-xs text-slate-400">{cancelHoursText}</p>
-                    </div>
-                    <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-[#00E5FF]">{dict.tourDetails.secureCheckout}</p>
-                      <p className="mt-1 text-xs text-slate-400">{dict.tourDetails.encryptedPayment}</p>
-                    </div>
-                    <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-400">{dict.tourDetails.premiumSupport}</p>
-                      <p className="mt-1 text-xs text-slate-400">{dict.tourDetails.concierge247}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Accordion Sections */}
             <div className="divide-y divide-white/10 border-t border-white/10">
               {/* Inclusions & Exclusions */}
@@ -1361,6 +1332,38 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                   </div>
                 </Accordion>
               )}
+
+              {/* Cancellation & Refund Policy */}
+              <Accordion title={dict.tourDetails.freeCancellation ? `${dict.tourDetails.freeCancellation} & Policy` : 'Cancellation & Refund Policy'} defaultOpen>
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-[#FFD700]/25 bg-gradient-to-br from-[#FFD700]/10 via-[#070F1E] to-transparent p-5">
+                    <div className="flex items-start gap-3.5">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFD700]/15 text-[#FFD700]">
+                        <ShieldCheck className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-white">{dict.tourDetails.freeCancellation}</h4>
+                        <p className="mt-1 text-xs text-slate-300 leading-relaxed">{localizedCancelPolicy}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-3 border-t border-white/5">
+                      <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                        <p className="text-[10px] font-black uppercase text-[#FFD700]">{dict.tourDetails.freeCancellation}</p>
+                        <p className="mt-0.5 text-xs text-slate-300">{cancelHoursText}</p>
+                      </div>
+                      <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                        <p className="text-[10px] font-black uppercase text-[#00E5FF]">{dict.tourDetails.secureCheckout}</p>
+                        <p className="mt-0.5 text-xs text-slate-300">{dict.tourDetails.encryptedPayment}</p>
+                      </div>
+                      <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                        <p className="text-[10px] font-black uppercase text-emerald-400">{dict.tourDetails.premiumSupport}</p>
+                        <p className="mt-0.5 text-xs text-slate-300">{dict.tourDetails.concierge247}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Accordion>
 
               {/* FAQ (Phase 10) */}
               {localizedFaqItems.length > 0 && (
@@ -1885,7 +1888,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 View All Tours <span>→</span>
               </Link>
             </div>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {relatedTours.map((rTour) => (
                 <TourCard key={rTour.id} tour={rTour as any} />
               ))}

@@ -89,7 +89,7 @@ export default function TourCatalog({ tours, totalActiveCount }: TourCatalogProp
         </div>
 
         {displayedTours.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {displayedTours.map((tour) => <PublicTourCard key={tour.id} tour={tour} />)}
           </div>
         ) : <div className="border border-dashed border-white/15 py-16 text-center text-sm text-slate-400">No experiences match these filters.</div>}
