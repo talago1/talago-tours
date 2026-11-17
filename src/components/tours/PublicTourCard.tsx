@@ -343,9 +343,15 @@ export default function PublicTourCard({ tour, priority = false }: { tour: Publi
                   {dict.catalog.startingAt}
                 </p>
                 <div className="flex items-baseline gap-1 sm:gap-1.5">
-                  <span className="text-base sm:text-xl font-black text-[#FFD700]">
-                    {price != null ? formatPrice(price, { round: true }) : formatPrice(0, { round: true })}
-                  </span>
+                  {price != null && price > 0 ? (
+                    <span className="text-base sm:text-xl font-black text-[#FFD700]">
+                      {formatPrice(price, { round: true })}
+                    </span>
+                  ) : (
+                    <span className="text-xs sm:text-sm font-bold text-amber-400">
+                      Price on request
+                    </span>
+                  )}
                   {hasDiscount && (
                     <span className="text-[10px] sm:text-xs text-slate-500 line-through">
                       {formatPrice(tour.originalPrice!, { round: true })}

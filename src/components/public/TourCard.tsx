@@ -100,7 +100,7 @@ export default function TourCard({ tour, priority }: TourCardProps) {
 
           <div className="flex items-center justify-between border-t border-white/5 pt-2 sm:pt-4">
             <div>
-              {tour.basePrice != null ? (
+              {tour.basePrice != null && tour.basePrice > 0 ? (
                 <>
                   <span className="text-[9px] sm:text-xs font-black uppercase tracking-wider text-slate-500 block">
                     {dict.catalog.startingAt}
@@ -110,7 +110,7 @@ export default function TourCard({ tour, priority }: TourCardProps) {
                   </span>
                 </>
               ) : (
-                <span className="text-xs sm:text-sm font-bold text-slate-400 block">Contact us</span>
+                <span className="text-xs sm:text-sm font-bold text-amber-400 block">Price on request</span>
               )}
             </div>
             <span className="sm:hidden text-xs font-bold text-[#06B6D4]">View →</span>

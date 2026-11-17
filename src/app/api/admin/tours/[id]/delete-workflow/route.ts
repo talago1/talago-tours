@@ -226,7 +226,7 @@ export async function POST(
             },
           });
         }
-      });
+      }, { timeout: 30000, maxWait: 15000 });
 
       // Clear caches
       try {
@@ -305,7 +305,7 @@ export async function POST(
         await tx.tour.delete({
           where: { id: params.id },
         });
-      });
+      }, { timeout: 30000, maxWait: 15000 });
 
       // Clear caches
       try {
@@ -440,7 +440,7 @@ export async function POST(
             internalNotes: `Replaced by tour "${repTitle}" (ID: ${replacementTour.id}) on ${new Date().toISOString()}. ${transferredBookingsCount} bookings transferred.`,
           },
         });
-      });
+      }, { timeout: 30000, maxWait: 15000 });
 
       // Clear caches
       try {

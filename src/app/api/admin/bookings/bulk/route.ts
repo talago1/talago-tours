@@ -312,7 +312,7 @@ export async function POST(request: NextRequest) {
             where: { id: { in: chunk } },
           });
           deletedCount += res.count;
-        });
+        }, { timeout: 30000, maxWait: 15000 });
       }
 
       return NextResponse.json({

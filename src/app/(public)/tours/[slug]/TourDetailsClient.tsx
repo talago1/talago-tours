@@ -1501,8 +1501,12 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
               <div className="mb-6">
                 <p className="text-sm font-black uppercase tracking-[0.22em] text-slate-500">{dict.tourDetails.from}</p>
                 <div className="mt-1 flex flex-wrap items-baseline gap-2">
-                  <span className="text-4xl font-black text-white">{formatPrice(pricePerAdult, { round: true })}</span>
-                  {tour.originalPrice && tour.originalPrice > pricePerAdult && (
+                  {pricePerAdult > 0 ? (
+                    <span className="text-4xl font-black text-white">{formatPrice(pricePerAdult, { round: true })}</span>
+                  ) : (
+                    <span className="text-2xl font-black text-amber-400">Price on request</span>
+                  )}
+                  {tour.originalPrice && pricePerAdult > 0 && tour.originalPrice > pricePerAdult && (
                     <>
                       <span className="text-base font-bold text-slate-500 line-through">
                         {formatPrice(tour.originalPrice, { round: true })}
@@ -1512,17 +1516,21 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                       </span>
                     </>
                   )}
-                  <span className="text-sm text-slate-400">{dict.tourDetails.perPerson}</span>
+                  {pricePerAdult > 0 && (
+                    <span className="text-sm text-slate-400">{dict.tourDetails.perPerson}</span>
+                  )}
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={() => void startReservation('DESKTOP_PRIMARY_BOOK_NOW')}
-                disabled={isStartingReservation}
-                className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98] disabled:cursor-wait disabled:opacity-70"
+                disabled={isStartingReservation || !pricePerAdult || pricePerAdult <= 0}
+                className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isStartingReservation ? 'Creating reservation...' : dict.tourDetails.bookNow || 'Book Now'} <span aria-hidden="true">→</span>
+                {pricePerAdult > 0
+                  ? (isStartingReservation ? 'Creating reservation...' : dict.tourDetails.bookNow || 'Book Now')
+                  : 'Pricing Confirmation Required'} <span aria-hidden="true">→</span>
               </button>
 
               <button
@@ -1912,15 +1920,23 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 )}
               </div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-black text-white">
-                  {formatPrice(pricePerAdult, { round: true })}
-                </span>
-                {tour.originalPrice && tour.originalPrice > pricePerAdult && (
+                {pricePerAdult > 0 ? (
+                  <span className="text-xl font-black text-white">
+                    {formatPrice(pricePerAdult, { round: true })}
+                  </span>
+                ) : (
+                  <span className="text-sm font-black text-amber-400">
+                    Price on request
+                  </span>
+                )}
+                {tour.originalPrice && pricePerAdult > 0 && tour.originalPrice > pricePerAdult && (
                   <span className="text-xs font-bold text-slate-500 line-through">
                     {formatPrice(tour.originalPrice, { round: true })}
                   </span>
                 )}
-                <span className="text-[11px] text-slate-400">{dict.tourDetails.perPerson}</span>
+                {pricePerAdult > 0 && (
+                  <span className="text-[11px] text-slate-400">{dict.tourDetails.perPerson}</span>
+                )}
               </div>
               {selectedTime && <p className="mt-0.5 truncate text-[11px] font-medium text-cyan-200">{selectedTime}</p>}
             </div>
@@ -1937,10 +1953,10 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
               <button
                 type="button"
                 onClick={() => void startReservation('MOBILE_STICKY_BAR')}
-                disabled={isStartingReservation}
-                className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] via-[#00C2E0] to-[#00A3BF] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition-all hover:scale-105 active:scale-95 disabled:cursor-wait disabled:opacity-70"
+                disabled={isStartingReservation || !pricePerAdult || pricePerAdult <= 0}
+                className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] via-[#00C2E0] to-[#00A3BF] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span>{isStartingReservation ? 'Saving...' : dict.tourDetails.bookNow || 'Book Now'}</span>
+                <span>{pricePerAdult > 0 ? (isStartingReservation ? 'Saving...' : dict.tourDetails.bookNow || 'Book Now') : 'Inquire'}</span>
                 <span className="text-base leading-none">→</span>
               </button>
             </div>
