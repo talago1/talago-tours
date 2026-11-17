@@ -362,7 +362,7 @@ export default function MyBookingsPage() {
       if (data.user) {
         setCustomer(data.user);
         setIsAuthenticated(true);
-        router.replace('/account?tab=bookings');
+        window.location.replace('/account?tab=bookings');
         return true;
       }
       setError(null);
@@ -425,12 +425,17 @@ export default function MyBookingsPage() {
     if (initialRef) setLookupRef(initialRef);
     if (initialPhone) setLookupPhone(initialPhone);
 
+    // Safety guard: loading can never remain true indefinitely
+    const safetyTimer = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 3500);
+
     async function initAuth() {
       // Immediate redirect for authenticated customers to their account bookings workspace
       try {
         const { data: { session: existingSession } } = await supabaseClient.auth.getSession();
         if (existingSession?.access_token) {
-          router.replace('/account?tab=bookings');
+          window.location.replace('/account?tab=bookings');
           return;
         }
       } catch {}
@@ -491,6 +496,7 @@ export default function MyBookingsPage() {
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, [searchParams, loadBookingsForSession]);

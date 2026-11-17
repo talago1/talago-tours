@@ -9,6 +9,7 @@ import {
   Globe,
   Sparkles,
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -3507,6 +3508,23 @@ Full refund for cancellations made 48 hours or more before the tour start time.`
                       <span>{importPreview.data.faqItems?.length || 0} FAQs</span>
                     </div>
                   </div>
+
+                  {/* Route vs Itinerary Duplication Notice */}
+                  {Boolean(
+                    importPreview.data.itinerary?.length &&
+                    importPreview.data.routeStops?.length &&
+                    importPreview.data.routeStops.some((r) =>
+                      importPreview.data.itinerary?.some((it) => {
+                        const itTitle = typeof it.title === 'string' ? it.title : it.title?.en || '';
+                        return itTitle.toLowerCase().trim() === r.name.toLowerCase().trim();
+                      })
+                    )
+                  ) && (
+                    <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                      <span>Notice: Some Route Waypoints duplicate Itinerary Milestone titles. They will be deduplicated on the public page to keep the tour schedule clean.</span>
+                    </div>
+                  )}
 
                   {/* Multiline Text Preservation Audit */}
                   <div className="rounded-xl border border-white/10 bg-[#060D1A]/80 p-3.5 space-y-3">

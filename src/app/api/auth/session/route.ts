@@ -52,6 +52,8 @@ export async function GET(request: NextRequest) {
       {
         authenticated: true,
         user: userPayload,
+        accessToken: auth.accessToken,
+        refreshToken: auth.refreshToken,
       },
       { headers: NO_STORE }
     );
@@ -127,6 +129,8 @@ export async function POST(request: NextRequest) {
       {
         authenticated: true,
         user: userPayload,
+        accessToken: token,
+        refreshToken: refreshToken,
       },
       { headers: NO_STORE }
     );

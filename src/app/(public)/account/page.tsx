@@ -255,6 +255,20 @@ export default function AccountPage() {
             setUserProfile(sessData.user);
             setEditName(sessData.user.name || '');
             setEditPhone(sessData.user.phone || sessData.user.telegramPhone || '');
+
+            // Re-attempt fetching bookings now that session is confirmed
+            try {
+              const retryRes = await fetch('/api/public/my-bookings', {
+                credentials: 'same-origin',
+                cache: 'no-store',
+              });
+              if (retryRes.ok) {
+                const retryData = await retryRes.json();
+                setBookings(Array.isArray(retryData.bookings) ? retryData.bookings : []);
+                setReservations(Array.isArray(retryData.reservations) ? retryData.reservations : []);
+              }
+            } catch {}
+
             return;
           }
         }
@@ -342,19 +356,40 @@ export default function AccountPage() {
   }, [activeTab, selectedChatBookingRef, bookings, reservations, fetchChatMessages]);
 
   useEffect(() => {
+    let mounted = true;
+
+    // Safety guard: loading can never remain true indefinitely
+    const safetyTimer = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 4000);
+
     loadData();
 
     // Listen only for explicit sign out events from other tabs
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_OUT') {
-        setAuthenticated(false);
-        setUserProfile(null);
-        setBookings([]);
-        setReservations([]);
+        // Guard against client-init false logouts: check server session before clearing
+        try {
+          const check = await fetch('/api/auth/session', { cache: 'no-store' });
+          const checkData = await check.json();
+          if (!checkData?.authenticated) {
+            setAuthenticated(false);
+            setUserProfile(null);
+            setBookings([]);
+            setReservations([]);
+          }
+        } catch {
+          setAuthenticated(false);
+          setUserProfile(null);
+          setBookings([]);
+          setReservations([]);
+        }
       }
     });
 
     return () => {
+      mounted = false;
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, [loadData]);

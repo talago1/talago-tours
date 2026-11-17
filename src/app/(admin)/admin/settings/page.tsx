@@ -24,6 +24,7 @@ import {
   Bot,
   Search,
   ExternalLink,
+  Building2,
 } from 'lucide-react';
 import type { SystemSettings, SiteBanner, HeroLanguageTexts } from '@/types/settings';
 import { DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
@@ -31,8 +32,9 @@ import NotificationSettingsDashboard from '@/components/admin/NotificationSettin
 import GlobalAssetStudio from '@/components/admin/GlobalAssetStudio';
 import AiKeyPoolManager from '@/components/admin/AiKeyPoolManager';
 import MarketplaceModulesDashboard from '@/components/admin/MarketplaceModulesDashboard';
+import CompanyLegalProfileDashboard from '@/components/admin/CompanyLegalProfileDashboard';
 
-type ActiveSection = 'contact' | 'financial' | 'paymentMethods' | 'system' | 'banners' | 'notifications' | 'modules' | 'ai' | 'seo';
+type ActiveSection = 'company' | 'contact' | 'financial' | 'paymentMethods' | 'system' | 'banners' | 'notifications' | 'modules' | 'ai' | 'seo';
 
 const HERO_LANGUAGES = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -45,6 +47,7 @@ const HERO_LANGUAGES = [
 ] as const;
 
 const SECTIONS: { key: ActiveSection; label: string; icon: typeof Settings }[] = [
+  { key: 'company', label: 'Company & Legal Profile', icon: Building2 },
   { key: 'contact', label: 'Contact Info', icon: Phone },
   { key: 'financial', label: 'Currency & Pricing', icon: DollarSign },
   { key: 'paymentMethods', label: 'Payment Methods', icon: CreditCard },
@@ -461,6 +464,11 @@ export default function AdminSettingsPage() {
 
           {/* Settings panels */}
           <div className="flex-1 space-y-6">
+            {/* Company & Legal Profile Panel */}
+            {activeSection === 'company' && (
+              <CompanyLegalProfileDashboard />
+            )}
+
             {/* Contact Info Panel */}
             {activeSection === 'contact' && (
               <div className="rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl shadow-black/20">

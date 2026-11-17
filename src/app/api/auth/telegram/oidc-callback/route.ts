@@ -26,10 +26,12 @@ function safePath(raw: string | null | undefined): string {
     decoded === '/auth' ||
     decoded.startsWith('/login?') ||
     decoded.startsWith('/auth?') ||
+    decoded.startsWith('/auth/telegram-success') ||
     /[\r\n]/.test(decoded)
   ) {
     return '/account';
   }
+  if (decoded === '/my-bookings') return '/account?tab=bookings';
   return decoded;
 }
 
@@ -372,19 +374,35 @@ export async function GET(request: NextRequest) {
       const returnTo = ${JSON.stringify(returnTo)};
       const supabaseUrl = ${JSON.stringify(supabaseUrl)};
 
-      // 1. Populate Supabase client localStorage for instant client-side SDK auth
+      // 1. First-party same-origin session synchronization (guarantees server cookies & booking adoption)
+      try {
+        await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken })
+        });
+      } catch (e) {
+        console.warn('Session sync warning:', e);
+      }
+
+      // 2. Populate Supabase client localStorage for instant client-side SDK auth
       try {
         if (supabaseUrl) {
           const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
           const storageKey = 'sb-' + projectRef + '-auth-token';
           const sessionPayload = {
             access_token: accessToken,
-            refresh_token: refreshToken,
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
             token_type: 'bearer',
+            expires_in: 3600,
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+            refresh_token: refreshToken,
             user: {
               id: ${JSON.stringify(verifiedSupabaseUserId || (claims.sub ? String(claims.sub) : ''))},
+              aud: 'authenticated',
+              role: 'authenticated',
               email: ${JSON.stringify(syntheticEmail)},
+              phone: ${JSON.stringify(telegramPhone || '')},
+              app_metadata: { provider: 'telegram', providers: ['telegram'] },
               user_metadata: {
                 name: ${JSON.stringify(fullName)},
                 full_name: ${JSON.stringify(fullName)},
@@ -397,7 +415,7 @@ export async function GET(request: NextRequest) {
         }
       } catch (e) {}
 
-      // 2. Clean instant navigation to destination (server cookies already set on response)
+      // 3. Clean instant navigation to destination
       window.location.replace(returnTo);
     })();
   </script>

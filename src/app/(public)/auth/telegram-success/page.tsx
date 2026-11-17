@@ -19,41 +19,44 @@ function safePath(raw: string | null): string {
     decoded === '/auth' ||
     decoded.startsWith('/login?') ||
     decoded.startsWith('/auth?') ||
+    decoded.startsWith('/auth/telegram-success') ||
     /[\r\n]/.test(decoded)
   ) {
     return '/account';
   }
+  if (decoded === '/my-bookings') return '/account?tab=bookings';
   return decoded;
 }
 
 function TelegramSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [status, setStatus] = useState<'closing' | 'redirecting' | 'done'>('closing');
+  const [status, setStatus] = useState<'closing' | 'redirecting' | 'done'>('redirecting');
 
   useEffect(() => {
+    let active = true;
     const returnTo = safePath(searchParams.get('returnTo'));
 
-    // Extract access_token and refresh_token from hash fragment if present
-    let sessionPayload: { access_token: string; refresh_token: string } | null = null;
-    if (typeof window !== 'undefined' && window.location.hash) {
-      try {
-        const hash = window.location.hash.replace(/^#/, '');
-        const params = new URLSearchParams(hash);
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-        if (accessToken && refreshToken) {
-          sessionPayload = {
-            access_token: decodeURIComponent(accessToken),
-            refresh_token: decodeURIComponent(refreshToken),
-          };
+    async function handleSuccess() {
+      // Extract access_token and refresh_token from hash fragment if present
+      let sessionPayload: { access_token: string; refresh_token: string } | null = null;
+      if (typeof window !== 'undefined' && window.location.hash) {
+        try {
+          const hash = window.location.hash.replace(/^#/, '');
+          const params = new URLSearchParams(hash);
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+          if (accessToken && refreshToken) {
+            sessionPayload = {
+              access_token: decodeURIComponent(accessToken),
+              refresh_token: decodeURIComponent(refreshToken),
+            };
+          }
+        } catch (err) {
+          console.warn('[telegram-success] could not parse token hash:', err);
         }
-      } catch (err) {
-        console.warn('[telegram-success] could not parse token hash:', err);
       }
-    }
 
-    const tryClosePopup = async () => {
       // If we have a session payload, hydrate client session and sync server cookie
       if (sessionPayload) {
         try {
@@ -69,11 +72,23 @@ function TelegramSuccessContent() {
         } catch (e) {
           console.warn('[telegram-success] session sync warning:', e);
         }
+      } else {
+        // Fallback: check if server session is already active
+        try {
+          const check = await fetch('/api/auth/session', { cache: 'no-store' });
+          const checkData = await check.json();
+          if (checkData?.authenticated && checkData.accessToken) {
+            await supabaseClient.auth.setSession({
+              access_token: checkData.accessToken,
+              refresh_token: checkData.refreshToken || '',
+            }).catch(() => {});
+          }
+        } catch {}
       }
 
+      // Signal opener if running in a popup
       try {
         if (window.opener && !window.opener.closed) {
-          // Post a message with session payload to opener
           window.opener.postMessage(
             {
               type: 'talago_telegram_auth_success',
@@ -83,35 +98,26 @@ function TelegramSuccessContent() {
             window.location.origin
           );
 
-          // Give postMessage 150ms to dispatch before closing
+          // Attempt clean close
           setTimeout(() => {
-            try {
-              window.close();
-            } catch {}
+            try { window.close(); } catch {}
           }, 150);
-
-          return true;
         }
-      } catch (e) {
-        // Opener blocked or cross-origin
-      }
-      return false;
-    };
+      } catch {}
 
-    tryClosePopup().then((closed) => {
-      if (!closed) {
-        // Not running in an accessible popup — redirect this window directly
-        setStatus('redirecting');
-        window.location.href = returnTo;
-      } else {
-        setStatus('done');
-        // Fallback in case window.close() is blocked by browser popup policies
-        setTimeout(() => {
-          setStatus('redirecting');
-          window.location.href = returnTo;
-        }, 2500);
-      }
-    });
+      // Hard redirect this window unconditionally within 500ms — NEVER hang indefinitely
+      setTimeout(() => {
+        if (active) {
+          window.location.replace(returnTo);
+        }
+      }, 500);
+    }
+
+    handleSuccess();
+
+    return () => {
+      active = false;
+    };
   }, [searchParams, router]);
 
   return (

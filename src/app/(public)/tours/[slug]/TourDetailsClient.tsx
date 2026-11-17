@@ -508,13 +508,18 @@ function ItineraryTimeline({ itinerary, language = 'en' }: { itinerary: any[]; l
   );
 }
 
-function RouteStops({ stops }: { stops: NonNullable<TourData['routeStops']> }) {
+function RouteStops({ stops, itineraryTitles = [] }: { stops: NonNullable<TourData['routeStops']>; itineraryTitles?: string[] }) {
   if (!stops.length) return null;
+  // Deduplicate stops whose name matches an itinerary milestone
+  const filteredStops = stops.filter(
+    (s) => !itineraryTitles.some((t) => t.toLowerCase().trim() === s.name.toLowerCase().trim())
+  );
+  if (!filteredStops.length) return null;
   return (
     <div className="mt-6 border-t border-white/10 pt-5">
-      <h3 className="mb-3 text-sm font-bold text-white">Route</h3>
+      <h3 className="mb-3 text-sm font-bold text-white">Geographical Route Stops</h3>
       <ol className="space-y-3">
-        {stops.map((stop, index) => (
+        {filteredStops.map((stop, index) => (
           <li key={stop.id} className="flex gap-3 text-sm text-slate-300">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-400/15 text-xs font-bold text-cyan-200">{index + 1}</span>
             <div>
@@ -1149,11 +1154,21 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 </Accordion>
               )}
 
-              {/* Itinerary */}
-              {localizedItineraryItems.length > 0 && (
-                <Accordion title={dict.tourDetails.itinerary} defaultOpen>
-                  <ItineraryTimeline itinerary={localizedItineraryItems} language={language} />
-                  <RouteStops stops={tour.routeStops || []} />
+              {/* Itinerary & Geographical Route */}
+              {(localizedItineraryItems.length > 0 || (tour.routeStops && tour.routeStops.length > 0)) && (
+                <Accordion title={dict.tourDetails.itinerary || 'Itinerary'} defaultOpen>
+                  {localizedItineraryItems.length > 0 && (
+                    <ItineraryTimeline itinerary={localizedItineraryItems} language={language} />
+                  )}
+                  <RouteStops
+                    stops={tour.routeStops || []}
+                    itineraryTitles={localizedItineraryItems.map((item) => {
+                      if (item.title && typeof item.title === 'object') {
+                        return item.title[language] || item.title.en || Object.values(item.title)[0] || '';
+                      }
+                      return typeof item.title === 'string' ? item.title : '';
+                    })}
+                  />
                 </Accordion>
               )}
 

@@ -28,10 +28,12 @@ function safeReturnTarget(raw: string | null | undefined): string {
     decoded === '/auth' ||
     decoded.startsWith('/login?') ||
     decoded.startsWith('/auth?') ||
+    decoded.startsWith('/auth/telegram-success') ||
     /[\r\n]/.test(decoded)
   ) {
     return '/account';
   }
+  if (decoded === '/my-bookings') return '/account?tab=bookings';
   return decoded;
 }
 
