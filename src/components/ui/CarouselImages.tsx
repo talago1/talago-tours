@@ -7,7 +7,10 @@ import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 
 interface CarouselImagesProps {
   images: string[];
+  /** Desktop: true when mouse is hovering the card */
   isHovered: boolean;
+  /** Mobile: true when user has tapped the image to start auto-advance */
+  isSlideshowActive: boolean;
   tourId: string;
   /**
    * Set on the single card that owns the page's LCP image (the first tour in the
@@ -20,42 +23,67 @@ interface CarouselImagesProps {
 export default function CarouselImages({
   images,
   isHovered,
+  isSlideshowActive,
   tourId,
   priority = false,
 }: CarouselImagesProps) {
   const [index, setIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(true);
+  const [isDocumentVisible, setIsDocumentVisible] = useState(true);
 
-  useEffect(() => {
-    if (!isHovered || images.length <= 1) return;
-    const interval = setInterval(() => {
-      setIndex((prev) => (prev + 1) % images.length);
-    }, 1200);
-    return () => clearInterval(interval);
-  }, [isHovered, images.length]);
-
+  // ── Reset slide index when the tour changes ────────────────────────────
   useEffect(() => {
     setIndex(0);
   }, [tourId]);
 
-  if (images.length === 0) {
-    return (
-      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0EA5E9]/10 via-[#070F1E] to-[#EAB308]/10">
-        <ImageIcon className="h-10 w-10 text-white/20" />
-      </div>
+  // ── IntersectionObserver: pause when card scrolls out of view ─────────
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting),
+      { threshold: 0.3 }
     );
-  }
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
-  // A tour can carry dozens of gallery images, and rendering all of them as
-  // stacked <Image> elements produced hundreds of optimized variants in the DOM
-  // per page while only ever showing one. Mount just the visible slide and its
-  // immediate neighbours: during the fade between two slides both are needed,
-  // and the neighbour is already decoded when the carousel reaches it.
-  const mounted = new Set<number>([
-    index,
-    (index - 1 + images.length) % images.length,
-    (index + 1) % images.length,
-  ]);
+  // ── Document visibility: pause when browser tab is hidden ──────────────
+  useEffect(() => {
+    const handleVisibility = () => {
+      setIsDocumentVisible(document.visibilityState === 'visible');
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
+  // ── Autoplay: active when hovered/slideshow AND visible AND tab visible ─
+  useEffect(() => {
+    const shouldPlay =
+      (isHovered || isSlideshowActive) &&
+      isVisible &&
+      isDocumentVisible &&
+      images.length > 1;
+
+    if (!shouldPlay) return;
+
+    // Respect prefers-reduced-motion
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return;
+    }
+
+    // 2.5 s interval for slideshow (mobile), 1.5 s for hover (desktop)
+    const intervalMs = isSlideshowActive ? 2500 : 1500;
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % images.length);
+    }, intervalMs);
+    return () => clearInterval(interval);
+  }, [isHovered, isSlideshowActive, isVisible, isDocumentVisible, images.length]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -67,16 +95,30 @@ export default function CarouselImages({
     touchStartX.current = null;
     if (Math.abs(delta) < 40) return; // ignore tiny movements
     if (delta < 0) {
-      // swiped left → next
       setIndex((prev) => (prev + 1) % images.length);
     } else {
-      // swiped right → prev
       setIndex((prev) => (prev - 1 + images.length) % images.length);
     }
   };
 
+  if (images.length === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0EA5E9]/10 via-[#070F1E] to-[#EAB308]/10">
+        <ImageIcon className="h-10 w-10 text-white/20" />
+      </div>
+    );
+  }
+
+  // Mount only the visible slide and its immediate neighbours for performance
+  const mounted = new Set<number>([
+    index,
+    (index - 1 + images.length) % images.length,
+    (index + 1) % images.length,
+  ]);
+
   return (
     <div
+      ref={containerRef}
       className="relative h-full w-full"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -88,11 +130,9 @@ export default function CarouselImages({
             src={url}
             alt=""
             fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            sizes="(max-width: 640px) 42vw, (max-width: 1024px) 50vw, 25vw"
             priority={priority && i === 0}
             unoptimized={isSupabaseStorageImage(url)}
-            // Slides other than the first are only revealed on hover, so they
-            // must not compete with the rest of the page for bandwidth.
             loading={priority && i === 0 ? undefined : 'lazy'}
             className={`object-cover transition-opacity duration-500 ${
               i === index ? 'opacity-100' : 'opacity-0'
@@ -100,13 +140,17 @@ export default function CarouselImages({
           />
         ) : null
       )}
+
+      {/* Slide indicator dots */}
       {images.length > 1 && (
-        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 z-10">
+        <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1 z-10">
           {images.map((_, i) => (
             <span
               key={i}
-              className={`h-1.5 rounded-full transition-all ${
-                i === index ? 'w-4 bg-[#06B6D4]' : 'w-1.5 bg-white/40'
+              className={`h-1 rounded-full transition-all ${
+                i === index
+                  ? 'w-3 bg-[#06B6D4]'
+                  : 'w-1 bg-white/40'
               }`}
             />
           ))}
