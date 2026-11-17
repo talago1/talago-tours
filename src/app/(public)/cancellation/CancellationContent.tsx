@@ -22,12 +22,12 @@ export default function CancellationContent() {
 
             <section>
               <h2 className="mb-3 text-lg font-bold text-white">{dict.cancellationPage.sec1Title}</h2>
-              <p>You may cancel your booking free of charge up to <strong className="text-[#FFD700]">24 hours</strong> before the scheduled departure time. Cancellations within this window receive a full refund to the original payment method.</p>
+              <p>You may cancel your booking free of charge up to your tour's <strong className="text-[#FFD700]">free cancellation deadline</strong> (typically 24–48 hours before departure, as stated on your booking confirmation). Cancellations within this window receive a full refund to the original payment method.</p>
             </section>
 
             <section>
               <h2 className="mb-3 text-lg font-bold text-white">{dict.cancellationPage.sec2Title}</h2>
-              <p>Cancellations made less than 24 hours before departure are subject to a <strong className="text-[#FFD700]">50% cancellation fee</strong>. The remaining 50% will be refunded or credited toward a future booking at your discretion.</p>
+              <p>Cancellations made within the late cancellation window (inside the tour's free cancellation deadline) are subject to a <strong className="text-[#FFD700]">cancellation fee as specified in the tour's individual policy</strong>. Any refundable portion will be returned to the original payment method or credited toward a future booking.</p>
             </section>
 
             <section>
@@ -47,7 +47,7 @@ export default function CancellationContent() {
 
             <section>
               <h2 className="mb-3 text-lg font-bold text-white">{dict.cancellationPage.sec5Title}</h2>
-              <p>Date or guest count modifications are free up to 24 hours before departure, subject to availability. Price differences may apply.</p>
+              <p>Date or guest count modifications are free up to the tour's free cancellation deadline, subject to availability. Price differences may apply.</p>
             </section>
 
             <section>

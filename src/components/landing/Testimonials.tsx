@@ -103,7 +103,7 @@ export default function Testimonials({ reviews = [] }: TestimonialsProps) {
                     <ShieldCheck className="h-3.5 w-3.5" />
                     {testimonial.source && testimonial.source !== 'TALAGO'
                       ? `${testimonial.source}`
-                      : dict.testimonials.verified}
+                      : dict.testimonials.verifiedGuest ?? 'Verified Guest'}
                   </div>
                 </div>
 

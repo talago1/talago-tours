@@ -128,7 +128,8 @@ export const de: typeof en = {
   testimonials: {
     section: 'Verifizierte Bewertungen',
     heading: 'Verifizierte Gästebewertungen',
-    verified: 'Verifizierte Buchung'
+    verified: 'Verifizierte Buchung',
+    verifiedGuest: 'Verifizierter Gast'
   },
   footer: {
     tagline: 'Entdecken und buchen Sie erstklassige Touren, einzigartige Aktivitäten und unvergessliche Erlebnisse weltweit mit Sofortbestätigung und flexibler Stornierung.',
@@ -362,7 +363,7 @@ export const de: typeof en = {
     title: 'Ihre Sicherheit ist unser Fundament',
     description: 'TALAGO hält höchste Sicherheitsstandards bei allen Meeres- und Wüstenerlebnissen ein.',
     certifiedCaptains: 'Zertifizierte Kapitäne & Guides',
-    certifiedCaptainsDesc: 'Alle Kapitäne besitzen international anerkannte Lizenzen mit mindestens 10 Jahren Erfahrung im Roten Meer.',
+    certifiedCaptainsDesc: 'Alle Kapitäne sind professionell lizenziert und mit den lokalen Gewässern vertraut.',
     metricCaptains: '25+',
     metricCaptainsLabel: 'Lizenzierte Kapitäne & Guides',
     safetyGear: 'Premium Sicherheitsausrüstung',
@@ -374,8 +375,8 @@ export const de: typeof en = {
     metricResponse: '< 15 Min',
     metricResponseLabel: 'Durchschnittliche Notfallreaktionszeit',
     insurance: 'Umfassende Versicherung',
-    insuranceDesc: 'Alle TALAGO-Operationen sind durch eine umfassende Haftpflicht- und Passagierversicherung abgedeckt.',
-    metricInsurance: '$5M',
+    insuranceDesc: 'Der Versicherungsschutz richtet sich nach dem jeweiligen Ausflug und Betreiber. Details werden bei der Buchungsbestätigung mitgeteilt.',
+    metricInsurance: 'Covered',
     metricInsuranceLabel: 'Deckung pro Passagier',
   },
   flexibleProtection: {

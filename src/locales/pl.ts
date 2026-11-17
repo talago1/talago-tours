@@ -128,7 +128,8 @@ export const pl: typeof en = {
   testimonials: {
     section: 'Zweryfikowane opinie',
     heading: 'Zweryfikowane opinie gości',
-    verified: 'Zweryfikowana rezerwacja'
+    verified: 'Zweryfikowana rezerwacja',
+    verifiedGuest: 'Zweryfikowany Gość'
   },
   footer: {
     tagline: 'Odkrywaj i rezerwuj najwyżej oceniane wycieczki, wyjątkowe atrakcje i niezapomniane przeżycia na całym świecie z natychmiastowym potwierdzeniem i elastycznym anulowaniem.',
@@ -362,7 +363,7 @@ export const pl: typeof en = {
     title: 'Twoje Bezpieczeństwo Jest Naszym Fundamentem',
     description: 'TALAGO utrzymuje najwyższe standardy bezpieczeństwa.',
     certifiedCaptains: 'Certyfikowani Kapitanowie & Przewodnicy',
-    certifiedCaptainsDesc: 'Wszyscy kapitanowie posiadają międzynarodowe licencje.',
+    certifiedCaptainsDesc: 'Wszyscy kapitanowie posiadają odpowiednie licencje i znają lokalne wody.',
     metricCaptains: '25+',
     metricCaptainsLabel: 'Kapitanowie & Przewodnicy',
     safetyGear: 'Profesjonalny Sprzęt Bezpieczeństwa',
@@ -374,8 +375,8 @@ export const pl: typeof en = {
     metricResponse: '< 15 min',
     metricResponseLabel: 'Średni czas reakcji',
     insurance: 'Kompleksowe Ubezpieczenie',
-    insuranceDesc: 'Wszystkie operacje objęte ubezpieczeniem OC.',
-    metricInsurance: '$5M',
+    insuranceDesc: 'Zakres ubezpieczenia zależy od wycieczki i operatora. Szczegóły podawane są w potwierdzeniu rezerwacji.',
+    metricInsurance: 'Covered',
     metricInsuranceLabel: 'Ochrona na pasażera',
   },
   flexibleProtection: {

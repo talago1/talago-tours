@@ -1310,10 +1310,10 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
               )}
 
               {/* Safety Guidelines & Insurance (Phase 10) */}
-              {(localizedSafetyGuidelines.length > 0 || tour.insuranceIncluded !== null) && (
+              {(localizedSafetyGuidelines.length > 0 || tour.insuranceIncluded === true) && (
                 <Accordion title="Safety Guidelines & Insurance">
                   <div className="space-y-4">
-                    {tour.insuranceIncluded !== false && (
+                    {tour.insuranceIncluded === true && (
                       <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-400">
                         <ShieldCheck className="h-4 w-4" />
                         <span>Comprehensive Passenger & Activity Insurance Included</span>

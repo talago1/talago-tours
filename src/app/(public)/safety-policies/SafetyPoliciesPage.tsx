@@ -113,8 +113,9 @@ export default function SafetyPoliciesPage() {
         <div className="mx-auto flex max-w-4xl items-center justify-center gap-4 text-center">
           <ShieldCheck className="h-8 w-8 text-emerald-400" />
           <p className="text-sm text-slate-500">
-            TALAGO is fully licensed and insured. All operations comply with Egyptian tourism authority
-            regulations and international safety standards.
+            TALAGO operates in accordance with Egyptian tourism authority regulations and
+            international marine safety standards. Insurance and licensing arrangements vary
+            by operator and are confirmed at the time of booking.
           </p>
         </div>
       </div>

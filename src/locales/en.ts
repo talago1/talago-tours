@@ -21,7 +21,7 @@ export const en = {
     activeExperiences: 'active experiences live',
     guestProofButton: 'View Guest Proof',
     metrics: {
-      ratingValue: 'Since 2016',
+      ratingValue: 'Local Operator',
       ratingLabel: 'Local Red Sea Operator',
       bookingsValue: '100%',
       bookingsLabel: 'Direct Operator Pricing',
@@ -50,7 +50,7 @@ export const en = {
     },
     trust: {
       instantConfirmation: 'Instant Confirmation',
-      freeCancellation: 'Free Cancellation',
+      freeCancellation: 'Flexible Cancellation',
       directRates: 'Direct Best Rates',
     },
   },
@@ -60,19 +60,19 @@ export const en = {
     cards: {
       captains: {
         title: 'Elite Certified Captains & Guides',
-        description: 'Every TALAGO departure is operated by hand-selected marine captains, desert convoy leaders, and multilingual hosts trained in premium hospitality, route safety, and discreet guest care.'
+        description: 'TALAGO departures are operated by experienced marine captains, desert convoy leaders, and multilingual hosts committed to safety, local expertise, and guest comfort.'
       },
       fleet: {
         title: 'Luxury Fleet & ATVs',
         description: 'Private yachts, immaculate speedboats, and state-of-the-art desert quad bikes prepared to premium charter standards.'
       },
       dining: {
-        title: 'All-Inclusive Premium Dining',
-        description: 'Fine seafood, fresh juices, crafted beach lunches, and desert oasis catering served with polished timing.'
+        title: 'Premium Dining & Catering',
+        description: 'Many tours include premium catering — fresh seafood at sea or Bedouin oasis dinners in the desert. Specific meal inclusions are listed on each tour page.'
       },
       flexibility: {
         title: '100% Flexible Booking Protection',
-        description: 'Instant cancellations, zero hidden fees, date changes with concierge support, and seamless modifications for private groups and families.'
+        description: 'Flexible cancellations, date changes with concierge support, and transparent pricing with no surprise charges. See each tour for its specific cancellation terms.'
       }
     }
   },
@@ -126,7 +126,8 @@ export const en = {
   testimonials: {
     section: 'Verified Reviews',
     heading: 'Verified Guest Reviews',
-    verified: 'Verified Booking'
+    verified: 'Verified Booking',
+    verifiedGuest: 'Verified Guest'
   },
   footer: {
     tagline: 'Discover and book top-rated tours, unique activities, and unforgettable experiences worldwide with instant confirmation and flexible cancellation.',
@@ -145,7 +146,7 @@ export const en = {
     innerCircle: 'Join The Inner Circle',
     newsletterDesc: 'Receive curated travel inspiration, exclusive seasonal drops, and early access to unique global adventures.',
     emailPlaceholder: 'Email address',
-    copyright: '© TALAGO. All rights reserved.',
+    copyright: '© 2026 TALAGO. All rights reserved.',
     privacy: 'Privacy Policy',
     terms: 'Terms of Service',
     safety: 'Safety Standards'
@@ -180,7 +181,7 @@ export const en = {
     description: 'Everything you need to know about safety, clothing, cancellation, and our elite service standard.',
     q1: {
       q: 'What is included in the Safari package?',
-      a: 'All TALAGO Safari packages include premium quad bikes, full safety gear, professional lead convoy, private Bedouin oasis dinner with barbecue, fresh juices, and round-trip transfers in luxury SUVs.'
+      a: 'Standard TALAGO Safari packages typically include quad bikes, safety gear, a professional convoy lead, Bedouin oasis dinner, and round-trip transfers. Exact inclusions vary — please check the inclusions list on your specific tour page.'
     },
     q2: {
       q: 'What is your cancellation policy?',
@@ -192,7 +193,7 @@ export const en = {
     },
     q4: {
       q: 'How does TALAGO ensure guest safety?',
-      a: 'Safety is our absolute baseline. All marine trips carry professional rescue divers, satellite tracking, and full medical arrays. Desert convoys are tracked live with first-aid certified support crew.'
+      a: 'Safety is our absolute baseline. Marine trips operate with trained crew, life jackets for all passengers, and emergency communication equipment. Desert convoys carry GPS tracking and first-aid certified support crew. Specific safety arrangements are listed on each tour page.'
     }
   },
   checkout: {
@@ -358,32 +359,32 @@ export const en = {
   safety: {
     badge: 'TRUST & SAFETY',
     title: 'Your Safety Is Our Foundation',
-    description: 'TALAGO maintains the highest operational safety standards across all marine and desert experiences. Every journey is backed by certified professionals, premium equipment, and emergency protocols.',
+    description: 'TALAGO maintains high operational safety standards across all marine and desert experiences. Every journey is backed by trained professionals, safety equipment, and emergency protocols.',
     certifiedCaptains: 'Certified Captains & Guides',
-    certifiedCaptainsDesc: 'All marine captains hold internationally recognized licenses with a minimum of 10 years of Red Sea navigation experience. Desert guides are certified in advanced off-road navigation and first response.',
-    metricCaptains: '25+',
+    certifiedCaptainsDesc: 'Our marine captains hold professional navigation licences with extensive Red Sea experience. Desert guides are trained in off-road navigation and first response.',
+    metricCaptains: '20+',
     metricCaptainsLabel: 'Licensed Captains & Guides',
     safetyGear: 'Premium Safety Equipment',
-    safetyGearDesc: 'Every vessel is equipped with life jackets for all passengers, emergency beacons, satellite phones, and comprehensive first-aid medical kits. Desert vehicles carry GPS trackers, sand ladders, and emergency supplies.',
+    safetyGearDesc: 'Every vessel carries life jackets for all passengers, emergency beacons, and first-aid medical kits. Desert vehicles carry GPS trackers, sand ladders, and emergency supplies.',
     metricGear: '100%',
     metricGearLabel: 'Equipment Compliance Rate',
     emergencyResponse: 'Emergency Medical Response',
-    emergencyResponseDesc: 'All trips maintain direct communication with local emergency services. Our marine routes include rapid evacuation plans, and desert convoys carry certified wilderness first responders.',
-    metricResponse: '< 15 min',
-    metricResponseLabel: 'Average Emergency Response',
-    insurance: 'Comprehensive Insurance',
-    insuranceDesc: 'All TALAGO operations are covered by comprehensive public liability and passenger insurance. Every guest is fully insured from the moment of pickup to drop-off.',
-    metricInsurance: '$5M',
-    metricInsuranceLabel: 'Coverage Per Passenger',
+    emergencyResponseDesc: 'All trips maintain direct communication with local emergency services. Our marine routes include rapid evacuation plans, and desert convoys carry first-aid certified support crew.',
+    metricResponse: 'Priority',
+    metricResponseLabel: 'Emergency Response Protocol',
+    insurance: 'Activity Insurance',
+    insuranceDesc: 'TALAGO operations include activity and passenger insurance arrangements. Specific coverage applies per tour and operator — full details are confirmed in your booking.',
+    metricInsurance: 'Covered',
+    metricInsuranceLabel: 'Activity Insurance Per Tour',
   },
   flexibleProtection: {
     badge: 'FLEXIBLE PROTECTION',
     title: 'Book With Total Confidence',
     description: 'Our premium Flexible Trip Protection plan gives you the freedom to adjust your plans without penalty. Travel with peace of mind, knowing your investment is fully protected.',
-    heroTitle: 'Cancel Up to 24 Hours in Advance for a Full Refund',
+    heroTitle: 'Cancel in Advance for a Full Refund',
     heroDesc: 'Life happens. That is why every TALAGO booking includes our signature flexible cancellation policy at no extra cost.',
     protectionCard1Title: 'Full Refund Guarantee',
-    protectionCard1Desc: 'Cancel up to 24 hours before your scheduled departure and receive 100% of your payment back. No questions asked, no processing fees.',
+    protectionCard1Desc: 'Cancel before your tour\'s free cancellation deadline and receive 100% of your payment back. The exact window varies per tour — check the cancellation terms on each tour page.',
     protectionCard2Title: 'Free Date Changes',
     protectionCard2Desc: 'Need to move your trip? Change your travel date at no charge up to 24 hours before departure, subject to availability on your new date.',
     protectionCard3Title: 'Instant Processing',
@@ -425,9 +426,9 @@ export const en = {
     ageInfant: 'Age 0–2',
     reserveNow: 'Reserve Now',
     bookNow: 'Book Now',
-    secureBooking: 'Secure booking — Free cancellation',
-    freeCancellation: 'Free Cancellation',
-    cancelUpTo: 'Cancel up to 24 hours in advance for a full refund. No questions asked — because plans change.',
+    secureBooking: 'Secure booking — Flexible cancellation',
+    freeCancellation: 'Cancellation Policy',
+    cancelUpTo: 'Each tour has its own cancellation terms. The free cancellation window is shown on your tour page and confirmed at checkout.',
     upTo24h: 'Up to 24h before departure',
     secureCheckout: 'Secure Checkout',
     encryptedPayment: 'Encrypted payment processing',

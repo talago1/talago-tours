@@ -92,6 +92,7 @@ export default async function HomePage() {
       where: {
         status: 'APPROVED',
         isVisible: true,
+        isSeeded: false,
       },
       // Use select instead of include to avoid loading all tour fields
       select: {

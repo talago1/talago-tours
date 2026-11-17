@@ -128,7 +128,8 @@ export const ru: typeof en = {
   testimonials: {
     section: 'Проверенные отзывы',
     heading: 'Проверенные отзывы гостей',
-    verified: 'Подтвержденная бронь'
+    verified: 'Подтвержденная бронь',
+    verifiedGuest: 'Подтверждённый Гость'
   },
   footer: {
     tagline: 'Открывайте и бронируйте лучшие туры, уникальные активности и незабываемые впечатления по всему миру с мгновенным подтверждением и гибкой отменой.',
@@ -362,7 +363,7 @@ export const ru: typeof en = {
     title: 'Ваша Безопасность — Наша Основа',
     description: 'TALAGO поддерживает высочайшие стандарты безопасности.',
     certifiedCaptains: 'Сертифицированные Капитаны & Гиды',
-    certifiedCaptainsDesc: 'Все капитаны имеют международные лицензии.',
+    certifiedCaptainsDesc: 'Все капитаны имеют необходимые лицензии и хорошо знают местные воды.',
     metricCaptains: '25+',
     metricCaptainsLabel: 'Капитанов & Гидов',
     safetyGear: 'Премиум-снаряжение',
@@ -374,8 +375,8 @@ export const ru: typeof en = {
     metricResponse: '< 15 мин',
     metricResponseLabel: 'Среднее время реагирования',
     insurance: 'Комплексная страховка',
-    insuranceDesc: 'Все операции покрыты страховкой ответственности.',
-    metricInsurance: '$5M',
+    insuranceDesc: 'Страховое покрытие зависит от тура и оператора. Подробности подтверждаются при бронировании.',
+    metricInsurance: 'Covered',
     metricInsuranceLabel: 'Покрытие на пассажира',
   },
   flexibleProtection: {

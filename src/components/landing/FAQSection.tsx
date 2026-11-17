@@ -13,32 +13,32 @@ const faqs: FAQItem[] = [
   {
     question: 'What is included in the Safari package?',
     answer:
-      'All TALAGO Safari packages include premium quad bikes, full safety gear, professional lead convoy, private Bedouin oasis dinner with barbecue, fresh juices, and round-trip transfers in luxury SUVs.',
+      'Standard TALAGO Safari packages typically include quad bikes, safety gear, a professional convoy lead, Bedouin oasis dinner, and round-trip transfers. Exact inclusions vary — please check the inclusions list on your specific tour page.',
   },
   {
     question: 'What is your cancellation policy?',
     answer:
-      'We offer 100% flexible booking protection. You can cancel or reschedule up to 24 hours prior to departure for a full refund, no questions asked.',
+      'We offer flexible booking protection. The exact cancellation window varies per tour — most allow free cancellation up to 24–48 hours before departure. The applicable terms are shown on each tour page and confirmed at checkout.',
   },
   {
     question: 'What clothing is recommended for desert and sea tours?',
     answer:
-      'For desert safaris, we suggest lightweight long pants, closed shoes, and sunglasses. We provide high-quality headscarves. For sea tours, bring swimwear and sunscreen; we provide luxury towels and marine gear.',
+      'For desert safaris, we suggest lightweight long pants, closed shoes, and sunglasses. We provide headscarves on many tours. For sea tours, bring swimwear and sunscreen; towels and snorkelling gear are included on water tours where specified.',
   },
   {
     question: 'How does TALAGO ensure guest safety?',
     answer:
-      'Safety is our absolute baseline. All marine trips carry professional rescue divers, satellite tracking, and full medical arrays. Desert convoys are tracked live with first-aid certified support crew.',
+      'Safety is our absolute baseline. Marine trips operate with trained crew, life jackets for all passengers, and emergency communication equipment. Desert convoys carry GPS tracking and first-aid certified support crew. Specific safety arrangements are listed on each tour page.',
   },
   {
     question: 'Do you provide hotel pickup?',
     answer:
-      'Yes, hotel pickup is included for most tours. Simply provide your hotel name and room number during checkout, and our driver will meet you in the lobby at your preferred pickup time.',
+      'Hotel pickup is included on most tours where specified in the inclusions. Simply provide your hotel name and room number during checkout, and our driver will meet you at the agreed pickup point.',
   },
   {
     question: 'What should I bring on a tour?',
     answer:
-      'We recommend sunscreen, a hat, swimwear, a towel, and a camera. For desert safaris, closed-toe shoes and a light jacket are advised.',
+      'We recommend sunscreen, a hat, swimwear, a towel, and a camera. For desert safaris, closed-toe shoes and a light jacket are advised. Check the "What to Bring" section on your specific tour page for a complete list.',
   },
 ];
 

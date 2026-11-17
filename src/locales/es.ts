@@ -128,7 +128,8 @@ export const es: typeof en = {
   testimonials: {
     section: 'Reseñas Verificadas',
     heading: 'Reseñas verificadas de huéspedes',
-    verified: 'Reserva Verificada'
+    verified: 'Reserva Verificada',
+    verifiedGuest: 'Huésped Verificado'
   },
   footer: {
     tagline: 'Descubre y reserva tours de primer nivel, actividades únicas y experiencias inolvidables en todo el mundo con confirmación instantánea y cancelación flexible.',
@@ -362,7 +363,7 @@ export const es: typeof en = {
     title: 'Su Seguridad Es Nuestra Base',
     description: 'TALAGO mantiene los estándares de seguridad más altos.',
     certifiedCaptains: 'Capitanes & Guías Certificados',
-    certifiedCaptainsDesc: 'Todos los capitanes tienen licencias internacionales.',
+    certifiedCaptainsDesc: 'Todos los capitanes están debidamente autorizados y familiarizados con las aguas locales.',
     metricCaptains: '25+',
     metricCaptainsLabel: 'Capitanes & Guías',
     safetyGear: 'Equipo de Seguridad Premium',
@@ -374,8 +375,8 @@ export const es: typeof en = {
     metricResponse: '< 15 min',
     metricResponseLabel: 'Tiempo de respuesta promedio',
     insurance: 'Seguro Integral',
-    insuranceDesc: 'Todas las operaciones cubiertas por seguro de responsabilidad civil.',
-    metricInsurance: '$5M',
+    insuranceDesc: 'La cobertura de seguro varía según el recorrido y el operador. Los detalles se confirman en el momento de la reserva.',
+    metricInsurance: 'Covered',
     metricInsuranceLabel: 'Cobertura por pasajero',
   },
   flexibleProtection: {
