@@ -325,6 +325,9 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
     if (tour.status === 'ARCHIVED') {
       if (!confirm(`Restore "${getTourTitle(tour.translations)}" from ARCHIVED to ACTIVE?`)) return;
       newStatus = 'ACTIVE';
+    } else if (tour.status === 'DRAFT') {
+      if (!confirm(`Publish DRAFT tour "${getTourTitle(tour.translations)}" to ACTIVE status?`)) return;
+      newStatus = 'ACTIVE';
     } else {
       newStatus = tour.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     }
@@ -484,7 +487,7 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
 
           {/* Quick status pill filters */}
           <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
-            {(['ALL', 'ACTIVE', 'INACTIVE', 'ARCHIVED'] as const).map((statusKey) => (
+            {(['ALL', 'ACTIVE', 'DRAFT', 'INACTIVE', 'ARCHIVED'] as const).map((statusKey) => (
               <button
                 key={statusKey}
                 type="button"
@@ -493,6 +496,8 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
                   selectedStatus === statusKey
                     ? statusKey === 'ACTIVE'
                       ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                      : statusKey === 'DRAFT'
+                      ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/20'
                       : statusKey === 'ARCHIVED'
                       ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20'
                       : statusKey === 'INACTIVE'
@@ -542,11 +547,15 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
                     title={
                       tour.status === 'ARCHIVED'
                         ? 'Click to restore archived tour to Active'
+                        : tour.status === 'DRAFT'
+                        ? 'Click to review and publish Draft to Active'
                         : 'Click to toggle Active / Inactive status'
                     }
                     className={`absolute right-3 top-3 flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider transition-all backdrop-blur-sm ${
                       tour.status === 'ACTIVE'
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                        : tour.status === 'DRAFT'
+                        ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30 hover:bg-sky-500/30'
                         : tour.status === 'ARCHIVED'
                         ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30'
                         : 'bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30'
@@ -556,6 +565,8 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
                       className={`h-1.5 w-1.5 rounded-full ${
                         tour.status === 'ACTIVE'
                           ? 'bg-emerald-400'
+                          : tour.status === 'DRAFT'
+                          ? 'bg-sky-400'
                           : tour.status === 'ARCHIVED'
                           ? 'bg-purple-400'
                           : 'bg-amber-400'

@@ -5,8 +5,19 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-const RESULTS_PATH = path.join(process.cwd(), 'scripts', 'data', 'match_results.json');
-const SOURCES_DIR = path.join(process.cwd(), 'scripts', 'data', 'sources');
+const CANDIDATE_PATHS = [
+  path.join(process.cwd(), 'src', 'data', 'match_results.json'),
+  path.join(process.cwd(), 'scripts', 'data', 'match_results.json'),
+  path.join(__dirname, '..', '..', '..', '..', 'data', 'match_results.json'),
+  path.join(__dirname, '..', '..', '..', '..', '..', 'scripts', 'data', 'match_results.json'),
+];
+
+function getResultsFilePath(): string | null {
+  for (const candidate of CANDIDATE_PATHS) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +26,8 @@ export async function GET(request: NextRequest) {
     const classFilter = searchParams.get('class');
     const search = searchParams.get('search')?.toLowerCase();
 
-    if (!fs.existsSync(RESULTS_PATH)) {
+    const resultsPath = getResultsFilePath();
+    if (!resultsPath) {
       return NextResponse.json({
         summary: { total: 0, A: 0, B: 0, C: 0, D: 0, F: 0 },
         results: [],
@@ -23,7 +35,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const data = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
     let items = data.results || [];
 
     if (sourceFilter && sourceFilter !== 'ALL') {

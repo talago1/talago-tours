@@ -6,6 +6,11 @@ const nextConfig = {
     // Linting is run separately via `npm run lint`; don't block production builds on warnings.
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    outputFileTracingIncludes: {
+      '/api/admin/tours/import-review': ['./src/data/**/*', './scripts/data/**/*'],
+    },
+  },
   images: {
     // Serve AVIF first (best compression), fall back to WebP, then original.
     formats: ['image/avif', 'image/webp'],
