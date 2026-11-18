@@ -87,7 +87,7 @@ export default function TourDeleteWorkflowModal({
   const [auditData, setAuditData] = useState<AuditData | null>(null);
 
   const [selectedMode, setSelectedMode] = useState<WorkflowMode>('OPTION_A');
-  const [confirmationInput, setConfirmationInput] = useState('');
+
   const [replacementTourId, setReplacementTourId] = useState('');
   const [reviewStrategy, setReviewStrategy] = useState<'TRANSFER_ALL' | 'TRANSFER_SELECTED' | 'KEEP_ON_OLD' | 'HIDE_ALL'>('TRANSFER_ALL');
   const [selectedReviewIds, setSelectedReviewIds] = useState<Set<string>>(new Set());
@@ -98,7 +98,6 @@ export default function TourDeleteWorkflowModal({
 
     setLoading(true);
     setError(null);
-    setConfirmationInput('');
     setReplacementTourId('');
 
     fetch(`/api/admin/tours/${tourId}/delete-workflow`)
@@ -137,7 +136,6 @@ export default function TourDeleteWorkflowModal({
       } else if (selectedMode === 'OPTION_B') {
         payload = {
           mode: 'OPTION_B_HARD_DELETE',
-          confirmationText: confirmationInput,
         };
       } else if (selectedMode === 'OPTION_C') {
         payload = {
@@ -322,7 +320,7 @@ export default function TourDeleteWorkflowModal({
                       <span className="text-xs font-black">Option B (Hard Delete)</span>
                     </div>
                     <p className="text-[11px] leading-relaxed text-slate-300">
-                      Permanent record purge. Requires exact name confirmation.
+                      Permanent record purge. Removes eligible associated data.
                     </p>
                   </button>
                 </div>
@@ -376,17 +374,11 @@ export default function TourDeleteWorkflowModal({
                       </div>
                     )}
 
-                    <div className="space-y-2 pt-2 border-t border-white/5">
-                      <label className="text-xs font-bold text-slate-300 block">
-                        Type the exact tour title to confirm deletion:
-                      </label>
-                      <input
-                        type="text"
-                        value={confirmationInput}
-                        onChange={(e) => setConfirmationInput(e.target.value)}
-                        placeholder={currentTitle}
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs text-white outline-none focus:border-rose-500 font-mono"
-                      />
+                    <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3.5 text-xs text-rose-200 mt-2">
+                      <p>
+                        Permanently delete <strong className="text-white">{currentTitle}</strong>?
+                        This action <strong>cannot be undone</strong>.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -511,9 +503,7 @@ export default function TourDeleteWorkflowModal({
             disabled={
               submitting ||
               loading ||
-              (selectedMode === 'OPTION_B' &&
-                (hasPaidTransactions ||
-                  confirmationInput.trim().toLowerCase() !== currentTitle.trim().toLowerCase())) ||
+              (selectedMode === 'OPTION_B' && hasPaidTransactions) ||
               (selectedMode === 'OPTION_C' && !replacementTourId)
             }
             className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed ${

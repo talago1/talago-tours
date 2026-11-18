@@ -156,7 +156,7 @@ export async function GET(
 /**
  * POST: Executes the selected option:
  * OPTION_A: Permanently remove tour from catalog while preserving historical bookings & reviews.
- * OPTION_B: Permanently delete tour and eligible related records after exact title confirmation.
+ * OPTION_B: Permanently delete tour and eligible related records.
  * OPTION_C: Replace old tour and transfer compatible bookings & eligible reviews.
  */
 export async function POST(
@@ -181,7 +181,6 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const {
       mode,
-      confirmationText,
       replacementTourId,
       reviewMigrationStrategy,
       selectedReviewIds,
@@ -244,19 +243,6 @@ export async function POST(
 
     // ── OPTION B: Permanently Delete Tour and Eligible Related Records ───────
     if (mode === 'OPTION_B_HARD_DELETE') {
-      const cleanConf = (confirmationText || '').trim().toLowerCase();
-      const cleanTitle = tourTitle.trim().toLowerCase();
-      const cleanSlug = tour.slug.trim().toLowerCase();
-
-      if (cleanConf !== cleanTitle && cleanConf !== cleanSlug) {
-        return NextResponse.json(
-          {
-            error: `Confirmation text did not match the tour name. Please enter "${tourTitle}" or "${tour.slug}" to confirm deletion.`,
-          },
-          { status: 400 }
-        );
-      }
-
       // Check financial accounting records
       const paidBookingsCount = await prisma.booking.count({
         where: {

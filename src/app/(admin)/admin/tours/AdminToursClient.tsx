@@ -16,7 +16,8 @@ import {
   Image as ImageIcon,
   Check,
   AlertCircle,
-  Flame
+  Flame,
+  RefreshCw
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -425,7 +426,14 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
               Manage experiences, destinations, pricing architecture, and global catalog status.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <a
+              href="/admin/tours/import-review"
+              className="inline-flex items-center gap-2 rounded-full border border-[#00E5FF]/40 bg-[#00E5FF]/10 px-5 py-3.5 text-sm font-bold text-[#00E5FF] transition hover:bg-[#00E5FF]/20"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Reconciliation Studio
+            </a>
             <a
               href="/admin/tours/new"
               className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#00E5FF] to-cyan-400 px-6 py-3.5 text-sm font-black text-[#070F1E] transition-all duration-300 ease-in-out hover:opacity-95 hover:scale-[1.02] shadow-xl shadow-[#00E5FF]/20"
