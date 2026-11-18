@@ -110,7 +110,16 @@ export async function POST(request: NextRequest) {
             amountPaidOnline: booking.amountPaidOnline,
             createdAt: booking.createdAt,
             bookingAnswers: booking.bookingAnswers,
-            tour: booking.tour,
+            tour: booking.tour || {
+              slug: booking.tourSlugSnapshot || 'historical-experience',
+              coverImage: (booking.historicalTourSnapshot as any)?.coverImage || null,
+              durationHours: (booking.historicalTourSnapshot as any)?.durationHours || 4,
+              translations: (booking.historicalTourSnapshot as any)?.translations || {
+                en: { title: booking.tourTitleSnapshot || 'Historical Experience' }
+              },
+              freeCancellationHours: 24,
+            },
+            tourTitle: booking.tourTitleSnapshot,
             transaction: booking.transaction,
           },
         },

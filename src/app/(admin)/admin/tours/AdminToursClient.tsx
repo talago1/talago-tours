@@ -17,7 +17,8 @@ import {
   Check,
   AlertCircle,
   Flame,
-  RefreshCw
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -431,13 +432,6 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <a
-              href="/admin/tours/import-review"
-              className="inline-flex items-center gap-2 rounded-full border border-[#00E5FF]/40 bg-[#00E5FF]/10 px-5 py-3.5 text-sm font-bold text-[#00E5FF] transition hover:bg-[#00E5FF]/20"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Reconciliation Studio
-            </a>
-            <a
               href="/admin/tours/new"
               className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#00E5FF] to-cyan-400 px-6 py-3.5 text-sm font-black text-[#070F1E] transition-all duration-300 ease-in-out hover:opacity-95 hover:scale-[1.02] shadow-xl shadow-[#00E5FF]/20"
             >
@@ -683,8 +677,19 @@ export default function AdminToursClient({ initialTours, destinations }: AdminTo
         </section>
 
         {filtered.length === 0 && (
-          <div className="mt-12 text-center py-16 border border-white/5 rounded-3xl bg-white/[0.02]">
-            <p className="text-slate-400 text-sm">No experiences found matching your query.</p>
+          <div className="mt-8 text-center py-20 border border-white/10 rounded-3xl bg-[#0B1528] px-6 shadow-2xl">
+            <Sparkles className="mx-auto h-10 w-10 text-[#00E5FF] mb-3" />
+            <h3 className="text-lg font-black text-white">Catalog Ready For Curation</h3>
+            <p className="text-slate-400 text-xs max-w-md mx-auto mt-1 mb-6">
+              The tour catalog is completely clean and reset. Use the AI Tour Builder to deliberately create, review, and publish your new verified experiences.
+            </p>
+            <a
+              href="/admin/tours/new"
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#00E5FF] to-cyan-400 px-6 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-xl shadow-[#00E5FF]/20 hover:scale-[1.02] transition"
+            >
+              <Plus className="h-4 w-4" />
+              Create Experience with AI Builder
+            </a>
           </div>
         )}
       </div>

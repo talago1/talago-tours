@@ -27,7 +27,7 @@ function mapToManifestItem(booking: {
   paymentStatus: string | null;
   channel: BookingChannel;
   isCheckedIn: boolean;
-  tour: { itinerary: unknown };
+  tour: { itinerary: unknown } | null;
 }): ManifestItem {
   return {
     bookingId: booking.id,
@@ -38,7 +38,7 @@ function mapToManifestItem(booking: {
     paymentStatus: booking.paymentStatus,
     channel: booking.channel as BookingChannel,
     isCheckedIn: booking.isCheckedIn,
-    pickupTime: getPickupTime(booking.tour.itinerary),
+    pickupTime: booking.tour ? getPickupTime(booking.tour.itinerary) : undefined,
   };
 }
 
@@ -64,13 +64,13 @@ export async function buildManifest(
 
   const map = new Map<string, DailyTourManifest>();
   for (const booking of bookings) {
-    const tourId = booking.tourId;
+    const tourId = booking.tourId || 'historical-unassigned';
     if (!map.has(tourId)) {
-      const cap = booking.tour.maxCapacity ?? 0;
+      const cap = booking.tour?.maxCapacity ?? 0;
       map.set(tourId, {
         tourId,
-        tourTitle: getTourTitle(booking.tour.translations),
-        tourType: booking.tour.type,
+        tourTitle: booking.tourTitleSnapshot || (booking.tour ? getTourTitle(booking.tour.translations) : 'Historical Tour'),
+        tourType: booking.tour?.type || 'SHARED',
         totalPassengers: 0,
         maxCapacity: cap,
         availableSpots: cap,

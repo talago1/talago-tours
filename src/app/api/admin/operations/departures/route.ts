@@ -45,13 +45,14 @@ export async function GET(request: NextRequest) {
       dayMap[dateStr] = { totalPassengers: 0, tours: {} };
     }
     dayMap[dateStr].totalPassengers += b.guestCount;
-    if (!dayMap[dateStr].tours[b.tourId]) {
-      dayMap[dateStr].tours[b.tourId] = {
+    const tourKey = b.tourId || 'historical-tour';
+    if (!dayMap[dateStr].tours[tourKey]) {
+      dayMap[dateStr].tours[tourKey] = {
         passengers: 0,
         maxCapacity: b.tour?.maxCapacity ?? 0,
       };
     }
-    dayMap[dateStr].tours[b.tourId].passengers += b.guestCount;
+    dayMap[dateStr].tours[tourKey].passengers += b.guestCount;
   }
 
   const departures: Record<

@@ -148,8 +148,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const rows: string[] = [buildCSVHeader(columns)];
 
     for (const booking of bookings) {
-      const translations = booking.tour.translations as Record<string, { title?: string }> | null;
-      const tourTitle = translations?.en?.title ?? 'Untitled';
+      const translations = booking.tour?.translations as Record<string, { title?: string }> | null;
+      const tourTitle = booking.tourTitleSnapshot || translations?.en?.title || 'Untitled';
 
       const row: BookingExportRow = {
         Reference: booking.bookingReference,
@@ -157,7 +157,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         Email: booking.customerEmail,
         Phone: booking.customerPhone,
         Tour: tourTitle,
-        Destination: booking.tour.destination?.name ?? 'N/A',
+        Destination: booking.tour?.destination?.name ?? booking.destinationNameSnapshot ?? 'N/A',
         TravelDate: booking.travelDate.toISOString().split('T')[0],
         GuestCount: booking.guestCount,
         BookingStatus: booking.status,

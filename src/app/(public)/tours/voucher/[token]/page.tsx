@@ -41,9 +41,9 @@ function formatDate(date: Date): string {
 
 export default async function VoucherPage({ params }: { params: { token: string } }) {
   const booking = await getBooking(params.token);
-  if (!booking || !booking.tour) notFound();
+  if (!booking) notFound();
 
-  const tourTitle = getTourTitle(booking.tour.translations, booking.language);
+  const tourTitle = booking.tourTitleSnapshot || (booking.tour ? getTourTitle(booking.tour.translations, booking.language) : 'Historical Tour');
   // Admin-only verification endpoint, so the display reference is correct here.
   // The access token must never be placed in a URL the guest might share.
   const verifyUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://talago.com'}/admin/bookings/verify/${booking.bookingReference}`;

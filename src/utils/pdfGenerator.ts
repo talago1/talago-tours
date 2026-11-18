@@ -375,7 +375,7 @@ export async function generateAndStoreBoardingPassPdf(bookingId: string): Promis
       include: { tour: true },
     });
 
-    if (!booking || !booking.tour) {
+    if (!booking) {
       console.warn('[pdf] Booking not found for PDF generation:', bookingId);
       return null;
     }
@@ -383,9 +383,9 @@ export async function generateAndStoreBoardingPassPdf(bookingId: string): Promis
     const { generateToken } = await import('./qrTokenCrypto');
     const qrPayload = generateToken(booking.id);
 
-    const tourTitle = typeof booking.tour.translations === 'object' && booking.tour.translations
+    const tourTitle = booking.tourTitleSnapshot || (typeof booking.tour?.translations === 'object' && booking.tour?.translations
       ? ((booking.tour.translations as any)?.en?.title || (booking.tour.translations as any)?.[booking.language]?.title || 'Egypt Tour')
-      : 'Egypt Tour';
+      : 'Egypt Tour');
 
     const pdfBuffer = buildBoardingPassPdfBuffer({
       bookingId: booking.id,

@@ -93,6 +93,13 @@ export async function POST(
       );
     }
 
+    if (!booking.tourId) {
+      return NextResponse.json(
+        { error: 'Tour is no longer active in catalog.', code: 'TOUR_NOT_FOUND' },
+        { status: 400, headers: NO_STORE },
+      );
+    }
+
     // Re-validate capacity before payment
     try {
       await enforceCapacity({

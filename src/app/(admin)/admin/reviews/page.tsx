@@ -18,8 +18,11 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  Globe,
+  Clock,
 } from 'lucide-react';
 import Link from 'next/link';
+import ExternalReviewProfilesManager from '@/components/admin/ExternalReviewProfilesManager';
 
 type ReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -49,6 +52,10 @@ export default function AdminReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const [activeView, setActiveView] = useState<'REVIEWS' | 'EXTERNAL_PROFILES'>('REVIEWS');
+  const [isLegacyQueue, setIsLegacyQueue] = useState(false);
+  const [legacyTotalCount, setLegacyTotalCount] = useState(0);
 
   // Filters
   const [activeTab, setActiveTab] = useState<ReviewStatus | 'ALL'>('ALL');
@@ -117,15 +124,19 @@ export default function AdminReviewsPage() {
       const params = new URLSearchParams();
       if (activeTab !== 'ALL') params.set('status', activeTab);
       if (selectedTourId !== 'ALL') params.set('tourId', selectedTourId);
+      if (isLegacyQueue) params.set('queue', 'legacy');
       params.set('page', page.toString());
       params.set('limit', '30');
 
       const res = await fetch(`/api/admin/reviews?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to load reviews');
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load reviews');
 
       setReviews(data.reviews || []);
       setTotalPages(data.totalPages || 1);
+      if (typeof data.legacyCount === 'number') {
+        setLegacyTotalCount(data.legacyCount);
+      }
       if (data.tours && data.tours.length > 0) {
         setTours(data.tours);
       }
@@ -134,7 +145,7 @@ export default function AdminReviewsPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, selectedTourId, page]);
+  }, [activeTab, selectedTourId, page, isLegacyQueue]);
 
   useEffect(() => {
     fetchReviews();
@@ -322,6 +333,36 @@ export default function AdminReviewsPage() {
           </div>
         </div>
 
+        {/* View Switcher: Customer Reviews Desk vs External Profiles */}
+        <div className="mb-6 flex flex-wrap gap-3 border-b border-white/10 pb-4">
+          <button
+            onClick={() => setActiveView('REVIEWS')}
+            className={`inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-black uppercase tracking-wider transition ${
+              activeView === 'REVIEWS'
+                ? 'bg-[#00E5FF] text-[#070F1E] shadow-lg shadow-[#00E5FF]/20'
+                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <Star className="h-4 w-4" />
+            Customer Reviews Desk
+          </button>
+          <button
+            onClick={() => setActiveView('EXTERNAL_PROFILES')}
+            className={`inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-black uppercase tracking-wider transition ${
+              activeView === 'EXTERNAL_PROFILES'
+                ? 'bg-[#00E5FF] text-[#070F1E] shadow-lg shadow-[#00E5FF]/20'
+                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <Globe className="h-4 w-4" />
+            External Review Profiles (Google, Tripadvisor, Sputnik8, Tripster)
+          </button>
+        </div>
+
+        {activeView === 'EXTERNAL_PROFILES' ? (
+          <ExternalReviewProfilesManager />
+        ) : (
+          <>
         {/* CSV Import Panel */}
         {csvPanelOpen && (
           <div className="mb-6 rounded-3xl border border-[#00E5FF]/20 bg-[#00E5FF]/5 p-6">
@@ -455,16 +496,17 @@ export default function AdminReviewsPage() {
 
         {/* Filters Bar: Status Tabs + Tour Selector */}
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-3xl border border-white/10 bg-[#0B1528] p-4">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {STATUS_TABS.map((tab) => (
               <button
                 key={tab}
                 onClick={() => {
                   setActiveTab(tab);
+                  setIsLegacyQueue(false);
                   setPage(1);
                 }}
                 className={`rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all ${
-                  activeTab === tab
+                  !isLegacyQueue && activeTab === tab
                     ? 'bg-[#EAB308] text-[#070F1E] shadow-lg shadow-[#EAB308]/20'
                     : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
                 }`}
@@ -472,6 +514,20 @@ export default function AdminReviewsPage() {
                 {tab === 'ALL' ? 'All Statuses' : tab}
               </button>
             ))}
+            <button
+              onClick={() => {
+                setIsLegacyQueue(!isLegacyQueue);
+                setPage(1);
+              }}
+              className={`rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                isLegacyQueue
+                  ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20'
+                  : 'bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500/20'
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Legacy Migration Queue ({legacyTotalCount})
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -667,6 +723,8 @@ export default function AdminReviewsPage() {
               Next
             </button>
           </div>
+        )}
+        </>
         )}
       </div>
 

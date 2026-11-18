@@ -39,10 +39,10 @@ export default async function BoardingPassPage({ params }: { params: { token: st
     include: { tour: true },
   });
 
-  if (!booking || !booking.tour) notFound();
+  if (!booking) notFound();
   if (booking.status !== 'CONFIRMED') notFound();
 
-  const tourTitle = getTourTitle(booking.tour.translations, booking.language);
+  const tourTitle = booking.tourTitleSnapshot || (booking.tour ? getTourTitle(booking.tour.translations, booking.language) : 'Historical Tour');
   const token = generateToken(booking.id);
   const qrResult = encodeQr(token);
   const qrSvg = qrMatrixToSvg(qrResult, '#1a1a1a');

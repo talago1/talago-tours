@@ -110,6 +110,7 @@ export default async function AdminControlDeskPage() {
         createdAt: true,
         travelDate: true,
         channel: true,
+        tourTitleSnapshot: true,
         tour: { select: { translations: true } },
       },
     }),
@@ -143,6 +144,7 @@ export default async function AdminControlDeskPage() {
       where: { status: { in: ['CONFIRMED', 'COMPLETED'] } },
       select: {
         totalPriceUSD: true,
+        destinationNameSnapshot: true,
         tour: {
           select: {
             destination: { select: { name: true } },
@@ -171,7 +173,7 @@ export default async function AdminControlDeskPage() {
   // Destination revenue breakdown
   const destRevenueMap = new Map<string, number>();
   for (const b of destinationRevenue) {
-    const destName = b.tour.destination?.name ?? 'Uncategorized';
+    const destName = b.tour?.destination?.name ?? b.destinationNameSnapshot ?? 'Uncategorized';
     destRevenueMap.set(destName, (destRevenueMap.get(destName) ?? 0) + b.totalPriceUSD);
   }
   const destRevenueEntries = Array.from(destRevenueMap.entries())
@@ -180,7 +182,7 @@ export default async function AdminControlDeskPage() {
   const maxDestRevenue = destRevenueEntries[0]?.[1] ?? 1;
 
   // Tour names for top tours
-  const topTourIds = topTours.map((t) => t.tourId);
+  const topTourIds = topTours.map((t) => t.tourId).filter((id): id is string => Boolean(id));
   const tourDetails = topTourIds.length > 0
     ? await prisma.tour.findMany({
         where: { id: { in: topTourIds } },
@@ -192,6 +194,7 @@ export default async function AdminControlDeskPage() {
   // Today's capacity utilization
   const todayTourCapacityMap = new Map<string, { used: number; max: number; name: string }>();
   for (const b of todayBookings) {
+    if (!b.tourId || !b.tour) continue;
     const existing = todayTourCapacityMap.get(b.tourId);
     if (existing) {
       existing.used += b.guestCount;
@@ -355,13 +358,13 @@ export default async function AdminControlDeskPage() {
                 <p className="py-8 text-center text-sm text-slate-500">No bookings yet</p>
               )}
               {topTours.map((tour, index) => {
-                const tourName = tourNameMap.get(tour.tourId) ?? 'Unknown';
+                const tourName = (tour.tourId ? tourNameMap.get(tour.tourId) : null) ?? 'Historical Experience';
                 const revenue = tour._sum.totalPriceUSD ?? 0;
                 const count = tour._count.id;
                 const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
                 return (
                   <div
-                    key={tour.tourId}
+                    key={tour.tourId ?? `tour-${index}`}
                     className="flex items-center gap-4 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all duration-200 hover:border-white/10"
                   >
                     <span className="text-2xl">{medals[index] ?? `${index + 1}.`}</span>
@@ -470,7 +473,7 @@ export default async function AdminControlDeskPage() {
                   >
                     <td className="px-4 py-4 font-bold text-white">{booking.bookingReference}</td>
                     <td className="px-4 py-4">{booking.customerName}</td>
-                    <td className="max-w-[180px] truncate px-4 py-4">{getTourTitle(booking.tour.translations)}</td>
+                    <td className="max-w-[180px] truncate px-4 py-4">{booking.tour ? getTourTitle(booking.tour.translations) : (booking.tourTitleSnapshot ?? 'Historical Tour')}</td>
                     <td className="px-4 py-4 text-xs">
                       {booking.travelDate.toLocaleDateString('en-US', {
                         month: 'short',

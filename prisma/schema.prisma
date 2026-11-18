@@ -282,7 +282,11 @@ model Booking {
   // independent of bookingReference. bookingReference is human-readable and is
   // NOT a credential; this is.
   accessToken      String        @unique
-  tourId           String
+  tourId           String?
+  tourTitleSnapshot String?
+  tourSlugSnapshot String?
+  destinationNameSnapshot String?
+  historicalTourSnapshot Json?
   zoneId           String?
   hotelName        String?
   travelDate       DateTime
@@ -345,7 +349,7 @@ model Booking {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tour Tour @relation(fields: [tourId], references: [id])
+  tour Tour? @relation(fields: [tourId], references: [id], onDelete: SetNull)
   zone Zone? @relation(fields: [zoneId], references: [id], onDelete: SetNull)
 
   transaction Transaction?
@@ -363,7 +367,11 @@ model Booking {
 
 model Review {
   id           String       @id @default(cuid())
-  tourId       String
+  tourId       String?
+  legacyTourSlug String?
+  legacyTourTitle String?
+  legacyTourDestination String?
+  isLegacyQueued Boolean      @default(false)
   bookingId    String?      @unique
 
   // Display
@@ -392,7 +400,7 @@ model Review {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  tour    Tour     @relation(fields: [tourId], references: [id])
+  tour    Tour?    @relation(fields: [tourId], references: [id], onDelete: SetNull)
   booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
 
   @@index([tourId])
@@ -812,4 +820,27 @@ model TourScheduleRule {
   @@index([tourId, dayOfWeek])
   @@map("tour_schedule_rules")
 }
+
+model ExternalReviewProfile {
+  id             String    @id @default(cuid())
+  platform       String    // "Google Maps" | "Tripadvisor" | "Sputnik8" | "Tripster" | "Other"
+  profileUrl     String
+  entityType     String    // "COMPANY" | "DESTINATION" | "TOUR" | "SUPPLIER"
+  entityId       String?
+  entityName     String
+  rating         Float
+  reviewCount    Int
+  lastVerifiedAt DateTime  @default(now())
+  syncStatus     String    @default("MANUALLY_VERIFIED")
+  notes          String?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([entityType, entityId])
+  @@index([platform])
+  @@index([isActive])
+  @@map("external_review_profiles")
+}
+
 

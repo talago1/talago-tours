@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const tourId = searchParams.get('tourId');
     const status = searchParams.get('status');
+    const queue = searchParams.get('queue'); // 'legacy' | 'active' | 'ALL'
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '30', 10)));
 
@@ -25,8 +26,13 @@ export async function GET(request: NextRequest) {
     if (status && status !== 'ALL') {
       where.status = status;
     }
+    if (queue === 'legacy') {
+      where.isLegacyQueued = true;
+    } else if (queue === 'active') {
+      where.isLegacyQueued = false;
+    }
 
-    const [rawReviews, total, tours] = await Promise.all([
+    const [rawReviews, total, legacyCount, tours] = await Promise.all([
       prisma.review.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -43,6 +49,7 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.review.count({ where }),
+      prisma.review.count({ where: { isLegacyQueued: true } }),
       prisma.tour.findMany({
         where: {
           OR: [{ status: 'ACTIVE' }, { status: 'PUBLISHED' }, { status: null }],
@@ -64,8 +71,12 @@ export async function GET(request: NextRequest) {
       status: r.status,
       createdAt: r.createdAt.toISOString(),
       tourId: r.tourId,
-      tourTitle: getTourTitle(r.tour?.translations),
-      tourSlug: r.tour?.slug,
+      tourTitle: r.tour ? getTourTitle(r.tour.translations) : (r.legacyTourTitle || 'Legacy Unmapped Review'),
+      tourSlug: r.tour?.slug || r.legacyTourSlug,
+      isLegacyQueued: r.isLegacyQueued,
+      legacyTourSlug: r.legacyTourSlug,
+      legacyTourTitle: r.legacyTourTitle,
+      legacyTourDestination: r.legacyTourDestination,
     }));
 
     const formattedTours = tours.map((t) => ({
@@ -77,6 +88,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       reviews,
       total,
+      legacyCount,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
@@ -142,7 +154,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, customerName, rating, comment, status } = body;
+    const { id, customerName, rating, comment, status, tourId, mapToTour } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Review id is required' }, { status: 400 });
@@ -161,6 +173,12 @@ export async function PUT(request: NextRequest) {
     }
     if (status !== undefined) {
       data.status = status;
+    }
+    if (tourId !== undefined) {
+      data.tourId = tourId;
+      if (mapToTour) {
+        data.isLegacyQueued = false;
+      }
     }
 
     const updated = await prisma.review.update({

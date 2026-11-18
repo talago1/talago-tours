@@ -115,12 +115,12 @@ export async function GET(request: NextRequest) {
     ]);
 
     const tourMap = new Map(allTours.map((t) => [t.id, t]));
-    const bookingMap = new Map(bookingGroups.map((b) => [b.tourId, b]));
+    const bookingMap = new Map(bookingGroups.filter((b) => Boolean(b.tourId)).map((b) => [b.tourId as string, b]));
     const leadMap = new Map(leadGroups.filter((l) => l.tourId !== null).map((l) => [l.tourId as string, l._count]));
 
     // Identify all unique tours that either have bookings, leads, or are active in catalog
     const relevantTourIds = new Set<string>([
-      ...bookingGroups.map((b) => b.tourId),
+      ...bookingGroups.map((b) => b.tourId).filter((id): id is string => Boolean(id)),
       ...leadGroups.filter((l) => l.tourId !== null).map((l) => l.tourId as string),
     ]);
 

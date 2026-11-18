@@ -11,7 +11,7 @@ export interface AdminReview {
   comment: string;
   status: ReviewStatus;
   createdAt: string;
-  tourId: string;
+  tourId: string | null;
   tourTitle: string;
 }
 
@@ -31,6 +31,7 @@ const ADMIN_REVIEW_SELECT = {
   status: true,
   createdAt: true,
   tourId: true,
+  legacyTourTitle: true,
   tour: {
     select: { translations: true },
   },
@@ -64,7 +65,7 @@ function mapAdminReview(review: AdminReviewRecord): AdminReview {
     status: review.status,
     createdAt: review.createdAt.toISOString(),
     tourId: review.tourId,
-    tourTitle: getTourTitle(review.tour.translations),
+    tourTitle: review.legacyTourTitle || (review.tour ? getTourTitle(review.tour.translations) : 'Historical Tour'),
   };
 }
 

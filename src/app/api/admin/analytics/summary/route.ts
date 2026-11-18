@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
       ? Math.round((confirmedBookings / funnelDenominator) * 1000) / 10
       : 0;
 
-    const tourIds = tourGroups.map((g) => g.tourId);
+    const tourIds = tourGroups.map((g) => g.tourId).filter((id): id is string => Boolean(id));
     const tours = await prisma.tour.findMany({
       where: { id: { in: tourIds } },
       select: { id: true, costPerPerson: true },
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
     const costMap = new Map(tours.map((t) => [t.id, t.costPerPerson]));
 
     const totalCost = tourGroups.reduce((sum, g) => {
-      const costPerPerson = costMap.get(g.tourId);
+      const costPerPerson = g.tourId ? costMap.get(g.tourId) : null;
       if (costPerPerson != null) {
         return sum + Number(costPerPerson) * (g._sum.guestCount ?? 0);
       }
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
     });
 
     let topTourTitle = '—';
-    if (topTourGroup.length > 0) {
+    if (topTourGroup.length > 0 && topTourGroup[0].tourId) {
       const topTour = await prisma.tour.findUnique({
         where: { id: topTourGroup[0].tourId },
         select: { translations: true },

@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
         amountPaidOnline: true,
         amountDueOnArrival: true,
         tourId: true,
+        tourTitleSnapshot: true,
         tour: {
           select: {
             id: true,
@@ -132,10 +133,11 @@ export async function GET(request: NextRequest) {
       }
 
       const tTrans = b.tour?.translations as Record<string, { title?: string }> | null;
-      const tTitle = tTrans?.en?.title || b.tour?.slug || 'Unknown Tour';
-      const existing = tourMap.get(b.tourId) || { id: b.tourId, title: tTitle, count: 0 };
+      const tTitle = b.tourTitleSnapshot || tTrans?.en?.title || b.tour?.slug || 'Historical Tour';
+      const mapKey = b.tourId || 'historical-unassigned';
+      const existing = tourMap.get(mapKey) || { id: mapKey, title: tTitle, count: 0 };
       existing.count += 1;
-      tourMap.set(b.tourId, existing);
+      tourMap.set(mapKey, existing);
     });
 
     return NextResponse.json({

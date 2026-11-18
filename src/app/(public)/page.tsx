@@ -71,7 +71,6 @@ export default async function HomePage() {
     prisma.destination.findMany({
       where: {
         isVisible: true,
-        tours: { some: { status: 'ACTIVE' } },
       },
       orderBy: { name: 'asc' },
       select: {
@@ -83,7 +82,11 @@ export default async function HomePage() {
         region: true,
         city: true,
         translations: true,
-        _count: { select: { tours: true } },
+        _count: {
+          select: {
+            tours: { where: { status: 'ACTIVE' } },
+          },
+        },
       },
     }),
     prisma.systemSetting.findUnique({ where: { key: 'banners' } }),

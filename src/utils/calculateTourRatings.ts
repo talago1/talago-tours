@@ -25,8 +25,9 @@ export function calculateTourRatings(reviews: { rating: number }[]): RatingCalcu
  */
 export async function recalculateTourRatings(
   tx: { review: { findMany(a: object): Promise<{ rating: number }[]> }; tour: { update(a: object): Promise<unknown> } },
-  tourId: string,
+  tourId: string | null | undefined,
 ): Promise<RatingCalculationResult> {
+  if (!tourId) return { ratingAverage: null, ratingCount: null };
   const approvedReviews = await tx.review.findMany({
     where: { tourId, status: 'APPROVED', isVisible: true, isSeeded: false },
     select: { rating: true },
@@ -48,6 +49,7 @@ export async function recalculateTourRatings(
 /**
  * Standalone version (no transaction) — used for one-off recalculations.
  */
-export async function recalculateTourRatingsStandalone(tourId: string): Promise<RatingCalculationResult> {
+export async function recalculateTourRatingsStandalone(tourId: string | null | undefined): Promise<RatingCalculationResult> {
+  if (!tourId) return { ratingAverage: null, ratingCount: null };
   return recalculateTourRatings(prisma as Parameters<typeof recalculateTourRatings>[0], tourId);
 }

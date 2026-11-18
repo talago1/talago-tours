@@ -46,18 +46,19 @@ export default async function AdminBookingsPage() {
   });
 
   const tickets: ActiveQueueTicket[] = bookings.map((b) => {
-    const tourTranslations = b.tour.translations as Record<string, { title?: string }> | null;
+    const tourTranslations = b.tour?.translations as Record<string, { title?: string }> | null;
+    const historicalSnapshot = b.historicalTourSnapshot as any;
     return {
       id: b.id,
       bookingReference: b.bookingReference,
-      tourTitle: tourTranslations?.en?.title ?? 'Unknown Tour',
-      tourId: b.tourId,
+      tourTitle: b.tourTitleSnapshot || tourTranslations?.en?.title || historicalSnapshot?.title || 'Historical Tour',
+      tourId: b.tourId ?? undefined,
       customerName: b.customerName,
       customerPhone: b.customerPhone,
       customerEmail: b.customerEmail,
       travelDate: b.travelDate.toISOString().split('T')[0],
       createdAt: b.createdAt.toISOString(),
-      category: b.tour.category,
+      category: b.tour?.category || historicalSnapshot?.category || 'Tour',
       guestCount: b.guestCount,
       adultsCount: b.adultsCount,
       childrenCount: b.childrenCount,
@@ -76,8 +77,8 @@ export default async function AdminBookingsPage() {
       paymentScheme: b.paymentScheme ?? undefined,
       amountPaidOnline: b.amountPaidOnline ? Number(b.amountPaidOnline) : undefined,
       amountDueOnArrival: b.amountDueOnArrival ? Number(b.amountDueOnArrival) : undefined,
-      zoneName: b.tour.zone?.name ?? undefined,
-      destinationName: b.tour.destination?.name ?? undefined,
+      zoneName: b.tour?.zone?.name ?? undefined,
+      destinationName: b.destinationNameSnapshot || b.tour?.destination?.name || undefined,
       pickupType: b.pickupType,
       pickupLocationName: b.pickupLocationName,
       pickupAddress: b.pickupAddress,

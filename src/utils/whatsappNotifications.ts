@@ -323,8 +323,9 @@ export async function dispatchBookingWhatsApp(bookingId: string): Promise<void> 
       return;
     }
 
-    const translations = booking.tour.translations as Record<string, { title?: string }> | null;
-    const tourTitle = translations?.[booking.language]?.title
+    const translations = booking.tour?.translations as Record<string, { title?: string }> | null;
+    const tourTitle = booking.tourTitleSnapshot
+      ?? translations?.[booking.language]?.title
       ?? translations?.en?.title
       ?? 'Talago Experience';
 

@@ -6,7 +6,11 @@ export async function GET() {
     const destinations = await prisma.destination.findMany({
       orderBy: { name: 'asc' },
       include: {
-        _count: { select: { tours: true } },
+        _count: {
+          select: {
+            tours: { where: { status: 'ACTIVE' } },
+          },
+        },
         zones: true,
       },
     });
@@ -43,7 +47,11 @@ export async function POST(request: NextRequest) {
         isVisible: typeof isVisible === 'boolean' ? isVisible : true,
       },
       include: {
-        _count: { select: { tours: true } },
+        _count: {
+          select: {
+            tours: { where: { status: 'ACTIVE' } },
+          },
+        },
         zones: true,
       },
     });

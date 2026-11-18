@@ -253,8 +253,9 @@ export async function dispatchBookingNotifications(
       return;
     }
 
-    const translations = booking.tour.translations as Record<string, { title?: string }> | null;
+    const translations = booking.tour?.translations as Record<string, { title?: string }> | null;
     const tourTitle =
+      booking.tourTitleSnapshot ??
       translations?.[booking.language]?.title ??
       translations?.en?.title ??
       'Talago Experience';
@@ -364,8 +365,8 @@ export async function dispatchStatusChangeNotifications(
       });
     }
 
-    const translations = booking.tour.translations as Record<string, { title?: string }> | null;
-    const tourTitle = translations?.[booking.language]?.title ?? translations?.en?.title ?? 'Talago Experience';
+    const translations = booking.tour?.translations as Record<string, { title?: string }> | null;
+    const tourTitle = booking.tourTitleSnapshot ?? translations?.[booking.language]?.title ?? translations?.en?.title ?? 'Talago Experience';
     const baseUrl = getBaseUrl();
 
     // 2. Telegram Alert to Admin

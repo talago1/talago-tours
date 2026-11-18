@@ -47,6 +47,8 @@ interface BookingItem {
   createdAt: string;
   reviews?: { id: string; rating: number }[];
   bookingAnswers?: any;
+  tourTitleSnapshot?: string | null;
+  historicalTourSnapshot?: any;
   tour: {
     slug: string;
     coverImage: string | null;
@@ -186,11 +188,12 @@ function BookingCard({
   onOpenCancel?: (booking: BookingItem) => void;
 }) {
   const statusCfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.PENDING;
-  const tourTitle = getTourTitle(booking.tour?.translations);
+  const tourTitle = booking.tourTitleSnapshot || getTourTitle(booking.tour?.translations);
   const travelDate = new Date(booking.travelDate);
   const isPast = travelDate < new Date();
   const currencySymbol = booking.currency === 'EGP' ? 'EGP ' : '$';
   const amountDue = Number(booking.amountDueOnArrival ?? 0);
+  const coverImage = booking.tour?.coverImage || booking.historicalTourSnapshot?.coverImage;
 
   return (
     <Link
@@ -199,14 +202,14 @@ function BookingCard({
     >
       <div className="flex items-start gap-4">
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-white/10">
-          {booking.tour?.coverImage ? (
+          {coverImage ? (
             <Image
-              src={booking.tour.coverImage}
+              src={coverImage}
               alt={tourTitle}
               fill
               sizes="64px"
               className="object-cover transition-transform duration-500 group-hover:scale-110"
-              unoptimized={isSupabaseStorageImage(booking.tour.coverImage)}
+              unoptimized={isSupabaseStorageImage(coverImage)}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-[#0B1528]">

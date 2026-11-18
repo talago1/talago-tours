@@ -16,12 +16,13 @@ export async function GET() {
     });
 
     const tickets: ActiveQueueTicket[] = bookings.map((b) => {
-      const translations = b.tour.translations as Record<string, { title?: string }> | null;
-      const itinerary = b.tour.itinerary as { time?: string }[] | null;
+      const translations = b.tour?.translations as Record<string, { title?: string }> | null;
+      const itinerary = b.tour?.itinerary as { time?: string }[] | null;
+      const tourTitle = b.tourTitleSnapshot || translations?.en?.title || 'Historical Tour';
       return {
         id: b.id,
         bookingReference: b.bookingReference,
-        tourTitle: translations?.en?.title ?? 'Unknown Tour',
+        tourTitle,
         customerName: b.customerName,
         customerPhone: b.customerPhone,
         travelDate: b.travelDate.toISOString().split('T')[0],

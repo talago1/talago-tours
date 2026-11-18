@@ -100,7 +100,7 @@ export async function POST(
 
       return {
         passengerName: updated.customerName,
-        tourTitle: getTourTitle(updated.tour.translations),
+        tourTitle: updated.tourTitleSnapshot || (updated.tour ? getTourTitle(updated.tour.translations) : 'Historical Tour'),
         paxCount: updated.guestCount,
         hotelName: updated.hotelName ?? undefined,
         roomNumber: updated.roomNumber,

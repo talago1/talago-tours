@@ -24,7 +24,9 @@ export default async function DestinationsPage() {
       where: { isVisible: true },
       include: {
         _count: {
-          select: { tours: true },
+          select: {
+            tours: { where: { status: 'ACTIVE' } },
+          },
         },
       },
       orderBy: { name: 'asc' },
