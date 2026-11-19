@@ -9,6 +9,8 @@ export const fr: typeof en = {
     aboutUs: 'À Propos',
     faq: 'FAQ',
     signInRegister: 'Se Connecter / S\'inscrire',
+    signIn: 'Connexion',
+    register: 'Inscription',
     myBookings: 'Mes Réservations',
     logout: 'Se déconnecter',
     guest: 'Invité',

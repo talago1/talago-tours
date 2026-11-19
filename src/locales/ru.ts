@@ -9,6 +9,8 @@ export const ru: typeof en = {
     aboutUs: 'О нас',
     faq: 'FAQ',
     signInRegister: 'Войти / Регистрация',
+    signIn: 'Войти',
+    register: 'Регистрация',
     myBookings: 'Мои бронирования',
     logout: 'Выйти',
     guest: 'Гость',

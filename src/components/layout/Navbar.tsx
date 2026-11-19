@@ -313,7 +313,7 @@ export default function Navbar() {
                     className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 py-3 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-white/10 active:scale-98"
                   >
                     <LogIn className="h-4 w-4 text-[#00E5FF]" />
-                    <span>{(dict?.navbar as any)?.signIn || 'Sign In'}</span>
+                    <span>{dict?.navbar?.signIn || 'Sign In'}</span>
                   </Link>
                   <Link
                     href="/auth"
@@ -321,7 +321,7 @@ export default function Navbar() {
                     className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 transition hover:scale-[1.02] active:scale-98"
                   >
                     <UserPlus className="h-4 w-4" />
-                    <span>{(dict?.navbar as any)?.register || 'Register'}</span>
+                    <span>{dict?.navbar?.register || 'Register'}</span>
                   </Link>
                 </div>
               )}

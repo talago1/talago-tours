@@ -9,6 +9,8 @@ export const uk: typeof en = {
     aboutUs: 'Про нас',
     faq: 'Питання та відповіді',
     signInRegister: 'Увійти / Реєстрація',
+    signIn: 'Увійти',
+    register: 'Реєстрація',
     myBookings: 'Мої бронювання',
     logout: 'Вийти',
     guest: 'Гість',

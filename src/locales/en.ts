@@ -7,6 +7,8 @@ export const en = {
     aboutUs: 'About Us',
     faq: 'FAQ',
     signInRegister: 'Sign In / Register',
+    signIn: 'Sign In',
+    register: 'Register',
     myBookings: 'My Bookings',
     logout: 'Logout',
     guest: 'Guest',
