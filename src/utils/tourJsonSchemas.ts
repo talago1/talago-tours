@@ -92,6 +92,14 @@ export const TourTranslationSchema = z.object({
   safetyGuidelines: z.array(z.string()).catch([]).optional(),
   seoTitle: z.string().catch('').optional(),
   seoDescription: z.string().catch('').optional(),
+  keyActivityDetails: z.array(z.object({
+    id: z.string().default(''),
+    title: z.string().default(''),
+    value: z.string().default(''),
+    description: z.string().optional(),
+    icon: z.string().optional(),
+  })).catch([]).optional(),
+  assignedServices: z.array(z.string()).catch([]).optional(),
 }).passthrough();
 
 export type TourTranslation = z.infer<typeof TourTranslationSchema>;

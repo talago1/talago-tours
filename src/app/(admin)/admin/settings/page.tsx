@@ -25,6 +25,8 @@ import {
   Search,
   ExternalLink,
   Building2,
+  ShieldCheck,
+  LayoutGrid,
 } from 'lucide-react';
 import type { SystemSettings, SiteBanner, HeroLanguageTexts } from '@/types/settings';
 import { DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
@@ -33,8 +35,11 @@ import GlobalAssetStudio from '@/components/admin/GlobalAssetStudio';
 import AiKeyPoolManager from '@/components/admin/AiKeyPoolManager';
 import MarketplaceModulesDashboard from '@/components/admin/MarketplaceModulesDashboard';
 import CompanyLegalProfileDashboard from '@/components/admin/CompanyLegalProfileDashboard';
+import LanguageManagerDashboard from '@/components/admin/LanguageManagerDashboard';
+import TourServicesDashboard from '@/components/admin/TourServicesDashboard';
+import HomepageCollectionsDashboard from '@/components/admin/HomepageCollectionsDashboard';
 
-type ActiveSection = 'company' | 'contact' | 'financial' | 'paymentMethods' | 'system' | 'banners' | 'notifications' | 'modules' | 'ai' | 'seo';
+type ActiveSection = 'company' | 'contact' | 'financial' | 'paymentMethods' | 'system' | 'banners' | 'notifications' | 'modules' | 'ai' | 'seo' | 'languages' | 'services' | 'homepage';
 
 const HERO_LANGUAGES = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -53,7 +58,10 @@ const SECTIONS: { key: ActiveSection; label: string; icon: typeof Settings }[] =
   { key: 'paymentMethods', label: 'Payment Methods', icon: CreditCard },
   { key: 'system', label: 'System Toggles', icon: ToggleLeft },
   { key: 'banners', label: 'Hero & Banners', icon: ImageIcon },
+  { key: 'homepage', label: 'Homepage Discovery', icon: LayoutGrid },
   { key: 'seo', label: 'SEO & Open Graph', icon: Search },
+  { key: 'languages', label: 'Language Management', icon: Languages },
+  { key: 'services', label: 'Tour Services Catalog', icon: ShieldCheck },
   { key: 'notifications', label: 'Notifications', icon: MessageSquare },
   { key: 'ai', label: 'AI Key Pool & Models', icon: Bot },
   { key: 'modules', label: 'Advanced Modules', icon: Package },
@@ -2058,6 +2066,18 @@ export default function AdminSettingsPage() {
 
             {activeSection === 'ai' && (
               <AiKeyPoolManager />
+            )}
+
+            {activeSection === 'languages' && (
+              <LanguageManagerDashboard />
+            )}
+
+            {activeSection === 'services' && (
+              <TourServicesDashboard />
+            )}
+
+            {activeSection === 'homepage' && (
+              <HomepageCollectionsDashboard />
             )}
 
             {/* ─── SEO & Open Graph Panel ─── */}

@@ -240,6 +240,7 @@ export interface TourTranslationPayload {
   itinerary?: Array<{ timeTag?: string; title: string; description: string }>;
   seoTitle?: string;
   seoDescription?: string;
+  keyActivityDetails?: Array<{ id: string; title: string; value: string; description?: string; icon?: string }>;
 }
 
 export type SupportedLanguage = 'de' | 'ru' | 'fr' | 'it' | 'pl' | 'es' | 'uk';

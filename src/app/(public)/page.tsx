@@ -9,6 +9,9 @@ import type { Metadata } from 'next';
 import Hero from '@/components/landing/Hero';
 import BentoGridUSPs from '@/components/landing/BentoGridUSPs';
 import TourCatalog from '@/components/landing/TourCatalog';
+import ExploreByInterest from '@/components/landing/ExploreByInterest';
+import HomepageExperienceDiscovery from '@/components/landing/HomepageExperienceDiscovery';
+import { getHomepageCollections } from '@/lib/homepageCollections';
 import PopularDestinations from '@/components/landing/PopularDestinations';
 import Testimonials, { LandingReview } from '@/components/landing/Testimonials';
 import FAQSection from '@/components/landing/FAQSection';
@@ -25,8 +28,12 @@ export async function generateMetadata({
   return getHomeMetadata(lang);
 }
 
-export default async function HomePage() {
-  const [tours, destinations, bannerSetting, activeTourCount, reviews] = await Promise.all([
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  const [tours, destinations, bannerSetting, activeTourCount, reviews, collections] = await Promise.all([
     prisma.tour.findMany({
       where: { status: 'ACTIVE' },
       orderBy: [
@@ -111,6 +118,7 @@ export default async function HomePage() {
       orderBy: { createdAt: 'desc' },
       take: 6,
     }),
+    getHomepageCollections(),
   ]);
 
   const bannerData = bannerSetting
@@ -186,7 +194,23 @@ export default async function HomePage() {
         activeTourCount={activeTourCount}
         heroTranslations={bannerData.heroTranslations}
       />
-      <TourCatalog tours={tours} totalActiveCount={activeTourCount} />
+      {Boolean(
+        searchParams?.search ||
+        searchParams?.destination ||
+        searchParams?.type ||
+        searchParams?.category ||
+        searchParams?.duration ||
+        searchParams?.rating ||
+        searchParams?.maxPrice ||
+        searchParams?.pickup
+      ) ? (
+        <TourCatalog tours={tours} totalActiveCount={activeTourCount} />
+      ) : (
+        <>
+          <ExploreByInterest />
+          <HomepageExperienceDiscovery tours={tours as any} collections={collections} />
+        </>
+      )}
       <BentoGridUSPs />
       <PopularDestinations destinations={destinations} />
       <Testimonials reviews={landingReviews} />

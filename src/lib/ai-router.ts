@@ -25,6 +25,8 @@ export interface GenerateOptions {
   systemPrompt?: string;
   temperature?: number;
   jsonMode?: boolean;
+  timeoutMs?: number;
+  maxOutputTokens?: number;
 }
 
 export interface GenerateResult {
@@ -211,11 +213,15 @@ async function callProvider(provider: AiProviderConfig, options: GenerateOptions
       body.generationConfig.responseMimeType = 'application/json';
     }
 
+    if (options.maxOutputTokens) {
+      body.generationConfig.maxOutputTokens = options.maxOutputTokens;
+    }
+
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
     });
 
     if (!res.ok) {
@@ -229,7 +235,7 @@ async function callProvider(provider: AiProviderConfig, options: GenerateOptions
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
-          signal: AbortSignal.timeout(30_000),
+          signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
         });
         if (fallbackRes.ok) {
           const fallbackData = await fallbackRes.json();
@@ -242,6 +248,11 @@ async function callProvider(provider: AiProviderConfig, options: GenerateOptions
 
     const data = await res.json();
     const candidate = data.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+    if (finishReason === 'MAX_TOKENS') {
+      throw new Error(`MAX_TOKENS: Response was truncated by model output limit. Use smaller chunks or increase maxOutputTokens.`);
+    }
+
     const text = candidate?.content?.parts?.[0]?.text;
 
     if (!text) {
@@ -271,6 +282,10 @@ async function callProvider(provider: AiProviderConfig, options: GenerateOptions
       body.response_format = { type: 'json_object' };
     }
 
+    if (options.maxOutputTokens) {
+      body.max_tokens = options.maxOutputTokens;
+    }
+
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -278,7 +293,7 @@ async function callProvider(provider: AiProviderConfig, options: GenerateOptions
         Authorization: `Bearer ${provider.apiKey}`,
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
     });
 
     if (!res.ok) {

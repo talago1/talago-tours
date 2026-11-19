@@ -37,6 +37,16 @@ export interface LocalizedTourContent {
   mobilityNotes?: string;
   faqItems?: Array<{ question: string; answer: string }>;
   internalNotes?: string;
+  keyActivityDetails?: KeyActivityDetailItem[];
+  assignedServices?: string[];
+}
+
+export interface KeyActivityDetailItem {
+  id: string; // e.g. "cancellation", "confirmation", "voucher", "duration", "guide", "pickup", or custom
+  title: string;
+  value: string;
+  description?: string;
+  icon?: string;
 }
 
 export interface TourVariant {
@@ -77,6 +87,8 @@ export function createDefaultLocalizedContent(): LocalizedTourContent {
     mobilityNotes: '',
     faqItems: [],
     internalNotes: '',
+    keyActivityDetails: [],
+    assignedServices: [],
   };
 }
 
@@ -380,6 +392,8 @@ export interface TourEditorData {
   whatToBring?: string;
   requirements?: string;
   faqItems?: { question: string; answer: string }[];
+  keyActivityDetails?: KeyActivityDetailItem[];
+  assignedServices?: string[];
 
   // Rules & Safety
   fitnessLevel?: string;
@@ -482,6 +496,8 @@ export function createDefaultTourEditorData(): TourEditorData {
     showExcerptOnCard: true,
     keywords: [],
     reviews: [],
+    keyActivityDetails: [],
+    assignedServices: [],
     translations: createDefaultTranslations(),
     activeLanguage: 'en',
   };

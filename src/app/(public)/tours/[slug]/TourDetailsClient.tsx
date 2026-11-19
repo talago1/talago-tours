@@ -38,6 +38,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { supabaseClient } from '@/lib/supabase/client';
+import { DEFAULT_TOUR_SERVICES } from '@/types/services';
 import TourCard from '@/components/public/TourCard';
 import dynamic from 'next/dynamic';
 
@@ -723,6 +724,20 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
     return Array.isArray(tour.exclusions) ? tour.exclusions : [];
   })();
 
+  const localizedKeyActivityDetails: Array<{ id: string; title: string; value: string; description?: string; icon?: string }> = (() => {
+    if (Array.isArray(langTranslation.keyActivityDetails) && langTranslation.keyActivityDetails.length > 0) return langTranslation.keyActivityDetails;
+    if (Array.isArray(enTranslation.keyActivityDetails) && enTranslation.keyActivityDetails.length > 0) return enTranslation.keyActivityDetails;
+    if (Array.isArray((tour as any).keyActivityDetails) && (tour as any).keyActivityDetails.length > 0) return (tour as any).keyActivityDetails;
+    return [];
+  })();
+
+  const assignedServicesIds: string[] = (() => {
+    if (Array.isArray(langTranslation.assignedServices) && langTranslation.assignedServices.length > 0) return langTranslation.assignedServices;
+    if (Array.isArray(enTranslation.assignedServices) && enTranslation.assignedServices.length > 0) return enTranslation.assignedServices;
+    if (Array.isArray((tour as any).assignedServices) && (tour as any).assignedServices.length > 0) return (tour as any).assignedServices;
+    return [];
+  })();
+
   const localizedWhatToBringItems: string[] = (() => {
     const raw = langTranslation.whatToBring || enTranslation.whatToBring || tour.whatToBring;
     if (Array.isArray(raw) && raw.length > 0) return raw.map(String).map((s) => s.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
@@ -960,83 +975,151 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 </div>
 
                 <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-                  {/* 1. Free Cancellation */}
-                  <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-emerald-500/30 hover:bg-white/[0.04]">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-                      <ShieldCheck className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Cancellation</h4>
-                      <p className={`mt-0.5 text-xs font-bold ${cancelHours > 0 ? 'text-emerald-400' : 'text-slate-300'}`}>
-                        {cancelHours > 0 ? 'Free cancellation' : 'Non-refundable'}
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">{cancelHoursText}</p>
-                    </div>
-                  </div>
+                  {localizedKeyActivityDetails.length > 0 ? (
+                    localizedKeyActivityDetails.map((item, idx) => (
+                      <div
+                        key={item.id || idx}
+                        className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#00E5FF]/30 hover:bg-white/[0.04]"
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
+                          <Sparkles className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{item.title}</h4>
+                          <p className="mt-0.5 text-xs font-bold text-white">{item.value}</p>
+                          {item.description && (
+                            <p className="text-[11px] text-slate-400 mt-0.5">{item.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <>
+                      {/* 1. Free Cancellation */}
+                      <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-emerald-500/30 hover:bg-white/[0.04]">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                          <ShieldCheck className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Cancellation</h4>
+                          <p className={`mt-0.5 text-xs font-bold ${cancelHours > 0 ? 'text-emerald-400' : 'text-slate-300'}`}>
+                            {cancelHours > 0 ? 'Free cancellation' : 'Non-refundable'}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">{cancelHoursText}</p>
+                        </div>
+                      </div>
 
-                  {/* 2. Instant Confirmation */}
-                  <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#00E5FF]/30 hover:bg-white/[0.04]">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
-                      <Sparkles className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Confirmation</h4>
-                      <p className="mt-0.5 text-xs font-bold text-white">Instant confirmation</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">Instant digital ticket delivery</p>
-                    </div>
-                  </div>
+                      {/* 2. Instant Confirmation */}
+                      <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#00E5FF]/30 hover:bg-white/[0.04]">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
+                          <Sparkles className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Confirmation</h4>
+                          <p className="mt-0.5 text-xs font-bold text-white">Instant confirmation</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">Instant digital ticket delivery</p>
+                        </div>
+                      </div>
 
-                  {/* 3. Mobile Voucher */}
-                  <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-violet-500/30 hover:bg-white/[0.04]">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
-                      <Smartphone className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Voucher / Ticket</h4>
-                      <p className="mt-0.5 text-xs font-bold text-white">Mobile ticket accepted</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">Show on smartphone / no print</p>
-                    </div>
-                  </div>
+                      {/* 3. Mobile Voucher */}
+                      <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-violet-500/30 hover:bg-white/[0.04]">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
+                          <Smartphone className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Voucher / Ticket</h4>
+                          <p className="mt-0.5 text-xs font-bold text-white">Mobile ticket accepted</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">Show on smartphone / no print</p>
+                        </div>
+                      </div>
 
-                  {/* 4. Duration */}
-                  <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#FFD700]/30 hover:bg-white/[0.04]">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFD700]/10 text-[#FFD700]">
-                      <Clock className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Duration</h4>
-                      <p className="mt-0.5 text-xs font-bold text-white">{tour.duration || (tour.durationHours ? `${tour.durationHours} hours` : 'Full day')}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">Flexible start &amp; return schedule</p>
-                    </div>
-                  </div>
+                      {/* 4. Duration */}
+                      <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#FFD700]/30 hover:bg-white/[0.04]">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFD700]/10 text-[#FFD700]">
+                          <Clock className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Duration</h4>
+                          <p className="mt-0.5 text-xs font-bold text-white">{tour.duration || (tour.durationHours ? `${tour.durationHours} hours` : 'Full day')}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">Flexible start &amp; return schedule</p>
+                        </div>
+                      </div>
 
-                  {/* 5. Live Guide Languages */}
-                  <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-sky-500/30 hover:bg-white/[0.04]">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
-                      <Languages className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Live Tour Guide</h4>
-                      <p className="mt-0.5 text-xs font-bold text-white">Multilingual Guide</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">English, German, French, Russian</p>
-                    </div>
-                  </div>
+                      {/* 5. Live Guide Languages */}
+                      <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-sky-500/30 hover:bg-white/[0.04]">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
+                          <Languages className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Live Tour Guide</h4>
+                          <p className="mt-0.5 text-xs font-bold text-white">Multilingual Guide</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">English, German, French, Russian</p>
+                        </div>
+                      </div>
 
-                  {/* 6. Pickup Service */}
-                  <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#00E5FF]/30 hover:bg-white/[0.04]">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
-                      <MapPin className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pickup Service</h4>
-                      <p className="mt-0.5 text-xs font-bold text-white">
-                        {tour.hotelPickupIncluded ? 'Hotel pickup included' : (tour.meetingPointName ? 'Meeting point check-in' : 'Pickup optional / included')}
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        {tour.hotelPickupIncluded ? 'Roundtrip hotel transport' : 'Convenient designated point'}
-                      </p>
-                    </div>
-                  </div>
+                      {/* 6. Pickup Service */}
+                      <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#00E5FF]/30 hover:bg-white/[0.04]">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
+                          <MapPin className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pickup Service</h4>
+                          <p className="mt-0.5 text-xs font-bold text-white">
+                            {tour.hotelPickupIncluded ? 'Hotel pickup included' : (tour.meetingPointName ? 'Meeting point check-in' : 'Pickup optional / included')}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {tour.hotelPickupIncluded ? 'Roundtrip hotel transport' : 'Convenient designated point'}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Tier-1 OTA: Verified Services & On-Trip Support ── */}
+            {assignedServicesIds.length > 0 && (
+              <div className="mb-10 rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-[#0B1528] to-[#0A2035]/80 p-6 shadow-2xl backdrop-blur-xl sm:p-7">
+                <div className="mb-5 flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-[0.22em] text-emerald-400 flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4" />
+                    Services &amp; On-Trip Support
+                  </h3>
+                  <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">
+                    TALAGO Verified Inclusions
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                  {assignedServicesIds.map((svcId) => {
+                    const def = DEFAULT_TOUR_SERVICES.find((s) => s.id === svcId);
+                    const name = def?.translations?.[language]?.name || def?.name || svcId;
+                    const desc = def?.translations?.[language]?.description || def?.description || '';
+                    const badge = def?.translations?.[language]?.badgeText || def?.badgeText;
+
+                    return (
+                      <div
+                        key={svcId}
+                        className="flex items-start gap-3.5 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-emerald-500/30 hover:bg-white/[0.04]"
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                          <ShieldCheck className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-bold text-white">{name}</h4>
+                            {badge && (
+                              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400 border border-emerald-500/20">
+                                {badge}
+                              </span>
+                            )}
+                          </div>
+                          {desc && <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">{desc}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

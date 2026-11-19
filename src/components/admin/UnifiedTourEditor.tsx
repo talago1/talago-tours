@@ -40,7 +40,11 @@ import {
   Download,
   Copy,
   FolderOpen,
+  ShieldCheck,
+  Headphones,
 } from 'lucide-react';
+
+import { DEFAULT_TOUR_SERVICES, type TourServiceItem } from '@/types/services';
 
 import type {
   TourEditorData,
@@ -154,7 +158,38 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
         }
       })
       .catch((err) => console.warn('[UnifiedTourEditor] Could not load media folders:', err));
+
+    // Dynamic languages from Admin Settings
+    fetch('/api/admin/languages')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => {
+        if (d && Array.isArray(d.languages) && d.languages.length > 0) {
+          setEditorLanguages(
+            d.languages.map((l: any) => ({
+              code: l.code,
+              label: l.displayName,
+              flag: l.flag || '🌐',
+            }))
+          );
+        }
+      })
+      .catch((err) => console.warn('[UnifiedTourEditor] Could not load dynamic languages:', err));
+
+    // Tour Services Catalog
+    fetch('/api/admin/services')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => {
+        if (d && Array.isArray(d.services) && d.services.length > 0) {
+          setServicesCatalog(d.services.filter((s: any) => s.isActive));
+        } else {
+          setServicesCatalog(DEFAULT_TOUR_SERVICES);
+        }
+      })
+      .catch(() => setServicesCatalog(DEFAULT_TOUR_SERVICES));
   }, []);
+
+  const [editorLanguages, setEditorLanguages] = useState<Array<{ code: string; label: string; flag: string }>>(ALL_LANGUAGES);
+  const [servicesCatalog, setServicesCatalog] = useState<TourServiceItem[]>(DEFAULT_TOUR_SERVICES);
 
   const handleSelectFolder = async (folderPrefix: string, bucket: string = 'talago-tour-media') => {
     setSelectedFolderPrefix(folderPrefix);
@@ -268,6 +303,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
             requirements: enContent.requirements || '',
             cancellationPolicy: enContent.cancellationPolicy || '',
             faqItems: enContent.faqItems || [],
+            keyActivityDetails: enContent.keyActivityDetails?.length ? enContent.keyActivityDetails : data.keyActivityDetails,
             itinerary: (data.itinerary || []).map((i) => ({
               timeTag: i.timeTag,
               title: typeof i.title === 'string' ? i.title : (i.title?.en || ''),
@@ -434,7 +470,15 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
         seoTitle: en.seoTitle || data.metaTitle || '',
         seoDescription: en.seoDescription || data.metaDescription || '',
         faqItems: (en.faqItems && en.faqItems.length > 0) ? en.faqItems : (data.faqItems || []),
+        keyActivityDetails: (en.keyActivityDetails && en.keyActivityDetails.length > 0) ? en.keyActivityDetails : (data.keyActivityDetails || []),
+        assignedServices: (en.assignedServices && en.assignedServices.length > 0) ? en.assignedServices : (data.assignedServices || []),
       };
+
+      for (const k of Object.keys(finalTranslations) as LanguageCode[]) {
+        if (!finalTranslations[k]?.assignedServices?.length && data.assignedServices?.length) {
+          finalTranslations[k] = { ...finalTranslations[k], assignedServices: data.assignedServices };
+        }
+      }
 
       const payload = {
         id: data.id,
@@ -643,13 +687,13 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
             <span className="font-bold text-[#00E5FF]">{completeness.score}%</span>
           </div>
 
-          {/* Language Switcher */}
+          {/* Dynamic Language Switcher */}
           <div className="flex max-w-full overflow-x-auto rounded-xl border border-white/10 bg-[#070F1E] p-1">
-            {ALL_LANGUAGES.map((lang) => (
+            {editorLanguages.map((lang) => (
               <button
                 key={lang.code}
                 type="button"
-                onClick={() => setActiveLang(lang.code)}
+                onClick={() => setActiveLang(lang.code as LanguageCode)}
                 className={`flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold transition ${
                   activeLang === lang.code
                     ? 'bg-[#00E5FF] text-[#070F1E]'
@@ -2478,6 +2522,181 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     placeholder="Swim with wild dolphins at Dolphin House\nEnjoy fresh open-buffet seafood lunch on board\nAll high-grade snorkeling gear provided"
                     className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
                   />
+                </div>
+
+                {/* ── Tour Services & On-Trip Support Catalog Assignment ── */}
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.03] p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                      <div>
+                        <h4 className="text-sm font-bold text-white">Services &amp; On-Trip Support</h4>
+                        <p className="text-xs text-slate-400">Select verified services included with this tour (e.g. Live Guide, 24/7 Backup Service)</p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                      {(data.assignedServices || []).length} Selected
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {servicesCatalog.map((svc) => {
+                      const isSelected = (data.assignedServices || []).includes(svc.id);
+                      return (
+                        <label
+                          key={svc.id}
+                          className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                            isSelected
+                              ? 'border-emerald-500/50 bg-emerald-500/10'
+                              : 'border-white/5 bg-white/[0.02] hover:border-white/20'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              const current = data.assignedServices || [];
+                              const updated = e.target.checked
+                                ? [...current, svc.id]
+                                : current.filter((id) => id !== svc.id);
+                              updateData({ assignedServices: updated });
+                              updateLocalized({ assignedServices: updated });
+                            }}
+                            className="mt-0.5 rounded border-white/20 text-emerald-500 focus:ring-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-white">{svc.name}</span>
+                              {svc.badgeText && (
+                                <span className="text-[9px] font-extrabold uppercase bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">
+                                  {svc.badgeText}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400 mt-1 leading-snug">{svc.description}</p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ── Key Activity Details (Instant Overview Matrix) ── */}
+                <div className="rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/[0.02] p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-[#00E5FF]" />
+                      <div>
+                        <h4 className="text-sm font-bold text-white">Key Activity Details (Instant Overview Matrix)</h4>
+                        <p className="text-xs text-slate-400">Controls the 6-card "Key Activity Details" section on the public tour page ({activeLang.toUpperCase()})</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentList = currentLocale.keyActivityDetails?.length
+                          ? [...currentLocale.keyActivityDetails]
+                          : [
+                              { id: 'cancellation', title: 'Cancellation', value: 'Free cancellation', description: 'Up to 24 hours before' },
+                              { id: 'confirmation', title: 'Confirmation', value: 'Instant confirmation', description: 'Instant digital ticket delivery' },
+                              { id: 'voucher', title: 'Voucher / Ticket', value: 'Mobile ticket accepted', description: 'Show on smartphone / no print' },
+                              { id: 'duration', title: 'Duration', value: 'Flexible', description: 'Flexible start & return schedule' },
+                              { id: 'guide', title: 'Live Tour Guide', value: 'Multilingual Guide', description: 'English, German, French, Russian' },
+                              { id: 'pickup', title: 'Pickup Service', value: 'Hotel pickup included', description: 'Roundtrip hotel transport' },
+                            ];
+                        currentList.push({
+                          id: `custom-${Date.now()}`,
+                          title: 'New Feature',
+                          value: 'Included',
+                          description: 'Custom detail note',
+                        });
+                        updateLocalized({ keyActivityDetails: currentList });
+                        if (activeLang === 'en') updateData({ keyActivityDetails: currentList });
+                      }}
+                      className="flex items-center gap-1 rounded-lg border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-3 py-1.5 text-xs font-bold text-[#00E5FF] hover:bg-[#00E5FF]/20 transition"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add Custom Detail Card
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {(currentLocale.keyActivityDetails?.length
+                      ? currentLocale.keyActivityDetails
+                      : [
+                          { id: 'cancellation', title: 'Cancellation', value: 'Free cancellation', description: 'Up to 24 hours before' },
+                          { id: 'confirmation', title: 'Confirmation', value: 'Instant confirmation', description: 'Instant digital ticket delivery' },
+                          { id: 'voucher', title: 'Voucher / Ticket', value: 'Mobile ticket accepted', description: 'Show on smartphone / no print' },
+                          { id: 'duration', title: 'Duration', value: `${data.durationHours ? data.durationHours + ' hours' : 'Flexible'}`, description: 'Flexible start & return schedule' },
+                          { id: 'guide', title: 'Live Tour Guide', value: 'Multilingual Guide', description: 'English, German, French, Russian' },
+                          { id: 'pickup', title: 'Pickup Service', value: data.hotelPickupIncluded ? 'Hotel pickup included' : 'Meeting point check-in', description: 'Roundtrip hotel transport' },
+                        ]
+                    ).map((item, idx, arr) => (
+                      <div key={item.id || idx} className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl border border-white/10 bg-black/40">
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Card Title</label>
+                          <input
+                            type="text"
+                            value={item.title}
+                            onChange={(e) => {
+                              const next = [...arr];
+                              next[idx] = { ...next[idx], title: e.target.value };
+                              updateLocalized({ keyActivityDetails: next });
+                              if (activeLang === 'en') updateData({ keyActivityDetails: next });
+                            }}
+                            placeholder="e.g. Cancellation, Live Tour Guide"
+                            className="w-full rounded-lg border border-white/10 bg-[#070F1E] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#00E5FF]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Primary Value / Status</label>
+                          <input
+                            type="text"
+                            value={item.value}
+                            onChange={(e) => {
+                              const next = [...arr];
+                              next[idx] = { ...next[idx], value: e.target.value };
+                              updateLocalized({ keyActivityDetails: next });
+                              if (activeLang === 'en') updateData({ keyActivityDetails: next });
+                            }}
+                            placeholder="e.g. Free cancellation, Multilingual Guide"
+                            className="w-full rounded-lg border border-white/10 bg-[#070F1E] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#00E5FF]"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Subtitle / Note</label>
+                            <input
+                              type="text"
+                              value={item.description || ''}
+                              onChange={(e) => {
+                                const next = [...arr];
+                                next[idx] = { ...next[idx], description: e.target.value };
+                                updateLocalized({ keyActivityDetails: next });
+                                if (activeLang === 'en') updateData({ keyActivityDetails: next });
+                              }}
+                              placeholder="e.g. Up to 24 hours before"
+                              className="w-full rounded-lg border border-white/10 bg-[#070F1E] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#00E5FF]"
+                            />
+                          </div>
+                          {arr.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = arr.filter((_, i) => i !== idx);
+                                updateLocalized({ keyActivityDetails: next });
+                                if (activeLang === 'en') updateData({ keyActivityDetails: next });
+                              }}
+                              className="mt-4 p-1.5 text-slate-500 hover:text-rose-400 transition"
+                              title="Remove this card"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
