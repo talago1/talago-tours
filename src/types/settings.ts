@@ -45,6 +45,7 @@ export interface SystemSettings {
     heroBackgroundMobile?: string;
     heroOverlayOpacity?: number;
     showHero?: boolean;
+    showHeroBackground?: boolean;
     splitSectionLeft: string;
     splitSectionRight: string;
     toursCatalogBackground: string;
@@ -63,8 +64,11 @@ export interface SystemSettings {
     heroTagline?: string;
     heroDescription?: string;
     showHeroBadge?: boolean;
+    showHeroTitle?: boolean;
     showHeroTagline?: boolean;
     showHeroDescription?: boolean;
+    showHeroTrust?: boolean;
+    showHeroSearch?: boolean;
 
     heroPrimaryBtnText?: string;
     heroPrimaryBtnLink?: string;

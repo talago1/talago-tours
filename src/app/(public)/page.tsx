@@ -174,13 +174,18 @@ export default async function HomePage({
     };
   });
 
+  const heroSectionConfig = homepageSections.find((s) => s.key === 'hero');
+  const isHeroSectionEnabled = heroSectionConfig ? heroSectionConfig.enabled : true;
+  const shouldRenderHero = bannerData.showHero !== false && isHeroSectionEnabled;
+
   return (
     <div className="min-h-screen bg-[#070F1E]">
       <Hero
         heroBackground={bannerData.heroBackground}
         heroBackgroundMobile={bannerData.heroBackgroundMobile}
         heroOverlayOpacity={bannerData.heroOverlayOpacity}
-        showHero={bannerData.showHero}
+        showHero={shouldRenderHero}
+        showHeroBackground={bannerData.showHeroBackground}
         conciergePickImage={bannerData.conciergePickImage}
         conciergePickTitle={bannerData.conciergePickTitle}
         conciergePickDescription={bannerData.conciergePickDescription}
@@ -193,8 +198,11 @@ export default async function HomePage({
         heroTagline={bannerData.heroTagline}
         heroDescription={bannerData.heroDescription}
         showHeroBadge={bannerData.showHeroBadge}
+        showHeroTitle={bannerData.showHeroTitle}
         showHeroTagline={bannerData.showHeroTagline}
         showHeroDescription={bannerData.showHeroDescription}
+        showHeroTrust={bannerData.showHeroTrust}
+        showHeroSearch={bannerData.showHeroSearch}
         heroPrimaryBtnText={bannerData.heroPrimaryBtnText}
         heroPrimaryBtnLink={bannerData.heroPrimaryBtnLink}
         showPrimaryBtn={bannerData.showPrimaryBtn}

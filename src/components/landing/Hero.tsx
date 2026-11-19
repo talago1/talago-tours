@@ -45,6 +45,7 @@ export interface HeroProps {
   heroBackgroundMobile?: string;
   heroOverlayOpacity?: number;
   showHero?: boolean;
+  showHeroBackground?: boolean;
   conciergePickImage?: string;
   conciergePickTitle?: string;
   conciergePickDescription?: string;
@@ -58,8 +59,11 @@ export interface HeroProps {
   heroTagline?: string;
   heroDescription?: string;
   showHeroBadge?: boolean;
+  showHeroTitle?: boolean;
   showHeroTagline?: boolean;
   showHeroDescription?: boolean;
+  showHeroTrust?: boolean;
+  showHeroSearch?: boolean;
 
   heroPrimaryBtnText?: string;
   heroPrimaryBtnLink?: string;
@@ -93,20 +97,24 @@ export default function Hero({
   heroBackgroundMobile,
   heroOverlayOpacity = 40,
   showHero = true,
+  showHeroBackground = true,
   conciergePickImage,
   conciergePickTitle,
   conciergePickDescription,
   conciergePickBadge,
   conciergePickPrice,
   conciergePickLink,
-  showConciergePick = false,
+  showConciergePick = true,
   heroBadge,
   heroTitle,
   heroTagline,
   heroDescription,
   showHeroBadge = true,
+  showHeroTitle = true,
   showHeroTagline = true,
   showHeroDescription = true,
+  showHeroTrust = true,
+  showHeroSearch = true,
   heroPrimaryBtnText,
   heroPrimaryBtnLink = '/tours',
   showPrimaryBtn = true,
@@ -193,30 +201,10 @@ export default function Hero({
   const [rotateY, setRotateY] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
 
-  const [destIndex, setDestIndex] = useState(0);
-
-  // The admin's hand-picked experience takes over the card while enabled;
-  // otherwise it rotates through the destinations loaded from the database.
-  const conciergePickActive = showConciergePick && Boolean(conciergePickTitle || conciergePickImage);
-  const rotatingCount = conciergePickActive ? 0 : showcaseDestinations.length;
-
   // Local/relative assets (notably /uploads/* from the media uploader) are served
   // same-origin, so the optimizer can resize them safely. Absolute remote URLs are
   // left unoptimized in case the host rejects server-side fetches.
   const isRemote = (url?: string) => Boolean(url && /^https?:\/\//i.test(url));
-
-  useEffect(() => {
-    if (rotatingCount <= 1) return;
-    const timer = setInterval(() => {
-      setDestIndex((prev) => (prev + 1) % rotatingCount);
-    }, 4500);
-    return () => clearInterval(timer);
-  }, [rotatingCount]);
-
-  // Guard against the prop arriving after first paint or shrinking.
-  useEffect(() => {
-    setDestIndex((prev) => (rotatingCount > 0 && prev >= rotatingCount ? 0 : prev));
-  }, [rotatingCount]);
 
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
@@ -293,27 +281,25 @@ export default function Hero({
   const conciergeBadge = currentTrans.conciergePickBadge || conciergePickBadge;
   const conciergePrice = currentTrans.conciergePickPrice || conciergePickPrice;
 
-  const rotatingShowcase = rotatingCount > 0 ? showcaseDestinations[destIndex] : undefined;
+  // The featured card is only active if showConciergePick is explicitly enabled AND
+  // a title or image is provided.
+  // When disabled or unconfigured, NO replacement card or fallback destination is displayed.
+  const hasFeaturedCard = Boolean(
+    showConciergePick !== false &&
+    (conciergeTitle || conciergePickTitle || conciergePickImage)
+  );
 
-  const currentShowcase: HeroShowcaseDestination = conciergePickActive
+  const currentShowcase: HeroShowcaseDestination | null = hasFeaturedCard
     ? {
-        name: conciergeTitle || heroDict.title || 'Signature Experience',
-        subtitle: conciergeDescription || heroDict.tagline || '',
+        name: conciergeTitle || conciergePickTitle || heroDict.title || 'Signature Experience',
+        subtitle: conciergeDescription || conciergePickDescription || heroDict.tagline || '',
         image: conciergePickImage || heroBackground || '/talago-hero-red-sea-desert.png',
-        tag: conciergeBadge || heroDict.concierge?.pick || heroDict.badge || '',
-        price: conciergePrice || '',
+        tag: conciergeBadge || conciergePickBadge || heroDict.concierge?.pick || heroDict.badge || '',
+        price: conciergePrice || conciergePickPrice || '',
         rating: '',
         link: conciergePickLink || heroPrimaryBtnLink || '/tours',
       }
-    : rotatingShowcase || {
-        name: heroDict.title || 'TALAGO',
-        subtitle: heroDict.tagline || '',
-        image: heroBackground || '/talago-hero-red-sea-desert.png',
-        tag: heroDict.badge || '',
-        price: '',
-        rating: '',
-        link: '/tours',
-      };
+    : null;
 
   const heroMetrics = [
     { value: heroMetric1Value, label: heroMetric1Label },
@@ -327,7 +313,7 @@ export default function Hero({
     <section className="relative z-30 overflow-visible bg-[#070F1E] text-[#F8FAFC]">
       {/* Background Image / Ambient Backdrop Wrapped with overflow-hidden */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {!heroError && heroBackgroundMobile && (
+        {showHeroBackground !== false && !heroError && heroBackgroundMobile && (
           <Image
             src={heroBackgroundMobile}
             alt="Global luxury experiences and coastal landscapes"
@@ -338,7 +324,7 @@ export default function Hero({
             className="scale-105 object-cover object-center md:hidden"
           />
         )}
-        {!heroError && (
+        {showHeroBackground !== false && !heroError && (
           <Image
             src={heroBackground || '/talago-hero-red-sea-desert.png'}
             alt="Global luxury experiences and coastal landscapes"
@@ -352,10 +338,12 @@ export default function Hero({
         )}
 
         {/* Adjustable Scrim (admin-controlled overlay) */}
-        <div
-          className="absolute inset-0 bg-[#070F1E]"
-          style={{ opacity: Math.min(Math.max(heroOverlayOpacity, 0), 95) / 100 }}
-        />
+        {showHeroBackground !== false && (
+          <div
+            className="absolute inset-0 bg-[#070F1E]"
+            style={{ opacity: Math.min(Math.max(heroOverlayOpacity, 0), 95) / 100 }}
+          />
+        )}
 
         {/* Cinematic Dark & Ambient Overlays */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#070F1E] via-[#070F1E]/90 to-[#070F1E]/75" />
@@ -369,9 +357,15 @@ export default function Hero({
 
       {/* Main Container - Compact and Balanced */}
       <div className="relative mx-auto max-w-7xl px-5 pt-28 pb-16 sm:px-8 lg:px-10 lg:pt-32 lg:pb-20">
-        <div className="grid items-center gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14">
-          {/* Left Column: Global Typography & Value Proposition */}
-          <div>
+        <div
+          className={
+            hasFeaturedCard
+              ? 'grid items-center gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14'
+              : 'mx-auto max-w-4xl flex flex-col items-center text-center'
+          }
+        >
+          {/* Left / Main Column: Global Typography & Value Proposition */}
+          <div className={hasFeaturedCard ? 'w-full' : 'w-full flex flex-col items-center text-center'}>
             {/* Global Badge */}
             {showHeroBadge && (
               <div className="mb-5 inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-[#00E5FF] shadow-2xl backdrop-blur-md">
@@ -382,9 +376,11 @@ export default function Hero({
             )}
 
             {/* Main Headline */}
-            <h1 className="text-3xl font-black leading-[1.08] tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[3.25rem]">
-              {finalTitle}
-            </h1>
+            {showHeroTitle !== false && finalTitle && (
+              <h1 className="text-3xl font-black leading-[1.08] tracking-tight text-white sm:text-4xl md:text-5xl lg:text-[3.25rem]">
+                {finalTitle}
+              </h1>
+            )}
 
             {/* Brand Tagline */}
             {showHeroTagline && finalTagline && (
@@ -395,30 +391,32 @@ export default function Hero({
 
             {/* Description */}
             {showHeroDescription && finalDescription && (
-              <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-300 sm:text-base">
+              <p className={`mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base ${hasFeaturedCard ? '' : 'mx-auto'}`}>
                 {finalDescription}
               </p>
             )}
 
             {/* Key Trust Checkmarks */}
-            <div className="mt-6 flex flex-wrap items-center gap-y-2 gap-x-5 text-xs font-semibold text-slate-300">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-[#10B981]" />
-                {dict.hero.trust.instantConfirmation}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-[#00E5FF]" />
-                {dict.hero.trust.freeCancellation}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-[#FFD700]" />
-                {dict.hero.trust.directRates}
-              </span>
-            </div>
+            {showHeroTrust !== false && (
+              <div className={`mt-6 flex flex-wrap items-center gap-y-2 gap-x-5 text-xs font-semibold text-slate-300 ${hasFeaturedCard ? '' : 'justify-center'}`}>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-[#10B981]" />
+                  {dict.hero.trust.instantConfirmation}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-[#00E5FF]" />
+                  {dict.hero.trust.freeCancellation}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-[#FFD700]" />
+                  {dict.hero.trust.directRates}
+                </span>
+              </div>
+            )}
 
             {/* Action Buttons */}
             {(showPrimaryBtn || showSecondaryBtn) && (
-              <div className="mt-7 flex flex-wrap items-center gap-3">
+              <div className={`mt-7 flex flex-wrap items-center gap-3 ${hasFeaturedCard ? '' : 'justify-center'}`}>
                 {showPrimaryBtn && (
                   <Link
                     href={heroPrimaryBtnLink || '/tours'}
@@ -441,7 +439,8 @@ export default function Hero({
             )}
 
             {/* ── Hero Unified Search Bar with Autocomplete ── */}
-            <div ref={searchContainerRef} className="relative mt-7 w-full max-w-lg z-50">
+            {showHeroSearch !== false && (
+            <div ref={searchContainerRef} className={`relative mt-7 w-full max-w-xl z-50 ${hasFeaturedCard ? '' : 'mx-auto'}`}>
               <form
                 onSubmit={handleSearch}
                 className="flex w-full items-center gap-0 rounded-2xl border border-white/15 bg-white/[0.08] shadow-2xl shadow-black/40 backdrop-blur-md focus-within:border-[#00E5FF]/60 focus-within:bg-white/[0.12] transition-all duration-300"
@@ -588,10 +587,11 @@ export default function Hero({
                 </div>
               )}
             </div>
+            )}
 
             {/* Admin-configured headline metrics */}
             {showHeroMetrics && heroMetrics.length > 0 && (
-              <dl className="mt-8 grid max-w-xl grid-cols-1 gap-4 border-t border-white/10 pt-6 sm:grid-cols-3">
+              <dl className={`mt-8 grid max-w-xl grid-cols-1 gap-4 border-t border-white/10 pt-6 sm:grid-cols-3 ${hasFeaturedCard ? '' : 'mx-auto w-full'}`}>
                 {heroMetrics.map((metric) => (
                   <div key={metric.label}>
                     <dt className="text-2xl font-black tracking-tight text-[#00E5FF]">
@@ -607,118 +607,103 @@ export default function Hero({
           </div>
 
           {/* Right Column: 3D Interactive Moving Showcase Card */}
-          <div
-            className="relative mx-auto w-full max-w-lg select-none [perspective:1200px]"
-            onMouseMove={handleMouseMove}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-            {/* Ambient Behind Glow */}
-            <div className="absolute -inset-4 rounded-[2.5rem] bg-gradient-to-tr from-[#00E5FF]/20 via-[#FFD700]/15 to-transparent blur-2xl transition-opacity duration-500 opacity-70 group-hover:opacity-100" />
-
-            {/* 3D Tilted Glass Card Container */}
+          {hasFeaturedCard && currentShowcase && (
             <div
-              ref={cardRef}
-              style={{
-                transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(${isHovering ? 1.02 : 1}, ${isHovering ? 1.02 : 1}, 1)`,
-                transition: isHovering ? 'transform 0.1s ease-out' : 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
-                transformStyle: 'preserve-3d',
-              }}
-              className="relative overflow-hidden rounded-[2.25rem] border border-white/20 bg-gradient-to-b from-white/15 via-[#0B1528]/85 to-[#070F1E]/95 p-4 shadow-2xl shadow-black/80 backdrop-blur-2xl"
+              className="relative mx-auto w-full max-w-lg select-none [perspective:1200px]"
+              onMouseMove={handleMouseMove}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
             >
-              {/* Dynamic Image Canvas */}
-              <div className="relative aspect-[16/11] w-full overflow-hidden rounded-[1.75rem] bg-[#070F1E]">
-                <Image
-                  src={currentShowcase.image}
-                  alt={currentShowcase.name}
-                  fill
-                  unoptimized={isRemote(currentShowcase.image)}
-                  sizes="(max-width: 768px) 100vw, 500px"
-                  className="object-cover transition-all duration-700 ease-out"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#070F1E] via-[#070F1E]/30 to-transparent" />
+              {/* Ambient Behind Glow */}
+              <div className="absolute -inset-4 rounded-[2.5rem] bg-gradient-to-tr from-[#00E5FF]/20 via-[#FFD700]/15 to-transparent blur-2xl transition-opacity duration-500 opacity-70 group-hover:opacity-100" />
 
-                {/* 3D Floating Top Badge */}
-                {currentShowcase.tag && (
+              {/* 3D Tilted Glass Card Container */}
+              <div
+                ref={cardRef}
+                style={{
+                  transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(${isHovering ? 1.02 : 1}, ${isHovering ? 1.02 : 1}, 1)`,
+                  transition: isHovering ? 'transform 0.1s ease-out' : 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+                  transformStyle: 'preserve-3d',
+                }}
+                className="relative overflow-hidden rounded-[2.25rem] border border-white/20 bg-gradient-to-b from-white/15 via-[#0B1528]/85 to-[#070F1E]/95 p-4 shadow-2xl shadow-black/80 backdrop-blur-2xl"
+              >
+                {/* Dynamic Image Canvas */}
+                <div className="relative aspect-[16/11] w-full overflow-hidden rounded-[1.75rem] bg-[#070F1E]">
+                  <Image
+                    src={currentShowcase.image}
+                    alt={currentShowcase.name}
+                    fill
+                    unoptimized={isRemote(currentShowcase.image)}
+                    sizes="(max-width: 768px) 100vw, 500px"
+                    className="object-cover transition-all duration-700 ease-out"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#070F1E] via-[#070F1E]/30 to-transparent" />
+
+                  {/* 3D Floating Top Badge */}
+                  {currentShowcase.tag && (
+                    <div
+                      style={{ transform: 'translateZ(30px)' }}
+                      className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-white/20 bg-[#070F1E]/80 px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-[#FFD700] shadow-xl backdrop-blur-md"
+                    >
+                      <Sparkles className="h-3 w-3 text-[#FFD700]" />
+                      <span>{currentShowcase.tag}</span>
+                    </div>
+                  )}
+
+                  {/* 3D Floating Price Pill */}
+                  {currentShowcase.price && (
+                    <div
+                      style={{ transform: 'translateZ(35px)' }}
+                      className="absolute right-4 top-4 rounded-full bg-gradient-to-r from-[#FFD700] to-[#EAB308] px-3 py-1.5 text-xs font-black text-[#070F1E] shadow-xl"
+                    >
+                      {currentShowcase.price}
+                    </div>
+                  )}
+
+                  {/* Dynamic Destination Info Bar */}
                   <div
-                    style={{ transform: 'translateZ(30px)' }}
-                    className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-white/20 bg-[#070F1E]/80 px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-[#FFD700] shadow-xl backdrop-blur-md"
+                    style={{ transform: 'translateZ(25px)' }}
+                    className="absolute bottom-3 left-3 right-3 rounded-xl border border-white/10 bg-[#070F1E]/90 p-3.5 backdrop-blur-md"
                   >
-                    <Sparkles className="h-3 w-3 text-[#FFD700]" />
-                    <span>{currentShowcase.tag}</span>
-                  </div>
-                )}
-
-                {/* 3D Floating Price Pill */}
-                {currentShowcase.price && (
-                  <div
-                    style={{ transform: 'translateZ(35px)' }}
-                    className="absolute right-4 top-4 rounded-full bg-gradient-to-r from-[#FFD700] to-[#EAB308] px-3 py-1.5 text-xs font-black text-[#070F1E] shadow-xl"
-                  >
-                    {currentShowcase.price}
-                  </div>
-                )}
-
-                {/* Dynamic Destination Info Bar */}
-                <div
-                  style={{ transform: 'translateZ(25px)' }}
-                  className="absolute bottom-3 left-3 right-3 rounded-xl border border-white/10 bg-[#070F1E]/90 p-3.5 backdrop-blur-md"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <Link href={currentShowcase.link} className="group/title inline-flex items-center gap-1.5">
-                        <h4 className="text-base font-black text-white transition-colors group-hover/title:text-[#00E5FF]">
-                          {currentShowcase.name}
-                        </h4>
-                        <ArrowRight className="h-3.5 w-3.5 text-slate-400 transition-all group-hover/title:translate-x-0.5 group-hover/title:text-[#00E5FF]" />
-                      </Link>
-                      {currentShowcase.subtitle && (
-                        <p className="text-xs text-slate-300">{currentShowcase.subtitle}</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <Link href={currentShowcase.link} className="group/title inline-flex items-center gap-1.5">
+                          <h4 className="text-base font-black text-white transition-colors group-hover/title:text-[#00E5FF]">
+                            {currentShowcase.name}
+                          </h4>
+                          <ArrowRight className="h-3.5 w-3.5 text-slate-400 transition-all group-hover/title:translate-x-0.5 group-hover/title:text-[#00E5FF]" />
+                        </Link>
+                        {currentShowcase.subtitle && (
+                          <p className="text-xs text-slate-300">{currentShowcase.subtitle}</p>
+                        )}
+                      </div>
+                      {currentShowcase.rating && (
+                        <div className="flex shrink-0 items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-xs font-bold text-[#FFD700]">
+                          <Star className="h-3 w-3 fill-[#FFD700]" />
+                          <span>{currentShowcase.rating}</span>
+                        </div>
                       )}
                     </div>
-                    {currentShowcase.rating && (
-                      <div className="flex shrink-0 items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-xs font-bold text-[#FFD700]">
-                        <Star className="h-3 w-3 fill-[#FFD700]" />
-                        <span>{currentShowcase.rating}</span>
-                      </div>
+                  </div>
+                </div>
+
+                {/* 3D Lower Metrics & Tour Indicator */}
+                <div
+                  style={{ transform: 'translateZ(20px)' }}
+                  className="mt-3.5 flex items-center justify-between px-2 pt-1"
+                >
+                  <div className="flex items-center gap-2 text-xs text-slate-300">
+                    <div className="flex h-2 w-2 rounded-full bg-[#00E5FF] animate-ping" />
+                    {typeof activeTourCount === 'number' && (
+                      <span className="font-semibold">
+                        {activeTourCount} {heroDict.activeExperiences || 'active experiences live'}
+                      </span>
                     )}
                   </div>
                 </div>
               </div>
-
-              {/* 3D Lower Metrics & Orbit Navigation */}
-              <div
-                style={{ transform: 'translateZ(20px)' }}
-                className="mt-3.5 flex items-center justify-between px-2 pt-1"
-              >
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <div className="flex h-2 w-2 rounded-full bg-[#00E5FF] animate-ping" />
-                  {typeof activeTourCount === 'number' && (
-                    <span className="font-semibold">
-                      {activeTourCount} {heroDict.activeExperiences || 'active experiences live'}
-                    </span>
-                  )}
-                </div>
-
-                {/* Interactive Slider Dots */}
-                {rotatingCount > 1 && (
-                  <div className="flex items-center gap-1.5">
-                    {showcaseDestinations.slice(0, rotatingCount).map((dest, idx) => (
-                      <button
-                        key={dest.link + idx}
-                        type="button"
-                        onClick={() => setDestIndex(idx)}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${
-                          idx === destIndex ? 'w-6 bg-[#00E5FF]' : 'w-2 bg-white/20 hover:bg-white/40'
-                        }`}
-                        aria-label={`Go to slide ${idx + 1}`}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
-          </div>
+          )}
         </div>
 
       </div>

@@ -49,6 +49,7 @@ const HERO_LANGUAGES = [
   { code: 'fr', label: 'Français', flag: '🇫🇷' },
   { code: 'pl', label: 'Polski', flag: '🇵🇱' },
   { code: 'es', label: 'Español', flag: '🇪🇸' },
+  { code: 'uk', label: 'Українська', flag: '🇺🇦' },
 ] as const;
 
 const SECTIONS: { key: ActiveSection; label: string; icon: typeof Settings }[] = [
@@ -85,6 +86,29 @@ export default function AdminSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<ActiveSection>('contact');
   const [heroActiveLang, setHeroActiveLang] = useState<string>('en');
+  const [availableTours, setAvailableTours] = useState<
+    Array<{ id: string; slug: string; title: string; image?: string; price?: number }>
+  >([]);
+
+  useEffect(() => {
+    if (activeSection === 'banners' && availableTours.length === 0) {
+      fetch('/api/public/tours?limit=50')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.tours && Array.isArray(data.tours)) {
+            const mapped = data.tours.map((t: any) => {
+              const trans = t.translations as any;
+              const title = trans?.en?.title || t.slug || 'Untitled Tour';
+              const price = t.adultPrice || t.basePriceUSD || t.basePrice || 0;
+              const image = t.coverImage || t.thumbnailUrl || '';
+              return { id: t.id, slug: t.slug, title, image, price };
+            });
+            setAvailableTours(mapped);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [activeSection, availableTours.length]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1028,22 +1052,51 @@ export default function AdminSettingsPage() {
                             Darkens the hero image so headline text stays readable.
                           </p>
                         </div>
-                        <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3">
-                          <input
-                            type="checkbox"
-                            checked={settings.banners.showHero !== false}
-                            onChange={(e) =>
-                              setSettings((prev) => ({
-                                ...prev,
-                                banners: { ...prev.banners, showHero: e.target.checked },
-                              }))
-                            }
-                            className="h-4 w-4 accent-[#FFD700]"
-                          />
-                          <span className="text-xs font-bold text-white">
-                            Show hero section on the homepage
-                          </span>
-                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={settings.banners.showHero !== false}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: { ...prev.banners, showHero: e.target.checked },
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#FFD700]"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-white block">
+                                Show Hero Section
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                Master toggle for the entire hero section on the homepage
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#070F1E] px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={settings.banners.showHeroBackground !== false}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: { ...prev.banners, showHeroBackground: e.target.checked },
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#FFD700]"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-white block">
+                                Show Background Visual & Scrim
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                Uncheck for a solid dark background without images
+                              </span>
+                            </div>
+                          </label>
+                        </div>
                       </div>
                     </div>
 
@@ -1131,9 +1184,25 @@ export default function AdminSettingsPage() {
 
                       {/* Main Title */}
                       <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
-                        <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                          Main Headline (Title)
-                        </span>
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                            Main Headline (Title)
+                          </span>
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={settings.banners.showHeroTitle !== false}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: { ...prev.banners, showHeroTitle: e.target.checked },
+                                }))
+                              }
+                              className="rounded border-white/20 bg-[#070F1E] text-[#FFD700] focus:ring-0"
+                            />
+                            Show Title
+                          </label>
+                        </div>
                         <input
                           type="text"
                           value={getHeroField('heroTitle')}
@@ -1295,6 +1364,59 @@ export default function AdminSettingsPage() {
                             className="rounded-xl border border-white/10 bg-[#070F1E] px-3 py-2 text-xs text-white outline-none placeholder:text-slate-600 focus:border-[#FFD700]"
                           />
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Search Bar & Trust Highlights Controls */}
+                    <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                      <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                            Hero Search Bar
+                          </span>
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={settings.banners.showHeroSearch !== false}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: { ...prev.banners, showHeroSearch: e.target.checked },
+                                }))
+                              }
+                              className="rounded border-white/20 bg-[#070F1E] text-[#FFD700] focus:ring-0"
+                            />
+                            Show Search Box
+                          </label>
+                        </div>
+                        <p className="text-xs text-slate-400">
+                          Enables the interactive live search box with instant destination/activity autocomplete.
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                            Trust Assurances
+                          </span>
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={settings.banners.showHeroTrust !== false}
+                              onChange={(e) =>
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: { ...prev.banners, showHeroTrust: e.target.checked },
+                                }))
+                              }
+                              className="rounded border-white/20 bg-[#070F1E] text-[#FFD700] focus:ring-0"
+                            />
+                            Show Trust Points
+                          </label>
+                        </div>
+                        <p className="text-xs text-slate-400">
+                          Displays the guarantee checkmarks: 0% Deposit, Free Cancellation, and Instant Voucher.
+                        </p>
                       </div>
                     </div>
 
@@ -1580,6 +1702,48 @@ export default function AdminSettingsPage() {
                     </div>
 
                     <div className="space-y-4">
+                      {/* Optional Auto-Fill from active catalog */}
+                      {availableTours.length > 0 && (
+                        <div className="rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/5 p-4">
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-black uppercase tracking-[0.18em] text-[#00E5FF]">
+                              Auto-Fill Card From Active Tour (Optional)
+                            </span>
+                            <select
+                              defaultValue=""
+                              onChange={(e) => {
+                                const selected = availableTours.find((t) => t.id === e.target.value);
+                                if (!selected) return;
+                                setSettings((prev) => ({
+                                  ...prev,
+                                  banners: {
+                                    ...prev.banners,
+                                    conciergePickTitle: selected.title,
+                                    conciergePickImage: selected.image || prev.banners.conciergePickImage,
+                                    conciergePickPrice: selected.price ? `From $${selected.price}` : prev.banners.conciergePickPrice,
+                                    conciergePickLink: `/tours/${selected.slug}`,
+                                  },
+                                }));
+                                e.target.value = '';
+                              }}
+                              className="w-full rounded-xl border border-white/10 bg-[#0B1528] px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#00E5FF]"
+                            >
+                              <option value="" disabled>
+                                Select an active tour to auto-populate card details...
+                              </option>
+                              {availableTours.map((tour) => (
+                                <option key={tour.id} value={tour.id}>
+                                  {tour.title} {tour.price ? `($${tour.price})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <p className="mt-1.5 text-[11px] text-slate-400">
+                            Selecting a tour fills its cover image, title, starting price, and link automatically. You can still tweak each field below.
+                          </p>
+                        </div>
+                      )}
+
                       {/* Card Image */}
                       <label className="block">
                         <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-[#00E5FF]">
