@@ -74,16 +74,22 @@ export default function TourSearchHeader({ destinations, totalCount, filteredCou
         </div>
 
         <select aria-label="Destination" value={searchParams.get('destination') || ''} onChange={(event) => updateParam('destination', event.target.value)} className={selectClass}>
-          <option value="" className="bg-[#0B1528]">All destinations</option>
+          <option value="" className="bg-[#0B1528]">{(dict.catalog as any).destinationsLabel || 'All destinations'}</option>
           {destinations.map((destination) => <option key={destination.slug} value={destination.slug} className="bg-[#0B1528]">{destination.name}</option>)}
         </select>
 
         <select aria-label="Experience type" value={searchParams.get('type') || ''} onChange={(event) => updateParam('type', event.target.value)} className={selectClass}>
-          {CATEGORIES.map((category) => <option key={category.value || 'all'} value={category.value} className="bg-[#0B1528]">{category.label}</option>)}
+          {[
+            { value: '', label: (dict.catalog as any).categoriesLabel || 'All experiences' },
+            { value: 'SNORKELING', label: dict.catalog.sea || 'Snorkeling & sea' },
+            { value: 'SAFARI', label: dict.catalog.safari || 'Safari & desert' },
+            { value: 'CULTURAL', label: dict.catalog.cultural || 'Culture & history' },
+            { value: 'SPA', label: dict.catalog.spa || 'Wellness' },
+          ].map((category) => <option key={category.value || 'all'} value={category.value} className="bg-[#0B1528]">{category.label}</option>)}
         </select>
 
         <button type="button" onClick={() => setMoreOpen((open) => !open)} className="relative inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-white/10 px-4 text-sm font-semibold text-slate-200 hover:border-cyan-300/40 hover:text-cyan-100">
-          <Filter className="h-4 w-4" /> More filters
+          <Filter className="h-4 w-4" /> {(dict.catalog as any).moreFilters || 'More filters'}
           {activeRefinementCount > 0 && <span className="rounded-full bg-cyan-300 px-1.5 text-xs font-bold text-slate-950">{activeRefinementCount}</span>}
           <ChevronDown className={`h-4 w-4 transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
         </button>
@@ -94,9 +100,9 @@ export default function TourSearchHeader({ destinations, totalCount, filteredCou
           <select value={searchParams.get('sort') || ''} onChange={(event) => updateParam('sort', event.target.value)} className={`${selectClass} pl-9`}>
             <option value="" className="bg-[#0B1528]">{dict.catalog.sortDefault}</option>
             <option value="popular" className="bg-[#0B1528]">{dict.catalog.bestSeller || 'Best Sellers'}</option>
-            <option value="rating_desc" className="bg-[#0B1528]">Top Rated</option>
-            <option value="price_asc" className="bg-[#0B1528]">Price: low to high</option>
-            <option value="price_desc" className="bg-[#0B1528]">Price: high to low</option>
+            <option value="rating_desc" className="bg-[#0B1528]">{(dict.catalog as any).topRated || 'Top Rated'}</option>
+            <option value="price_asc" className="bg-[#0B1528]">{(dict.catalog as any).priceLowHigh || 'Price: low to high'}</option>
+            <option value="price_desc" className="bg-[#0B1528]">{(dict.catalog as any).priceHighLow || 'Price: high to low'}</option>
           </select>
         </label>
       </div>
@@ -104,33 +110,33 @@ export default function TourSearchHeader({ destinations, totalCount, filteredCou
       {moreOpen && (
         <div className="mt-3 grid gap-3 border-t border-white/10 pt-3 sm:grid-cols-2 lg:grid-cols-4">
           <select aria-label="Duration" value={searchParams.get('duration') || ''} onChange={(event) => updateParam('duration', event.target.value)} className={selectClass}>
-            <option value="" className="bg-[#0B1528]">Any duration</option>
-            <option value="quick" className="bg-[#0B1528]">Up to 2 hours</option>
-            <option value="half" className="bg-[#0B1528]">2 to 4 hours</option>
-            <option value="extended" className="bg-[#0B1528]">4 to 8 hours</option>
-            <option value="fullday" className="bg-[#0B1528]">Full day</option>
+            <option value="" className="bg-[#0B1528]">{(dict.catalog as any).anyDuration || 'Any duration'}</option>
+            <option value="quick" className="bg-[#0B1528]">{(dict.catalog as any).durationQuick || 'Up to 2 hours'}</option>
+            <option value="half" className="bg-[#0B1528]">{(dict.catalog as any).durationHalf || '2 to 4 hours'}</option>
+            <option value="extended" className="bg-[#0B1528]">{(dict.catalog as any).durationExtended || '4 to 8 hours'}</option>
+            <option value="fullday" className="bg-[#0B1528]">{(dict.catalog as any).durationFullDay || 'Full day'}</option>
           </select>
           <select aria-label="Price" value={searchParams.get('maxPrice') || ''} onChange={(event) => updateParam('maxPrice', event.target.value)} className={selectClass}>
-            <option value="" className="bg-[#0B1528]">Any price</option>
-            <option value="50" className="bg-[#0B1528]">Up to $50</option>
-            <option value="100" className="bg-[#0B1528]">Up to $100</option>
-            <option value="200" className="bg-[#0B1528]">Up to $200</option>
+            <option value="" className="bg-[#0B1528]">{(dict.catalog as any).anyPrice || 'Any price'}</option>
+            <option value="50" className="bg-[#0B1528]">{(dict.catalog as any).priceUpTo50 || 'Up to $50'}</option>
+            <option value="100" className="bg-[#0B1528]">{(dict.catalog as any).priceUpTo100 || 'Up to $100'}</option>
+            <option value="200" className="bg-[#0B1528]">{(dict.catalog as any).priceUpTo200 || 'Up to $200'}</option>
           </select>
           <select aria-label="Rating" value={searchParams.get('rating') || ''} onChange={(event) => updateParam('rating', event.target.value)} className={selectClass}>
-            <option value="" className="bg-[#0B1528]">Any rating</option>
-            <option value="4.5" className="bg-[#0B1528]">4.5 and above</option>
-            <option value="4" className="bg-[#0B1528]">4.0 and above</option>
+            <option value="" className="bg-[#0B1528]">{(dict.catalog as any).anyRating || 'Any rating'}</option>
+            <option value="4.5" className="bg-[#0B1528]">{(dict.catalog as any).rating45 || '4.5 and above'}</option>
+            <option value="4" className="bg-[#0B1528]">{(dict.catalog as any).rating40 || '4.0 and above'}</option>
           </select>
           <label className="flex h-12 items-center gap-3 rounded-lg border border-white/10 px-3 text-sm text-slate-200">
             <input type="checkbox" checked={searchParams.get('pickup') === 'true'} onChange={(event) => updateParam('pickup', event.target.checked ? 'true' : '')} className="h-4 w-4 rounded border-white/30 bg-transparent accent-cyan-300" />
-            Hotel pickup included
+            {(dict.catalog as any).hotelPickup || 'Hotel pickup included'}
           </label>
         </div>
       )}
 
       <div className="mt-3 flex items-center justify-between text-sm text-slate-400">
         <span>{currentSearch || searchParams.get('destination') || searchParams.get('type') || activeRefinementCount ? dict.catalog.showingXofY.replace('{count}', String(filteredCount)).replace('{total}', String(totalCount)) : dict.catalog.xAvailable.replace('{total}', String(totalCount))}</span>
-        {(currentSearch || searchParams.get('destination') || searchParams.get('type') || searchParams.get('sort') || activeRefinementCount > 0) && <button type="button" onClick={clearAll} className="font-semibold text-cyan-200 hover:text-white">Clear all</button>}
+        {(currentSearch || searchParams.get('destination') || searchParams.get('type') || searchParams.get('sort') || activeRefinementCount > 0) && <button type="button" onClick={clearAll} className="font-semibold text-cyan-200 hover:text-white">{(dict.catalog as any).clearAllFilters || dict.catalog.clearAll || 'Clear all'}</button>}
       </div>
     </section>
   );

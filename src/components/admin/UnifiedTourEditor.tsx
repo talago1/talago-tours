@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Layers,
   MapPin,
   Image as ImageIcon,
@@ -120,6 +122,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
       bookingQuestions: initialData.bookingQuestions || [],
       pickupAreas: initialData.pickupAreas || [],
       pickupTimes: initialData.pickupTimes || [],
+      keyActivityDetails: initialData.keyActivityDetails || initialData.translations?.en?.keyActivityDetails || [],
+      hasGuide: initialData.hasGuide ?? false,
+      guideLanguages: initialData.guideLanguages || [],
     };
   });
 
@@ -749,6 +754,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
         durationDisplay: data.durationDisplay || undefined,
         routeStops: data.routeStops.length > 0 ? data.routeStops : undefined,
         activityTypes: data.activityTypes,
+        hasGuide: Boolean(data.hasGuide),
+        guideLanguages: Array.isArray(data.guideLanguages) ? data.guideLanguages : [],
         operatorName: data.operatorName || undefined,
         operatorPhone: data.operatorPhone || undefined,
         operatorEmail: data.operatorEmail || undefined,
@@ -2787,6 +2794,82 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                   </div>
                 </div>
 
+                {/* ── Live Tour Guide & Spoken Guide Languages ── */}
+                <div className="rounded-2xl border border-sky-500/20 bg-sky-500/[0.02] p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <Languages className="h-5 w-5 text-sky-400" />
+                      <div>
+                        <h4 className="text-sm font-bold text-white">Live Tour Guide &amp; Guide Languages</h4>
+                        <p className="text-xs text-slate-400">Specify if an in-person guide is included and which languages they speak</p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(data.hasGuide)}
+                        onChange={(e) => {
+                          const enabled = e.target.checked;
+                          const defaultLangs = enabled && (!data.guideLanguages || data.guideLanguages.length === 0) ? ['en'] : data.guideLanguages;
+                          updateData({ hasGuide: enabled, guideLanguages: defaultLangs });
+                          updateLocalized({ hasGuide: enabled, guideLanguages: defaultLangs });
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
+                      <span className="ml-3 text-xs font-bold text-white">{data.hasGuide ? 'Guide Included' : 'No Guide'}</span>
+                    </label>
+                  </div>
+
+                  {data.hasGuide && (
+                    <div className="pt-3 border-t border-white/5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold uppercase text-slate-300">
+                          Spoken Guide Languages ({data.guideLanguages?.length || 0} selected)
+                        </label>
+                        <span className="text-[11px] text-slate-400">Languages spoken by the tour guide during the activity</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        {[
+                          { code: 'en', label: 'English', flag: '🇬🇧' },
+                          { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
+                          { code: 'ru', label: 'Русский', flag: '🇷🇺' },
+                          { code: 'fr', label: 'Français', flag: '🇫🇷' },
+                          { code: 'it', label: 'Italiano', flag: '🇮🇹' },
+                          { code: 'pl', label: 'Polski', flag: '🇵🇱' },
+                          { code: 'es', label: 'Español', flag: '🇪🇸' },
+                          { code: 'uk', label: 'Українська', flag: '🇺🇦' },
+                        ].map((lang) => {
+                          const isSelected = (data.guideLanguages || []).includes(lang.code);
+                          return (
+                            <button
+                              key={lang.code}
+                              type="button"
+                              onClick={() => {
+                                const current = data.guideLanguages || [];
+                                const next = isSelected
+                                  ? current.filter((c) => c !== lang.code)
+                                  : [...current, lang.code];
+                                updateData({ guideLanguages: next });
+                                updateLocalized({ guideLanguages: next });
+                              }}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-all ${
+                                isSelected
+                                  ? 'border-sky-500/50 bg-sky-500/10 text-sky-300 font-bold shadow-sm shadow-sky-500/20'
+                                  : 'border-white/5 bg-white/[0.02] text-slate-400 hover:border-white/20 hover:text-white'
+                              }`}
+                            >
+                              <span>{lang.flag}</span>
+                              <span className="flex-1 text-left">{lang.label}</span>
+                              {isSelected && <Check className="h-3.5 w-3.5 text-sky-400" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* ── Key Activity Details (Instant Overview Matrix) ── */}
                 <div className="rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/[0.02] p-5 space-y-4">
                   <div className="flex items-center justify-between">
@@ -2794,115 +2877,182 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       <Sparkles className="h-5 w-5 text-[#00E5FF]" />
                       <div>
                         <h4 className="text-sm font-bold text-white">Key Activity Details (Instant Overview Matrix)</h4>
-                        <p className="text-xs text-slate-400">Controls the 6-card "Key Activity Details" section on the public tour page ({activeLang.toUpperCase()})</p>
+                        <p className="text-xs text-slate-400">
+                          Manage &amp; reorder overview cards for the tour ({activeLang.toUpperCase()}). Duration is already featured in the header.
+                        </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const currentList = currentLocale.keyActivityDetails?.length
-                          ? [...currentLocale.keyActivityDetails]
-                          : [
-                              { id: 'cancellation', title: 'Cancellation', value: 'Free cancellation', description: 'Up to 24 hours before' },
-                              { id: 'confirmation', title: 'Confirmation', value: 'Instant confirmation', description: 'Instant digital ticket delivery' },
-                              { id: 'voucher', title: 'Voucher / Ticket', value: 'Mobile ticket accepted', description: 'Show on smartphone / no print' },
-                              { id: 'duration', title: 'Duration', value: 'Flexible', description: 'Flexible start & return schedule' },
-                              { id: 'guide', title: 'Live Tour Guide', value: 'Multilingual Guide', description: 'English, German, French, Russian' },
-                              { id: 'pickup', title: 'Pickup Service', value: 'Hotel pickup included', description: 'Roundtrip hotel transport' },
-                            ];
-                        currentList.push({
-                          id: `custom-${Date.now()}`,
-                          title: 'New Feature',
-                          value: 'Included',
-                          description: 'Custom detail note',
-                        });
-                        updateLocalized({ keyActivityDetails: currentList });
-                        if (activeLang === 'en') updateData({ keyActivityDetails: currentList });
-                      }}
-                      className="flex items-center gap-1 rounded-lg border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-3 py-1.5 text-xs font-bold text-[#00E5FF] hover:bg-[#00E5FF]/20 transition"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add Custom Detail Card
-                    </button>
+                    {activeLang === 'en' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = (data.keyActivityDetails?.length ? data.keyActivityDetails : [
+                            { id: 'cancellation', title: 'Cancellation', value: 'Free cancellation', description: 'Up to 24 hours before' },
+                            { id: 'confirmation', title: 'Confirmation', value: 'Instant confirmation', description: 'Instant digital ticket delivery' },
+                            { id: 'voucher', title: 'Voucher / Ticket', value: 'Mobile ticket accepted', description: 'Show on smartphone / no print' },
+                            { id: 'pickup', title: 'Pickup Service', value: data.hotelPickupIncluded ? 'Hotel pickup included' : 'Meeting point check-in', description: 'Roundtrip hotel transport' },
+                          ]);
+                          const next = [
+                            ...base,
+                            {
+                              id: `custom-${Date.now()}`,
+                              title: 'Custom Feature',
+                              value: 'Included',
+                              description: 'Special feature detail',
+                            },
+                          ];
+                          updateLocalized({ keyActivityDetails: next });
+                          updateData({ keyActivityDetails: next });
+                        }}
+                        className="flex items-center gap-1 rounded-lg border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-3 py-1.5 text-xs font-bold text-[#00E5FF] hover:bg-[#00E5FF]/20 transition"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Custom Detail Card
+                      </button>
+                    )}
                   </div>
 
-                  <div className="space-y-3">
-                    {(currentLocale.keyActivityDetails?.length
-                      ? currentLocale.keyActivityDetails
-                      : [
-                          { id: 'cancellation', title: 'Cancellation', value: 'Free cancellation', description: 'Up to 24 hours before' },
-                          { id: 'confirmation', title: 'Confirmation', value: 'Instant confirmation', description: 'Instant digital ticket delivery' },
-                          { id: 'voucher', title: 'Voucher / Ticket', value: 'Mobile ticket accepted', description: 'Show on smartphone / no print' },
-                          { id: 'duration', title: 'Duration', value: `${data.durationHours ? data.durationHours + ' hours' : 'Flexible'}`, description: 'Flexible start & return schedule' },
-                          { id: 'guide', title: 'Live Tour Guide', value: 'Multilingual Guide', description: 'English, German, French, Russian' },
-                          { id: 'pickup', title: 'Pickup Service', value: data.hotelPickupIncluded ? 'Hotel pickup included' : 'Meeting point check-in', description: 'Roundtrip hotel transport' },
-                        ]
-                    ).map((item, idx, arr) => (
-                      <div key={item.id || idx} className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl border border-white/10 bg-black/40">
-                        <div>
-                          <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Card Title</label>
-                          <input
-                            type="text"
-                            value={item.title}
-                            onChange={(e) => {
-                              const next = [...arr];
-                              next[idx] = { ...next[idx], title: e.target.value };
-                              updateLocalized({ keyActivityDetails: next });
-                              if (activeLang === 'en') updateData({ keyActivityDetails: next });
-                            }}
-                            placeholder="e.g. Cancellation, Live Tour Guide"
-                            className="w-full rounded-lg border border-white/10 bg-[#070F1E] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#00E5FF]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Primary Value / Status</label>
-                          <input
-                            type="text"
-                            value={item.value}
-                            onChange={(e) => {
-                              const next = [...arr];
-                              next[idx] = { ...next[idx], value: e.target.value };
-                              updateLocalized({ keyActivityDetails: next });
-                              if (activeLang === 'en') updateData({ keyActivityDetails: next });
-                            }}
-                            placeholder="e.g. Free cancellation, Multilingual Guide"
-                            className="w-full rounded-lg border border-white/10 bg-[#070F1E] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#00E5FF]"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1">
-                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Subtitle / Note</label>
-                            <input
-                              type="text"
-                              value={item.description || ''}
-                              onChange={(e) => {
-                                const next = [...arr];
-                                next[idx] = { ...next[idx], description: e.target.value };
-                                updateLocalized({ keyActivityDetails: next });
-                                if (activeLang === 'en') updateData({ keyActivityDetails: next });
-                              }}
-                              placeholder="e.g. Up to 24 hours before"
-                              className="w-full rounded-lg border border-white/10 bg-[#070F1E] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#00E5FF]"
-                            />
-                          </div>
-                          {arr.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const next = arr.filter((_, i) => i !== idx);
-                                updateLocalized({ keyActivityDetails: next });
-                                if (activeLang === 'en') updateData({ keyActivityDetails: next });
-                              }}
-                              className="mt-4 p-1.5 text-slate-500 hover:text-rose-400 transition"
-                              title="Remove this card"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
+                  {(() => {
+                    const enList = (data.keyActivityDetails?.length ? data.keyActivityDetails : (data.translations?.en?.keyActivityDetails?.length ? data.translations.en.keyActivityDetails : [
+                      { id: 'cancellation', title: 'Cancellation', value: 'Free cancellation', description: 'Up to 24 hours before' },
+                      { id: 'confirmation', title: 'Confirmation', value: 'Instant confirmation', description: 'Instant digital ticket delivery' },
+                      { id: 'voucher', title: 'Voucher / Ticket', value: 'Mobile ticket accepted', description: 'Show on smartphone / no print' },
+                      { id: 'pickup', title: 'Pickup Service', value: data.hotelPickupIncluded ? 'Hotel pickup included' : 'Meeting point check-in', description: 'Roundtrip hotel transport' },
+                    ]));
+
+                    const listToRender = activeLang === 'en'
+                      ? (currentLocale.keyActivityDetails?.length ? currentLocale.keyActivityDetails : enList)
+                      : enList.map((enItem, i) => {
+                          const existing = (currentLocale.keyActivityDetails || []).find(item => item.id === enItem.id) || (currentLocale.keyActivityDetails || [])[i];
+                          return {
+                            id: enItem.id,
+                            title: existing?.title || '',
+                            value: existing?.value || '',
+                            description: existing?.description || '',
+                          };
+                        });
+
+                    return (
+                      <div className="space-y-3">
+                        {listToRender.map((item, idx) => {
+                          const enItem = enList[idx] || item;
+                          return (
+                            <div key={item.id || idx} className="p-3.5 rounded-xl border border-white/10 bg-black/40 space-y-2">
+                              {activeLang !== 'en' && (
+                                <div className="text-[11px] text-slate-400 bg-white/[0.03] px-2.5 py-1 rounded-md border border-white/5 flex items-center justify-between">
+                                  <span>
+                                    <strong className="text-slate-300">English Source:</strong> {enItem.title} &bull; {enItem.value} {enItem.description ? `(${enItem.description})` : ''}
+                                  </span>
+                                  <span className="text-[10px] font-mono text-cyan-400">ID: {item.id}</span>
+                                </div>
+                              )}
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                                <div className="sm:col-span-4">
+                                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Card Title</label>
+                                  <input
+                                    type="text"
+                                    value={item.title}
+                                    onChange={(e) => {
+                                      const next = [...listToRender];
+                                      next[idx] = { ...next[idx], title: e.target.value };
+                                      updateLocalized({ keyActivityDetails: next });
+                                      if (activeLang === 'en') updateData({ keyActivityDetails: next });
+                                    }}
+                                    placeholder={activeLang === 'en' ? 'e.g. Cancellation' : enItem.title || 'Translated Title'}
+                                    className="w-full rounded-lg border border-white/10 bg-[#070F1E] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#00E5FF]"
+                                  />
+                                </div>
+                                <div className="sm:col-span-4">
+                                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Primary Value / Status</label>
+                                  <input
+                                    type="text"
+                                    value={item.value}
+                                    onChange={(e) => {
+                                      const next = [...listToRender];
+                                      next[idx] = { ...next[idx], value: e.target.value };
+                                      updateLocalized({ keyActivityDetails: next });
+                                      if (activeLang === 'en') updateData({ keyActivityDetails: next });
+                                    }}
+                                    placeholder={activeLang === 'en' ? 'e.g. Free cancellation' : enItem.value || 'Translated Value'}
+                                    className="w-full rounded-lg border border-white/10 bg-[#070F1E] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#00E5FF]"
+                                  />
+                                </div>
+                                <div className="sm:col-span-3">
+                                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Subtitle / Note</label>
+                                  <input
+                                    type="text"
+                                    value={item.description || ''}
+                                    onChange={(e) => {
+                                      const next = [...listToRender];
+                                      next[idx] = { ...next[idx], description: e.target.value };
+                                      updateLocalized({ keyActivityDetails: next });
+                                      if (activeLang === 'en') updateData({ keyActivityDetails: next });
+                                    }}
+                                    placeholder={activeLang === 'en' ? 'e.g. Up to 24 hours before' : enItem.description || 'Translated note'}
+                                    className="w-full rounded-lg border border-white/10 bg-[#070F1E] px-2.5 py-1.5 text-xs text-white outline-none focus:border-[#00E5FF]"
+                                  />
+                                </div>
+                                <div className="sm:col-span-1 flex items-center justify-end gap-1 pb-1">
+                                  {activeLang === 'en' && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        disabled={idx === 0}
+                                        onClick={() => {
+                                          if (idx === 0) return;
+                                          const next = [...listToRender];
+                                          const tmp = next[idx - 1];
+                                          next[idx - 1] = next[idx];
+                                          next[idx] = tmp;
+                                          updateLocalized({ keyActivityDetails: next });
+                                          updateData({ keyActivityDetails: next });
+                                        }}
+                                        className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent"
+                                        title="Move Up"
+                                      >
+                                        <ChevronUp className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={idx === listToRender.length - 1}
+                                        onClick={() => {
+                                          if (idx === listToRender.length - 1) return;
+                                          const next = [...listToRender];
+                                          const tmp = next[idx + 1];
+                                          next[idx + 1] = next[idx];
+                                          next[idx] = tmp;
+                                          updateLocalized({ keyActivityDetails: next });
+                                          updateData({ keyActivityDetails: next });
+                                        }}
+                                        className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent"
+                                        title="Move Down"
+                                      >
+                                        <ChevronDown className="h-3.5 w-3.5" />
+                                      </button>
+                                      {listToRender.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const next = listToRender.filter((_, i) => i !== idx);
+                                            updateLocalized({ keyActivityDetails: next });
+                                            updateData({ keyActivityDetails: next });
+                                          }}
+                                          className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                                          title="Remove this card"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

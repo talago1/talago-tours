@@ -141,6 +141,8 @@ export default async function TourDetailPage({ params }: Props) {
       meetingPointImageUrl: true,
       cancellationPolicy: true,
       freeCancellationHours: true,
+      hasGuide: true,
+      guideLanguages: true,
       allowDeposit: true,
       depositPercentage: true,
       allowPayAtLocation: true,
@@ -258,6 +260,8 @@ export default async function TourDetailPage({ params }: Props) {
         ageRestrictionsNotes: true,
         destinationId: true,
         tourOptions: true,
+        hasGuide: true,
+        guideLanguages: true,
         destination: {
           select: { name: true, slug: true },
         },

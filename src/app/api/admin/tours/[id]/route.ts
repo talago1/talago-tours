@@ -129,6 +129,8 @@ export async function PUT(
       durationDisplay,
       routeStops,
       activityTypes,
+      hasGuide,
+      guideLanguages,
       operatorName,
       operatorPhone,
       operatorEmail,
@@ -392,6 +394,8 @@ export async function PUT(
     // Route & Activities
     if (routeStops !== undefined) updateData.routeStops = Array.isArray(routeStops) ? routeStops : null;
     if (activityTypes !== undefined) updateData.activityTypes = Array.isArray(activityTypes) ? activityTypes : [];
+    if (hasGuide !== undefined) updateData.hasGuide = Boolean(hasGuide);
+    if (guideLanguages !== undefined) updateData.guideLanguages = Array.isArray(guideLanguages) ? guideLanguages : [];
 
     // Operator
     if (operatorName !== undefined) updateData.operatorName = operatorName || null;

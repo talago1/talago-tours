@@ -39,9 +39,18 @@ export default async function EditTourPage({ params }: Params) {
         cancellationPolicy: rawTrans[lang].cancellationPolicy || '',
         cancellationPolicies: Array.isArray(rawTrans[lang].cancellationPolicies) ? rawTrans[lang].cancellationPolicies : [],
         meetingPointInstructions: rawTrans[lang].meetingPointInstructions || '',
+        meetingPointLandmark: rawTrans[lang].meetingPointLandmark || '',
         safetyGuidelines: Array.isArray(rawTrans[lang].safetyGuidelines) ? rawTrans[lang].safetyGuidelines : [],
         seoTitle: rawTrans[lang].seoTitle || '',
         seoDescription: rawTrans[lang].seoDescription || '',
+        requirements: rawTrans[lang].requirements || '',
+        accessibilityNotes: rawTrans[lang].accessibilityNotes || '',
+        mobilityNotes: rawTrans[lang].mobilityNotes || '',
+        faqItems: Array.isArray(rawTrans[lang].faqItems) ? rawTrans[lang].faqItems : [],
+        keyActivityDetails: Array.isArray(rawTrans[lang].keyActivityDetails) ? rawTrans[lang].keyActivityDetails : [],
+        assignedServices: Array.isArray(rawTrans[lang].assignedServices) ? rawTrans[lang].assignedServices : [],
+        hasGuide: rawTrans[lang].hasGuide ?? tour.hasGuide ?? false,
+        guideLanguages: Array.isArray(rawTrans[lang].guideLanguages) ? rawTrans[lang].guideLanguages : (tour.guideLanguages || []),
       };
     }
   }
@@ -141,6 +150,11 @@ export default async function EditTourPage({ params }: Params) {
     // Route & Activities
     routeStops: (tour.routeStops as any[]) || [],
     activityTypes: tour.activityTypes || [],
+    hasGuide: tour.hasGuide ?? false,
+    guideLanguages: tour.guideLanguages || [],
+    keyActivityDetails: Array.isArray(rawTrans.en?.keyActivityDetails) && rawTrans.en.keyActivityDetails.length > 0
+      ? rawTrans.en.keyActivityDetails
+      : [],
     // Operator & Internal
     operatorName: tour.operatorName || '',
     operatorPhone: tour.operatorPhone || '',

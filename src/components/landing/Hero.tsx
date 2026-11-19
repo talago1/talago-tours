@@ -152,11 +152,11 @@ export default function Hero({
   };
 
   const EXPERIENCE_CATEGORIES = [
-    { key: 'snorkeling', label: 'Snorkeling & Coral Reefs' },
-    { key: 'desert', label: 'Desert Quad & Camel Safari' },
-    { key: 'sea', label: 'Private Yacht & Island Cruises' },
-    { key: 'adventure', label: 'Adventure & Water Sports' },
-    { key: 'historical', label: 'Historical & Cultural Wonders' },
+    { key: 'snorkeling', label: (dict.hero as any)?.categories?.snorkeling || 'Snorkeling & Coral Reefs' },
+    { key: 'desert', label: (dict.hero as any)?.categories?.desert || 'Desert Quad & Camel Safari' },
+    { key: 'sea', label: (dict.hero as any)?.categories?.sea || 'Private Yacht & Island Cruises' },
+    { key: 'adventure', label: (dict.hero as any)?.categories?.adventure || 'Adventure & Water Sports' },
+    { key: 'historical', label: (dict.hero as any)?.categories?.historical || 'Historical & Cultural Wonders' },
   ];
 
   const q = searchQuery.toLowerCase().trim();
@@ -485,7 +485,7 @@ export default function Hero({
                   {matchingDestinations.length > 0 && (
                     <div className="mb-2">
                       <div className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-[#00E5FF]">
-                        Destinations
+                        {(dict.hero as any)?.destinationsTitle || 'Destinations'}
                       </div>
                       <div className="space-y-1">
                         {matchingDestinations.map((d) => (
@@ -502,7 +502,9 @@ export default function Hero({
                               <MapPin className="h-3.5 w-3.5 text-[#00E5FF]" />
                               {d.name}
                             </span>
-                            <span className="text-[10px] text-slate-400 uppercase tracking-wider">Explore</span>
+                            <span className="text-[10px] text-slate-400 uppercase tracking-wider">
+                              {(dict.hero as any)?.explore || 'Explore'}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -513,7 +515,7 @@ export default function Hero({
                   {matchingTours.length > 0 && (
                     <div className="mb-2">
                       <div className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-[#FFD700]">
-                        Popular Experiences
+                        {(dict.hero as any)?.popularExperiences || 'Popular Experiences'}
                       </div>
                       <div className="space-y-1">
                         {matchingTours.map((t) => (
@@ -540,7 +542,7 @@ export default function Hero({
                   {matchingCategories.length > 0 && (
                     <div className="mb-2">
                       <div className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        Categories
+                        {(dict.hero as any)?.categoriesTitle || 'Categories'}
                       </div>
                       <div className="flex flex-wrap gap-1.5 p-1">
                         {matchingCategories.map((c) => (
@@ -560,6 +562,13 @@ export default function Hero({
                     </div>
                   )}
 
+                  {/* Empty state when searching but no results */}
+                  {q && matchingDestinations.length === 0 && matchingTours.length === 0 && matchingCategories.length === 0 && (
+                    <div className="py-4 text-center text-xs text-slate-400">
+                      {(dict.hero as any)?.noResultsFound || 'No matching experiences found'}
+                    </div>
+                  )}
+
                   {/* See all search results */}
                   {q && (
                     <button
@@ -570,7 +579,9 @@ export default function Hero({
                       }}
                       className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 py-2 text-center text-xs font-bold text-[#00E5FF] transition hover:bg-[#00E5FF]/10"
                     >
-                      <span>See all results for &quot;{searchQuery}&quot;</span>
+                      <span>
+                        {((dict.hero as any)?.seeAllResults || 'See all results for "{query}"').replace('{query}', searchQuery)}
+                      </span>
                       <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   )}

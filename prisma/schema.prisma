@@ -232,6 +232,8 @@ model Tour {
   // Route & Activities
   routeStops    Json?
   activityTypes String[] @default([])
+  hasGuide       Boolean  @default(false)
+  guideLanguages String[] @default([])
 
   // Operator & Internal
   operatorName   String?

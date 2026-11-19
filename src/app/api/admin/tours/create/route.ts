@@ -104,6 +104,8 @@ export async function POST(request: NextRequest) {
       durationDisplay,
       routeStops,
       activityTypes,
+      hasGuide,
+      guideLanguages,
       operatorName,
       operatorPhone,
       operatorEmail,
@@ -458,6 +460,8 @@ export async function POST(request: NextRequest) {
         // Route & Activities
         routeStops: Array.isArray(routeStops) ? routeStops : undefined,
         activityTypes: Array.isArray(activityTypes) ? activityTypes : [],
+        hasGuide: Boolean(hasGuide),
+        guideLanguages: Array.isArray(guideLanguages) ? guideLanguages : [],
         // Operator
         operatorName: operatorName || null,
         operatorPhone: operatorPhone || null,

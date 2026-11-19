@@ -123,6 +123,8 @@ export const TourTranslationSchema = z.object({
     description: z.string().optional(),
   })).catch([]).optional(),
   assignedServices: z.array(z.string()).catch([]).optional(),
+  hasGuide: z.boolean().catch(false).optional(),
+  guideLanguages: z.array(z.string()).catch([]).optional(),
 }).passthrough();
 
 export type TourTranslation = z.infer<typeof TourTranslationSchema>;

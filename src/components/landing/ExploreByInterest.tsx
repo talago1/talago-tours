@@ -132,7 +132,8 @@ const INTERESTS: InterestItem[] = [
 ];
 
 export default function ExploreByInterest() {
-  const { language } = useLanguage();
+  const { dict, language } = useLanguage();
+  const interestsDict = (dict as any)?.interests || {};
 
   return (
     <section className="relative z-10 my-4 sm:my-6 lg:my-8 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -141,13 +142,15 @@ export default function ExploreByInterest() {
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-[#00E5FF]" />
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#00E5FF]">
-              Explore by Experience
+              {interestsDict.sectionTitle || 'Explore by Experience'}
             </h3>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">
-            <span className="hidden sm:inline">Direct access to verified activities</span>
+            <span className="hidden sm:inline">
+              {interestsDict.directAccess || 'Direct access to verified activities'}
+            </span>
             <span className="sm:hidden flex items-center gap-1 text-[10px] text-slate-500">
-              Scroll <ChevronRight className="h-3 w-3" />
+              {interestsDict.scroll || 'Scroll'} <ChevronRight className="h-3 w-3" />
             </span>
           </div>
         </div>
@@ -156,7 +159,10 @@ export default function ExploreByInterest() {
         <div className="flex items-center gap-2.5 overflow-x-auto pb-1.5 pt-0.5 px-0.5 scrollbar-none snap-x snap-mandatory scroll-smooth -webkit-overflow-scrolling-touch">
           {INTERESTS.map((interest) => {
             const Icon = interest.icon;
-            const label = interest.translations?.[language] || interest.defaultLabel;
+            const label =
+              interestsDict[interest.id] ||
+              interest.translations?.[language] ||
+              interest.defaultLabel;
 
             return (
               <Link

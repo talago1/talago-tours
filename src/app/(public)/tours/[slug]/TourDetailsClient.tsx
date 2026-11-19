@@ -54,6 +54,23 @@ const WriteReviewModal = dynamic(() => import('@/components/modals/WriteReviewMo
 import type { PublicTour } from '@/types/publicTour';
 import { useRouter } from 'next/navigation';
 
+const GUIDE_LANGUAGE_NAMES: Record<string, Record<string, string>> = {
+  en: { en: 'English', de: 'German', ru: 'Russian', fr: 'French', it: 'Italian', pl: 'Polish', es: 'Spanish', uk: 'Ukrainian' },
+  de: { en: 'Englisch', de: 'Deutsch', ru: 'Russisch', fr: 'Französisch', it: 'Italienisch', pl: 'Polnisch', es: 'Spanisch', uk: 'Ukrainisch' },
+  fr: { en: 'Anglais', de: 'Allemand', ru: 'Russe', fr: 'Français', it: 'Italien', pl: 'Polonais', es: 'Espagnol', uk: 'Ukrainien' },
+  es: { en: 'Inglés', de: 'Alemán', ru: 'Ruso', fr: 'Francés', it: 'Italiano', pl: 'Polaco', es: 'Español', uk: 'Ucraniano' },
+  it: { en: 'Inglese', de: 'Tedesco', ru: 'Russo', fr: 'Francese', it: 'Italiano', pl: 'Polacco', es: 'Spagnolo', uk: 'Ucraino' },
+  pl: { en: 'Angielski', de: 'Niemiecki', ru: 'Rosyjski', fr: 'Francuski', it: 'Włoski', pl: 'Polski', es: 'Hiszpański', uk: 'Ukraiński' },
+  ru: { en: 'Английский', de: 'Немецкий', ru: 'Русский', fr: 'Французский', it: 'Итальянский', pl: 'Польский', es: 'Испанский', uk: 'Украинский' },
+  uk: { en: 'Англійська', de: 'Німецька', ru: 'Російська', fr: 'Французька', it: 'Італійська', pl: 'Польська', es: 'Іспанська', uk: 'Українська' },
+};
+
+function formatGuideLanguages(langs: string[] | undefined, currentLang: string): string {
+  if (!langs || langs.length === 0) return '';
+  const langDict = GUIDE_LANGUAGE_NAMES[currentLang] || GUIDE_LANGUAGE_NAMES.en;
+  return langs.map((code) => langDict[code] || code.toUpperCase()).join(', ');
+}
+
 interface TourData {
   id: string;
   slug: string;
@@ -118,6 +135,8 @@ interface TourData {
     descriptions?: Record<string, string>;
   }>;
   ageRestrictionsNotes?: string | null;
+  hasGuide?: boolean | null;
+  guideLanguages?: string[];
 }
 
 interface ReviewsData {
@@ -725,10 +744,53 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
     return Array.isArray(tour.exclusions) ? tour.exclusions : [];
   })();
 
+  const guideLangs: string[] = (() => {
+    if (Array.isArray(tour.guideLanguages) && tour.guideLanguages.length > 0) return tour.guideLanguages;
+    if (Array.isArray((langTranslation as any).guideLanguages) && (langTranslation as any).guideLanguages.length > 0) return (langTranslation as any).guideLanguages;
+    if (Array.isArray((enTranslation as any).guideLanguages) && (enTranslation as any).guideLanguages.length > 0) return (enTranslation as any).guideLanguages;
+    return [];
+  })();
+
+  const hasGuide: boolean = Boolean(
+    tour.hasGuide ??
+    (langTranslation as any).hasGuide ??
+    (enTranslation as any).hasGuide ??
+    (guideLangs.length > 0)
+  );
+
   const localizedKeyActivityDetails: Array<{ id: string; title: string; value: string; description?: string; icon?: string }> = (() => {
-    if (Array.isArray(langTranslation.keyActivityDetails) && langTranslation.keyActivityDetails.length > 0) return langTranslation.keyActivityDetails;
-    if (Array.isArray(enTranslation.keyActivityDetails) && enTranslation.keyActivityDetails.length > 0) return enTranslation.keyActivityDetails;
-    if (Array.isArray((tour as any).keyActivityDetails) && (tour as any).keyActivityDetails.length > 0) return (tour as any).keyActivityDetails;
+    let rawList: Array<{ id: string; title: string; value: string; description?: string; icon?: string }> = [];
+    if (Array.isArray(langTranslation.keyActivityDetails) && langTranslation.keyActivityDetails.length > 0) {
+      rawList = langTranslation.keyActivityDetails;
+    } else if (Array.isArray(enTranslation.keyActivityDetails) && enTranslation.keyActivityDetails.length > 0) {
+      rawList = enTranslation.keyActivityDetails;
+    } else if (Array.isArray((tour as any).keyActivityDetails) && (tour as any).keyActivityDetails.length > 0) {
+      rawList = (tour as any).keyActivityDetails;
+    }
+
+    if (rawList.length > 0) {
+      return rawList
+        .filter((item) => {
+          const idLower = (item.id || '').toLowerCase();
+          const titleLower = (item.title || '').toLowerCase();
+          if (idLower === 'duration' || titleLower === 'duration') return false;
+          const isGuideItem = idLower === 'guide' || titleLower.includes('guide');
+          if (isGuideItem && !hasGuide) return false;
+          return true;
+        })
+        .map((item) => {
+          const idLower = (item.id || '').toLowerCase();
+          const titleLower = (item.title || '').toLowerCase();
+          const isGuideItem = idLower === 'guide' || titleLower.includes('guide');
+          if (isGuideItem && guideLangs.length > 0) {
+            return {
+              ...item,
+              description: formatGuideLanguages(guideLangs, language),
+            };
+          }
+          return item;
+        });
+    }
     return [];
   })();
 
@@ -919,6 +981,15 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                     </span>
                   </>
                 )}
+                {hasGuide && guideLangs.length > 0 && (
+                  <>
+                    <span className="text-slate-600">·</span>
+                    <span className="flex items-center gap-1.5 text-sm text-sky-400 font-medium">
+                      <Languages className="h-4 w-4 text-sky-400" />
+                      {(dict.tourDetails as any)?.liveTourGuide || 'Guide'}: {formatGuideLanguages(guideLangs, language)}
+                    </span>
+                  </>
+                )}
               </div>
               <h1 className="text-4xl font-black tracking-tight text-white lg:text-5xl">{localizedTitle}</h1>
               {localizedDesc && (
@@ -968,10 +1039,10 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 <div className="mb-5 flex items-center justify-between">
                   <h3 className="text-xs font-black uppercase tracking-[0.22em] text-[#00E5FF] flex items-center gap-2">
                     <Sparkles className="h-4 w-4" />
-                    Key Activity Details
+                    {(dict.tourDetails as any)?.keyActivityDetails || 'Key Activity Details'}
                   </h3>
                   <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[11px] font-bold text-slate-400">
-                    Instant Overview
+                    {(dict.tourDetails as any)?.instantOverview || 'Instant Overview'}
                   </span>
                 </div>
 
@@ -1002,9 +1073,11 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                           <ShieldCheck className="h-5 w-5" />
                         </div>
                         <div>
-                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Cancellation</h4>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                            {(dict.tourDetails as any)?.cancellation || 'Cancellation'}
+                          </h4>
                           <p className={`mt-0.5 text-xs font-bold ${cancelHours > 0 ? 'text-emerald-400' : 'text-slate-300'}`}>
-                            {cancelHours > 0 ? 'Free cancellation' : 'Non-refundable'}
+                            {cancelHours > 0 ? ((dict.tourDetails as any)?.freeCancellation || 'Free cancellation') : ((dict.tourDetails as any)?.nonRefundable || 'Non-refundable')}
                           </p>
                           <p className="text-[11px] text-slate-400 mt-0.5">{cancelHoursText}</p>
                         </div>
@@ -1016,9 +1089,15 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                           <Sparkles className="h-5 w-5" />
                         </div>
                         <div>
-                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Confirmation</h4>
-                          <p className="mt-0.5 text-xs font-bold text-white">Instant confirmation</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">Instant digital ticket delivery</p>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                            {(dict.tourDetails as any)?.confirmation || 'Confirmation'}
+                          </h4>
+                          <p className="mt-0.5 text-xs font-bold text-white">
+                            {(dict.tourDetails as any)?.instantConfirmation || 'Instant confirmation'}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {(dict.tourDetails as any)?.instantDigitalDelivery || 'Instant digital ticket delivery'}
+                          </p>
                         </div>
                       </div>
 
@@ -1028,48 +1107,58 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                           <Smartphone className="h-5 w-5" />
                         </div>
                         <div>
-                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Voucher / Ticket</h4>
-                          <p className="mt-0.5 text-xs font-bold text-white">Mobile ticket accepted</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">Show on smartphone / no print</p>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                            {(dict.tourDetails as any)?.voucherTicket || 'Voucher / Ticket'}
+                          </h4>
+                          <p className="mt-0.5 text-xs font-bold text-white">
+                            {(dict.tourDetails as any)?.mobileTicketAccepted || 'Mobile ticket accepted'}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {(dict.tourDetails as any)?.showOnSmartphone || 'Show on smartphone / no print'}
+                          </p>
                         </div>
                       </div>
 
-                      {/* 4. Duration */}
-                      <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#FFD700]/30 hover:bg-white/[0.04]">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFD700]/10 text-[#FFD700]">
-                          <Clock className="h-5 w-5" />
+                      {/* 4. Live Guide (ONLY if hasGuide) */}
+                      {hasGuide && (
+                        <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-sky-500/30 hover:bg-white/[0.04]">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
+                            <Languages className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                              {(dict.tourDetails as any)?.liveTourGuide || 'Live Tour Guide'}
+                            </h4>
+                            <p className="mt-0.5 text-xs font-bold text-white">
+                              {(dict.tourDetails as any)?.guideSpoken || 'Live Guide Included'}
+                            </p>
+                            {guideLangs.length > 0 && (
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                {formatGuideLanguages(guideLangs, language)}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Duration</h4>
-                          <p className="mt-0.5 text-xs font-bold text-white">{tour.duration || (tour.durationHours ? `${tour.durationHours} hours` : 'Full day')}</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">Flexible start &amp; return schedule</p>
-                        </div>
-                      </div>
+                      )}
 
-                      {/* 5. Live Guide Languages */}
-                      <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-sky-500/30 hover:bg-white/[0.04]">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
-                          <Languages className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Live Tour Guide</h4>
-                          <p className="mt-0.5 text-xs font-bold text-white">Multilingual Guide</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">English, German, French, Russian</p>
-                        </div>
-                      </div>
-
-                      {/* 6. Pickup Service */}
+                      {/* 5. Pickup Service */}
                       <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#00E5FF]/30 hover:bg-white/[0.04]">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
                           <MapPin className="h-5 w-5" />
                         </div>
                         <div>
-                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pickup Service</h4>
+                          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                            {(dict.tourDetails as any)?.pickupService || 'Pickup Service'}
+                          </h4>
                           <p className="mt-0.5 text-xs font-bold text-white">
-                            {tour.hotelPickupIncluded ? 'Hotel pickup included' : (tour.meetingPointName ? 'Meeting point check-in' : 'Pickup optional / included')}
+                            {tour.hotelPickupIncluded
+                              ? ((dict.tourDetails as any)?.hotelPickupIncluded || 'Hotel pickup included')
+                              : (tour.meetingPointName ? ((dict.tourDetails as any)?.meetingPointCheckin || 'Meeting point check-in') : ((dict.tourDetails as any)?.pickupOptional || 'Pickup optional / included'))}
                           </p>
                           <p className="text-[11px] text-slate-400 mt-0.5">
-                            {tour.hotelPickupIncluded ? 'Roundtrip hotel transport' : 'Convenient designated point'}
+                            {tour.hotelPickupIncluded
+                              ? ((dict.tourDetails as any)?.roundtripHotelTransport || 'Roundtrip hotel transport')
+                              : ((dict.tourDetails as any)?.convenientMeetingPoint || 'Convenient designated point')}
                           </p>
                         </div>
                       </div>

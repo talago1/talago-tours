@@ -39,6 +39,8 @@ export interface LocalizedTourContent {
   internalNotes?: string;
   keyActivityDetails?: KeyActivityDetailItem[];
   assignedServices?: string[];
+  hasGuide?: boolean;
+  guideLanguages?: string[];
 }
 
 export interface KeyActivityDetailItem {
@@ -89,6 +91,8 @@ export function createDefaultLocalizedContent(): LocalizedTourContent {
     internalNotes: '',
     keyActivityDetails: [],
     assignedServices: [],
+    hasGuide: false,
+    guideLanguages: [],
   };
 }
 
@@ -394,6 +398,8 @@ export interface TourEditorData {
   faqItems?: { question: string; answer: string }[];
   keyActivityDetails?: KeyActivityDetailItem[];
   assignedServices?: string[];
+  hasGuide: boolean;
+  guideLanguages: string[];
 
   // Rules & Safety
   fitnessLevel?: string;
@@ -498,6 +504,8 @@ export function createDefaultTourEditorData(): TourEditorData {
     reviews: [],
     keyActivityDetails: [],
     assignedServices: [],
+    hasGuide: false,
+    guideLanguages: [],
     translations: createDefaultTranslations(),
     activeLanguage: 'en',
   };

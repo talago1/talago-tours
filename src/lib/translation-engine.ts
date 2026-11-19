@@ -586,7 +586,15 @@ export function auditTranslationCompleteness(
     totalApplicable++;
 
     let isTranslated = false;
-    if (f.isArray) {
+    if (f.key === 'keyActivityDetails') {
+      isTranslated =
+        Array.isArray(transVal) &&
+        transVal.length >= (srcVal as any[]).length &&
+        transVal.every(
+          (item: any) =>
+            Boolean(item && typeof item.title === 'string' && item.title.trim() && typeof item.value === 'string' && item.value.trim())
+        );
+    } else if (f.isArray) {
       isTranslated = Array.isArray(transVal) && transVal.length > 0;
     } else {
       isTranslated = typeof transVal === 'string' && transVal.trim().length > 0;
