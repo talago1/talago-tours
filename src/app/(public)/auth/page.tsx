@@ -75,6 +75,8 @@ function AuthPageContent() {
   const { getWhatsAppUrl } = useContactSettings();
 
   const [authMethod, setAuthMethod] = useState<'GOOGLE' | 'TELEGRAM' | 'EMAIL'>('GOOGLE');
+  // If ?mode=register is present, jump straight to email register
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -91,11 +93,15 @@ function AuthPageContent() {
   const [password, setPassword] = useState('');
   const [isPasswordMode, setIsPasswordMode] = useState(false);
 
-  // Check URL errors on mount
+  // Check URL errors on mount + handle ?mode=register
   useEffect(() => {
     const errorParam = searchParams.get('error');
     if (errorParam) {
       setMessage({ type: 'error', text: decodeURIComponent(errorParam) });
+    }
+    if (searchParams.get('mode') === 'register') {
+      setAuthMethod('EMAIL');
+      setIsRegisterMode(true);
     }
   }, [searchParams]);
 
@@ -255,27 +261,34 @@ function AuthPageContent() {
     setMessage(null);
 
     try {
-      if (isPasswordMode) {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-        if (error) {
+      if (isPasswordMode || isRegisterMode) {
+        if (isRegisterMode) {
+          // Direct registration flow
           const { error: signUpError } = await supabaseClient.auth.signUp({ email, password });
           if (signUpError) throw signUpError;
-          setMessage({ type: 'success', text: dict?.authPage?.registrationSuccess || 'Registration successful! Check your email to confirm.' });
-        } else if (data.session) {
-          const targetReturn = searchParams.get('returnTo') || '/account';
-          await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-            }),
-          }).catch(() => {});
-          setMessage({ type: 'success', text: dict?.authPage?.signedInSuccess || 'Signed in successfully! Redirecting...' });
-          setTimeout(() => {
-            window.location.href = targetReturn;
-          }, 600);
+          setMessage({ type: 'success', text: dict?.authPage?.registrationSuccess || 'Account created! Check your email to confirm.' });
+        } else {
+          // Sign-in with password; fall back to sign-up on "invalid credentials"
+          const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if (error) {
+            const { error: signUpError } = await supabaseClient.auth.signUp({ email, password });
+            if (signUpError) throw signUpError;
+            setMessage({ type: 'success', text: dict?.authPage?.registrationSuccess || 'Registration successful! Check your email to confirm.' });
+          } else if (data.session) {
+            const targetReturn = searchParams.get('returnTo') || '/account';
+            await fetch('/api/auth/session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                access_token: data.session.access_token,
+                refresh_token: data.session.refresh_token,
+              }),
+            }).catch(() => {});
+            setMessage({ type: 'success', text: dict?.authPage?.signedInSuccess || 'Signed in successfully! Redirecting...' });
+            setTimeout(() => {
+              window.location.href = targetReturn;
+            }, 600);
+          }
         }
       } else {
         const targetReturn = searchParams.get('returnTo') || '/account';
@@ -313,10 +326,12 @@ function AuthPageContent() {
             <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40" />
           </Link>
           <h1 className="text-2xl font-black text-white">
-            {dict?.authPage?.title || 'Sign In or Register'}
+            {isRegisterMode ? 'Create Your Account' : (dict?.authPage?.title || 'Sign In or Register')}
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-slate-400">
-            Access your bookings, boarding passes, and custom travel itinerary.
+            {isRegisterMode
+              ? 'Join TALAGO — your next adventure starts here.'
+              : 'Access your bookings, boarding passes, and custom travel itinerary.'}
           </p>
         </div>
 
@@ -494,8 +509,15 @@ function AuthPageContent() {
         {/* ── TAB 3: EMAIL ── */}
         {authMethod === 'EMAIL' && (
           <form onSubmit={handleEmailAuth} className="space-y-4">
-            <div className="rounded-xl border border-white/5 bg-white/[0.02] p-2.5 text-center text-xs text-slate-400">
-              Email sign-in is optional. Use Telegram or Google for faster, passwordless access.
+            {/* Register vs Sign-in context banner */}
+            <div className={`rounded-xl border p-2.5 text-center text-xs ${
+              isRegisterMode
+                ? 'border-[#00E5FF]/20 bg-[#00E5FF]/5 text-[#00E5FF]'
+                : 'border-white/5 bg-white/[0.02] text-slate-400'
+            }`}>
+              {isRegisterMode
+                ? 'Create your TALAGO account with email and password.'
+                : 'Email sign-in is optional. Use Telegram or Google for faster, passwordless access.'}
             </div>
 
             <label className="block">
@@ -515,7 +537,7 @@ function AuthPageContent() {
               </div>
             </label>
 
-            {isPasswordMode && (
+            {(isPasswordMode || isRegisterMode) && (
               <label className="block">
                 <span className="mb-2 block text-xs font-bold text-slate-300">
                   {dict?.authPage?.passwordLabel || 'Password'}
@@ -534,10 +556,16 @@ function AuthPageContent() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-[#EAB308] py-3.5 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-xl shadow-[#EAB308]/20 transition-all duration-300 hover:scale-[1.02] hover:bg-[#FACC15] disabled:opacity-60 disabled:pointer-events-none"
+              className={`w-full inline-flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black uppercase tracking-wider shadow-xl transition-all duration-300 hover:scale-[1.02] disabled:opacity-60 disabled:pointer-events-none ${
+                isRegisterMode
+                  ? 'bg-gradient-to-r from-[#00E5FF] to-[#0284C7] text-[#070F1E] shadow-[#00E5FF]/20 hover:shadow-[#00E5FF]/40'
+                  : 'bg-[#EAB308] text-[#070F1E] shadow-[#EAB308]/20 hover:bg-[#FACC15]'
+              }`}
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isRegisterMode ? (
+                'Create Account'
               ) : isPasswordMode ? (
                 dict?.authPage?.signInRegister || 'Sign In / Register'
               ) : (
@@ -545,16 +573,27 @@ function AuthPageContent() {
               )}
             </button>
 
-            <div className="mt-4 text-center border-t border-white/5 pt-3">
-              <button
-                type="button"
-                onClick={() => { setIsPasswordMode((prev) => !prev); setMessage(null); }}
-                className="text-xs font-bold text-[#06B6D4] hover:text-[#EAB308] transition-colors"
-              >
-                {isPasswordMode
-                  ? (dict?.authPage?.useMagicLink || 'Use passwordless sign-in link instead')
-                  : (dict?.authPage?.usePassword || 'Use email password instead')}
-              </button>
+            <div className="mt-4 text-center border-t border-white/5 pt-3 space-y-2">
+              {!isRegisterMode && (
+                <button
+                  type="button"
+                  onClick={() => { setIsPasswordMode((prev) => !prev); setMessage(null); }}
+                  className="text-xs font-bold text-[#06B6D4] hover:text-[#EAB308] transition-colors"
+                >
+                  {isPasswordMode
+                    ? (dict?.authPage?.useMagicLink || 'Use passwordless sign-in link instead')
+                    : (dict?.authPage?.usePassword || 'Use email password instead')}
+                </button>
+              )}
+              {isRegisterMode && (
+                <button
+                  type="button"
+                  onClick={() => { setIsRegisterMode(false); setIsPasswordMode(false); setMessage(null); }}
+                  className="text-xs font-bold text-slate-400 hover:text-white transition-colors"
+                >
+                  Already have an account? Sign in
+                </button>
+              )}
             </div>
           </form>
         )}

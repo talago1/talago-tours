@@ -102,7 +102,7 @@ export default function Navbar() {
             href="/"
             className="rounded-xl px-4 py-2 text-sm font-semibold tracking-wide text-slate-300 transition-all hover:bg-white/[0.06] hover:text-white"
           >
-            {(dict?.navbar as any)?.home || 'Home'}
+            {dict?.navbar?.home || 'Home'}
           </Link>
           <NavLinks />
           <GlobalSearch />
@@ -130,7 +130,7 @@ export default function Navbar() {
                 href="/"
                 className="flex items-center rounded-xl px-4 py-3 text-base font-bold text-slate-200 transition-all hover:bg-white/5 hover:text-[#00E5FF]"
               >
-                {(dict?.navbar as any)?.home || 'Home'}
+                {dict?.navbar?.home || 'Home'}
               </Link>
               <Link
                 href="/tours"
@@ -316,7 +316,7 @@ export default function Navbar() {
                     <span>{dict?.navbar?.signIn || 'Sign In'}</span>
                   </Link>
                   <Link
-                    href="/auth"
+                    href="/auth?mode=register"
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 transition hover:scale-[1.02] active:scale-98"
                   >
