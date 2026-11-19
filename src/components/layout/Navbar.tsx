@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, User, Globe, LayoutDashboard, LogOut, ChevronDown } from 'lucide-react';
+import { Menu, X, User, Globe, LayoutDashboard, LogOut, ChevronDown, UserPlus, LogIn } from 'lucide-react';
 import { useLanguage, type LanguageCode, languageLabels } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { supabaseClient } from '@/lib/supabase/client';
@@ -306,13 +306,24 @@ export default function Navbar() {
                   </button>
                 </div>
               ) : (
-                <Link
-                  href="/auth"
-                  className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[#00E5FF] py-3.5 text-sm font-bold uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/10"
-                >
-                  <User className="h-4 w-4" />
-                  {dict.navbar.signInRegister}
-                </Link>
+                <div className="flex flex-col gap-2.5 pt-2 border-t border-white/10">
+                  <Link
+                    href="/auth"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 py-3 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-white/10 active:scale-98"
+                  >
+                    <LogIn className="h-4 w-4 text-[#00E5FF]" />
+                    <span>{(dict?.navbar as any)?.signIn || 'Sign In'}</span>
+                  </Link>
+                  <Link
+                    href="/auth"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 transition hover:scale-[1.02] active:scale-98"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    <span>{(dict?.navbar as any)?.register || 'Register'}</span>
+                  </Link>
+                </div>
               )}
             </div>
           </div>

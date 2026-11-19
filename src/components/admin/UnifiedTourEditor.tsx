@@ -280,6 +280,218 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
     setSaveSuccessMessage('AI Tour Draft applied! All 27 sections populated. Please review pricing in Step 4 and media in Step 6.');
   };
 
+  const buildExhaustiveSource = (title: string, enContent: any, tourData: any) => ({
+    title,
+    shortTitle: enContent.shortTitle?.trim() || undefined,
+    cardExcerpt: enContent.cardExcerpt?.trim() || tourData.cardExcerpt?.trim() || undefined,
+    description: enContent.description?.trim() || '',
+    highlights: (enContent.highlights?.length ? enContent.highlights : tourData.highlights) || [],
+    inclusions: (enContent.inclusions?.length ? enContent.inclusions : tourData.inclusions) || [],
+    exclusions: (enContent.exclusions?.length ? enContent.exclusions : tourData.exclusions) || [],
+    whatToBring: enContent.whatToBring?.trim() || tourData.whatToBring?.trim() || undefined,
+    importantInfo: enContent.importantInfo?.trim() || undefined,
+    pickupDescription: enContent.pickupDescription?.trim() || tourData.pickupDescription?.trim() || undefined,
+    meetingPointInstructions: enContent.meetingPointInstructions?.trim() || tourData.meetingPointInstructions?.trim() || undefined,
+    meetingPointLandmark: enContent.meetingPointLandmark?.trim() || tourData.meetingPointLandmark?.trim() || undefined,
+    safetyGuidelines: (enContent.safetyGuidelines?.length ? enContent.safetyGuidelines : tourData.safetyGuidelines) || [],
+    requirements: enContent.requirements?.trim() || undefined,
+    accessibilityNotes: enContent.accessibilityNotes?.trim() || tourData.accessibilityNotes?.trim() || undefined,
+    mobilityNotes: enContent.mobilityNotes?.trim() || tourData.mobilityNotes?.trim() || undefined,
+    cancellationPolicy: enContent.cancellationPolicy?.trim() || tourData.cancellationPolicy?.trim() || undefined,
+    cancellationPolicies: enContent.cancellationPolicies?.length ? enContent.cancellationPolicies : undefined,
+    seoTitle: enContent.seoTitle?.trim() || tourData.metaTitle?.trim() || undefined,
+    seoDescription: enContent.seoDescription?.trim() || tourData.metaDescription?.trim() || undefined,
+    faqItems: (enContent.faqItems && enContent.faqItems.length > 0) ? enContent.faqItems : [],
+    keyActivityDetails: (enContent.keyActivityDetails?.length ? enContent.keyActivityDetails : tourData.keyActivityDetails) || [],
+    bookingQuestions: (tourData.bookingQuestions || []).map((q: any) => ({ id: q.id, question: q.question, options: q.options })),
+    routeStops: (tourData.routeStops || []).map((r: any) => ({ name: r.name, description: r.description })),
+    itinerary: (tourData.itinerary || []).map((i: any) => ({
+      timeTag: i.timeTag,
+      title: typeof i.title === 'string' ? i.title : (i.title?.en || ''),
+      description: typeof i.description === 'string' ? i.description : (i.description?.en || ''),
+    })),
+  });
+
+  const CHUNK_SEQUENCE: Array<{ key: string; label: string; critical: boolean }> = [
+    { key: 'core', label: 'Title & Excerpts', critical: true },
+    { key: 'overview', label: 'Overview & Inclusions', critical: false },
+    { key: 'lists', label: 'Safety & Policies', critical: false },
+    { key: 'logistics', label: 'Logistics & Meeting Points', critical: false },
+    { key: 'itinerary', label: 'Itinerary Stops', critical: false },
+    { key: 'faq', label: 'FAQ Items', critical: false },
+    { key: 'custom', label: 'Activity Details', critical: false },
+  ];
+
+  const translateSingleTargetLanguage = async (
+    targetLang: { code: string; label: string },
+    sourcePayload: any
+  ): Promise<{ success: boolean; error?: string }> => {
+    const typedKey = targetLang.code as LanguageCode;
+    let accumulatedFields: any = { ...(data.translations[typedKey] || createDefaultLocalizedContent()) };
+    let coreSucceeded = false;
+
+    for (let cIdx = 0; cIdx < CHUNK_SEQUENCE.length; cIdx++) {
+      const chunk = CHUNK_SEQUENCE[cIdx];
+      setTranslationProgress(`Translating ${targetLang.label} — ${chunk.label} (${cIdx + 1}/${CHUNK_SEQUENCE.length})...`);
+
+      let chunkResponse: any = null;
+      let lastErr: string = '';
+
+      // Try chunk up to 2 times for transient network hiccups
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const res = await fetch('/api/admin/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              mode: 'chunk',
+              lang: targetLang.code,
+              chunkKey: chunk.key,
+              source: sourcePayload,
+            }),
+          });
+
+          const rawText = await res.text();
+          let resData: any = null;
+          try {
+            resData = JSON.parse(rawText);
+          } catch {
+            throw new Error(`API returned non-JSON response (HTTP ${res.status}): ${rawText.slice(0, 150)}`);
+          }
+
+          if (!res.ok || !resData.success) {
+            throw new Error(resData?.error || `Chunk ${chunk.key} failed (HTTP ${res.status})`);
+          }
+
+          chunkResponse = resData.result;
+          break; // Chunk succeeded
+        } catch (attemptErr: any) {
+          lastErr = attemptErr.message || String(attemptErr);
+          if (attempt === 1) {
+            await new Promise((r) => setTimeout(r, 800));
+          }
+        }
+      }
+
+      if (!chunkResponse) {
+        if (chunk.critical) {
+          return {
+            success: false,
+            error: `Core details failed for ${targetLang.label}: ${lastErr}`,
+          };
+        }
+        console.warn(`[translation] Non-critical chunk ${chunk.key} skipped for ${targetLang.label}: ${lastErr}`);
+        continue;
+      }
+
+      const returnedFields = chunkResponse.fields || {};
+      accumulatedFields = { ...accumulatedFields, ...returnedFields };
+
+      if (chunk.key === 'core' && returnedFields.title?.trim()) {
+        coreSucceeded = true;
+      }
+
+      // Live update state immediately so the user sees fields populate in real time!
+      setData((prev) => {
+        const merged = { ...prev.translations };
+        merged[typedKey] = {
+          ...(merged[typedKey] || createDefaultLocalizedContent()),
+          ...returnedFields,
+        };
+
+        const updatedItinerary = prev.itinerary
+          ? [...prev.itinerary.map((m) => ({ ...m, title: { ...m.title }, description: { ...(m.description || {}) } }))]
+          : [];
+
+        if (chunk.key === 'itinerary' && Array.isArray(returnedFields.itinerary) && updatedItinerary.length > 0) {
+          returnedFields.itinerary.forEach((item: any, itemIdx: number) => {
+            if (updatedItinerary[itemIdx]) {
+              if (item.title) {
+                (updatedItinerary[itemIdx].title as any)[typedKey] = item.title;
+              }
+              if (item.description) {
+                if (!updatedItinerary[itemIdx].description) {
+                  updatedItinerary[itemIdx].description = {} as any;
+                }
+                (updatedItinerary[itemIdx].description as any)[typedKey] = item.description;
+              }
+            }
+          });
+        }
+
+        return { ...prev, translations: merged, itinerary: updatedItinerary };
+      });
+    }
+
+    if (!coreSucceeded || !accumulatedFields.title?.trim()) {
+      return {
+        success: false,
+        error: `Translation for ${targetLang.label} did not generate a valid title.`,
+      };
+    }
+
+    // Run audit to update completeness score
+    try {
+      const auditRes = await fetch('/api/admin/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'audit',
+          lang: targetLang.code,
+          source: sourcePayload,
+          existingTranslation: accumulatedFields,
+        }),
+      });
+      if (auditRes.ok) {
+        const auditData = await auditRes.json();
+        if (auditData.audit) {
+          setTranslationAudits((prev) => ({ ...prev, [typedKey]: auditData.audit }));
+        }
+      }
+    } catch {
+      // Audit failure non-fatal
+    }
+
+    return { success: true };
+  };
+
+  const handleTranslateCurrentLanguage = async (targetLangCode: LanguageCode) => {
+    if (targetLangCode === 'en') {
+      alert('English is the primary source language.');
+      return;
+    }
+    const enContent = data.translations.en || createDefaultLocalizedContent();
+    const sourceTitle = enContent.title?.trim();
+    if (!sourceTitle) {
+      alert('Please provide an English experience title first before translating.');
+      return;
+    }
+    const targetLangMeta = editorLanguages.find((l) => l.code === targetLangCode) || {
+      code: targetLangCode,
+      label: targetLangCode.toUpperCase(),
+    };
+
+    const exhaustiveSource = buildExhaustiveSource(sourceTitle, enContent, data);
+
+    try {
+      setTranslating(true);
+      setErrorMessage(null);
+      const res = await translateSingleTargetLanguage(targetLangMeta, exhaustiveSource);
+      if (res.success) {
+        setIsDirty(true);
+        setSaveSuccessMessage(`✨ Successfully translated ${targetLangMeta.label}! Title and sections updated.`);
+        setTimeout(() => setSaveSuccessMessage(null), 5000);
+      } else {
+        setErrorMessage(res.error || `Failed to translate ${targetLangMeta.label}`);
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || `Error translating ${targetLangMeta.label}`);
+    } finally {
+      setTranslating(false);
+      setTranslationProgress(null);
+    }
+  };
+
   const handleAiAutoTranslate = async () => {
     const enContent = data.translations.en || createDefaultLocalizedContent();
     const sourceTitle = enContent.title?.trim();
@@ -288,38 +500,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
       return;
     }
 
-    // Exhaustive field extraction from English source and tour data
-    const exhaustiveSource: any = {
-      title: sourceTitle,
-      shortTitle: enContent.shortTitle?.trim() || undefined,
-      cardExcerpt: enContent.cardExcerpt?.trim() || data.cardExcerpt?.trim() || undefined,
-      description: enContent.description?.trim() || '',
-      highlights: (enContent.highlights?.length ? enContent.highlights : data.highlights) || [],
-      inclusions: (enContent.inclusions?.length ? enContent.inclusions : data.inclusions) || [],
-      exclusions: (enContent.exclusions?.length ? enContent.exclusions : data.exclusions) || [],
-      whatToBring: enContent.whatToBring?.trim() || data.whatToBring?.trim() || undefined,
-      importantInfo: enContent.importantInfo?.trim() || undefined,
-      pickupDescription: enContent.pickupDescription?.trim() || data.pickupDescription?.trim() || undefined,
-      meetingPointInstructions: enContent.meetingPointInstructions?.trim() || data.meetingPointInstructions?.trim() || undefined,
-      meetingPointLandmark: enContent.meetingPointLandmark?.trim() || data.meetingPointLandmark?.trim() || undefined,
-      safetyGuidelines: (enContent.safetyGuidelines?.length ? enContent.safetyGuidelines : data.safetyGuidelines) || [],
-      requirements: enContent.requirements?.trim() || undefined,
-      accessibilityNotes: enContent.accessibilityNotes?.trim() || data.accessibilityNotes?.trim() || undefined,
-      mobilityNotes: enContent.mobilityNotes?.trim() || data.mobilityNotes?.trim() || undefined,
-      cancellationPolicy: enContent.cancellationPolicy?.trim() || data.cancellationPolicy?.trim() || undefined,
-      cancellationPolicies: (enContent.cancellationPolicies?.length ? enContent.cancellationPolicies : undefined),
-      seoTitle: enContent.seoTitle?.trim() || data.metaTitle?.trim() || undefined,
-      seoDescription: enContent.seoDescription?.trim() || data.metaDescription?.trim() || undefined,
-      faqItems: (enContent.faqItems && enContent.faqItems.length > 0) ? enContent.faqItems : [],
-      keyActivityDetails: (enContent.keyActivityDetails?.length ? enContent.keyActivityDetails : data.keyActivityDetails) || [],
-      bookingQuestions: (data.bookingQuestions || []).map((q) => ({ id: q.id, question: q.question, options: q.options })),
-      routeStops: (data.routeStops || []).map((r) => ({ name: r.name, description: r.description })),
-      itinerary: (data.itinerary || []).map((i) => ({
-        timeTag: i.timeTag,
-        title: typeof i.title === 'string' ? i.title : (i.title?.en || ''),
-        description: typeof i.description === 'string' ? i.description : (i.description?.en || ''),
-      })),
-    };
+    const exhaustiveSource = buildExhaustiveSource(sourceTitle, enContent, data);
 
     // Filter target languages (all enabled non-English languages)
     const targetLanguages = editorLanguages.filter((l) => l.code !== 'en');
@@ -334,93 +515,27 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
 
       const successfulLangs: string[] = [];
       const failedLangs: Array<{ lang: string; error: string }> = [];
-      const updatedAudits: Record<string, any> = { ...translationAudits };
 
-      // EXHAUSTIVE SEQUENTIAL PROCESSING: One target language at a time
+      // EXHAUSTIVE SEQUENTIAL CHUNKED TRANSLATION
       for (let idx = 0; idx < targetLanguages.length; idx++) {
         const targetLang = targetLanguages[idx];
-        setTranslationProgress(`Translating ${targetLang.label} (${idx + 1}/${targetLanguages.length})...`);
-
-        try {
-          const res = await fetch('/api/admin/translate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              mode: 'language',
-              lang: targetLang.code,
-              source: exhaustiveSource,
-              existingTranslation: data.translations[targetLang.code as LanguageCode] || undefined,
-            }),
-          });
-
-          const rawText = await res.text();
-          let resData: any = null;
-          try {
-            resData = JSON.parse(rawText);
-          } catch {
-            throw new Error(
-              `API returned non-JSON response (HTTP ${res.status}): ${rawText.slice(0, 160)}`
-            );
-          }
-
-          if (!res.ok) {
-            throw new Error(resData?.error || `Failed to translate ${targetLang.label} (HTTP ${res.status})`);
-          }
-
-          if (resData.translation) {
-            const typedKey = targetLang.code as LanguageCode;
-
-            // Immediately merge and commit this language to state
-            setData((prev) => {
-              const merged = { ...prev.translations };
-              merged[typedKey] = {
-                ...(merged[typedKey] || createDefaultLocalizedContent()),
-                ...resData.translation,
-              };
-
-              // Merge translated itinerary milestones if present
-              const updatedItinerary = prev.itinerary
-                ? [...prev.itinerary.map((m) => ({ ...m, title: { ...m.title }, description: { ...(m.description || {}) } }))]
-                : [];
-
-              const translatedItinerary = resData.translation.itinerary;
-              if (Array.isArray(translatedItinerary) && updatedItinerary.length > 0) {
-                translatedItinerary.forEach((item: any, itemIdx: number) => {
-                  if (updatedItinerary[itemIdx]) {
-                    if (item.title) {
-                      (updatedItinerary[itemIdx].title as any)[typedKey] = item.title;
-                    }
-                    if (item.description) {
-                      if (!updatedItinerary[itemIdx].description) {
-                        updatedItinerary[itemIdx].description = {} as any;
-                      }
-                      (updatedItinerary[itemIdx].description as any)[typedKey] = item.description;
-                    }
-                  }
-                });
-              }
-
-              return { ...prev, translations: merged, itinerary: updatedItinerary };
-            });
-
-            if (resData.audit) {
-              updatedAudits[typedKey] = resData.audit;
-            }
-            successfulLangs.push(targetLang.label);
-          }
-        } catch (langErr: any) {
-          console.error(`Error translating ${targetLang.label}:`, langErr);
-          failedLangs.push({ lang: targetLang.label, error: langErr.message });
+        const res = await translateSingleTargetLanguage(targetLang, exhaustiveSource);
+        if (res.success) {
+          successfulLangs.push(targetLang.label);
+        } else {
+          failedLangs.push({ lang: targetLang.label, error: res.error || 'Incomplete translation' });
         }
       }
 
-      setTranslationAudits(updatedAudits);
       setIsDirty(true);
 
       if (failedLangs.length === 0) {
         setSaveSuccessMessage(`✨ All ${successfulLangs.length} languages translated sequentially with exhaustive completeness!`);
       } else {
-        setSaveSuccessMessage(`✨ Translated ${successfulLangs.length} languages. ${failedLangs.length} had errors (${failedLangs.map(f => f.lang).join(', ')}).`);
+        setSaveSuccessMessage(`✨ Translated ${successfulLangs.length} languages. ${failedLangs.length} had errors (${failedLangs.map((f) => f.lang).join(', ')}).`);
+        if (failedLangs.length > 0) {
+          setErrorMessage(`Translation issues: ${failedLangs.map((f) => `${f.lang}: ${f.error}`).join('; ')}`);
+        }
       }
       setTimeout(() => setSaveSuccessMessage(null), 6000);
     } catch (err: any) {
@@ -775,6 +890,24 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </button>
             ))}
           </div>
+
+          {/* Translate Single Selected Language */}
+          {activeLang !== 'en' && (
+            <button
+              type="button"
+              disabled={translating}
+              onClick={() => handleTranslateCurrentLanguage(activeLang)}
+              className="flex items-center gap-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 px-3 py-2 text-xs font-bold text-teal-300 hover:bg-teal-500/20 transition disabled:opacity-50"
+              title={`Translate English into ${editorLanguages.find((l) => l.code === activeLang)?.label || activeLang.toUpperCase()} only`}
+            >
+              {translating ? (
+                <Loader2 className="w-4 h-4 animate-spin text-teal-400" />
+              ) : (
+                <Languages className="w-4 h-4 text-teal-400" />
+              )}
+              <span>Translate {editorLanguages.find((l) => l.code === activeLang)?.label || activeLang.toUpperCase()}</span>
+            </button>
+          )}
 
           {/* AI Auto-Translate Button */}
           <button

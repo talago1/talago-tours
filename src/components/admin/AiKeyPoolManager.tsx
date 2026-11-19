@@ -39,11 +39,18 @@ interface TestResult {
 
 const PRESETS = [
   {
-    name: 'Google Gemini (Flash)',
+    name: 'Google Gemini Flash Lite (Recommended)',
     type: 'gemini' as const,
     baseUrl: '',
-    modelId: 'gemini-3.8-flash',
-    description: 'Google Generative Language API – gemini-3.8-flash (auto-fallback to 3.5)',
+    modelId: 'gemini-3.5-flash-lite',
+    description: 'High-throughput, stable Google Generative Language API endpoint with 1.5s latency',
+  },
+  {
+    name: 'Google Gemini Flash Lite Latest',
+    type: 'gemini' as const,
+    baseUrl: '',
+    modelId: 'gemini-flash-lite-latest',
+    description: 'Latest high-concurrency production endpoint with auto-failover',
   },
   {
     name: 'Groq Cloud (Llama 3.3)',
@@ -56,7 +63,7 @@ const PRESETS = [
     name: 'OpenRouter (Multi-Model)',
     type: 'openai_compatible' as const,
     baseUrl: 'https://openrouter.ai/api/v1',
-    modelId: 'google/gemini-flash-1.5',
+    modelId: 'google/gemini-2.0-flash-001',
     description: 'Unified gateway for DeepSeek, Gemini, Claude, Llama',
   },
   {
@@ -83,7 +90,7 @@ export default function AiKeyPoolManager() {
     type: 'gemini',
     baseUrl: '',
     apiKey: '',
-    modelId: 'gemini-3.8-flash',
+    modelId: 'gemini-3.5-flash-lite',
     isActive: true,
     priority: 10,
   });

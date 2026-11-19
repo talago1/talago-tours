@@ -121,6 +121,19 @@ export async function POST(request: NextRequest) {
 
       const audit = auditTranslationCompleteness(source, langPayload, targetCode);
 
+      // Verify that translation actually generated content (at least the title)
+      if (!langPayload.title) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Translation failed to generate title for ${targetCode}. ${chunkErrors['core'] || 'AI returned empty core fields.'}`,
+            chunkErrors,
+            audit,
+          },
+          { status: 422 }
+        );
+      }
+
       return NextResponse.json({
         success: true,
         lang: targetCode,

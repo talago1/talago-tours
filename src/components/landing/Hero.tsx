@@ -12,8 +12,23 @@ import {
   ShieldCheck,
   CheckCircle2,
   Globe2,
+  MapPin,
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+
+export interface HeroSearchDestination {
+  name: string;
+  slug: string;
+  description?: string;
+}
+
+export interface HeroPopularTour {
+  title: string;
+  slug: string;
+  category?: string | null;
+  destinationName?: string;
+  price?: number | null;
+}
 
 export interface HeroShowcaseDestination {
   name: string;
@@ -63,6 +78,10 @@ export interface HeroProps {
 
   /** Destinations pulled from the database, shown in the rotating 3D card. */
   showcaseDestinations?: HeroShowcaseDestination[];
+  /** Search autocomplete destinations. */
+  searchDestinations?: HeroSearchDestination[];
+  /** Search autocomplete tours. */
+  popularTours?: HeroPopularTour[];
   /** Live count of bookable tours, rendered in the card footer. */
   activeTourCount?: number;
 
@@ -102,6 +121,8 @@ export default function Hero({
   heroMetric3Value,
   heroMetric3Label,
   showcaseDestinations = [],
+  searchDestinations = [],
+  popularTours = [],
   activeTourCount,
   heroTranslations,
 }: HeroProps) {
@@ -109,13 +130,62 @@ export default function Hero({
   const router = useRouter();
   const [heroError, setHeroError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: globalThis.MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchFocused(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSearchFocused(false);
     const q = searchQuery.trim();
     if (q) router.push(`/tours?search=${encodeURIComponent(q)}`);
     else router.push('/tours');
   };
+
+  const EXPERIENCE_CATEGORIES = [
+    { key: 'snorkeling', label: 'Snorkeling & Coral Reefs' },
+    { key: 'desert', label: 'Desert Quad & Camel Safari' },
+    { key: 'sea', label: 'Private Yacht & Island Cruises' },
+    { key: 'adventure', label: 'Adventure & Water Sports' },
+    { key: 'historical', label: 'Historical & Cultural Wonders' },
+  ];
+
+  const q = searchQuery.toLowerCase().trim();
+
+  const matchingDestinations = searchDestinations
+    .filter(
+      (d) =>
+        !q ||
+        d.name.toLowerCase().includes(q) ||
+        (d.description && d.description.toLowerCase().includes(q))
+    )
+    .slice(0, 4);
+
+  const matchingCategories = EXPERIENCE_CATEGORIES.filter(
+    (c) => !q || c.label.toLowerCase().includes(q) || c.key.toLowerCase().includes(q)
+  ).slice(0, 3);
+
+  const matchingTours = popularTours
+    .filter(
+      (t) =>
+        !q ||
+        t.title.toLowerCase().includes(q) ||
+        (t.destinationName && t.destinationName.toLowerCase().includes(q))
+    )
+    .slice(0, 4);
+
+  const showSuggestions =
+    isSearchFocused &&
+    (matchingDestinations.length > 0 || matchingTours.length > 0 || matchingCategories.length > 0 || q.length > 0);
 
   // 3D Card Interactive Tilt State
   const cardRef = useRef<HTMLDivElement>(null);
@@ -370,34 +440,143 @@ export default function Hero({
               </div>
             )}
 
-            {/* ── Hero Unified Search Bar ── */}
-            <form
-              onSubmit={handleSearch}
-              className="mt-7 flex w-full max-w-lg items-center gap-0 overflow-hidden rounded-2xl border border-white/15 bg-white/[0.07] shadow-xl shadow-black/30 backdrop-blur-md focus-within:border-[#00E5FF]/50 focus-within:bg-white/[0.10] transition-all duration-300"
-            >
-              <label htmlFor="hero-search" className="sr-only">Search experiences</label>
-              <span className="flex items-center pl-4 text-slate-400">
-                <Search className="h-5 w-5 shrink-0" />
-              </span>
-              <input
-                id="hero-search"
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={
-                  (dict?.hero as any)?.searchPlaceholder ||
-                  'Search tours, destinations, activities…'
-                }
-                className="flex-1 bg-transparent py-3.5 pl-3 pr-2 text-sm text-white placeholder-slate-400 outline-none"
-              />
-              <button
-                type="submit"
-                className="m-1 flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-[#070F1E] transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-[#00E5FF]/30 active:scale-95"
+            {/* ── Hero Unified Search Bar with Autocomplete ── */}
+            <div ref={searchContainerRef} className="relative mt-7 w-full max-w-lg z-50">
+              <form
+                onSubmit={handleSearch}
+                className="flex w-full items-center gap-0 rounded-2xl border border-white/15 bg-white/[0.08] shadow-2xl shadow-black/40 backdrop-blur-md focus-within:border-[#00E5FF]/60 focus-within:bg-white/[0.12] transition-all duration-300"
               >
-                <span className="hidden sm:inline">{(dict?.hero as any)?.searchBtn || 'Search'}</span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </form>
+                <label htmlFor="hero-search" className="sr-only">Search experiences</label>
+                <span className="flex items-center pl-4 text-slate-400">
+                  <Search className="h-5 w-5 shrink-0 text-[#00E5FF]" />
+                </span>
+                <input
+                  id="hero-search"
+                  type="search"
+                  autoComplete="off"
+                  value={searchQuery}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setIsSearchFocused(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setIsSearchFocused(false);
+                  }}
+                  placeholder={
+                    (dict?.hero as any)?.searchPlaceholder ||
+                    'Search tours, destinations, activities…'
+                  }
+                  className="flex-1 bg-transparent py-3.5 pl-3 pr-2 text-sm text-white placeholder-slate-400 outline-none"
+                />
+                <button
+                  type="submit"
+                  className="m-1.5 flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-[#070F1E] transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-[#00E5FF]/30 active:scale-95"
+                >
+                  <span className="hidden sm:inline">{(dict?.hero as any)?.searchBtn || 'Search'}</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </form>
+
+              {/* Suggestions Dropdown */}
+              {showSuggestions && (
+                <div className="absolute left-0 right-0 top-full mt-2 overflow-hidden rounded-2xl border border-white/15 bg-[#0B1528]/95 p-3 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                  {/* Destinations section */}
+                  {matchingDestinations.length > 0 && (
+                    <div className="mb-2">
+                      <div className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-[#00E5FF]">
+                        Destinations
+                      </div>
+                      <div className="space-y-1">
+                        {matchingDestinations.map((d) => (
+                          <button
+                            key={d.slug}
+                            type="button"
+                            onClick={() => {
+                              setIsSearchFocused(false);
+                              router.push(`/tours?destination=${d.slug}`);
+                            }}
+                            className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs text-white transition hover:bg-white/10"
+                          >
+                            <span className="flex items-center gap-2 font-bold">
+                              <MapPin className="h-3.5 w-3.5 text-[#00E5FF]" />
+                              {d.name}
+                            </span>
+                            <span className="text-[10px] text-slate-400 uppercase tracking-wider">Explore</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tours section */}
+                  {matchingTours.length > 0 && (
+                    <div className="mb-2">
+                      <div className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-[#FFD700]">
+                        Popular Experiences
+                      </div>
+                      <div className="space-y-1">
+                        {matchingTours.map((t) => (
+                          <button
+                            key={t.slug}
+                            type="button"
+                            onClick={() => {
+                              setIsSearchFocused(false);
+                              router.push(`/tours/${t.slug}`);
+                            }}
+                            className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs text-white transition hover:bg-white/10"
+                          >
+                            <span className="truncate pr-2 font-medium">{t.title}</span>
+                            {t.price ? (
+                              <span className="shrink-0 text-[11px] font-bold text-[#00E5FF]">${t.price}</span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Categories section */}
+                  {matchingCategories.length > 0 && (
+                    <div className="mb-2">
+                      <div className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Categories
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 p-1">
+                        {matchingCategories.map((c) => (
+                          <button
+                            key={c.key}
+                            type="button"
+                            onClick={() => {
+                              setIsSearchFocused(false);
+                              router.push(`/tours?category=${c.key}`);
+                            }}
+                            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-slate-300 transition hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-white"
+                          >
+                            {c.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* See all search results */}
+                  {q && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSearchFocused(false);
+                        router.push(`/tours?search=${encodeURIComponent(searchQuery.trim())}`);
+                      }}
+                      className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 py-2 text-center text-xs font-bold text-[#00E5FF] transition hover:bg-[#00E5FF]/10"
+                    >
+                      <span>See all results for &quot;{searchQuery}&quot;</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Admin-configured headline metrics */}
             {showHeroMetrics && heroMetrics.length > 0 && (

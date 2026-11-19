@@ -175,22 +175,31 @@ export async function saveAiProviders(providers: AiProviderConfig[]): Promise<vo
  * Executes a completion request against a specific provider.
  */
 /**
- * Models that have been sunset by Google – automatically redirected to supported equivalents.
+ * Models that have been sunset or rate-limited on free tiers by Google – automatically redirected to supported equivalents.
  */
 const GEMINI_MODEL_ALIASES: Record<string, string> = {
-  'gemini-1.5-flash': 'gemini-3.5-flash',
-  'gemini-1.5-flash-latest': 'gemini-3.5-flash',
-  'gemini-2.5-flash': 'gemini-3.5-flash',
-  'gemini-2.5-flash-preview': 'gemini-3.5-flash',
+  'gemini-3.8-flash': 'gemini-3.5-flash-lite',
+  'gemini-3.5-flash': 'gemini-3.5-flash-lite',
+  'gemini-2.5-flash': 'gemini-3.5-flash-lite',
+  'gemini-2.5-flash-preview': 'gemini-3.5-flash-lite',
+  'gemini-2.5-flash-lite': 'gemini-3.5-flash-lite',
+  'gemini-1.5-flash': 'gemini-3.5-flash-lite',
+  'gemini-1.5-flash-latest': 'gemini-flash-lite-latest',
+  'gemini-flash-latest': 'gemini-flash-lite-latest',
 };
+
+const GEMINI_RETRY_CANDIDATES = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-flash-lite-latest',
+];
 
 async function callProvider(provider: AiProviderConfig, options: GenerateOptions): Promise<string> {
   const { prompt, systemPrompt, temperature = 0.4, jsonMode = false } = options;
 
   if (provider.type === 'gemini') {
     // Resolve any sunset model aliases before calling the API
-    const resolvedModel = GEMINI_MODEL_ALIASES[provider.modelId] ?? provider.modelId;
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedModel}:generateContent?key=${provider.apiKey}`;
+    const initialModel = GEMINI_MODEL_ALIASES[provider.modelId] ?? provider.modelId;
     const contents: any[] = [];
 
     let combinedPrompt = prompt;
@@ -217,62 +226,64 @@ async function callProvider(provider: AiProviderConfig, options: GenerateOptions
       body.generationConfig.maxOutputTokens = options.maxOutputTokens;
     }
 
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
-    });
+    // Try primary model first, followed by verified fallback models if quota (429), capacity (503), or deprecation (404) occurs
+    const modelsToTry = [initialModel, ...GEMINI_RETRY_CANDIDATES.filter((m) => m !== initialModel)];
+    let lastError: Error | null = null;
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      // On 503 (capacity spike), automatically retry with fallback
-      if (res.status === 503) {
-        console.warn(`[ai-router] ${resolvedModel} returned 503, retrying with alternative Gemini model…`);
-        const fallbackModel = resolvedModel === 'gemini-3.5-flash' ? 'gemini-2.5-flash-lite' : 'gemini-3.5-flash';
-        const fallbackEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${provider.apiKey}`;
-        const fallbackRes = await fetch(fallbackEndpoint, {
+    for (let i = 0; i < modelsToTry.length; i++) {
+      const currentModel = modelsToTry[i];
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${provider.apiKey}`;
+
+      try {
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
           signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
         });
-        if (fallbackRes.ok) {
-          const fallbackRaw = await fallbackRes.text();
-          let fallbackData: any;
-          try { fallbackData = JSON.parse(fallbackRaw); } catch {
-            throw new Error(`Gemini fallback model ${fallbackModel} returned non-JSON (status ${fallbackRes.status}): ${fallbackRaw.slice(0, 150)}`);
+
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          // If status is 429, 404, 500, or 503, try next candidate model
+          if (res.status === 429 || res.status === 404 || res.status === 503 || res.status === 500) {
+            console.warn(`[ai-router] Model ${currentModel} failed with HTTP ${res.status}. Trying next candidate model... (${errText.slice(0, 100)})`);
+            lastError = new Error(`Gemini API HTTP ${res.status} on ${currentModel}: ${errText.slice(0, 200)}`);
+            continue;
           }
-          const fallbackText = fallbackData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (fallbackText) return fallbackText.trim();
-        } else {
-          const fallbackErr = await fallbackRes.text().catch(() => '');
-          console.warn(`[ai-router] Fallback model ${fallbackModel} also failed ${fallbackRes.status}: ${fallbackErr.slice(0, 150)}`);
+          throw new Error(`Gemini API HTTP ${res.status}: ${errText.slice(0, 300)}`);
         }
+
+        const rawBody = await res.text();
+        let data: any;
+        try {
+          data = JSON.parse(rawBody);
+        } catch {
+          throw new Error(`Gemini API returned non-JSON response (status ${res.status}): ${rawBody.slice(0, 200)}`);
+        }
+
+        const candidate = data.candidates?.[0];
+        const finishReason = candidate?.finishReason;
+        if (finishReason === 'MAX_TOKENS') {
+          throw new Error(`MAX_TOKENS: Response was truncated by model output limit. Use smaller chunks or increase maxOutputTokens.`);
+        }
+
+        const text = candidate?.content?.parts?.[0]?.text;
+        if (!text) {
+          throw new Error(`Gemini response from ${currentModel} did not contain text content.`);
+        }
+
+        return text.trim();
+      } catch (callErr: any) {
+        lastError = callErr;
+        // If not the last model and error indicates rate limit / model issue, try next
+        if (i < modelsToTry.length - 1 && (callErr.message?.includes('429') || callErr.message?.includes('404') || callErr.message?.includes('503'))) {
+          continue;
+        }
+        throw callErr;
       }
-      throw new Error(`Gemini API HTTP ${res.status}: ${errText.slice(0, 300)}`);
     }
 
-    const rawBody = await res.text();
-    let data: any;
-    try {
-      data = JSON.parse(rawBody);
-    } catch {
-      throw new Error(`Gemini API returned non-JSON response (status ${res.status}): ${rawBody.slice(0, 200)}`);
-    }
-    const candidate = data.candidates?.[0];
-    const finishReason = candidate?.finishReason;
-    if (finishReason === 'MAX_TOKENS') {
-      throw new Error(`MAX_TOKENS: Response was truncated by model output limit. Use smaller chunks or increase maxOutputTokens.`);
-    }
-
-    const text = candidate?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      throw new Error('Gemini response did not contain text content.');
-    }
-
-    return text.trim();
+    throw lastError || new Error(`All Gemini models failed for provider ${provider.name}`);
   }
 
   if (provider.type === 'openai_compatible') {

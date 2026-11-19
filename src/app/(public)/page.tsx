@@ -157,6 +157,23 @@ export default async function HomePage({
       link: `/tours?destination=${d.slug}`,
     }));
 
+  const searchDestinations = destinations.map((d) => ({
+    name: d.name,
+    slug: d.slug,
+    description: d.description || '',
+  }));
+
+  const popularTours = tours.slice(0, 8).map((t) => {
+    const trans = t.translations as any;
+    return {
+      title: trans?.en?.title || t.slug,
+      slug: t.slug,
+      category: t.category,
+      destinationName: t.destination?.name,
+      price: t.adultPrice || t.basePriceUSD || t.priceAdult || null,
+    };
+  });
+
   return (
     <div className="min-h-screen bg-[#070F1E]">
       <Hero
@@ -192,6 +209,8 @@ export default async function HomePage({
         heroMetric3Value={bannerData.heroMetric3Value}
         heroMetric3Label={bannerData.heroMetric3Label}
         showcaseDestinations={showcaseDestinations}
+        searchDestinations={searchDestinations}
+        popularTours={popularTours}
         activeTourCount={activeTourCount}
         heroTranslations={bannerData.heroTranslations}
       />
