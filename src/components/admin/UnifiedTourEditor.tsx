@@ -140,6 +140,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   const [copiedTemplate, setCopiedTemplate] = useState(false);
   const [loadingSample, setLoadingSample] = useState(false);
   const [translating, setTranslating] = useState(false);
+  const [translationProgress, setTranslationProgress] = useState<string | null>(null);
+  const [translationAudits, setTranslationAudits] = useState<Record<string, any>>({});
   const [mediaPickerTarget, setMediaPickerTarget] = useState<'cover' | 'gallery' | null>(null);
 
   // Folder Media Integration (Priority 3)
@@ -286,78 +288,146 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
       return;
     }
 
+    // Exhaustive field extraction from English source and tour data
+    const exhaustiveSource: any = {
+      title: sourceTitle,
+      shortTitle: enContent.shortTitle?.trim() || undefined,
+      cardExcerpt: enContent.cardExcerpt?.trim() || data.cardExcerpt?.trim() || undefined,
+      description: enContent.description?.trim() || '',
+      highlights: (enContent.highlights?.length ? enContent.highlights : data.highlights) || [],
+      inclusions: (enContent.inclusions?.length ? enContent.inclusions : data.inclusions) || [],
+      exclusions: (enContent.exclusions?.length ? enContent.exclusions : data.exclusions) || [],
+      whatToBring: enContent.whatToBring?.trim() || data.whatToBring?.trim() || undefined,
+      importantInfo: enContent.importantInfo?.trim() || undefined,
+      pickupDescription: enContent.pickupDescription?.trim() || data.pickupDescription?.trim() || undefined,
+      meetingPointInstructions: enContent.meetingPointInstructions?.trim() || data.meetingPointInstructions?.trim() || undefined,
+      meetingPointLandmark: enContent.meetingPointLandmark?.trim() || data.meetingPointLandmark?.trim() || undefined,
+      safetyGuidelines: (enContent.safetyGuidelines?.length ? enContent.safetyGuidelines : data.safetyGuidelines) || [],
+      requirements: enContent.requirements?.trim() || undefined,
+      accessibilityNotes: enContent.accessibilityNotes?.trim() || data.accessibilityNotes?.trim() || undefined,
+      mobilityNotes: enContent.mobilityNotes?.trim() || data.mobilityNotes?.trim() || undefined,
+      cancellationPolicy: enContent.cancellationPolicy?.trim() || data.cancellationPolicy?.trim() || undefined,
+      cancellationPolicies: (enContent.cancellationPolicies?.length ? enContent.cancellationPolicies : undefined),
+      seoTitle: enContent.seoTitle?.trim() || data.metaTitle?.trim() || undefined,
+      seoDescription: enContent.seoDescription?.trim() || data.metaDescription?.trim() || undefined,
+      faqItems: (enContent.faqItems && enContent.faqItems.length > 0) ? enContent.faqItems : [],
+      keyActivityDetails: (enContent.keyActivityDetails?.length ? enContent.keyActivityDetails : data.keyActivityDetails) || [],
+      bookingQuestions: (data.bookingQuestions || []).map((q) => ({ id: q.id, question: q.question, options: q.options })),
+      routeStops: (data.routeStops || []).map((r) => ({ name: r.name, description: r.description })),
+      itinerary: (data.itinerary || []).map((i) => ({
+        timeTag: i.timeTag,
+        title: typeof i.title === 'string' ? i.title : (i.title?.en || ''),
+        description: typeof i.description === 'string' ? i.description : (i.description?.en || ''),
+      })),
+    };
+
+    // Filter target languages (all enabled non-English languages)
+    const targetLanguages = editorLanguages.filter((l) => l.code !== 'en');
+    if (targetLanguages.length === 0) {
+      alert('No target languages are currently enabled for AI translation.');
+      return;
+    }
+
     try {
       setTranslating(true);
       setErrorMessage(null);
-      const res = await fetch('/api/admin/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source: {
-            title: sourceTitle,
-            description: enContent.description || '',
-            highlights: enContent.highlights?.length ? enContent.highlights : data.highlights,
-            inclusions: enContent.inclusions?.length ? enContent.inclusions : data.inclusions,
-            exclusions: enContent.exclusions?.length ? enContent.exclusions : data.exclusions,
-            whatToBring: enContent.whatToBring || '',
-            requirements: enContent.requirements || '',
-            cancellationPolicy: enContent.cancellationPolicy || '',
-            faqItems: enContent.faqItems || [],
-            keyActivityDetails: enContent.keyActivityDetails?.length ? enContent.keyActivityDetails : data.keyActivityDetails,
-            itinerary: (data.itinerary || []).map((i) => ({
-              timeTag: i.timeTag,
-              title: typeof i.title === 'string' ? i.title : (i.title?.en || ''),
-              description: typeof i.description === 'string' ? i.description : (i.description?.en || ''),
-            })),
-          },
-        }),
-      });
 
-      const resData = await res.json();
-      if (!res.ok) {
-        throw new Error(resData.error || 'Failed to auto-translate tour');
-      }
+      const successfulLangs: string[] = [];
+      const failedLangs: Array<{ lang: string; error: string }> = [];
+      const updatedAudits: Record<string, any> = { ...translationAudits };
 
-      if (resData.translations) {
-        setData((prev) => {
-          const merged = { ...prev.translations };
-          const updatedItinerary = prev.itinerary ? [...prev.itinerary.map((m) => ({ ...m, title: { ...m.title }, description: { ...(m.description || {}) } }))] : [];
+      // EXHAUSTIVE SEQUENTIAL PROCESSING: One target language at a time
+      for (let idx = 0; idx < targetLanguages.length; idx++) {
+        const targetLang = targetLanguages[idx];
+        setTranslationProgress(`Translating ${targetLang.label} (${idx + 1}/${targetLanguages.length})...`);
 
-          for (const [langKey, translated] of Object.entries(resData.translations)) {
-            const typedKey = langKey as LanguageCode;
-            merged[typedKey] = {
-              ...(merged[typedKey] || createDefaultLocalizedContent()),
-              ...(translated as Partial<LocalizedTourContent>),
-            };
+        try {
+          const res = await fetch('/api/admin/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              mode: 'language',
+              lang: targetLang.code,
+              source: exhaustiveSource,
+              existingTranslation: data.translations[targetLang.code as LanguageCode] || undefined,
+            }),
+          });
 
-            // Merge translated itinerary milestones if present
-            const translatedItinerary = (translated as any).itinerary;
-            if (Array.isArray(translatedItinerary) && updatedItinerary.length > 0) {
-              translatedItinerary.forEach((item: any, idx: number) => {
-                if (updatedItinerary[idx]) {
-                  if (item.title) {
-                    (updatedItinerary[idx].title as any)[typedKey] = item.title;
-                  }
-                  if (item.description) {
-                    if (!updatedItinerary[idx].description) {
-                      updatedItinerary[idx].description = {} as any;
-                    }
-                    (updatedItinerary[idx].description as any)[typedKey] = item.description;
-                  }
-                }
-              });
-            }
+          const rawText = await res.text();
+          let resData: any = null;
+          try {
+            resData = JSON.parse(rawText);
+          } catch {
+            throw new Error(
+              `API returned non-JSON response (HTTP ${res.status}): ${rawText.slice(0, 160)}`
+            );
           }
-          return { ...prev, translations: merged, itinerary: updatedItinerary };
-        });
-        setIsDirty(true);
-        setSaveSuccessMessage('✨ Experience localized into all languages using Gemini AI!');
-        setTimeout(() => setSaveSuccessMessage(null), 5000);
+
+          if (!res.ok) {
+            throw new Error(resData?.error || `Failed to translate ${targetLang.label} (HTTP ${res.status})`);
+          }
+
+          if (resData.translation) {
+            const typedKey = targetLang.code as LanguageCode;
+
+            // Immediately merge and commit this language to state
+            setData((prev) => {
+              const merged = { ...prev.translations };
+              merged[typedKey] = {
+                ...(merged[typedKey] || createDefaultLocalizedContent()),
+                ...resData.translation,
+              };
+
+              // Merge translated itinerary milestones if present
+              const updatedItinerary = prev.itinerary
+                ? [...prev.itinerary.map((m) => ({ ...m, title: { ...m.title }, description: { ...(m.description || {}) } }))]
+                : [];
+
+              const translatedItinerary = resData.translation.itinerary;
+              if (Array.isArray(translatedItinerary) && updatedItinerary.length > 0) {
+                translatedItinerary.forEach((item: any, itemIdx: number) => {
+                  if (updatedItinerary[itemIdx]) {
+                    if (item.title) {
+                      (updatedItinerary[itemIdx].title as any)[typedKey] = item.title;
+                    }
+                    if (item.description) {
+                      if (!updatedItinerary[itemIdx].description) {
+                        updatedItinerary[itemIdx].description = {} as any;
+                      }
+                      (updatedItinerary[itemIdx].description as any)[typedKey] = item.description;
+                    }
+                  }
+                });
+              }
+
+              return { ...prev, translations: merged, itinerary: updatedItinerary };
+            });
+
+            if (resData.audit) {
+              updatedAudits[typedKey] = resData.audit;
+            }
+            successfulLangs.push(targetLang.label);
+          }
+        } catch (langErr: any) {
+          console.error(`Error translating ${targetLang.label}:`, langErr);
+          failedLangs.push({ lang: targetLang.label, error: langErr.message });
+        }
       }
+
+      setTranslationAudits(updatedAudits);
+      setIsDirty(true);
+
+      if (failedLangs.length === 0) {
+        setSaveSuccessMessage(`✨ All ${successfulLangs.length} languages translated sequentially with exhaustive completeness!`);
+      } else {
+        setSaveSuccessMessage(`✨ Translated ${successfulLangs.length} languages. ${failedLangs.length} had errors (${failedLangs.map(f => f.lang).join(', ')}).`);
+      }
+      setTimeout(() => setSaveSuccessMessage(null), 6000);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Error running AI auto-translation');
+      setErrorMessage(err.message || 'Error running sequential AI auto-translation');
     } finally {
       setTranslating(false);
+      setTranslationProgress(null);
     }
   };
 
@@ -712,14 +782,14 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
             disabled={translating}
             onClick={handleAiAutoTranslate}
             className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 transition disabled:opacity-50"
-            title="Auto-translate English experience into all 7 languages using Gemini AI"
+            title="Auto-translate English experience sequentially into all languages using AI Router"
           >
             {translating ? (
               <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
             ) : (
               <Languages className="w-4 h-4 text-emerald-400" />
             )}
-            <span>{translating ? 'Translating...' : 'AI Translate All'}</span>
+            <span>{translating ? (translationProgress || 'Translating...') : 'AI Translate All'}</span>
           </button>
 
           {/* AI Tour Builder */}

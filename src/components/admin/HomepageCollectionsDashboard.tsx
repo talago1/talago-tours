@@ -16,11 +16,13 @@ import {
   ArrowDown,
   LayoutGrid,
 } from 'lucide-react';
-import type { HomepageCollectionConfig } from '@/types/homepage';
-import { DEFAULT_HOMEPAGE_COLLECTIONS } from '@/types/homepage';
+import type { HomepageCollectionConfig, HomepageSectionConfig } from '@/types/homepage';
+import { DEFAULT_HOMEPAGE_COLLECTIONS, DEFAULT_HOMEPAGE_SECTIONS } from '@/types/homepage';
 
 export default function HomepageCollectionsDashboard() {
+  const [activeTab, setActiveTab] = useState<'carousels' | 'sections'>('sections');
   const [collections, setCollections] = useState<HomepageCollectionConfig[]>([]);
+  const [sections, setSections] = useState<HomepageSectionConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -36,27 +38,84 @@ export default function HomepageCollectionsDashboard() {
   const [newViewAllLink, setNewViewAllLink] = useState('');
 
   useEffect(() => {
-    loadCollections();
+    loadData();
   }, []);
 
-  async function loadCollections() {
+  async function loadData() {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch('/api/admin/homepage-collections');
       const data = await res.json();
-      if (data.success && Array.isArray(data.collections)) {
-        setCollections(data.collections);
+      if (data.success) {
+        if (Array.isArray(data.collections)) setCollections(data.collections);
+        else setCollections(DEFAULT_HOMEPAGE_COLLECTIONS);
+
+        if (Array.isArray(data.sections) && data.sections.length > 0) setSections(data.sections);
+        else setSections(DEFAULT_HOMEPAGE_SECTIONS);
       } else {
         setCollections(DEFAULT_HOMEPAGE_COLLECTIONS);
+        setSections(DEFAULT_HOMEPAGE_SECTIONS);
       }
     } catch {
       setCollections(DEFAULT_HOMEPAGE_COLLECTIONS);
+      setSections(DEFAULT_HOMEPAGE_SECTIONS);
     } finally {
       setLoading(false);
     }
   }
 
+  // --- Sections handlers ---
+  async function handleToggleSection(key: string) {
+    const updated = sections.map((s) => (s.key === key ? { ...s, enabled: !s.enabled } : s));
+    setSections(updated);
+    await persistSections(updated);
+  }
+
+  async function handleMoveSection(idx: number, direction: 'up' | 'down') {
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= sections.length) return;
+
+    const copy = [...sections];
+    const [moved] = copy.splice(idx, 1);
+    copy.splice(targetIdx, 0, moved);
+
+    const reordered = copy.map((s, i) => ({ ...s, order: i }));
+    setSections(reordered);
+    await persistSections(reordered);
+  }
+
+  async function handleResetSectionsDefault() {
+    if (!confirm('Reset homepage sections to the recommended default layout (Hero → Destinations → Interests → Carousels → Why TALAGO)?')) return;
+    setSections(DEFAULT_HOMEPAGE_SECTIONS);
+    await persistSections(DEFAULT_HOMEPAGE_SECTIONS);
+  }
+
+  async function persistSections(nextList: HomepageSectionConfig[]) {
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/homepage-collections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sections: nextList }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      } else {
+        setError(data.error || 'Failed to save homepage section order.');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Error saving sections.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // --- Collections handlers ---
   async function handleToggleEnabled(id: string) {
     const updated = collections.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c));
     setCollections(updated);
@@ -154,21 +213,59 @@ export default function HomepageCollectionsDashboard() {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => loadCollections()}
+            onClick={() => loadData()}
             disabled={loading}
             className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-300 transition-all hover:bg-white/10"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#00B4D8] px-4 py-2 text-xs font-bold text-black transition-all hover:opacity-90 shadow-lg shadow-[#00E5FF]/20"
-          >
-            <Plus className="h-4 w-4" />
-            Add Section
-          </button>
+          {activeTab === 'carousels' && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#00B4D8] px-4 py-2 text-xs font-bold text-black transition-all hover:opacity-90 shadow-lg shadow-[#00E5FF]/20"
+            >
+              <Plus className="h-4 w-4" />
+              Add Carousel
+            </button>
+          )}
+          {activeTab === 'sections' && (
+            <button
+              onClick={() => handleResetSectionsDefault()}
+              disabled={saving}
+              className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold text-slate-300 transition-all hover:border-[#FFD700]/40 hover:text-[#FFD700]"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Reset to Default Order
+            </button>
+          )}
         </div>
+      </div>
+
+      {/* Sub-tabs selector */}
+      <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+        <button
+          onClick={() => setActiveTab('sections')}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+            activeTab === 'sections'
+              ? 'bg-[#00E5FF] text-black shadow-lg shadow-[#00E5FF]/20'
+              : 'border border-white/10 bg-white/5 text-slate-400 hover:text-white'
+          }`}
+        >
+          <LayoutGrid className="h-4 w-4" />
+          Homepage Section Flow &amp; Order
+        </button>
+        <button
+          onClick={() => setActiveTab('carousels')}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+            activeTab === 'carousels'
+              ? 'bg-[#00E5FF] text-black shadow-lg shadow-[#00E5FF]/20'
+              : 'border border-white/10 bg-white/5 text-slate-400 hover:text-white'
+          }`}
+        >
+          <Sparkles className="h-4 w-4" />
+          Experience Carousels &amp; Collections ({collections.length})
+        </button>
       </div>
 
       {error && (
@@ -181,11 +278,97 @@ export default function HomepageCollectionsDashboard() {
       {saved && (
         <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs text-emerald-400">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <span>Homepage discovery collections updated successfully.</span>
+          <span>Homepage configuration updated and saved successfully.</span>
         </div>
       )}
 
-      {/* Collections list */}
+      {/* Tab 1: Section Order & Flow */}
+      {activeTab === 'sections' && (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-xs text-slate-300">
+            <p className="font-semibold text-white mb-1">Recommended Default Discovery Order:</p>
+            <p className="text-slate-400 leading-relaxed">
+              1. Hero &amp; Unified Search → 2. Explore Destinations (Top 5) → 3. Explore by Interest → 4. Experience Collections &amp; Carousels → 5. Why TALAGO (Trust Grid) → 6. Reviews → 7. FAQ.
+              You can reorder sections using the arrows or toggle visibility anytime.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {sections.map((sec, idx) => (
+              <div
+                key={sec.key}
+                className={`rounded-2xl border p-4 sm:p-5 backdrop-blur-xl transition-all ${
+                  sec.enabled
+                    ? 'border-white/10 bg-[#0B1528]/80 hover:border-white/20'
+                    : 'border-white/5 bg-white/[0.01] opacity-60'
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/5 text-xs font-bold text-slate-400">
+                      {idx + 1}
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-sm font-bold text-white">{sec.label}</h3>
+                        <span className="font-mono text-[10px] text-slate-500">[{sec.key}]</span>
+                        {sec.key === 'destinations' && (
+                          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/20">
+                            Approved 5 Destinations
+                          </span>
+                        )}
+                        {sec.key === 'interests' && (
+                          <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-400 border border-cyan-500/20">
+                            Category Row
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">{sec.description}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <button
+                      onClick={() => handleToggleSection(sec.key)}
+                      disabled={saving}
+                      title={sec.enabled ? 'Hide Section' : 'Show Section'}
+                      className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all ${
+                        sec.enabled
+                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                          : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {sec.enabled ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                      <span>{sec.enabled ? 'Visible' : 'Hidden'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleMoveSection(idx, 'up')}
+                      disabled={idx === 0 || saving}
+                      title="Move Up"
+                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-all hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:hover:bg-white/5"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+
+                    <button
+                      onClick={() => handleMoveSection(idx, 'down')}
+                      disabled={idx === sections.length - 1 || saving}
+                      title="Move Down"
+                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-all hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:hover:bg-white/5"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 2: Collections list */}
+      {activeTab === 'carousels' && (
       <div className="space-y-3">
         {collections.map((col, idx) => (
           <div
@@ -259,6 +442,7 @@ export default function HomepageCollectionsDashboard() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Add Modal */}
       {showAddModal && (

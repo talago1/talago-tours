@@ -1,7 +1,84 @@
 /**
  * Homepage Collections & Discovery Experience Configuration
- * Stored in SystemSetting key: "homepage_collections"
+ * Stored in SystemSetting key: "homepage_collections" and "homepage_sections"
  */
+
+export type HomepageSectionKey =
+  | 'hero'
+  | 'destinations'
+  | 'interests'
+  | 'collections'
+  | 'why-talago'
+  | 'reviews'
+  | 'faq'
+  | 'newsletter';
+
+export interface HomepageSectionConfig {
+  key: HomepageSectionKey;
+  label: string;
+  description: string;
+  enabled: boolean;
+  order: number;
+}
+
+export const DEFAULT_HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
+  {
+    key: 'hero',
+    label: 'Hero & Unified Search',
+    description: 'Cinematic hero with direct value propositions and quick action triggers',
+    enabled: true,
+    order: 0,
+  },
+  {
+    key: 'destinations',
+    label: 'Explore Destinations',
+    description: 'The 5 approved iconic destinations with real-time tour counts',
+    enabled: true,
+    order: 1,
+  },
+  {
+    key: 'interests',
+    label: 'Explore by Interest',
+    description: 'Horizontal activity category pills (Boats, Snorkeling, Safari, Cultural, etc.)',
+    enabled: true,
+    order: 2,
+  },
+  {
+    key: 'collections',
+    label: 'Experience Collections & Carousels',
+    description: 'GetYourGuide-style horizontal scroll-snapped experience carousels',
+    enabled: true,
+    order: 3,
+  },
+  {
+    key: 'why-talago',
+    label: 'Why TALAGO (Trust Grid)',
+    description: 'Bento grid highlighting verified operators, instant booking, and VIP concierge',
+    enabled: true,
+    order: 4,
+  },
+  {
+    key: 'reviews',
+    label: 'Verified Guest Reviews',
+    description: 'Authentic traveller reviews and ratings',
+    enabled: true,
+    order: 5,
+  },
+  {
+    key: 'faq',
+    label: 'Frequently Asked Questions',
+    description: 'Common booking and policy questions',
+    enabled: true,
+    order: 6,
+  },
+  {
+    key: 'newsletter',
+    label: 'VIP Travel Club',
+    description: 'Newsletter subscription for exclusive discounts',
+    enabled: true,
+    order: 7,
+  },
+];
 
 export interface HomepageCollectionConfig {
   id: string;

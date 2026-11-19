@@ -38,31 +38,32 @@ export default function PopularDestinations({ destinations }: PopularDestination
   if (destinations.length === 0) return null;
 
   return (
-    <section className="bg-[#070F1E] px-5 py-20 sm:px-8 lg:px-10 lg:py-28">
+    <section className="bg-[#070F1E] px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-12 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="mb-4 text-sm font-black uppercase tracking-[0.28em] text-[#EAB308]">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <p className="mb-2 text-xs font-black uppercase tracking-[0.25em] text-[#EAB308]">
               {dict.navbar.destinations}
             </p>
-            <h2 className="text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
+            <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
               {(dict.catalog as any).popularDestinations || 'Popular Destinations'}
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-400">
+            <p className="mt-2 text-xs leading-relaxed text-slate-400 sm:text-sm">
               {(dict.catalog as any).popularDestinationsSubtitle ||
                 'Explore Egypt’s most iconic regions across the Red Sea, Nile Valley, and desert oases.'}
             </p>
           </div>
           <Link
             href="/tours"
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white transition-all duration-300 hover:scale-[1.02] hover:border-[#EAB308]/40 hover:bg-[#EAB308]/10 hover:text-[#EAB308]"
+            className="inline-flex self-start sm:self-auto items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-black text-white transition-all duration-300 hover:scale-[1.02] hover:border-[#EAB308]/40 hover:bg-[#EAB308]/10 hover:text-[#EAB308]"
           >
             {dict.catalog.viewAllDestinations}
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Responsive layout: Touch-friendly horizontal snap on mobile, 5-col grid on desktop */}
+        <div className="flex gap-3.5 overflow-x-auto pb-4 pt-1 px-0.5 sm:grid sm:grid-cols-3 lg:grid-cols-5 sm:gap-4 lg:gap-5 scrollbar-none snap-x snap-mandatory scroll-smooth -webkit-overflow-scrolling-touch">
           {destinations.map((dest, index) => {
             const t = dest.translations as
               | Record<string, { name?: string; description?: string }>
@@ -75,38 +76,38 @@ export default function PopularDestinations({ destinations }: PopularDestination
               <Link
                 key={dest.id}
                 href={`/destinations/${dest.slug}`}
-                className="group relative overflow-hidden rounded-[2rem] shadow-2xl shadow-black/20 transition-all duration-300 hover:-translate-y-2 hover:shadow-[#06B6D4]/10"
+                className="group relative w-[72vw] max-w-[270px] shrink-0 snap-start sm:w-auto overflow-hidden rounded-[1.75rem] shadow-xl shadow-black/40 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[#00E5FF]/20"
               >
-                <div className={`aspect-[4/5] bg-gradient-to-br ${getGradient(index)} p-6 flex flex-col justify-end`}>
+                <div className={`aspect-[4/5] bg-gradient-to-br ${getGradient(index)} p-5 flex flex-col justify-end relative`}>
                   {dest.imageUrl && (
                     <Image
                       src={dest.imageUrl}
                       alt={localizedName}
                       fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                      className="object-cover opacity-60"
+                      sizes="(max-width: 640px) 72vw, (max-width: 1024px) 33vw, 20vw"
+                      className="object-cover opacity-60 transition-transform duration-500 group-hover:scale-105"
                       unoptimized={isSupabaseStorageImage(dest.imageUrl)}
                     />
                   )}
-                  <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full border-[20px] border-white/5" />
-                  <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full border-[20px] border-white/5" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#070F1E] via-[#070F1E]/40 to-transparent" />
+                  <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full border-[16px] border-white/5" />
 
                   <div className="relative z-10">
-                    <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-sm">
-                      <MapPin className="h-3 w-3" />
+                    <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm border border-white/10">
+                      <MapPin className="h-3 w-3 text-[#FFD700]" />
                       {localizedName}
                     </div>
                     {localizedDesc && (
-                      <p className="mb-4 text-sm leading-6 text-white/80 line-clamp-2">
+                      <p className="mb-3 text-xs leading-5 text-white/80 line-clamp-2">
                         {localizedDesc}
                       </p>
                     )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-white/60">
+                    <div className="flex items-center justify-between pt-1 border-t border-white/10">
+                      <span className="text-[11px] font-bold text-slate-300">
                         {dest._count.tours} {dest._count.tours === 1 ? 'tour' : 'tours'}
                       </span>
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-300 group-hover:bg-white/20 group-hover:scale-110">
-                        <ArrowRight className="h-4 w-4" />
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-300 group-hover:bg-[#00E5FF] group-hover:text-[#070F1E] group-hover:scale-110">
+                        <ArrowRight className="h-3.5 w-3.5" />
                       </span>
                     </div>
                   </div>

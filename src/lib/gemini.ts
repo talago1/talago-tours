@@ -227,20 +227,30 @@ async function callGemini(prompt: string, jsonMode = true): Promise<string> {
 
 export interface TourTranslationPayload {
   title: string;
+  shortTitle?: string;
   description: string;
   cardExcerpt?: string;
   highlights?: string[];
   inclusions?: string[];
   exclusions?: string[];
   whatToBring?: string;
-  requirements?: string;
-  cancellationPolicy?: string;
+  importantInfo?: string;
+  pickupDescription?: string;
+  meetingPointInstructions?: string;
+  meetingPointLandmark?: string;
   safetyGuidelines?: string[];
-  faqItems?: Array<{ question: string; answer: string }>;
-  itinerary?: Array<{ timeTag?: string; title: string; description: string }>;
+  requirements?: string;
+  accessibilityNotes?: string;
+  mobilityNotes?: string;
+  cancellationPolicy?: string;
+  cancellationPolicies?: string[];
   seoTitle?: string;
   seoDescription?: string;
+  faqItems?: Array<{ question: string; answer: string }>;
+  itinerary?: Array<{ timeTag?: string; title: string; description: string }>;
   keyActivityDetails?: Array<{ id: string; title: string; value: string; description?: string; icon?: string }>;
+  bookingQuestions?: Array<{ id: string; question: string; options?: string[] }>;
+  routeStops?: Array<{ name: string; description?: string }>;
 }
 
 export type SupportedLanguage = 'de' | 'ru' | 'fr' | 'it' | 'pl' | 'es' | 'uk';

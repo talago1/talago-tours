@@ -3,8 +3,10 @@
 import { useState, useRef, useEffect, MouseEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
+  Search,
   Sparkles,
   Star,
   ShieldCheck,
@@ -104,7 +106,16 @@ export default function Hero({
   heroTranslations,
 }: HeroProps) {
   const { dict, language } = useLanguage();
+  const router = useRouter();
   const [heroError, setHeroError] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    if (q) router.push(`/tours?search=${encodeURIComponent(q)}`);
+    else router.push('/tours');
+  };
 
   // 3D Card Interactive Tilt State
   const cardRef = useRef<HTMLDivElement>(null);
@@ -358,6 +369,35 @@ export default function Hero({
                 )}
               </div>
             )}
+
+            {/* ── Hero Unified Search Bar ── */}
+            <form
+              onSubmit={handleSearch}
+              className="mt-7 flex w-full max-w-lg items-center gap-0 overflow-hidden rounded-2xl border border-white/15 bg-white/[0.07] shadow-xl shadow-black/30 backdrop-blur-md focus-within:border-[#00E5FF]/50 focus-within:bg-white/[0.10] transition-all duration-300"
+            >
+              <label htmlFor="hero-search" className="sr-only">Search experiences</label>
+              <span className="flex items-center pl-4 text-slate-400">
+                <Search className="h-5 w-5 shrink-0" />
+              </span>
+              <input
+                id="hero-search"
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={
+                  (dict?.hero as any)?.searchPlaceholder ||
+                  'Search tours, destinations, activities…'
+                }
+                className="flex-1 bg-transparent py-3.5 pl-3 pr-2 text-sm text-white placeholder-slate-400 outline-none"
+              />
+              <button
+                type="submit"
+                className="m-1 flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-[#070F1E] transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-[#00E5FF]/30 active:scale-95"
+              >
+                <span className="hidden sm:inline">{(dict?.hero as any)?.searchBtn || 'Search'}</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </form>
 
             {/* Admin-configured headline metrics */}
             {showHeroMetrics && heroMetrics.length > 0 && (

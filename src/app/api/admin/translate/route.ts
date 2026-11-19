@@ -6,12 +6,13 @@ import {
   translateChunk,
   CHUNK_KEYS,
   mergeChunkResults,
+  auditTranslationCompleteness,
   ChunkKey,
 } from '@/lib/translation-engine';
 
 export const dynamic = 'force-dynamic';
 
-const LIMIT = 60;
+const LIMIT = 120;
 const WINDOW_MS = 60 * 1000; // 1 minute
 
 export async function GET() {
@@ -47,12 +48,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { source, targetLangs, mode, lang, chunkKey } = body as {
+    const { source, targetLangs, mode = 'language', lang, chunkKey, existingTranslation } = body as {
       source: TourTranslationPayload;
       targetLangs?: string[];
-      mode?: 'chunk' | 'batch';
+      mode?: 'chunk' | 'language' | 'batch' | 'audit';
       lang?: string;
       chunkKey?: ChunkKey;
+      existingTranslation?: Partial<TourTranslationPayload>;
     };
 
     if (!source || !source.title) {
@@ -65,6 +67,13 @@ export async function POST(request: NextRequest) {
     // Load dynamic languages
     const allLangs = await getManagedLanguages();
     const activeTargets = allLangs.filter((l) => !l.isSource && l.isActive && l.includeInTranslations);
+
+    // MODE 0: Audit completeness only
+    if (mode === 'audit') {
+      const targetLang = lang || 'de';
+      const audit = auditTranslationCompleteness(source, existingTranslation, targetLang);
+      return NextResponse.json({ success: true, audit });
+    }
 
     // MODE 1: Single chunk execution (resumable / retry specific failed chunk)
     if (mode === 'chunk') {
@@ -82,13 +91,54 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // MODE 2: Batch execution (iterates chunk by chunk across all requested languages)
+    // MODE 2: Single language complete sequential execution
+    // (Recommended for client loop: translates one language completely, verifies completeness, and returns)
+    if (mode === 'language') {
+      const targetCode = lang || (targetLangs && targetLangs[0]) || activeTargets[0]?.code;
+      if (!targetCode) {
+        return NextResponse.json({ error: 'Target language is required.' }, { status: 400 });
+      }
+
+      const targetLangMeta = allLangs.find((l) => l.code === targetCode);
+      let langPayload: Partial<TourTranslationPayload> = existingTranslation || {};
+      const chunkResults: Record<string, any> = {};
+      const chunkErrors: Record<string, string> = {};
+
+      for (const cKey of CHUNK_KEYS) {
+        try {
+          const res = await translateChunk(source, cKey, targetCode, targetLangMeta?.displayName);
+          langPayload = mergeChunkResults(langPayload, res.fields);
+          chunkResults[cKey] = {
+            fields: res.fields,
+            provider: res.providerUsed,
+            model: res.modelUsed,
+          };
+        } catch (err: any) {
+          console.warn(`[ai-translate] Chunk ${cKey} failed for ${targetCode}:`, err.message);
+          chunkErrors[cKey] = err.message;
+        }
+      }
+
+      const audit = auditTranslationCompleteness(source, langPayload, targetCode);
+
+      return NextResponse.json({
+        success: true,
+        lang: targetCode,
+        translation: langPayload,
+        audit,
+        chunkResults,
+        chunkErrors: Object.keys(chunkErrors).length > 0 ? chunkErrors : undefined,
+      });
+    }
+
+    // MODE 3: Batch execution (Sequential language by language)
     const selectedLangCodes: string[] =
       Array.isArray(targetLangs) && targetLangs.length > 0
         ? targetLangs
         : activeTargets.map((l) => l.code);
 
     const translations: Record<string, Partial<TourTranslationPayload>> = {};
+    const audits: Record<string, any> = {};
     const partialErrors: Array<{ lang: string; chunkKey: ChunkKey; error: string }> = [];
 
     for (const lCode of selectedLangCodes) {
@@ -115,11 +165,13 @@ export async function POST(request: NextRequest) {
       }
 
       translations[lCode] = currentPayload;
+      audits[lCode] = auditTranslationCompleteness(source, currentPayload, lCode);
     }
 
     return NextResponse.json({
       success: true,
       translations,
+      audits,
       partialErrors: partialErrors.length > 0 ? partialErrors : undefined,
     });
   } catch (error: any) {

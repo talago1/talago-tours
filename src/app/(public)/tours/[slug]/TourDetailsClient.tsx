@@ -329,18 +329,19 @@ function HeroSlider({
       {/* ---------- Fullscreen Lightbox Modal ---------- */}
       {lightboxOpen && (
         <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-black/95 p-4 backdrop-blur-md animate-fadeIn"
+          className="fixed inset-0 z-[200] flex flex-col items-center justify-between bg-black/95 p-4 backdrop-blur-md animate-fadeIn"
           onClick={closeLightbox}
         >
-          {/* Lightbox Header */}
-          <div className="flex w-full items-center justify-between px-4 py-2" onClick={(e) => e.stopPropagation()}>
-            <span className="text-sm font-bold tracking-widest text-slate-300">
+          {/* Lightbox Header — always above the sticky navbar (z-[200]) */}
+          <div className="flex w-full items-center justify-between px-2 py-2 pt-safe" onClick={(e) => e.stopPropagation()}>
+            <span className="text-sm font-bold tracking-widest text-slate-300 truncate max-w-[70vw]">
               {title} &mdash; <span className="text-[#00E5FF]">{lightboxIndex + 1} / {images.length}</span>
             </span>
             <button
               type="button"
               onClick={closeLightbox}
-              className="rounded-full border border-white/20 bg-white/10 p-2 text-white transition-colors hover:bg-red-500 hover:text-white"
+              aria-label="Close image viewer"
+              className="ml-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition-colors hover:bg-red-500 hover:text-white active:scale-95"
             >
               <X className="h-6 w-6" />
             </button>
@@ -880,7 +881,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
 
       {/* Main Content Grid */}
       <div className="mx-auto max-w-7xl px-5 pb-24 lg:px-10">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_420px] -mt-32 relative z-10">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_420px] mt-6 lg:-mt-32 relative z-10">
           {/* ----- LEFT: Main Content ----- */}
           <div>
             {/* Title & Meta */}

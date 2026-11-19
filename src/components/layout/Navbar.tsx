@@ -249,7 +249,7 @@ export default function Navbar() {
             </div>
 
             {/* Auth Actions */}
-            <div className="pt-2">
+            <div className="mt-2 border-t border-white/10 pt-5">
               {(session || serverUser) ? (
                 <div className="space-y-3">
                   {/* User Profile Card */}
@@ -308,7 +308,7 @@ export default function Navbar() {
               ) : (
                 <Link
                   href="/auth"
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00E5FF] py-3.5 text-sm font-bold uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/10"
+                  className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[#00E5FF] py-3.5 text-sm font-bold uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/10"
                 >
                   <User className="h-4 w-4" />
                   {dict.navbar.signInRegister}

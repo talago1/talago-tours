@@ -238,15 +238,28 @@ async function callProvider(provider: AiProviderConfig, options: GenerateOptions
           signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
         });
         if (fallbackRes.ok) {
-          const fallbackData = await fallbackRes.json();
+          const fallbackRaw = await fallbackRes.text();
+          let fallbackData: any;
+          try { fallbackData = JSON.parse(fallbackRaw); } catch {
+            throw new Error(`Gemini fallback model ${fallbackModel} returned non-JSON (status ${fallbackRes.status}): ${fallbackRaw.slice(0, 150)}`);
+          }
           const fallbackText = fallbackData.candidates?.[0]?.content?.parts?.[0]?.text;
           if (fallbackText) return fallbackText.trim();
+        } else {
+          const fallbackErr = await fallbackRes.text().catch(() => '');
+          console.warn(`[ai-router] Fallback model ${fallbackModel} also failed ${fallbackRes.status}: ${fallbackErr.slice(0, 150)}`);
         }
       }
       throw new Error(`Gemini API HTTP ${res.status}: ${errText.slice(0, 300)}`);
     }
 
-    const data = await res.json();
+    const rawBody = await res.text();
+    let data: any;
+    try {
+      data = JSON.parse(rawBody);
+    } catch {
+      throw new Error(`Gemini API returned non-JSON response (status ${res.status}): ${rawBody.slice(0, 200)}`);
+    }
     const candidate = data.candidates?.[0];
     const finishReason = candidate?.finishReason;
     if (finishReason === 'MAX_TOKENS') {
@@ -301,7 +314,13 @@ async function callProvider(provider: AiProviderConfig, options: GenerateOptions
       throw new Error(`OpenAI-compatible HTTP ${res.status}: ${errText.slice(0, 300)}`);
     }
 
-    const data = await res.json();
+    const rawOaiBody = await res.text();
+    let data: any;
+    try {
+      data = JSON.parse(rawOaiBody);
+    } catch {
+      throw new Error(`OpenAI-compatible API returned non-JSON response (status ${res.status}): ${rawOaiBody.slice(0, 200)}`);
+    }
     const message = data.choices?.[0]?.message;
     const text = message?.content;
 

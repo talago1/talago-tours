@@ -11,7 +11,7 @@ import BentoGridUSPs from '@/components/landing/BentoGridUSPs';
 import TourCatalog from '@/components/landing/TourCatalog';
 import ExploreByInterest from '@/components/landing/ExploreByInterest';
 import HomepageExperienceDiscovery from '@/components/landing/HomepageExperienceDiscovery';
-import { getHomepageCollections } from '@/lib/homepageCollections';
+import { getHomepageCollections, getHomepageSections } from '@/lib/homepageCollections';
 import PopularDestinations from '@/components/landing/PopularDestinations';
 import Testimonials, { LandingReview } from '@/components/landing/Testimonials';
 import FAQSection from '@/components/landing/FAQSection';
@@ -33,7 +33,7 @@ export default async function HomePage({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
-  const [tours, destinations, bannerSetting, activeTourCount, reviews, collections] = await Promise.all([
+  const [tours, destinations, bannerSetting, activeTourCount, reviews, collections, homepageSections] = await Promise.all([
     prisma.tour.findMany({
       where: { status: 'ACTIVE' },
       orderBy: [
@@ -119,6 +119,7 @@ export default async function HomePage({
       take: 6,
     }),
     getHomepageCollections(),
+    getHomepageSections(),
   ]);
 
   const bannerData = bannerSetting
@@ -207,15 +208,36 @@ export default async function HomePage({
         <TourCatalog tours={tours} totalActiveCount={activeTourCount} />
       ) : (
         <>
-          <ExploreByInterest />
-          <HomepageExperienceDiscovery tours={tours as any} collections={collections} />
+          {homepageSections
+            .filter((s) => s.enabled && s.key !== 'hero')
+            .map((section) => {
+              switch (section.key) {
+                case 'destinations':
+                  return <PopularDestinations key="destinations" destinations={destinations} />;
+                case 'interests':
+                  return <ExploreByInterest key="interests" />;
+                case 'collections':
+                  return (
+                    <HomepageExperienceDiscovery
+                      key="collections"
+                      tours={tours as any}
+                      collections={collections}
+                    />
+                  );
+                case 'why-talago':
+                  return <BentoGridUSPs key="why-talago" />;
+                case 'reviews':
+                  return <Testimonials key="reviews" reviews={landingReviews} />;
+                case 'faq':
+                  return <FAQSection key="faq" />;
+                case 'newsletter':
+                  return <NewsletterBanner key="newsletter" />;
+                default:
+                  return null;
+              }
+            })}
         </>
       )}
-      <BentoGridUSPs />
-      <PopularDestinations destinations={destinations} />
-      <Testimonials reviews={landingReviews} />
-      <FAQSection />
-      <NewsletterBanner />
     </div>
   );
 }
