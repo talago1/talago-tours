@@ -533,7 +533,7 @@ export default function HomepageCollectionsDashboard() {
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-                    "View all" Link
+                    &quot;View all&quot; Link
                   </label>
                   <input
                     type="text"

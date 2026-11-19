@@ -441,7 +441,7 @@ export default function CompanyLegalProfileDashboard() {
             <div className="rounded-xl border border-dashed border-white/10 p-8 text-center text-xs text-slate-400">
               <ShieldCheck className="h-8 w-8 text-slate-600 mx-auto mb-2" />
               <p className="font-semibold text-white">No licenses entered yet</p>
-              <p className="text-slate-500 mt-0.5">Click "Add License Record" above to document your operational permits.</p>
+              <p className="text-slate-500 mt-0.5">Click &quot;Add License Record&quot; above to document your operational permits.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -676,7 +676,7 @@ export default function CompanyLegalProfileDashboard() {
           <div>
             <h3 className="text-base font-bold text-white">Marketplace Role & Legal Operating Model</h3>
             <p className="text-xs text-slate-400">
-              Clear legal delineation of Talago's commercial role in facilitating bookings versus the independent excursion operators who execute the tours.
+              Clear legal delineation of Talago&apos;s commercial role in facilitating bookings versus the independent excursion operators who execute the tours.
             </p>
           </div>
 

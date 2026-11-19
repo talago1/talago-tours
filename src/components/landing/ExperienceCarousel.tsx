@@ -26,11 +26,6 @@ export default function ExperienceCarousel({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  // If no eligible tours, hide section cleanly (per visibility rules)
-  if (!tours || tours.length === 0) {
-    return null;
-  }
-
   const checkScroll = () => {
     if (!scrollRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
@@ -39,10 +34,16 @@ export default function ExperienceCarousel({
   };
 
   useEffect(() => {
+    if (!tours || tours.length === 0) return;
     checkScroll();
     window.addEventListener('resize', checkScroll);
     return () => window.removeEventListener('resize', checkScroll);
   }, [tours]);
+
+  // If no eligible tours, hide section cleanly (per visibility rules)
+  if (!tours || tours.length === 0) {
+    return null;
+  }
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return;

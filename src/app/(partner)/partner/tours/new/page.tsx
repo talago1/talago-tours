@@ -53,6 +53,20 @@ export default function NewPartnerTourPage() {
     isAdmin: false,
     checked: false,
   });
+  const [form, setForm] = useState({
+    title: '',
+    destination: 'Hurghada',
+    category: 'Sea & Snorkeling Trips',
+    durationHours: 6,
+    adultPrice: 35,
+    childPrice: 20,
+    pickupHub: 'Hurghada / Makadi / El Gouna',
+    description: '',
+    highlights: '',
+    inclusions: 'Hotel pickup & drop-off, Snorkel equipment, Buffet lunch, Soft drinks, English guide',
+    exclusions: 'National park environmental fee ($5), Personal expenses, Professional photographer tips',
+    operatorNotes: '',
+  });
 
   useEffect(() => {
     fetch('/api/public/partners/apply')
@@ -77,21 +91,6 @@ export default function NewPartnerTourPage() {
       </div>
     );
   }
-
-  const [form, setForm] = useState({
-    title: '',
-    destination: 'Hurghada',
-    category: 'Sea & Snorkeling Trips',
-    durationHours: 6,
-    adultPrice: 35,
-    childPrice: 20,
-    pickupHub: 'Hurghada / Makadi / El Gouna',
-    description: '',
-    highlights: '',
-    inclusions: 'Hotel pickup & drop-off, Snorkel equipment, Buffet lunch, Soft drinks, English guide',
-    exclusions: 'National park environmental fee ($5), Personal expenses, Professional photographer tips',
-    operatorNotes: '',
-  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
