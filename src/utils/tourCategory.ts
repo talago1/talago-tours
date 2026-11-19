@@ -16,6 +16,9 @@ const CATEGORY_FILTER_MAP: Record<string, string[]> = {
   CULTURAL:      ['cultural',   'Historical', 'historical', 'heritage'],
   SPA:           ['spa',        'spa & wellness', 'wellness'],
   ENTERTAINMENT: ['entertainment', 'Entertainment', 'dolphin'],
+  // ── Experience type aliases used by ExploreByInterest chips ──
+  PRIVATE:       ['private', 'Private', 'private charter', 'Private Charter', 'VIP', 'vip'],
+  DAY_TRIPS:     ['day trip', 'day_trip', 'full day', 'full-day', 'excursion', 'Excursion'],
 };
 
 /**

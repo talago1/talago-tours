@@ -36,7 +36,7 @@ const INTERESTS: InterestItem[] = [
       es: 'Cruceros en barco y yate',
     },
     icon: Ship,
-    link: '/tours?type=sea',
+    link: '/tours?type=boat_trip',
     accent: 'from-cyan-500/20 to-blue-500/20 text-cyan-400 border-cyan-500/30 hover:border-cyan-400/60',
   },
   {
@@ -96,7 +96,7 @@ const INTERESTS: InterestItem[] = [
       es: 'Excursiones de día',
     },
     icon: Compass,
-    link: '/tours?type=day-trips',
+    link: '/tours?type=day_trips',
     accent: 'from-sky-500/20 to-cyan-500/20 text-sky-400 border-sky-500/30 hover:border-sky-400/60',
   },
   {
