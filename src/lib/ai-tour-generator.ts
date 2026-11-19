@@ -1,5 +1,5 @@
 import { executeAiPrompt } from '@/lib/ai-router';
-import type { TourEditorData, ItineraryMilestone } from '@/types/tourEditor';
+import type { TourEditorData, ItineraryMilestone, KeyActivityDetailItem } from '@/types/tourEditor';
 import { createDefaultTourEditorData, createDefaultTranslations } from '@/types/tourEditor';
 
 export interface TourCompletenessReport {
@@ -10,9 +10,16 @@ export interface TourCompletenessReport {
   inapplicableFields: string[];
 }
 
+export type GeneratedTourDraftData = Partial<TourEditorData> & {
+  title?: string;
+  shortTitle?: string;
+  description?: string;
+  cardExcerpt?: string;
+};
+
 export interface GenerateTourDraftResult {
   success: boolean;
-  tourData?: Partial<TourEditorData>;
+  tourData?: GeneratedTourDraftData;
   reviewRequiredFields: string[];
   completenessReport?: TourCompletenessReport;
   explanation?: string;
@@ -263,7 +270,8 @@ STRICT EDITORIAL & INTEGRITY RULES:
 7. FAQS: Generate 3 to 5 realistic, high-value traveler questions and helpful answers.
 8. ACCESSIBILITY & LOGISTICS: Note wheelchair and stroller accessibility realistically based on activity type (e.g., desert quad or scuba = not wheelchair accessible).
 9. BOOKING QUESTIONS: If hotel pickup is included, suggest a standard checkout question for hotel name & room number.
-10. LANGUAGE: Output all initial content in clear, engaging English.
+10. KEY ACTIVITY DETAILS: Provide 3 to 5 key at-a-glance attributes (e.g., "Group Size", "Live Guide", "Activity Level", "Duration", "Suitable For").
+11. LANGUAGE: Output all initial content in clear, engaging English.
 
 YOU MUST RETURN STRICTLY VALID JSON ONLY. No conversational preamble, no markdown fences outside the JSON.
 
@@ -274,6 +282,11 @@ Expected JSON Structure:
   "category": "sea" | "desert" | "historical" | "adventure" | "cultural" | "city" | "family",
   "cardExcerpt": "1-2 punchy sentences summarizing the core experience (max 160 characters).",
   "description": "Full multi-paragraph description highlighting the experience, atmosphere, and what makes it special.",
+  "keyActivityDetails": [
+    { "title": "Group Size", "value": "Small group (max 12)" },
+    { "title": "Live Guide", "value": "English, German" },
+    { "title": "Activity Level", "value": "Moderate" }
+  ],
   "highlights": ["Highlight 1", "Highlight 2", "Highlight 3", "Highlight 4"],
   "itinerary": [
     { "timeTag": "08:00", "title": "Hotel Pickup & Transfer", "description": "Air-conditioned transfer from your resort..." },
@@ -343,13 +356,28 @@ Expected JSON Structure:
     const shortTitle = String(parsed.shortTitle || title.slice(0, 32)).trim();
     const slug = slugify(title);
 
+    const cardExcerpt = String(parsed.cardExcerpt || '').trim();
+    const description = String(parsed.description || '').trim();
+
+    // Parse key activity details
+    const keyActivityDetails: KeyActivityDetailItem[] = Array.isArray(parsed.keyActivityDetails)
+      ? parsed.keyActivityDetails
+          .map((k: any, idx: number) => ({
+            id: `kad-${Date.now()}-${idx}`,
+            title: String(k.title || '').trim(),
+            value: String(k.value || '').trim(),
+          }))
+          .filter((k: any) => k.title && k.value)
+      : [];
+
     // Merge into English translation
     translations.en = {
       ...translations.en,
       title,
       shortTitle,
-      cardExcerpt: String(parsed.cardExcerpt || '').trim(),
-      description: String(parsed.description || '').trim(),
+      cardExcerpt,
+      description,
+      keyActivityDetails,
       highlights: Array.isArray(parsed.highlights) ? parsed.highlights.map(String) : [],
       inclusions: Array.isArray(parsed.inclusions) ? parsed.inclusions.map(String) : [],
       exclusions: Array.isArray(parsed.exclusions) ? parsed.exclusions.map(String) : [],
@@ -358,7 +386,7 @@ Expected JSON Structure:
       cancellationPolicy: String(parsed.cancellationPolicy || '').trim(),
       safetyGuidelines: Array.isArray(parsed.safetyGuidelines) ? parsed.safetyGuidelines.map(String) : [],
       seoTitle: String(parsed.metaTitle || title).trim(),
-      seoDescription: String(parsed.metaDescription || parsed.cardExcerpt || '').trim(),
+      seoDescription: String(parsed.metaDescription || cardExcerpt || '').trim(),
       accessibilityNotes: String(parsed.accessibilityNotes || '').trim(),
       meetingPointInstructions: String(parsed.meetingPointInstructions || '').trim(),
       faqItems: Array.isArray(parsed.faqItems)
@@ -411,10 +439,15 @@ Expected JSON Structure:
         ]
       : [];
 
-    const generatedDraft: Partial<TourEditorData> = {
+    const generatedDraft: GeneratedTourDraftData = {
       ...base,
+      title,
+      shortTitle,
+      description,
+      cardExcerpt,
       slug,
       category: String(parsed.category || 'adventure').toLowerCase(),
+      keyActivityDetails,
       adultPrice: 0, // Explicitly 0 for admin review
       basePriceUSD: 0,
       durationHours: Number(parsed.durationHours) || 4,

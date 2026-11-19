@@ -273,6 +273,9 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
       exclusions: draft.exclusions?.length ? draft.exclusions : prev.exclusions,
       itinerary: draft.itinerary?.length ? draft.itinerary : prev.itinerary,
       faqItems: draft.faqItems?.length ? draft.faqItems : prev.faqItems,
+      keyActivityDetails: draft.keyActivityDetails?.length ? draft.keyActivityDetails : prev.keyActivityDetails,
+      bookingQuestions: draft.bookingQuestions?.length ? draft.bookingQuestions : prev.bookingQuestions,
+      routeStops: draft.routeStops?.length ? draft.routeStops : prev.routeStops,
     }));
     setIsDirty(true);
     setActiveStep(1);
