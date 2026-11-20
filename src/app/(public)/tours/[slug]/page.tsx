@@ -141,6 +141,7 @@ export default async function TourDetailPage({ params }: Props) {
       meetingPointImageUrl: true,
       cancellationPolicy: true,
       freeCancellationHours: true,
+      cutoffHours: true,
       hasGuide: true,
       guideLanguages: true,
       allowDeposit: true,
@@ -228,6 +229,7 @@ export default async function TourDetailPage({ params }: Props) {
         meetingPointImageUrl: true,
         cancellationPolicy: true,
         freeCancellationHours: true,
+        cutoffHours: true,
         allowDeposit: true,
         depositPercentage: true,
         allowPayAtLocation: true,
@@ -613,6 +615,10 @@ export default async function TourDetailPage({ params }: Props) {
           faqItems,
           tourOptions,
           ageRestrictionsNotes: tour.ageRestrictionsNotes,
+          instantConfirmation: tour.instantConfirmation ?? true,
+          hasGuide: tour.hasGuide ?? null,
+          guideLanguages: Array.isArray(tour.guideLanguages) ? (tour.guideLanguages as string[]) : [],
+          cutoffHours: tour.cutoffHours ?? null,
         }}
         reviews={{ distribution, reviews, ratingAverage: effectiveRatingAverage, ratingCount: effectiveReviewCount }}
         relatedTours={relatedTours}

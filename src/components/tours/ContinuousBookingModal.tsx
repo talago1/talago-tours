@@ -51,6 +51,7 @@ export interface ContinuousBookingModalProps {
     meetingPointAddress?: string | null;
     meetingPointLandmark?: string | null;
     meetingPointInstructions?: string | null;
+    cutoffHours?: number | null;
     addons?: Array<{
       id: string;
       price: number;
@@ -503,12 +504,12 @@ export default function ContinuousBookingModal({
             </span>
             <div>
               <h2 id="booking-modal-title" className="text-sm sm:text-base font-black text-white line-clamp-1">
-                {confirmedBooking ? 'Reservation Confirmed' : tour.title}
+                {confirmedBooking ? ((dict as any).booking?.reservationConfirmed || 'Reservation Confirmed') : tour.title}
               </h2>
               <p className="text-[11px] text-slate-400">
                 {confirmedBooking
-                  ? 'Your trip is booked! Keep your boarding pass handy.'
-                  : 'Fast, secure direct booking — No account required'}
+                  ? ((dict as any).booking?.tripBooked || 'Your trip is booked! Keep your boarding pass handy.')
+                  : ((dict as any).booking?.fastSecureBooking || 'Fast, secure direct booking — No account required')}
               </p>
             </div>
           </div>
@@ -527,10 +528,10 @@ export default function ContinuousBookingModal({
           <div className="px-5 sm:px-6 pt-4 pb-2 border-b border-white/5 bg-white/[0.01]">
             <div className="flex items-center justify-between max-w-md mx-auto">
               {[
-                { s: 1, label: 'Trip & Guests' },
-                { s: 2, label: 'Lead Traveler' },
-                { s: 3, label: 'Pickup Details' },
-                { s: 4, label: 'Payment' },
+                { s: 1, label: (dict as any).booking?.stepTripGuests || 'Trip & Guests' },
+                { s: 2, label: (dict as any).booking?.stepLeadTraveler || 'Lead Traveler' },
+                { s: 3, label: (dict as any).booking?.stepPickup || 'Pickup Details' },
+                { s: 4, label: (dict as any).booking?.stepPayment || 'Payment' },
               ].map((item, idx) => (
                 <React.Fragment key={item.s}>
                   <div className="flex flex-col items-center">
@@ -566,27 +567,46 @@ export default function ContinuousBookingModal({
         <div className="overflow-y-auto flex-1 p-5 sm:p-6 lg:p-7">
           {/* Confirmed Screen */}
           {confirmedBooking ? (
-            <div className="max-w-xl mx-auto py-6 text-center space-y-6">
+            <div className="max-w-xl mx-auto py-6 text-center space-y-5">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
                 <CheckCircle2 className="h-8 w-8" />
               </div>
 
               <div>
                 <span className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono font-bold text-[#00E5FF] mb-2">
-                  Reference: {confirmedBooking.bookingReference}
+                  {(dict as any).booking?.reference || 'Reference'}: {confirmedBooking.bookingReference}
                 </span>
-                <h3 className="text-xl sm:text-2xl font-black text-white">Your Booking is Confirmed!</h3>
+                <h3 className="text-xl sm:text-2xl font-black text-white">{(dict as any).booking?.bookingConfirmedTitle || 'Your Booking is Confirmed!'}</h3>
                 <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-md mx-auto">
                   {confirmedBooking.scheme === PaymentScheme.PAY_ON_ARRIVAL
-                    ? `Total due on arrival: ${formatPrice(confirmedBooking.amountDueOnArrival)}. You can pay in cash (USD, EUR, EGP) or card upon meetup.`
-                    : `Amount paid online: ${formatPrice(confirmedBooking.amountPaidOnline)}.`}
+                    ? `${(dict as any).booking?.dueOnArrival || 'Total due on arrival'}: ${formatPrice(confirmedBooking.amountDueOnArrival)}. ${(dict as any).booking?.payInCash || 'You can pay in cash (USD, EUR, EGP) or card upon meetup.'}`
+                    : `${(dict as any).booking?.amountPaidOnline || 'Amount paid online'}: ${formatPrice(confirmedBooking.amountPaidOnline)}.`}
                 </p>
+              </div>
+
+              {/* Booking summary */}
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-left space-y-2">
+                <p className="text-xs font-black text-white">{tour.title}</p>
+                {departureDate && (
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                    <Calendar className="h-3.5 w-3.5 shrink-0 text-[#00E5FF]" />
+                    <span>{departureDate}{selectedTime ? ` · ${selectedTime}` : ''}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                  <Users className="h-3.5 w-3.5 shrink-0 text-[#00E5FF]" />
+                  <span>
+                    {adultsCount} {(dict.tourDetails as any)?.adults || 'adults'}
+                    {childrenCount > 0 ? `, ${childrenCount} ${(dict.tourDetails as any)?.children || 'children'}` : ''}
+                    {infantsCount > 0 ? `, ${infantsCount} ${(dict.tourDetails as any)?.infants || 'infants'}` : ''}
+                  </span>
+                </div>
               </div>
 
               {whatsappOptIn && (
                 <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-xs text-emerald-300 flex items-center justify-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Your e-boarding pass and WhatsApp confirmation are being dispatched.</span>
+                  <span>{(dict as any).booking?.whatsappDispatch || 'Your e-boarding pass and WhatsApp confirmation are being dispatched.'}</span>
                 </div>
               )}
 
@@ -596,13 +616,13 @@ export default function ContinuousBookingModal({
                   className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-3.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 hover:scale-[1.02] active:scale-[0.98] transition"
                 >
                   <CreditCard className="h-4 w-4" />
-                  <span>View Boarding Pass</span>
+                  <span>{(dict as any).booking?.viewBoardingPass || 'View Boarding Pass'}</span>
                 </a>
                 <a
                   href={isAuthenticated ? '/account?tab=bookings' : '/my-bookings'}
                   className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3.5 text-xs font-bold text-white hover:bg-white/10 transition"
                 >
-                  <span>Go to My Bookings</span>
+                  <span>{(dict as any).booking?.goToMyBookings || 'Go to My Bookings'}</span>
                 </a>
               </div>
             </div>
@@ -617,18 +637,22 @@ export default function ContinuousBookingModal({
                     <div>
                       <h3 className="text-base font-black text-white flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-[#00E5FF]" />
-                        1. Select Date & Time
+                        {(dict as any).booking?.step1Title || '1. Select Date & Time'}
                       </h3>
-                      <p className="text-xs text-slate-400 mt-0.5">Choose your departure date and preferred pickup time.</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{(dict as any).booking?.step1Desc || 'Choose your departure date and preferred pickup time.'}</p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 mb-1.5">Departure Date *</label>
+                        <label className="block text-xs font-bold text-slate-300 mb-1.5">{(dict as any).booking?.departureDateLabel || 'Departure Date *'}</label>
                         <input
                           type="date"
                           value={departureDate}
-                          min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                          min={(() => {
+                            const hours = tour.cutoffHours ?? 24;
+                            const minDate = new Date(Date.now() + Math.max(hours, 1) * 3600000);
+                            return minDate.toISOString().split('T')[0];
+                          })()}
                           onChange={(e) => setDepartureDate(e.target.value)}
                           className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white focus:border-[#00E5FF] focus:outline-none"
                         />
@@ -640,7 +664,7 @@ export default function ContinuousBookingModal({
                           <div className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5">
                             <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
                             <span className="text-[11px] font-bold text-amber-400">
-                              Only {availableSpots} spot{availableSpots !== 1 ? 's' : ''} left on this date
+                              {((dict as any).booking?.spotsLeft || 'Only {{n}} spot(s) left on this date').replace('{{n}}', String(availableSpots))}
                             </span>
                           </div>
                         )}
@@ -648,7 +672,7 @@ export default function ContinuousBookingModal({
                           <div className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-red-500/10 border border-red-500/20 px-2.5 py-1.5">
                             <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
                             <span className="text-[11px] font-bold text-red-400">
-                              Sold out on this date — please choose another
+                              {(dict as any).booking?.soldOut || 'Sold out on this date — please choose another'}
                             </span>
                           </div>
                         )}
@@ -807,10 +831,10 @@ export default function ContinuousBookingModal({
                     <div>
                       <h3 className="text-base font-black text-white flex items-center gap-2">
                         <User className="h-4 w-4 text-[#00E5FF]" />
-                        2. Traveler Information
+                        {(dict as any).booking?.step2Title || '2. Traveler Information'}
                       </h3>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        Guest booking enabled — Email is optional when a valid phone is provided.
+                        {(dict as any).booking?.step2Desc || 'Guest booking enabled — Email is optional when a valid phone is provided.'}
                       </p>
                     </div>
 
@@ -833,16 +857,16 @@ export default function ContinuousBookingModal({
                           <User className="h-3.5 w-3.5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-white">Booking as Guest</p>
+                          <p className="text-xs font-bold text-white">{(dict as any).booking?.bookingAsGuest || 'Booking as Guest'}</p>
                           <p className="text-[11px] text-slate-400">
-                            Have an account? <a href={`/auth?returnTo=/tours/${tour.slug}`} className="text-[#00E5FF] font-bold hover:underline">Log in</a> to link this booking.
+                            {(dict as any).booking?.haveAccount || 'Have an account?'}{' '}<a href={`/auth?returnTo=/tours/${tour.slug}`} className="text-[#00E5FF] font-bold hover:underline">{(dict as any).booking?.logIn || 'Log in'}</a>{' '}{(dict as any).booking?.toLinkBooking || 'to link this booking.'}
                           </p>
                         </div>
                       </div>
                     )}
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">Lead Traveler Full Name *</label>
+                      <label className="block text-xs font-bold text-slate-300 mb-1.5">{(dict as any).booking?.leadNameLabel || 'Lead Traveler Full Name *'}</label>
                       <input
                         type="text"
                         placeholder="e.g. Maria Gonzalez"
@@ -906,9 +930,9 @@ export default function ContinuousBookingModal({
                     <div>
                       <h3 className="text-base font-black text-white flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-[#00E5FF]" />
-                        3. Transfer & Pickup Details
+                        {(dict as any).booking?.step3Title || '3. Transfer & Pickup Details'}
                       </h3>
-                      <p className="text-xs text-slate-400 mt-0.5">Select how you want to join the tour.</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{(dict as any).booking?.step3Desc || 'Select how you want to join the tour.'}</p>
                     </div>
 
                     {/* Mode Toggle */}
@@ -923,7 +947,7 @@ export default function ContinuousBookingModal({
                         }`}
                       >
                         <Building className="h-3.5 w-3.5" />
-                        Hotel Pickup
+                        {(dict as any).booking?.hotelPickup || 'Hotel Pickup'}
                       </button>
                       <button
                         type="button"
@@ -935,7 +959,7 @@ export default function ContinuousBookingModal({
                         }`}
                       >
                         <MapPin className="h-3.5 w-3.5" />
-                        Meeting Point
+                        {(dict as any).booking?.meetingPoint || 'Meeting Point'}
                       </button>
                     </div>
 
@@ -1023,9 +1047,9 @@ export default function ContinuousBookingModal({
                     <div>
                       <h3 className="text-base font-black text-white flex items-center gap-2">
                         <CreditCard className="h-4 w-4 text-[#00E5FF]" />
-                        4. Payment Choice
+                        {(dict as any).booking?.step4Title || '4. Payment Choice'}
                       </h3>
-                      <p className="text-xs text-slate-400 mt-0.5">Select how you want to pay for this booking.</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{(dict as any).booking?.step4Desc || 'Select how you want to pay for this booking.'}</p>
                     </div>
 
                     <div className="space-y-3">
@@ -1044,11 +1068,11 @@ export default function ContinuousBookingModal({
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-black text-white">{dict.checkout.payArrival}</span>
                               <span className="text-[10px] font-black uppercase tracking-wider text-[#FF5B00] bg-[#FF5B00]/15 px-2 py-0.5 rounded-full">
-                                Zero Upfront
+                                {(dict as any).booking?.zeroUpfront || 'Zero Upfront'}
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                              Pay nothing now. Pay the full balance ({formatPrice(grandTotal)}) in cash (USD, EUR, GBP, EGP) or card upon tour meetup.
+                              {((dict as any).booking?.payArrivalDesc || 'Pay nothing now. Pay the full balance ({{amount}}) in cash (USD, EUR, GBP, EGP) or card upon tour meetup.').replace('{{amount}}', formatPrice(grandTotal))}
                             </p>
                           </div>
                           {paymentScheme === PaymentScheme.PAY_ON_ARRIVAL && (
@@ -1072,11 +1096,11 @@ export default function ContinuousBookingModal({
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-black text-white">{dict.checkout.payOnline}</span>
                               <span className="text-[10px] font-black uppercase tracking-wider text-[#00E5FF] bg-[#00E5FF]/15 px-2 py-0.5 rounded-full">
-                                Instant Confirm
+                                {(dict as any).booking?.instantConfirm || 'Instant Confirm'}
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                              Pay 100% online ({formatPrice(grandTotal)}) via credit card, Apple Pay, Google Pay, or digital wallet.
+                              {((dict as any).booking?.payOnlineDesc || 'Pay 100% online ({{amount}}) via credit card, Apple Pay, Google Pay, or digital wallet.').replace('{{amount}}', formatPrice(grandTotal))}
                             </p>
                           </div>
                           {paymentScheme === PaymentScheme.FULL_ONLINE && (
@@ -1107,7 +1131,9 @@ export default function ContinuousBookingModal({
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                              Pay only {formatPrice(amountPaidOnline)} today to guarantee your spots. The remaining {formatPrice(amountDueOnArrival)} is due on arrival.
+                              {((dict as any).booking?.depositDesc || 'Pay only {{deposit}} today to guarantee your spots. The remaining {{balance}} is due on arrival.')
+                                .replace('{{deposit}}', formatPrice(amountPaidOnline))
+                                .replace('{{balance}}', formatPrice(amountDueOnArrival))}
                             </p>
                           </div>
                           {paymentScheme === PaymentScheme.DEPOSIT_ONLINE && (
@@ -1129,12 +1155,12 @@ export default function ContinuousBookingModal({
                       className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/10 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 transition"
                     >
                       <ChevronLeft className="h-3.5 w-3.5" />
-                      Back
+                      {(dict as any).booking?.back || 'Back'}
                     </button>
                   ) : (
                     <span className="text-xs text-slate-500 flex items-center gap-1.5">
                       <ShieldCheck className="h-3.5 w-3.5 text-[#00E5FF]" />
-                      Protected by 256-bit encryption
+                      {(dict as any).booking?.encryptionNotice || 'Protected by 256-bit encryption'}
                     </span>
                   )}
 
@@ -1144,7 +1170,7 @@ export default function ContinuousBookingModal({
                       onClick={handleNext}
                       className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-md shadow-[#00E5FF]/20 hover:scale-[1.02] active:scale-[0.98] transition ml-auto"
                     >
-                      <span>Continue</span>
+                      <span>{(dict as any).booking?.continue || 'Continue'}</span>
                       <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   ) : (

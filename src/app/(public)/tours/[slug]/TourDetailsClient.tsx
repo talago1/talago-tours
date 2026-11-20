@@ -135,6 +135,7 @@ interface TourData {
     descriptions?: Record<string, string>;
   }>;
   ageRestrictionsNotes?: string | null;
+  instantConfirmation?: boolean | null;
   hasGuide?: boolean | null;
   guideLanguages?: string[];
 }
@@ -926,7 +927,9 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
   }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, totalPrice, selectedDate, selectedTime, isStartingReservation]);
 
   const cancelHours = tour.freeCancellationHours ?? 24;
-  const cancelHoursText = cancelHours > 0 ? `Up to ${cancelHours} hours before start` : "Non-refundable";
+  const cancelHoursText = cancelHours > 0
+    ? ((dict.tourDetails as any)?.cancelUpToHours || 'Up to {{n}} hours before start').replace('{{n}}', String(cancelHours))
+    : ((dict.tourDetails as any)?.nonRefundable || 'Non-refundable');
   const whatToBringItems = localizedWhatToBringItems;
   const itineraryItems = localizedItineraryItems;
 
@@ -1083,7 +1086,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                         </div>
                       </div>
 
-                      {/* 2. Instant Confirmation */}
+                      {/* 2. Confirmation status */}
                       <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-[#00E5FF]/30 hover:bg-white/[0.04]">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
                           <Sparkles className="h-5 w-5" />
@@ -1093,10 +1096,14 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                             {(dict.tourDetails as any)?.confirmation || 'Confirmation'}
                           </h4>
                           <p className="mt-0.5 text-xs font-bold text-white">
-                            {(dict.tourDetails as any)?.instantConfirmation || 'Instant confirmation'}
+                            {tour.instantConfirmation !== false
+                              ? ((dict.tourDetails as any)?.instantConfirmation || 'Instant confirmation')
+                              : ((dict.tourDetails as any)?.bookingOnRequest || 'Booking on request')}
                           </p>
                           <p className="text-[11px] text-slate-400 mt-0.5">
-                            {(dict.tourDetails as any)?.instantDigitalDelivery || 'Instant digital ticket delivery'}
+                            {tour.instantConfirmation !== false
+                              ? ((dict.tourDetails as any)?.instantDigitalDelivery || 'Instant digital ticket delivery')
+                              : ((dict.tourDetails as any)?.teamWillConfirm || 'Our team will confirm within 24h')}
                           </p>
                         </div>
                       </div>
@@ -1174,10 +1181,10 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 <div className="mb-5 flex items-center justify-between">
                   <h3 className="text-xs font-black uppercase tracking-[0.22em] text-emerald-400 flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4" />
-                    Services &amp; On-Trip Support
+                    {(dict.tourDetails as any)?.servicesOnTrip || 'Services & On-Trip Support'}
                   </h3>
                   <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400 border border-emerald-500/20">
-                    TALAGO Verified Inclusions
+                    {(dict.tourDetails as any)?.talagoVerified || 'TALAGO Verified Inclusions'}
                   </span>
                 </div>
 
@@ -2062,11 +2069,11 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
           <section className="mt-16 border-t border-white/10 pt-12">
             <div className="mb-8 flex items-end justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00E5FF]">Discover More</p>
-                <h2 className="text-2xl font-black text-white sm:text-3xl mt-1">You May Also Like</h2>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#00E5FF]">{(dict.tourDetails as any)?.discoverMore || 'Discover More'}</p>
+                <h2 className="text-2xl font-black text-white sm:text-3xl mt-1">{(dict.tourDetails as any)?.youMayAlsoLike || 'You May Also Like'}</h2>
               </div>
               <Link href="/tours" className="text-xs font-bold text-[#00E5FF] hover:underline flex items-center gap-1">
-                View All Tours <span>→</span>
+                {(dict.tourDetails as any)?.viewAllTours || 'View All Tours'} <span>→</span>
               </Link>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -2079,68 +2086,72 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
       </div>
 
       {/* Booking must remain reachable throughout a trip page. */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#0B1528]/95 px-5 pt-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] backdrop-blur-2xl shadow-2xl shadow-black lg:hidden">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#00E5FF]">{dict.tourDetails.from}</span>
-                {tour.ratingAverage > 0 && (
-                  <span className="flex items-center gap-1 text-[11px] font-bold text-slate-300">
-                    <span className="text-[#FFD700]">★</span>
-                    <span>{tour.ratingAverage.toFixed(1)}</span>
-                    <span className="text-slate-500">({tour.ratingCount})</span>
-                  </span>
-                )}
+      {modules?.stickyMobileBookingBar !== false && (
+        <>
+          <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#0B1528]/95 px-5 pt-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] backdrop-blur-2xl shadow-2xl shadow-black lg:hidden">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#00E5FF]">{dict.tourDetails.from}</span>
+                  {tour.ratingAverage > 0 && (
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-slate-300">
+                      <span className="text-[#FFD700]">★</span>
+                      <span>{tour.ratingAverage.toFixed(1)}</span>
+                      <span className="text-slate-500">({tour.ratingCount})</span>
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  {pricePerAdult > 0 ? (
+                    <span className="text-xl font-black text-white">
+                      {formatPrice(pricePerAdult, { round: true })}
+                    </span>
+                  ) : (
+                    <span className="text-sm font-black text-amber-400">
+                      Price on request
+                    </span>
+                  )}
+                  {tour.originalPrice && pricePerAdult > 0 && tour.originalPrice > pricePerAdult && (
+                    <span className="text-xs font-bold text-slate-500 line-through">
+                      {formatPrice(tour.originalPrice, { round: true })}
+                    </span>
+                  )}
+                  {pricePerAdult > 0 && (
+                    <span className="text-[11px] text-slate-400">{dict.tourDetails.perPerson}</span>
+                  )}
+                </div>
+                {selectedTime && <p className="mt-0.5 truncate text-[11px] font-medium text-cyan-200">{selectedTime}</p>}
               </div>
-              <div className="flex items-baseline gap-1.5">
-                {pricePerAdult > 0 ? (
-                  <span className="text-xl font-black text-white">
-                    {formatPrice(pricePerAdult, { round: true })}
-                  </span>
-                ) : (
-                  <span className="text-sm font-black text-amber-400">
-                    Price on request
-                  </span>
-                )}
-                {tour.originalPrice && pricePerAdult > 0 && tour.originalPrice > pricePerAdult && (
-                  <span className="text-xs font-bold text-slate-500 line-through">
-                    {formatPrice(tour.originalPrice, { round: true })}
-                  </span>
-                )}
-                {pricePerAdult > 0 && (
-                  <span className="text-[11px] text-slate-400">{dict.tourDetails.perPerson}</span>
-                )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQuestionModalOpen(true)}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-[#00E5FF]"
+                  title="Ask a Question"
+                  aria-label="Ask a Question"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void startReservation('MOBILE_STICKY_BAR')}
+                  disabled={isStartingReservation || !pricePerAdult || pricePerAdult <= 0}
+                  className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] via-[#00C2E0] to-[#00A3BF] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span>{pricePerAdult > 0 ? (isStartingReservation ? 'Saving...' : dict.tourDetails.bookNow || 'Book Now') : 'Inquire'}</span>
+                  <span className="text-base leading-none">→</span>
+                </button>
               </div>
-              {selectedTime && <p className="mt-0.5 truncate text-[11px] font-medium text-cyan-200">{selectedTime}</p>}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setQuestionModalOpen(true)}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-[#00E5FF]"
-                title="Ask a Question"
-                aria-label="Ask a Question"
-              >
-                <MessageSquare className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => void startReservation('MOBILE_STICKY_BAR')}
-                disabled={isStartingReservation || !pricePerAdult || pricePerAdult <= 0}
-                className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] via-[#00C2E0] to-[#00A3BF] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <span>{pricePerAdult > 0 ? (isStartingReservation ? 'Saving...' : dict.tourDetails.bookNow || 'Book Now') : 'Inquire'}</span>
-                <span className="text-base leading-none">→</span>
-              </button>
             </div>
           </div>
-        </div>
 
-      {/* Spacer for mobile sticky bar */}
-      <div className="h-28 lg:hidden" />
+          {/* Spacer for mobile sticky bar */}
+          <div className="h-28 lg:hidden" />
+        </>
+      )}
 
       {/* Ask a Question Modal */}
-            {/* In-Page Continuous Booking Experience */}
+      {/* In-Page Continuous Booking Experience */}
       <ContinuousBookingModal
         isOpen={bookingModalOpen}
         onClose={() => setBookingModalOpen(false)}
@@ -2162,6 +2173,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
           meetingPointAddress: tour.meetingPointAddress,
           meetingPointLandmark: tour.meetingPointLandmark,
           meetingPointInstructions: tour.meetingPointInstructions,
+          cutoffHours: tour.cutoffHours ?? null,
           addons: tour.tourOptions,
         }}
         initialDate={selectedDate}
