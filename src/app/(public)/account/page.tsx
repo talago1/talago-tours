@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -313,6 +313,31 @@ export default function AccountPage() {
         }
       } catch {}
 
+      // 4. Grace retry for fast redirects (e.g. Telegram bridge finishing storage write)
+      try {
+        await new Promise((r) => setTimeout(r, 300));
+        const { data: { session: retrySession } } = await supabaseClient.auth.getSession();
+        if (retrySession?.access_token) {
+          const retryRes = await fetch('/api/public/my-bookings', {
+            headers: { Authorization: `Bearer ${retrySession.access_token}` },
+            credentials: 'same-origin',
+            cache: 'no-store',
+          });
+          if (retryRes.ok) {
+            const retryData = await retryRes.json();
+            if (retryData.authenticated && retryData.user) {
+              setAuthenticated(true);
+              setUserProfile(retryData.user);
+              setEditName(retryData.user.name || '');
+              setEditPhone(retryData.user.phone || retryData.user.telegramPhone || '');
+              setBookings(Array.isArray(retryData.bookings) ? retryData.bookings : []);
+              setReservations(Array.isArray(retryData.reservations) ? retryData.reservations : []);
+              return;
+            }
+          }
+        }
+      } catch {}
+
       setAuthenticated(false);
       setUserProfile(null);
     } catch (err) {
@@ -587,8 +612,8 @@ export default function AccountPage() {
     return count;
   }, [bookings, reservations]);
 
-  // Loading indicator
-  if (loading) {
+  // Loading indicator — never flash unauthenticated view while session is being verified
+  if (loading || authenticated === null) {
     return (
       <div className="min-h-screen bg-[#070F1E] flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3">
@@ -599,8 +624,8 @@ export default function AccountPage() {
     );
   }
 
-  // Not authenticated view -> Clean, localized member access prompt
-  if (!authenticated) {
+  // Not authenticated view -> Clean, localized member access prompt (only shown if definitively unauthenticated)
+  if (authenticated === false) {
     return (
       <div className="min-h-screen bg-[#070F1E] text-slate-100 flex items-center justify-center p-5 sm:p-8">
         <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#0B1528] p-7 sm:p-10 shadow-2xl shadow-black/80 text-center space-y-6">

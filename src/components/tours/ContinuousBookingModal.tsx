@@ -52,6 +52,15 @@ export interface ContinuousBookingModalProps {
     meetingPointLandmark?: string | null;
     meetingPointInstructions?: string | null;
     cutoffHours?: number | null;
+    bookingQuestions?: Array<{
+      id: string;
+      question: string;
+      type?: 'text' | 'select' | 'radio' | 'textarea' | 'checkbox';
+      options?: string[];
+      required?: boolean;
+      placeholder?: string;
+      helpText?: string;
+    }>;
     addons?: Array<{
       id: string;
       price: number;
@@ -128,6 +137,7 @@ export default function ContinuousBookingModal({
   } | null>(null);
   const [preliminaryLeadId, setPreliminaryLeadId] = useState<string | null>(null);
   const [preliminaryReference, setPreliminaryReference] = useState<string | null>(null);
+  const [bookingAnswers, setBookingAnswers] = useState<Record<string, any>>({});
 
   // Live availability — spots remaining for the selected date
   const [availableSpots, setAvailableSpots] = useState<number | null>(null);
@@ -208,71 +218,85 @@ export default function ContinuousBookingModal({
         setPaymentScheme(PaymentScheme.DEPOSIT_ONLINE);
       }
 
-      // Auto-populate authenticated customer contact info immediately on modal open
-      fetch('/api/auth/session')
-        .then((r) => (r.ok ? r.json() : null))
-        .then((authData) => {
-          if (authData?.authenticated && authData.user) {
-            setIsAuthenticated(true);
-            setCurrentUser(authData.user);
-            if (authData.accessToken) {
-              setSessionToken(authData.accessToken);
-              if (authData.refreshToken) {
-                supabaseClient.auth.setSession({
-                  access_token: authData.accessToken,
-                  refresh_token: authData.refreshToken,
-                }).catch(() => {});
-              }
-            }
-            const u = authData.user;
-            setLeadName((prev) => {
-              if (prev && prev.trim() !== '') return prev;
-              const n = u.name;
-              if (n && n !== 'User' && !n.startsWith('Traveler #')) return n;
-              if (u.telegramUsername) return `@${u.telegramUsername}`;
-              return prev;
-            });
-            setPhone((prev) => {
-              if (prev && prev.trim() !== '') return prev;
-              if (u.phone && u.phone.trim() !== '') return u.phone;
-              if (u.telegramPhone && u.telegramPhone.trim() !== '') return u.telegramPhone;
-              return prev;
-            });
-            setEmail((prev) => {
-              if (prev && prev.trim() !== '') return prev;
-              if (u.email && !u.email.endsWith('@noreply.talago.com')) return u.email;
-              return prev;
-            });
-
-            // Immediately register visible preliminary booking request
-            fetch('/api/public/booking-interest', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                tourId: tour.id,
-                tourSlug: tour.slug,
-                travelDate: initialDate || undefined,
-                adults: initialAdults || 1,
-                children: initialChildren || 0,
-                totalEstimatedPrice: effectiveAdultPrice * (initialAdults || 1),
-                currency: 'USD',
-                source: 'BOOKING_START',
-                customerName: (u.name && u.name !== 'User') ? u.name : undefined,
-                customerPhone: u.phone || u.telegramPhone || undefined,
-                customerEmail: (!u.email?.endsWith('@noreply.talago.com')) ? u.email : undefined,
-              }),
-            })
-              .then((r) => (r.ok ? r.json() : null))
-              .then((resData) => {
-                if (resData?.leadId) {
-                  setPreliminaryLeadId(resData.leadId);
-                  setPreliminaryReference(resData.reservationReference);
-                }
-              })
-              .catch(() => {});
+      // Authoritative authenticated customer recognition & preliminary hold request
+      (async () => {
+        let bearerToken: string | null = null;
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.access_token) {
+            bearerToken = session.access_token;
+            setSessionToken(session.access_token);
           }
-        })
-        .catch(() => {});
+        } catch {}
+
+        const headers: Record<string, string> = {};
+        if (bearerToken) headers['Authorization'] = `Bearer ${bearerToken}`;
+
+        let currentU: any = null;
+        let tokenToUse: string | null = bearerToken;
+
+        try {
+          const authRes = await fetch('/api/auth/session', { headers, credentials: 'same-origin', cache: 'no-store' });
+          if (authRes.ok) {
+            const authData = await authRes.json();
+            if (authData?.authenticated && authData.user) {
+              setIsAuthenticated(true);
+              setCurrentUser(authData.user);
+              currentU = authData.user;
+              if (authData.accessToken) {
+                tokenToUse = authData.accessToken;
+                setSessionToken(authData.accessToken);
+                if (authData.refreshToken) {
+                  supabaseClient.auth.setSession({
+                    access_token: authData.accessToken,
+                    refresh_token: authData.refreshToken,
+                  }).catch(() => {});
+                }
+              }
+              const verifiedName = (currentU.name && currentU.name !== 'User' && !currentU.name.startsWith('Traveler #'))
+                ? currentU.name
+                : (currentU.telegramUsername ? `@${currentU.telegramUsername}` : null);
+              const verifiedPhone = currentU.phone || currentU.telegramPhone || null;
+              const verifiedEmail = (currentU.email && !currentU.email.endsWith('@noreply.talago.com')) ? currentU.email : null;
+
+              if (verifiedName) setLeadName(verifiedName);
+              if (verifiedPhone) setPhone(verifiedPhone);
+              if (verifiedEmail) setEmail(verifiedEmail);
+            }
+          }
+        } catch {}
+
+        // Immediately register visible preliminary booking request (Stage A: Spots held, no inventory deducted)
+        try {
+          const interestHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (tokenToUse) interestHeaders['Authorization'] = `Bearer ${tokenToUse}`;
+
+          const res = await fetch('/api/public/booking-interest', {
+            method: 'POST',
+            headers: interestHeaders,
+            body: JSON.stringify({
+              tourId: tour.id,
+              tourSlug: tour.slug,
+              travelDate: initialDate || undefined,
+              adults: initialAdults || 1,
+              children: initialChildren || 0,
+              totalEstimatedPrice: effectiveAdultPrice * (initialAdults || 1),
+              currency: 'USD',
+              source: 'BOOKING_START',
+              customerName: currentU ? ((currentU.name && currentU.name !== 'User') ? currentU.name : undefined) : (draft?.leadName || undefined),
+              customerPhone: currentU ? (currentU.phone || currentU.telegramPhone || undefined) : (draft?.phone || undefined),
+              customerEmail: currentU ? ((!currentU.email?.endsWith('@noreply.talago.com')) ? currentU.email : undefined) : (draft?.email || undefined),
+            }),
+          });
+          if (res.ok) {
+            const resData = await res.json();
+            if (resData?.leadId) {
+              setPreliminaryLeadId(resData.leadId);
+              setPreliminaryReference(resData.reservationReference);
+            }
+          }
+        } catch {}
+      })();
     }
     prevIsOpenRef.current = isOpen;
   }, [isOpen, initialDate, initialTime, initialAdults, initialChildren, initialInfants, initialAddons, zones, tour.allowPayAtLocation, tour.allowFullOnline, tour.allowDeposit, tour.id, tour.slug, tour.adultPrice, trackFunnelEvent]);
@@ -368,8 +392,19 @@ export default function ContinuousBookingModal({
     }
 
     if (currentStep === 3) {
-      if (pickupType === 'HOTEL' && !hotelName.trim() && !tour.hotelPickupIncluded) {
-        errs.hotelName = 'Please enter your hotel or pickup address';
+      if (tour.bookingQuestions && tour.bookingQuestions.length > 0) {
+        for (const q of tour.bookingQuestions) {
+          if (q.required) {
+            const val = bookingAnswers[q.id];
+            if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
+              errs[`question_${q.id}`] = 'This field is required';
+            }
+          }
+        }
+      } else if (tour.hotelPickupIncluded && pickupType === 'HOTEL') {
+        if (!hotelName.trim()) {
+          errs.hotelName = 'Please enter your hotel or pickup address';
+        }
       }
     }
 
@@ -438,6 +473,7 @@ export default function ContinuousBookingModal({
           paymentScheme,
           currency: 'USD',
           whatsappOptIn,
+          bookingAnswers: Object.keys(bookingAnswers).length > 0 ? bookingAnswers : undefined,
           selectedAddons: Object.keys(selectedAddons)
             .filter((k) => selectedAddons[k])
             .map((id) => {
@@ -585,6 +621,15 @@ export default function ContinuousBookingModal({
                 </React.Fragment>
               ))}
             </div>
+            {preliminaryReference && (
+              <div className="mt-2.5 flex items-center justify-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Hold Ref: {preliminaryReference}
+                </span>
+                <span className="text-[10px] text-slate-400">Spot held during booking</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -949,108 +994,160 @@ export default function ContinuousBookingModal({
                   </div>
                 )}
 
-                {/* STEP 3: Pickup & Meeting Details */}
+                {/* STEP 3: Experience Details & Logistics */}
                 {step === 3 && (
                   <div className="space-y-4 animate-in fade-in duration-150">
                     <div>
                       <h3 className="text-base font-black text-white flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-[#00E5FF]" />
-                        {(dict as any).booking?.step3Title || '3. Transfer & Pickup Details'}
+                        {(dict as any).booking?.step3Title || '3. Logistics & Experience Details'}
                       </h3>
-                      <p className="text-xs text-slate-400 mt-0.5">{(dict as any).booking?.step3Desc || 'Select how you want to join the tour.'}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {tour.bookingQuestions && tour.bookingQuestions.length > 0
+                          ? 'Please provide the details below for your trip preparation.'
+                          : ((dict as any).booking?.step3Desc || 'Select how you want to join the tour.')}
+                      </p>
                     </div>
 
-                    {/* Mode Toggle */}
-                    <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl border border-white/10 bg-white/[0.02]">
-                      <button
-                        type="button"
-                        onClick={() => setPickupType('HOTEL')}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
-                          pickupType === 'HOTEL'
-                            ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20'
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <Building className="h-3.5 w-3.5" />
-                        {(dict as any).booking?.hotelPickup || 'Hotel Pickup'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPickupType('MEETING_POINT')}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
-                          pickupType === 'MEETING_POINT'
-                            ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20'
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <MapPin className="h-3.5 w-3.5" />
-                        {(dict as any).booking?.meetingPoint || 'Meeting Point'}
-                      </button>
-                    </div>
-
-                    {pickupType === 'HOTEL' ? (
+                    {tour.bookingQuestions && tour.bookingQuestions.length > 0 ? (
                       <div className="space-y-3 pt-1">
-                        <div>
-                          <label className="block text-xs font-bold text-slate-300 mb-1.5">Hotel or Resort Name *</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. Steigenberger ALDAU Beach Hotel"
-                            value={hotelName}
-                            onChange={(e) => setHotelName(e.target.value)}
-                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
-                          />
-                          {errors.hotelName && (
-                            <p className="text-[11px] text-rose-400 mt-1 font-medium">{errors.hotelName}</p>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-bold text-slate-300 mb-1.5">Room Number (Optional)</label>
-                            <input
-                              type="text"
-                              placeholder="e.g. 402"
-                              value={roomNumber}
-                              onChange={(e) => setRoomNumber(e.target.value)}
-                              className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
-                            />
-                          </div>
-
-                          {zones.length > 0 && (
-                            <div>
-                              <label className="block text-xs font-bold text-slate-300 mb-1.5">Transfer Zone</label>
-                              <select
-                                value={selectedZoneId}
-                                onChange={(e) => setSelectedZoneId(e.target.value)}
-                                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white focus:border-[#00E5FF] focus:outline-none"
-                              >
-                                <option value="" className="bg-[#0B1528] text-slate-400">Standard Zone (Free)</option>
-                                {zones.map((z) => (
-                                  <option key={z.id} value={z.id} className="bg-[#0B1528] text-white">
-                                    {z.name} (+{formatPrice(z.transferFee)})
-                                  </option>
-                                ))}
-                              </select>
+                        {tour.bookingQuestions.map((q) => {
+                          const qError = errors[`question_${q.id}`];
+                          const val = bookingAnswers[q.id] ?? '';
+                          return (
+                            <div key={q.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 space-y-1.5">
+                              <label className="block text-xs font-bold text-slate-300">
+                                {q.question} {q.required && <span className="text-[#FF5B00] ml-1">*</span>}
+                              </label>
+                              {q.helpText && <p className="text-[11px] text-slate-400">{q.helpText}</p>}
+                              {q.type === 'select' && q.options ? (
+                                <select
+                                  value={val}
+                                  onChange={(e) => setBookingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                                  className="w-full rounded-xl border border-white/10 bg-[#0B1528] px-3.5 py-2.5 text-xs font-bold text-white focus:border-[#00E5FF] focus:outline-none"
+                                >
+                                  <option value="">Select an option…</option>
+                                  {q.options.map((opt, i) => (
+                                    <option key={i} value={opt}>{opt}</option>
+                                  ))}
+                                </select>
+                              ) : q.type === 'textarea' ? (
+                                <textarea
+                                  rows={2}
+                                  value={val}
+                                  placeholder={q.placeholder || ''}
+                                  onChange={(e) => setBookingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs font-bold text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
+                                />
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={val}
+                                  placeholder={q.placeholder || ''}
+                                  onChange={(e) => setBookingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
+                                />
+                              )}
+                              {qError && <p className="text-[11px] text-rose-400 font-medium">{qError}</p>}
                             </div>
-                          )}
-                        </div>
+                          );
+                        })}
                       </div>
                     ) : (
-                      <div className="rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/5 p-4 space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-bold text-[#00E5FF]">
-                          <MapPin className="h-4 w-4" />
-                          <span>Designated Meeting Point: {tour.meetingPointName || 'Main Pier / Landmark'}</span>
+                      <>
+                        {/* Mode Toggle */}
+                        <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl border border-white/10 bg-white/[0.02]">
+                          <button
+                            type="button"
+                            onClick={() => setPickupType('HOTEL')}
+                            className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                              pickupType === 'HOTEL'
+                                ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            <Building className="h-3.5 w-3.5" />
+                            {(dict as any).booking?.hotelPickup || 'Hotel Pickup'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPickupType('MEETING_POINT')}
+                            className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                              pickupType === 'MEETING_POINT'
+                                ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            <MapPin className="h-3.5 w-3.5" />
+                            {(dict as any).booking?.meetingPoint || 'Meeting Point'}
+                          </button>
                         </div>
-                        {tour.meetingPointAddress && (
-                          <p className="text-xs text-slate-300">{tour.meetingPointAddress}</p>
+
+                        {pickupType === 'HOTEL' ? (
+                          <div className="space-y-3 pt-1">
+                            <div>
+                              <label className="block text-xs font-bold text-slate-300 mb-1.5">Hotel or Resort Name *</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Steigenberger ALDAU Beach Hotel"
+                                value={hotelName}
+                                onChange={(e) => setHotelName(e.target.value)}
+                                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
+                              />
+                              {errors.hotelName && (
+                                <p className="text-[11px] text-rose-400 mt-1 font-medium">{errors.hotelName}</p>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-bold text-slate-300 mb-1.5">Room Number (Optional)</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. 402"
+                                  value={roomNumber}
+                                  onChange={(e) => setRoomNumber(e.target.value)}
+                                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
+                                />
+                              </div>
+
+                              {zones.length > 0 && (
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-300 mb-1.5">Transfer Zone</label>
+                                  <select
+                                    value={selectedZoneId}
+                                    onChange={(e) => setSelectedZoneId(e.target.value)}
+                                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white focus:border-[#00E5FF] focus:outline-none"
+                                  >
+                                    <option value="" className="bg-[#0B1528] text-slate-400">Standard Zone (Free)</option>
+                                    {zones.map((z) => (
+                                      <option key={z.id} value={z.id} className="bg-[#0B1528] text-white">
+                                        {z.name} (+{formatPrice(z.transferFee)})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/5 p-4 space-y-2">
+                            <div className="flex items-center gap-2 text-xs font-bold text-[#00E5FF]">
+                              <MapPin className="h-4 w-4" />
+                              <span>Designated Meeting Point: {tour.meetingPointName || 'Main Pier / Landmark'}</span>
+                            </div>
+                            {tour.meetingPointAddress && (
+                              <p className="text-xs text-slate-300">{tour.meetingPointAddress}</p>
+                            )}
+                            {tour.meetingPointLandmark && (
+                              <p className="text-xs text-amber-300 font-medium">📍 Landmark: {tour.meetingPointLandmark}</p>
+                            )}
+                            {tour.meetingPointInstructions && (
+                              <p className="text-[11px] text-slate-400 italic mt-1">{tour.meetingPointInstructions}</p>
+                            )}
+                          </div>
                         )}
-                        {tour.meetingPointLandmark && (
-                          <p className="text-xs text-amber-300 font-medium">📍 Landmark: {tour.meetingPointLandmark}</p>
-                        )}
-                        {tour.meetingPointInstructions && (
-                          <p className="text-[11px] text-slate-400 italic mt-1">{tour.meetingPointInstructions}</p>
-                        )}
-                      </div>
+                      </>
                     )}
 
                     <div>

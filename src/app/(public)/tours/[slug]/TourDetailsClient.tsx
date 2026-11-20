@@ -992,24 +992,6 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                   <Clock className="h-4 w-4 text-[#FFD700]" />
                   {tour.duration}
                 </span>
-                {tour.pickupTimes && tour.pickupTimes.length > 0 && (
-                  <>
-                    <span className="text-slate-600">·</span>
-                    <span className="flex items-center gap-1.5 text-sm text-cyan-400 font-medium">
-                      <Clock className="h-4 w-4 text-[#00E5FF]" />
-                      Pickup: {tour.pickupTimes.join(', ')}
-                    </span>
-                  </>
-                )}
-                {hasGuide && guideLangs.length > 0 && (
-                  <>
-                    <span className="text-slate-600">·</span>
-                    <span className="flex items-center gap-1.5 text-sm text-sky-400 font-medium">
-                      <Languages className="h-4 w-4 text-sky-400" />
-                      {(dict.tourDetails as any)?.liveTourGuide || 'Guide'}: {formatGuideLanguages(guideLangs, language)}
-                    </span>
-                  </>
-                )}
               </div>
               <h1 className="text-4xl font-black tracking-tight text-white lg:text-5xl">{localizedTitle}</h1>
               {localizedDesc && (
@@ -2192,6 +2174,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
           meetingPointInstructions: tour.meetingPointInstructions,
           cutoffHours: tour.cutoffHours ?? null,
           addons: tour.tourOptions,
+          bookingQuestions: (tour as any).bookingQuestions,
         }}
         initialDate={selectedDate}
         initialTime={selectedTime}

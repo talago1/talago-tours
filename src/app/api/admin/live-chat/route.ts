@@ -42,6 +42,16 @@ export async function GET(request: NextRequest) {
     }
 
     if (conv) {
+      // Mark visitor messages as read by admin so unread count decrements accurately
+      await prisma.liveChatMessage.updateMany({
+        where: {
+          conversationId: conv.id,
+          sender: 'VISITOR',
+          readAt: null,
+        },
+        data: { readAt: new Date() },
+      }).catch(() => {});
+
       const messages = (conv.messages || []).map((m) => ({
         id: m.id,
         body: m.body,

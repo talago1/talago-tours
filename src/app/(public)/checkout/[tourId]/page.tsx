@@ -387,33 +387,82 @@ export default function CheckoutPage() {
     }
   }, [tourId, form.leadName, form.phone, form.email, adultsCount, childrenCount, infantsCount, departureDate]);
 
-  // Auto-populate customer details from authenticated session
+  // Auto-populate customer details from authenticated session (authoritative account recognition)
   useEffect(() => {
-    fetch('/api/auth/session')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.authenticated && data.user) {
-          setIsAuthenticated(true);
-          setCurrentUser(data.user);
-          if (data.accessToken) {
-            setSessionToken(data.accessToken);
-            if (data.refreshToken) {
-              supabaseClient.auth.setSession({
-                access_token: data.accessToken,
-                refresh_token: data.refreshToken,
-              }).catch(() => {});
-            }
+    let active = true;
+
+    async function checkAuthSession() {
+      try {
+        let bearerToken: string | null = null;
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.access_token) {
+            bearerToken = session.access_token;
+            setSessionToken(session.access_token);
           }
-          const u = data.user;
-          setForm((prev) => ({
-            ...prev,
-            leadName: prev.leadName.trim() ? prev.leadName : (u.name && u.name !== 'User' && !u.name.startsWith('Traveler #')) ? u.name : (u.telegramUsername ? `@${u.telegramUsername}` : prev.leadName),
-            phone: prev.phone.trim() ? prev.phone : (u.phone || u.telegramPhone || prev.phone),
-            email: prev.email.trim() ? prev.email : (!u.email?.endsWith('@noreply.talago.com') ? u.email : prev.email),
-          }));
+        } catch {}
+
+        const headers: Record<string, string> = {};
+        if (bearerToken) {
+          headers['Authorization'] = `Bearer ${bearerToken}`;
         }
-      })
-      .catch(() => {});
+
+        const res = await fetch('/api/auth/session', {
+          headers,
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.authenticated && data.user && active) {
+            setIsAuthenticated(true);
+            setCurrentUser(data.user);
+            if (data.accessToken) {
+              setSessionToken(data.accessToken);
+              if (data.refreshToken) {
+                supabaseClient.auth.setSession({
+                  access_token: data.accessToken,
+                  refresh_token: data.refreshToken,
+                }).catch(() => {});
+              }
+            }
+            const u = data.user;
+            const verifiedName = (u.name && u.name !== 'User' && !u.name.startsWith('Traveler #'))
+              ? u.name
+              : (u.telegramUsername ? `@${u.telegramUsername}` : null);
+            const verifiedPhone = u.phone || u.telegramPhone || null;
+            const verifiedEmail = (u.email && !u.email.endsWith('@noreply.talago.com')) ? u.email : null;
+
+            setForm((prev) => ({
+              ...prev,
+              leadName: verifiedName || prev.leadName,
+              phone: verifiedPhone || prev.phone,
+              email: verifiedEmail || prev.email,
+            }));
+          }
+        }
+      } catch {}
+    }
+
+    checkAuthSession();
+
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (session?.access_token && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        checkAuthSession();
+      } else if (event === 'SIGNED_OUT') {
+        if (active) {
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+          setSessionToken(null);
+        }
+      }
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Synchronize counts from search parameters on mount

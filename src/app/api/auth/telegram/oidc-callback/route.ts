@@ -93,13 +93,9 @@ export async function GET(request: NextRequest) {
   const replayKey = `tg_oidc_state_${pkce.state}`;
   const alreadyUsed = await prisma.systemSetting.findUnique({ where: { key: replayKey } });
   if (alreadyUsed) {
-    // If the user already has an active session cookie, route them directly to returnTo
-    const existingToken = request.cookies.get('talago_session')?.value;
-    if (existingToken) {
-      return NextResponse.redirect(new URL(returnTo, request.nextUrl.origin));
-    }
-    const msg = encodeURIComponent('This authorization session has already been used. Please start a new login.');
-    return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
+    // If this state was already processed (e.g. mobile browser prefetch, double request),
+    // redirect directly to destination (returnTo) rather than bouncing to /auth with an error.
+    return NextResponse.redirect(new URL(returnTo, request.nextUrl.origin));
   }
   // Mark as used immediately
   await prisma.systemSetting

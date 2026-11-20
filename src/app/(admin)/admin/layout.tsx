@@ -112,7 +112,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={item.href === '/admin/bookings' && unreadChatCount > 0 ? '/admin/bookings?filter=messages' : item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-200 ${
                   active

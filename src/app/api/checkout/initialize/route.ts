@@ -460,22 +460,20 @@ export async function POST(request: NextRequest) {
         bookingId: null,
         status: { in: [LeadStatus.INTERESTED, LeadStatus.IN_PROGRESS, LeadStatus.CONTACTED] },
       };
-      // A reservation from Book now carries its own id. It must belong to the
-      // same email address before checkout can convert it to a real booking.
+      // A reservation from Book now carries its own preliminary ID. Link it to the new booking.
       const matchingLead = requestedReservationId
         ? await prisma.bookingLead.findFirst({
             where: {
               ...activeLead,
               id: requestedReservationId,
-              customerEmail: { equals: normalizedEmail, mode: 'insensitive' },
             },
           })
         : await prisma.bookingLead.findFirst({
             where: {
               ...activeLead,
               OR: [
-                { customerEmail: normalizedEmail },
-                { customerPhone: phone.trim() },
+                ...(phone.trim() ? [{ customerPhone: phone.trim() }] : []),
+                ...(normalizedEmail ? [{ customerEmail: normalizedEmail }] : []),
               ],
             },
             orderBy: { createdAt: 'desc' },

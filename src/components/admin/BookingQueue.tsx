@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
@@ -319,7 +320,7 @@ interface ChatMessage {
   createdAt: string;
 }
 
-function BookingChatPanel({ bookingReference, onClose }: { bookingReference: string; onClose: () => void }) {
+function BookingChatPanel({ bookingReference, onClose, onMessagesRead }: { bookingReference: string; onClose: () => void; onMessagesRead?: () => void }) {
   const isLead = bookingReference.startsWith("lead:");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [reply, setReply] = useState('');
@@ -333,13 +334,14 @@ function BookingChatPanel({ bookingReference, onClose }: { bookingReference: str
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
+        if (onMessagesRead) onMessagesRead();
       }
     } catch {
       // non-fatal
     } finally {
       setLoading(false);
     }
-  }, [bookingReference]);
+  }, [bookingReference, onMessagesRead]);
 
   useEffect(() => {
     fetchMessages();
@@ -467,7 +469,54 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
   const [selectedMonth, setSelectedMonth] = useState('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const searchParams = useSearchParams();
   const [filterCancellationsOnly, setFilterCancellationsOnly] = useState(false);
+  const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
+  const [conversations, setConversations] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (searchParams.get('filter') === 'messages') {
+      setFilterUnreadOnly(true);
+    }
+  }, [searchParams]);
+
+  const fetchConversations = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/live-chat');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.conversations)) {
+          setConversations(data.conversations);
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchConversations();
+    const interval = setInterval(fetchConversations, 25000);
+    return () => clearInterval(interval);
+  }, [fetchConversations]);
+
+  const unreadMap = useMemo(() => {
+    const map: Record<string, { count: number; lastMessage?: string; lastMessageAt?: string }> = {};
+    for (const c of conversations) {
+      const unreadCount = c._count?.messages || 0;
+      const lastMsg = c.messages?.[0]?.body;
+      const lastMsgAt = c.messages?.[0]?.createdAt;
+      if (c.bookingReference) {
+        map[c.bookingReference] = { count: unreadCount, lastMessage: lastMsg, lastMessageAt: lastMsgAt };
+      }
+      if (c.leadId) {
+        map[`lead:${c.leadId}`] = { count: unreadCount, lastMessage: lastMsg, lastMessageAt: lastMsgAt };
+      }
+    }
+    return map;
+  }, [conversations]);
+
+  const totalUnreadCount = useMemo(() => {
+    return Object.values(unreadMap).reduce((sum, item) => sum + item.count, 0);
+  }, [unreadMap]);
 
   const pendingCancellationBookings = useMemo(() => {
     return bookings.filter(
@@ -560,9 +609,24 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
         return false;
       }
 
+      // Unread messages filter
+      if (filterUnreadOnly) {
+        const unread = unreadMap[b.bookingReference];
+        if (!unread || unread.count <= 0) {
+          return false;
+        }
+      }
+
+      // Cancellation requests filter
+      if (filterCancellationsOnly) {
+        if (b.bookingAnswers?._cancellationRequest?.status !== 'PENDING_REVIEW') {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [bookings, searchQuery, selectedTourId, selectedCategory, selectedStatus, selectedMonth, startDate, endDate, filterCancellationsOnly, dateBasis]);
+  }, [bookings, searchQuery, selectedTourId, selectedCategory, selectedStatus, selectedMonth, startDate, endDate, filterCancellationsOnly, filterUnreadOnly, unreadMap, dateBasis]);
 
   // Quick statistics for filtered set
   const stats = useMemo(() => {
@@ -603,6 +667,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
     setEndDate('');
     setSelectedIds(new Set());
     setFilterCancellationsOnly(false);
+    setFilterUnreadOnly(false);
   };
 
   // Status and Single Row Handlers
@@ -775,6 +840,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
   }, [selectedIds, filteredBookings]);
 
   const hasActiveFilters =
+    filterUnreadOnly ||
     filterCancellationsOnly ||
     searchQuery.trim() !== '' ||
     selectedTourId !== 'ALL' ||
@@ -786,6 +852,60 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
 
   return (
     <div className="space-y-6">
+
+      {/* Action Queue Focus Pills */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <button
+          type="button"
+          onClick={() => { setFilterUnreadOnly(false); setFilterCancellationsOnly(false); }}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+            !filterUnreadOnly && !filterCancellationsOnly
+              ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20'
+              : 'border border-white/10 bg-[#0B1528] text-slate-400 hover:text-white'
+          }`}
+        >
+          <span>All Bookings</span>
+          <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-[10px]">{bookings.length}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => { setFilterUnreadOnly((prev) => !prev); setFilterCancellationsOnly(false); }}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+            filterUnreadOnly
+              ? 'bg-emerald-500 text-[#070F1E] shadow-md shadow-emerald-500/20'
+              : 'border border-white/10 bg-[#0B1528] text-slate-300 hover:border-emerald-500/40 hover:text-emerald-400'
+          }`}
+        >
+          <MessageSquare className="h-3.5 w-3.5" />
+          <span>Unread Messages</span>
+          {totalUnreadCount > 0 ? (
+            <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-[#070F1E] text-[10px] font-black animate-pulse">
+              {totalUnreadCount}
+            </span>
+          ) : (
+            <span className="px-1.5 py-0.2 rounded-full bg-white/10 text-[10px]">0</span>
+          )}
+        </button>
+
+        {pendingCancellationCount > 0 && (
+          <button
+            type="button"
+            onClick={() => { setFilterCancellationsOnly((prev) => !prev); setFilterUnreadOnly(false); }}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+              filterCancellationsOnly
+                ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
+                : 'border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
+            }`}
+          >
+            <AlertCircle className="h-3.5 w-3.5" />
+            <span>Cancellation Requests</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-black">
+              {pendingCancellationCount}
+            </span>
+          </button>
+        )}
+      </div>
 
       {/* Pending Cancellations Banner */}
       {pendingCancellationCount > 0 && (
@@ -1199,8 +1319,21 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
 
                       {/* Customer Name & Phone */}
                       <td className="px-4 py-3 text-sm text-slate-300">
-                        <div className="font-semibold text-white">{b.customerName}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-white">{b.customerName}</span>
+                          {unreadMap[b.bookingReference]?.count > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[9px] font-black text-[#070F1E] animate-pulse">
+                              <MessageSquare className="h-2.5 w-2.5" />
+                              {unreadMap[b.bookingReference].count} new
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-slate-400">{b.customerPhone}</div>
+                        {unreadMap[b.bookingReference]?.lastMessage && (
+                          <div className="text-[11px] text-emerald-400/90 truncate max-w-[200px] mt-0.5" title={unreadMap[b.bookingReference].lastMessage}>
+                            💬 {unreadMap[b.bookingReference].lastMessage}
+                          </div>
+                        )}
                       </td>
 
                       {/* Travel Date */}
@@ -1395,11 +1528,15 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                   <button
                     type="button"
                     onClick={() => setChatBookingRef(b.bookingReference)}
-                    className="flex items-center gap-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 px-2 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all"
+                    className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold transition-all ${
+                      unreadMap[b.bookingReference]?.count > 0
+                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 animate-pulse'
+                        : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20'
+                    }`}
                     title="Open Conversation"
                   >
-                    <MessageSquare className="h-3.5 w-3.5 text-cyan-400" />
-                    <span>Chat</span>
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span>Chat {unreadMap[b.bookingReference]?.count > 0 ? `(${unreadMap[b.bookingReference].count})` : ''}</span>
                   </button>
                   <BookingRowActions
                     ticket={b}
@@ -1419,7 +1556,14 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Customer</span>
-                  <p className="font-semibold text-white truncate">{b.customerName}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-semibold text-white truncate">{b.customerName}</p>
+                    {unreadMap[b.bookingReference]?.count > 0 && (
+                      <span className="rounded-full bg-emerald-500 px-1.5 py-0.2 text-[9px] font-black text-[#070F1E] animate-pulse">
+                        {unreadMap[b.bookingReference].count} new
+                      </span>
+                    )}
+                  </div>
                   {b.customerPhone && <p className="text-[10px] text-slate-400 font-mono truncate">{b.customerPhone}</p>}
                 </div>
                 <div>
@@ -1473,7 +1617,11 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
       {chatBookingRef && (
         <BookingChatPanel
           bookingReference={chatBookingRef}
-          onClose={() => setChatBookingRef(null)}
+          onClose={() => {
+            setChatBookingRef(null);
+            fetchConversations();
+          }}
+          onMessagesRead={fetchConversations}
         />
       )}
 
