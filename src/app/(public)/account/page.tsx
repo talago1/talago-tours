@@ -46,6 +46,8 @@ import {
   Send,
   Plus,
   XCircle,
+  Check,
+  CheckCheck,
 } from 'lucide-react';
 
 const LANGUAGE_NAMES: Record<LanguageCode, string> = {
@@ -96,6 +98,9 @@ interface BookingItem {
   } | null;
   bookingAnswers?: any;
   transaction: { status: string } | null;
+  lastAdminMessage?: string | null;
+  lastAdminMessageAt?: string | null;
+  hasUnreadAdminReply?: boolean;
 }
 
 interface ReservationItem {
@@ -138,6 +143,7 @@ interface ChatMessage {
   sender: 'VISITOR' | 'ADMIN' | 'SYSTEM';
   body: string;
   createdAt: string;
+  readAt?: string | null;
 }
 
 function getTourTitle(translations: unknown, lang = 'en'): string {
@@ -333,6 +339,20 @@ export default function AccountPage() {
       if (res.ok) {
         const data = await res.json();
         setMessages(Array.isArray(data.messages) ? data.messages : []);
+        // Mark active conversation read in local state
+        setBookings((prev) =>
+          prev.map((b) =>
+            b.bookingReference === bookingRef ? { ...b, hasUnreadAdminReply: false } : b
+          )
+        );
+        setReservations((prev) =>
+          prev.map((r) => {
+            const refKey = r.leadId ? `lead:${r.leadId}` : (r.reservationReference || r.id);
+            return refKey === bookingRef || r.id === bookingRef || r.leadId === bookingRef
+              ? { ...r, hasUnreadAdminReply: false }
+              : r;
+          })
+        );
       }
     } catch {}
     finally {
@@ -352,6 +372,11 @@ export default function AccountPage() {
       } else {
         fetchChatMessages();
       }
+
+      const pollTimer = setInterval(() => {
+        fetchChatMessages();
+      }, 15000);
+      return () => clearInterval(pollTimer);
     }
   }, [activeTab, selectedChatBookingRef, bookings, reservations, fetchChatMessages]);
 
@@ -432,6 +457,7 @@ export default function AccountPage() {
       if (data.user) {
         setUserProfile((prev) => (prev ? { ...prev, name: data.user.name, phone: data.user.phone } : prev));
       }
+      await loadData();
       setTimeout(() => setProfileSuccess(false), 4000);
     } catch (err: any) {
       setProfileError(err.message || 'Error updating profile');
@@ -549,6 +575,17 @@ export default function AccountPage() {
     if (bookingFilter === 'PAST') return pastBookings;
     return bookings;
   }, [bookingFilter, bookings, upcomingBookings, pastBookings]);
+
+  const unreadMessagesCount = useMemo(() => {
+    let count = 0;
+    for (const b of bookings) {
+      if (b.hasUnreadAdminReply) count++;
+    }
+    for (const r of reservations) {
+      if (r.hasUnreadAdminReply) count++;
+    }
+    return count;
+  }, [bookings, reservations]);
 
   // Loading indicator
   if (loading) {
@@ -672,7 +709,13 @@ export default function AccountPage() {
           {[
             { key: 'overview', label: dict.account.tabs.overview, icon: LayoutDashboard },
             { key: 'bookings', label: dict.account.tabs.bookings, icon: Ticket, badge: bookings.length },
-            { key: 'messages', label: dict.account.tabs.messages, icon: MessageSquare, badge: messages.length },
+            {
+              key: 'messages',
+              label: dict.account.tabs.messages,
+              icon: MessageSquare,
+              badge: unreadMessagesCount > 0 ? unreadMessagesCount : undefined,
+              isUnreadAlert: unreadMessagesCount > 0,
+            },
             { key: 'favorites', label: dict.account.tabs.favorites, icon: Heart, badge: wishlist.length },
             { key: 'profile', label: dict.account.tabs.profile, icon: User },
             { key: 'preferences', label: dict.account.tabs.preferences, icon: Settings },
@@ -695,8 +738,12 @@ export default function AccountPage() {
                 <span>{tab.label}</span>
                 {tab.badge !== undefined && tab.badge > 0 && (
                   <span
-                    className={`ml-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-black ${
-                      isActive ? 'bg-[#070F1E] text-[#00E5FF]' : 'bg-[#00E5FF]/20 text-[#00E5FF]'
+                    className={`ml-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
+                      (tab as any).isUnreadAlert
+                        ? 'bg-emerald-400 text-[#070F1E] animate-pulse'
+                        : isActive
+                        ? 'bg-[#070F1E] text-[#00E5FF]'
+                        : 'bg-[#00E5FF]/20 text-[#00E5FF]'
                     }`}
                   >
                     {tab.badge}
@@ -1393,6 +1440,9 @@ export default function AccountPage() {
                     >
                       <Ticket className="h-3 w-3" />
                       <span>{b.bookingReference}</span>
+                      {b.hasUnreadAdminReply && (
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" title="New admin reply" />
+                      )}
                     </button>
                   ))}
                   {reservations.map((r) => {
@@ -1406,6 +1456,9 @@ export default function AccountPage() {
                       >
                         <MessageSquare className="h-3 w-3" />
                         <span>Inquiry {r.reservationReference || `REQ-${r.id.slice(-6).toUpperCase()}`}</span>
+                        {r.hasUnreadAdminReply && (
+                          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" title="New admin reply" />
+                        )}
                       </button>
                     );
                   })}
@@ -1465,13 +1518,26 @@ export default function AccountPage() {
                           }`}
                         >
                           <p className="leading-relaxed">{m.body}</p>
-                          <span
-                            className={`block mt-1 text-[9px] ${
-                              isMe ? 'text-[#070F1E]/70 text-right' : 'text-slate-400'
+                          <div
+                            className={`flex items-center gap-1 mt-1 text-[9px] ${
+                              isMe ? 'text-[#070F1E]/70 justify-end' : 'text-slate-400 justify-start'
                             }`}
                           >
-                            {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                            <span>
+                              {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {isMe && (
+                              m.readAt ? (
+                                <span title={`Read ${new Date(m.readAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`} className="inline-flex items-center text-emerald-950 font-bold ml-1">
+                                  <CheckCheck className="h-3 w-3" />
+                                </span>
+                              ) : (
+                                <span title="Delivered to dispatch" className="inline-flex items-center text-[#070F1E]/60 ml-1">
+                                  <Check className="h-3 w-3" />
+                                </span>
+                              )
+                            )}
+                          </div>
                         </div>
                       </div>
                     );

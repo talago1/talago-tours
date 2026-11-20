@@ -153,24 +153,83 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    const formattedReservations = reservations.map((r) => ({
-      id: r.id,
-      leadId: r.id,
-      reservationReference: `RES-${r.id.slice(-8).toUpperCase()}`,
-      tourId: r.tourId,
-      tourTitle: r.tourTitle,
-      tourSlug: r.tourSlug,
-      adults: r.adults,
-      children: r.children,
-      totalEstimatedPrice: r.totalEstimatedPrice,
-      currency: r.currency,
-      status: r.status,
-      createdAt: r.createdAt.toISOString(),
-      travelDate: r.travelDate || null,
-      lastAdminMessage: null,
-      lastAdminMessageAt: null,
-      hasUnreadAdminReply: false,
-    }));
+    const bookingRefs = bookings.map((b) => b.bookingReference).filter(Boolean);
+    const reservationIds = reservations.map((r) => r.id);
+
+    const conversations =
+      bookingRefs.length > 0 || bookingIds.length > 0 || reservationIds.length > 0
+        ? await prisma.liveChatConversation
+            .findMany({
+              where: {
+                OR: [
+                  ...(bookingRefs.length > 0 ? [{ bookingReference: { in: bookingRefs } }] : []),
+                  ...(bookingIds.length > 0 ? [{ bookingId: { in: bookingIds } }] : []),
+                  ...(reservationIds.length > 0 ? [{ leadId: { in: reservationIds } }] : []),
+                ],
+              },
+              select: {
+                id: true,
+                bookingReference: true,
+                bookingId: true,
+                leadId: true,
+                messages: {
+                  where: { sender: 'ADMIN' },
+                  orderBy: { createdAt: 'desc' },
+                  take: 5,
+                  select: {
+                    id: true,
+                    body: true,
+                    readAt: true,
+                    createdAt: true,
+                  },
+                },
+              },
+            })
+            .catch((err) => {
+              console.warn('[my-bookings] conversations query warning:', err);
+              return [];
+            })
+        : [];
+
+    const formattedReservations = reservations.map((r) => {
+      const convo = conversations.find((c) => c.leadId === r.id);
+      const unread = convo ? convo.messages.some((m) => !m.readAt) : false;
+      const lastMsg = convo?.messages[0] || null;
+      return {
+        id: r.id,
+        leadId: r.id,
+        reservationReference: `RES-${r.id.slice(-8).toUpperCase()}`,
+        tourId: r.tourId,
+        tourTitle: r.tourTitle,
+        tourSlug: r.tourSlug,
+        adults: r.adults,
+        children: r.children,
+        totalEstimatedPrice: r.totalEstimatedPrice,
+        currency: r.currency,
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+        travelDate: r.travelDate || null,
+        lastAdminMessage: lastMsg?.body || null,
+        lastAdminMessageAt: lastMsg?.createdAt?.toISOString() || null,
+        hasUnreadAdminReply: unread,
+      };
+    });
+
+    const formattedBookings = bookings.map((b) => {
+      const convo = conversations.find(
+        (c) =>
+          (b.bookingReference && c.bookingReference === b.bookingReference) ||
+          (b.id && c.bookingId === b.id)
+      );
+      const unread = convo ? convo.messages.some((m) => !m.readAt) : false;
+      const lastMsg = convo?.messages[0] || null;
+      return {
+        ...b,
+        lastAdminMessage: lastMsg?.body || null,
+        lastAdminMessageAt: lastMsg?.createdAt?.toISOString() || null,
+        hasUnreadAdminReply: unread,
+      };
+    });
 
     const userPayload = formatUserProfile(user, profile, telegramMatch);
 
@@ -178,7 +237,7 @@ export async function GET(request: NextRequest) {
       {
         authenticated: true,
         user: userPayload,
-        bookings,
+        bookings: formattedBookings,
         reservations: formattedReservations,
       },
       { headers: NO_STORE }

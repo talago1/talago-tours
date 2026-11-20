@@ -45,7 +45,7 @@ function LoginRedirectContent() {
               refresh_token: data.refreshToken,
             }).catch(() => {});
           }
-          window.location.href = returnTo;
+          window.location.replace(returnTo);
           return;
         }
       } catch {}
@@ -63,7 +63,7 @@ function LoginRedirectContent() {
               refresh_token: session.refresh_token,
             }),
           }).catch(() => {});
-          window.location.href = returnTo;
+          window.location.replace(returnTo);
           return;
         }
       } catch {}

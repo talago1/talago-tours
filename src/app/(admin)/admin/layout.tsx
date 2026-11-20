@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -39,6 +39,33 @@ const NAV_ITEMS = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    async function fetchUnread() {
+      try {
+        const res = await fetch('/api/admin/live-chat');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data?.conversations) && active) {
+            const count = data.conversations.reduce(
+              (acc: number, c: any) => acc + (c._count?.messages || 0),
+              0
+            );
+            setUnreadChatCount(count);
+          }
+        }
+      } catch {}
+    }
+
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen overflow-x-clip bg-[#070F1E] text-[#F8FAFC]">
@@ -94,7 +121,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 }`}
               >
                 <Icon className="h-4 w-4" />
-                {item.label}
+                <span>{item.label}</span>
+                {item.href === '/admin/bookings' && unreadChatCount > 0 && (
+                  <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[10px] font-black text-[#070F1E] animate-pulse">
+                    {unreadChatCount}
+                  </span>
+                )}
               </Link>
             );
           })}

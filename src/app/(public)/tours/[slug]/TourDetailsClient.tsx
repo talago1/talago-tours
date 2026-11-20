@@ -718,6 +718,23 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [wishAnim, setWishAnim] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('talago_funnel_event', {
+            detail: {
+              event: 'tour_page_viewed',
+              tourId: tour.id,
+              tourSlug: tour.slug,
+              timestamp: Date.now(),
+            },
+          })
+        );
+      }
+    } catch {}
+  }, [tour.id, tour.slug]);
   // Resolve localized translations from parent with fallback cascade
   const translations = tour.translations;
   const langTranslation = (translations?.[language] as any) || {};

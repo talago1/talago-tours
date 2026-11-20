@@ -78,6 +78,7 @@ function AuthPageContent() {
   // If ?mode=register is present, jump straight to email register
   const [isRegisterMode, setIsRegisterMode] = useState(false);
 
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
@@ -138,7 +139,17 @@ function AuthPageContent() {
           return;
         }
       } catch {}
+
+      if (active) {
+        setIsCheckingAuth(false);
+      }
     }
+
+    const timer = setTimeout(() => {
+      if (active) {
+        setIsCheckingAuth(false);
+      }
+    }, 2500);
 
     checkExistingAuth();
 
@@ -154,12 +165,13 @@ function AuthPageContent() {
             refresh_token: session.refresh_token,
           }),
         }).catch(() => {});
-        window.location.href = targetReturn;
+        window.location.replace(targetReturn);
       }
     });
 
     return () => {
       active = false;
+      clearTimeout(timer);
       subscription.unsubscribe();
     };
   }, [searchParams]);
@@ -313,6 +325,20 @@ function AuthPageContent() {
   // Determine Telegram UI mode
   const oidcReady = telegramConfig?.oidcConfigured === true;
   const legacyReady = telegramConfig?.configured && telegramConfig?.botUsername && !oidcReady;
+
+  if (isCheckingAuth) {
+    return (
+      <main className="min-h-screen bg-[#070F1E] flex flex-col justify-center items-center px-4 py-12 text-[#F8FAFC]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,#0ea5e9/8,transparent_55%)] pointer-events-none" />
+        <div className="relative flex flex-col items-center justify-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+            Checking session…
+          </span>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#070F1E] flex flex-col justify-center items-center px-4 py-12 text-[#F8FAFC]">

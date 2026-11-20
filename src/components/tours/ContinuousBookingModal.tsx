@@ -148,10 +148,23 @@ export default function ContinuousBookingModal({
       .catch(() => setAvailableSpots(null));
   }, [departureDate, tour.id]);
 
+  const trackFunnelEvent = useCallback((event: string, meta: Record<string, any> = {}) => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('talago_funnel_event', {
+            detail: { event, tourId: tour.id, tourSlug: tour.slug, timestamp: Date.now(), ...meta },
+          })
+        );
+      }
+    } catch {}
+  }, [tour.id, tour.slug]);
+
   // Sync initial values only when modal first opens
   const prevIsOpenRef = React.useRef(false);
   useEffect(() => {
     if (isOpen && !prevIsOpenRef.current) {
+      trackFunnelEvent('modal_opened');
       const draft = loadBookingDraft(tour.id);
       if (draft) {
         if (draft.departureDate) setDepartureDate(draft.departureDate);
@@ -262,7 +275,7 @@ export default function ContinuousBookingModal({
         .catch(() => {});
     }
     prevIsOpenRef.current = isOpen;
-  }, [isOpen, initialDate, initialTime, initialAdults, initialChildren, initialInfants, initialAddons, zones, tour.allowPayAtLocation, tour.allowFullOnline, tour.allowDeposit, tour.id, tour.slug]);  // effectiveAdultPrice is derived from tour.adultPrice, already in deps via tour
+  }, [isOpen, initialDate, initialTime, initialAdults, initialChildren, initialInfants, initialAddons, zones, tour.allowPayAtLocation, tour.allowFullOnline, tour.allowDeposit, tour.id, tour.slug, tour.adultPrice, trackFunnelEvent]);
 
   // Price calculations
   const effectiveAdultPrice = tour.adultPrice || 0;
@@ -382,6 +395,11 @@ export default function ContinuousBookingModal({
         specialRequirements,
         selectedZoneId,
       });
+      trackFunnelEvent('step_completed', {
+        step,
+        departureDate,
+        guestCount: adultsCount + childrenCount + infantsCount,
+      });
       setStep((prev) => (Math.min(4, prev + 1) as 1 | 2 | 3 | 4));
     }
   };
@@ -397,6 +415,7 @@ export default function ContinuousBookingModal({
 
     setIsSubmitting(true);
     setErrors({});
+    trackFunnelEvent('submission_started', { paymentScheme, totalEstimatedPrice: grandTotal });
 
     try {
       const payload = {
@@ -458,6 +477,7 @@ export default function ContinuousBookingModal({
       const data = await res.json();
 
       if (!res.ok) {
+        trackFunnelEvent('booking_failed', { error: data.error || 'Initialization failed' });
         setErrors({ submit: data.error || 'Failed to initialize booking. Please try again.' });
         setIsSubmitting(false);
         return;
@@ -465,11 +485,16 @@ export default function ContinuousBookingModal({
 
       // If online payment returned a gateway URL, navigate to Paymob
       if (data.gatewayIframeUrl) {
+        trackFunnelEvent('payment_gateway_redirect', { scheme: paymentScheme });
         window.location.href = data.gatewayIframeUrl;
         return;
       }
 
       // Confirmed reservation
+      trackFunnelEvent('booking_confirmed', {
+        reference: data.bookingReference || `TLG-${data.bookingId?.slice(-6).toUpperCase()}`,
+        scheme: data.scheme || paymentScheme,
+      });
       clearBookingDraft(tour.id);
       setConfirmedBooking({
         bookingReference: data.bookingReference || `TLG-${data.bookingId?.slice(-6).toUpperCase()}`,

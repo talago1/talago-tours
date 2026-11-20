@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { deriveGuestEmail } from '@/utils/bookingValidation';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
+import { resolveRequestUser } from '@/server/customerSession';
+import { resolveCustomerProfileForUser, adoptOwnedBookings } from '@/server/customerBookings';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,6 +91,34 @@ export async function POST(request: NextRequest) {
 
     await prisma.systemSetting.delete({ where: { key: settingKey } }).catch(() => {});
 
+    // Check if user is already authenticated
+    const userAuth = await resolveRequestUser(request).catch(() => null);
+    if (userAuth?.user) {
+      const { profile } = await resolveCustomerProfileForUser(userAuth.user);
+      if (profile) {
+        await prisma.customerProfile.update({
+          where: { id: profile.id },
+          data: { phone: `+${cleanPhone}` },
+        });
+
+        await adoptOwnedBookings({
+          profileId: profile.id,
+          emails: [userAuth.user.email, profile.email].filter((e): e is string => Boolean(e)),
+          phones: [`+${cleanPhone}`, cleanPhone, profile.phone, profile.telegramPhone, userAuth.user.phone].filter((p): p is string => Boolean(p)),
+        }).catch(() => {});
+
+        return NextResponse.json(
+          {
+            success: true,
+            message: 'Phone number verified and linked to your account.',
+            phone: `+${cleanPhone}`,
+            redirectUrl: '/account',
+          },
+          { status: 200, headers: NO_STORE }
+        );
+      }
+    }
+
     const existingProfile = await prisma.customerProfile.findFirst({
       where: {
         OR: [
@@ -104,7 +134,7 @@ export async function POST(request: NextRequest) {
       : syntheticEmail;
 
     const profileName = existingProfile?.name || `Traveler +${cleanPhone.slice(-4)}`;
-    await prisma.customerProfile.upsert({
+    const updatedProfile = await prisma.customerProfile.upsert({
       where: { email: targetEmail },
       create: {
         email: targetEmail,
@@ -117,6 +147,13 @@ export async function POST(request: NextRequest) {
         isShadow: false,
       },
     });
+
+    // Adopt matching bookings for the newly verified guest profile
+    await adoptOwnedBookings({
+      profileId: updatedProfile.id,
+      emails: [targetEmail],
+      phones: [`+${cleanPhone}`, cleanPhone],
+    }).catch(() => {});
 
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
