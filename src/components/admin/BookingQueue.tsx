@@ -321,7 +321,8 @@ interface ChatMessage {
 }
 
 function BookingChatPanel({ bookingReference, onClose, onMessagesRead }: { bookingReference: string; onClose: () => void; onMessagesRead?: () => void }) {
-  const isLead = bookingReference.startsWith("lead:");
+  const isLead = bookingReference.startsWith('lead:');
+  const isConv = bookingReference.startsWith('conv:');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
@@ -330,7 +331,15 @@ function BookingChatPanel({ bookingReference, onClose, onMessagesRead }: { booki
 
   const fetchMessages = useCallback(async () => {
     try {
-      const isLead = bookingReference.startsWith('lead:'); const qp = isLead ? `leadId=${encodeURIComponent(bookingReference.slice(5))}` : `bookingReference=${encodeURIComponent(bookingReference)}`; const res = await fetch(`/api/admin/live-chat?${qp}`);
+      let qp = '';
+      if (bookingReference.startsWith('lead:')) {
+        qp = `leadId=${encodeURIComponent(bookingReference.slice(5))}`;
+      } else if (bookingReference.startsWith('conv:')) {
+        qp = `conversationId=${encodeURIComponent(bookingReference.slice(5))}`;
+      } else {
+        qp = `bookingReference=${encodeURIComponent(bookingReference)}`;
+      }
+      const res = await fetch(`/api/admin/live-chat?${qp}`);
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
@@ -358,10 +367,18 @@ function BookingChatPanel({ bookingReference, onClose, onMessagesRead }: { booki
     if (!text || sending) return;
     setSending(true);
     try {
+      const payload: Record<string, any> = { text, message: text, senderRole: 'ADMIN' };
+      if (isLead) {
+        payload.leadId = bookingReference.slice(5);
+      } else if (isConv) {
+        payload.conversationId = bookingReference.slice(5);
+      } else {
+        payload.bookingReference = bookingReference;
+      }
       await fetch('/api/admin/live-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(isLead ? { leadId: bookingReference.slice(5), text, message: text, senderRole: 'ADMIN' } : { bookingReference, text, message: text, senderRole: 'ADMIN' }),
+        body: JSON.stringify(payload),
       });
       setReply('');
       await fetchMessages();

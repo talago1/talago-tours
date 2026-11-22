@@ -33,6 +33,7 @@ import type { BookingQuestion } from '@/types/tourEditor';
 import type { PromoDiscount } from '@/utils/promo';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { useAuth } from '@/context/AuthContext';
 import { supabaseClient } from '@/lib/supabase/client';
 import { saveBookingDraft, loadBookingDraft, clearBookingDraft } from '@/utils/bookingDraftStorage';
 
@@ -215,9 +216,10 @@ function validateForm(
     errors.phone = 'Please provide a valid international number with country code (e.g. +49, +44, +20)';
   }
 
-  const effectivePickupType = (data.pickupType || tour?.pickupType || 'hotel').toLowerCase();
-  const isNoPickup = effectivePickupType === 'meeting_point' || effectivePickupType === 'none';
-  const isHotelPickupRequired = tour?.hotelPickupIncluded !== false && !isNoPickup;
+  const rawPickupType = (data.pickupType || tour?.pickupType || 'hotel').toLowerCase();
+  const isNoPickup = rawPickupType === 'meeting_point' || rawPickupType === 'none';
+  const isHotelPickupSupported = !isNoPickup && (tour?.hotelPickupIncluded === true || rawPickupType === 'hotel' || rawPickupType === 'both');
+  const isHotelPickupRequired = isHotelPickupSupported && (data.pickupType === 'HOTEL' || !data.pickupType);
   if (isHotelPickupRequired && (!data.hotelName || !data.hotelName.trim())) {
     errors.hotelName = m.hotelRequired;
   }
@@ -297,11 +299,10 @@ export default function CheckoutPage() {
   const tourId = params.tourId as string;
   const reservationId = searchParams.get('reservation') || undefined;
 
+  const { user: authUser, isAuthenticated, sessionToken } = useAuth();
+  const currentUser = authUser;
   const [tour, setTour] = useState<TourDetails | null>(null);
   const [pageState, setPageState] = useState<PageState>('loading');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [scheme, setScheme] = useState<PaymentScheme>(PaymentScheme.PAY_ON_ARRIVAL);
   const [adultsCount, setAdultsCount] = useState(1);
   const [childrenCount, setChildrenCount] = useState(0);
@@ -392,81 +393,22 @@ export default function CheckoutPage() {
 
   // Auto-populate customer details from authenticated session (authoritative account recognition)
   useEffect(() => {
-    let active = true;
+    if (isAuthenticated && authUser) {
+      const u = authUser;
+      const verifiedName = (u.name && u.name !== 'User' && !u.name.startsWith('Traveler #'))
+        ? u.name
+        : (u.telegramUsername ? `@${u.telegramUsername}` : (u.email && !u.email.endsWith('@noreply.talago.com') ? u.email.split('@')[0] : null));
+      const verifiedPhone = u.phone || u.telegramPhone || null;
+      const verifiedEmail = (u.email && !u.email.endsWith('@noreply.talago.com')) ? u.email : null;
 
-    async function checkAuthSession() {
-      try {
-        let bearerToken: string | null = null;
-        try {
-          const { data: { session } } = await supabaseClient.auth.getSession();
-          if (session?.access_token) {
-            bearerToken = session.access_token;
-            setSessionToken(session.access_token);
-          }
-        } catch {}
-
-        const headers: Record<string, string> = {};
-        if (bearerToken) {
-          headers['Authorization'] = `Bearer ${bearerToken}`;
-        }
-
-        const res = await fetch('/api/auth/session', {
-          headers,
-          credentials: 'same-origin',
-          cache: 'no-store',
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.authenticated && data.user && active) {
-            setIsAuthenticated(true);
-            setCurrentUser(data.user);
-            if (data.accessToken) {
-              setSessionToken(data.accessToken);
-              if (data.refreshToken) {
-                supabaseClient.auth.setSession({
-                  access_token: data.accessToken,
-                  refresh_token: data.refreshToken,
-                }).catch(() => {});
-              }
-            }
-            const u = data.user;
-            const verifiedName = (u.name && u.name !== 'User' && !u.name.startsWith('Traveler #'))
-              ? u.name
-              : (u.telegramUsername ? `@${u.telegramUsername}` : (u.email && !u.email.endsWith('@noreply.talago.com') ? u.email.split('@')[0] : null));
-            const verifiedPhone = u.phone || u.telegramPhone || null;
-            const verifiedEmail = (u.email && !u.email.endsWith('@noreply.talago.com')) ? u.email : null;
-
-            setForm((prev) => ({
-              ...prev,
-              ...(verifiedName ? { leadName: verifiedName } : {}),
-              ...(verifiedPhone ? { phone: verifiedPhone } : {}),
-              ...(verifiedEmail ? { email: verifiedEmail } : {}),
-            }));
-          }
-        }
-      } catch {}
+      setForm((prev) => ({
+        ...prev,
+        ...(verifiedName && !prev.leadName.trim() ? { leadName: verifiedName } : {}),
+        ...(verifiedPhone && !prev.phone.trim() ? { phone: verifiedPhone } : {}),
+        ...(verifiedEmail && !prev.email.trim() ? { email: verifiedEmail } : {}),
+      }));
     }
-
-    checkAuthSession();
-
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      if (session?.access_token && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-        checkAuthSession();
-      } else if (event === 'SIGNED_OUT') {
-        if (active) {
-          setIsAuthenticated(false);
-          setCurrentUser(null);
-          setSessionToken(null);
-        }
-      }
-    });
-
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, []);
+  }, [isAuthenticated, authUser]);
 
   // Synchronize counts from search parameters on mount
   useEffect(() => {
@@ -482,6 +424,9 @@ export default function CheckoutPage() {
         if (draft.selectedAddons) setSelectedAddons(draft.selectedAddons);
         if (draft.selectedZoneId) {
           setSelectedZoneId(draft.selectedZoneId);
+        }
+        if (draft.bookingAnswers) {
+          setBookingAnswers(draft.bookingAnswers);
         }
         setForm((prev) => ({
           ...prev,
@@ -653,6 +598,7 @@ export default function CheckoutPage() {
         specialRequirements: updated.specialRequirements,
         selectedZoneId,
         selectedAddons,
+        bookingAnswers,
       });
       return updated;
     });
@@ -1118,11 +1064,13 @@ export default function CheckoutPage() {
 
                   {/* Adaptive Pickup / Meeting Point Section */}
                   {(() => {
-                    const effectiveType = (form.pickupType || tour?.pickupType || 'hotel').toLowerCase();
-                    const isMeetingPointOnly = effectiveType === 'meeting_point';
-                    const isNoPickup = effectiveType === 'none';
-                    const isAirport = effectiveType === 'airport';
-                    const isBoth = tour?.pickupType === 'both';
+                    const rawTourPickupType = (tour?.pickupType || 'hotel').toLowerCase();
+                    const isHotelPickupIncluded = tour?.hotelPickupIncluded === true;
+                    const isHotelPickupSupported = rawTourPickupType !== 'none' && rawTourPickupType !== 'meeting_point' && (isHotelPickupIncluded || rawTourPickupType === 'hotel' || rawTourPickupType === 'both');
+                    const isMeetingPointOnly = rawTourPickupType === 'meeting_point' || (!isHotelPickupSupported && rawTourPickupType !== 'none' && rawTourPickupType !== 'airport');
+                    const isNoPickup = rawTourPickupType === 'none';
+                    const isAirport = rawTourPickupType === 'airport';
+                    const isBoth = (rawTourPickupType === 'both' || Boolean(tour?.meetingPointName && isHotelPickupSupported));
 
                     return (
                       <div className="sm:col-span-2 space-y-4">

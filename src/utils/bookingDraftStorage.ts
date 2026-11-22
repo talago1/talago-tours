@@ -22,6 +22,7 @@ export interface BookingDraft {
   specialRequirements?: string;
   selectedAddons?: Record<string, boolean>;
   selectedZoneId?: string;
+  bookingAnswers?: Record<string, any>;
   savedAt: number;
 }
 

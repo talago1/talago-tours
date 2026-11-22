@@ -14,10 +14,12 @@ import {
   ExternalLink,
   User,
   X,
+  Check,
 } from 'lucide-react';
 
 export interface AdminActionNotification {
   id: string;
+  convId?: string;
   type: 'unread_message' | 'cancellation_request' | 'new_lead' | 'new_booking';
   title: string;
   customerName: string;
@@ -64,9 +66,10 @@ export default function AdminNotificationCenter() {
         const unreadCount = conv._count?.messages || 0;
         if (unreadCount > 0 && conv.messages && conv.messages[0]) {
           const lastMsg = conv.messages[0];
-          const targetRef = conv.bookingReference || (conv.leadId ? `lead:${conv.leadId}` : null) || conv.visitorToken;
+          const targetRef = conv.bookingReference || (conv.leadId ? `lead:${conv.leadId}` : `conv:${conv.id}`);
           notifs.push({
             id: `chat-${conv.id}`,
+            convId: conv.id,
             type: 'unread_message',
             title: 'New Customer Message',
             customerName: conv.visitorName || conv.visitorEmail || 'Customer',
@@ -101,6 +104,16 @@ export default function AdminNotificationCenter() {
   const handleItemClick = (linkUrl: string) => {
     setIsOpen(false);
     router.push(linkUrl);
+  };
+
+  const handleDismiss = async (e: React.MouseEvent, item: AdminActionNotification) => {
+    e.stopPropagation();
+    try {
+      if (item.convId) {
+        await fetch(`/api/admin/live-chat?conversationId=${encodeURIComponent(item.convId)}`);
+      }
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+    } catch {}
   };
 
   return (
@@ -172,9 +185,19 @@ export default function AdminNotificationCenter() {
                           <span className="font-mono text-[10px] text-[#00E5FF]">#{item.reference}</span>
                         )}
                       </p>
-                      <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[9px] font-bold text-emerald-400 uppercase">
-                        Reply
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-emerald-400 uppercase">
+                          Reply
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDismiss(e, item)}
+                          title="Mark as read / Dismiss"
+                          className="rounded p-1 text-slate-400 hover:text-emerald-400 hover:bg-white/10 transition-colors"
+                        >
+                          <Check className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
 
                     {item.tourTitle && (

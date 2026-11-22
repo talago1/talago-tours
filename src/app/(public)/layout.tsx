@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { prisma } from '@/lib/prisma';
+import { AuthProvider } from '@/context/AuthContext';
 
 const Navbar = dynamic(() => import('@/components/layout/Navbar'), { ssr: false });
 const FooterContent = dynamic(() => import('@/components/layout/FooterContent'), { ssr: false });
@@ -59,17 +60,18 @@ export default async function PublicRouteLayout({ children }: { children: React.
   ].filter((l): l is { label: string; href: string } => typeof l.href === 'string' && l.href.trim().length > 0 && l.href.startsWith('http'));
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#070F1E] text-[#F8FAFC]">
-      {/* ─── Sticky Glassmorphism Navbar ─── */}
-      <Navbar />
+    <AuthProvider>
+      <div className="flex min-h-screen flex-col bg-[#070F1E] text-[#F8FAFC]">
+        {/* ─── Sticky Glassmorphism Navbar ─── */}
+        <Navbar />
 
-      {/* ─── Main Content ─── */}
-      <main className="flex-1">{children}</main>
+        {/* ─── Main Content ─── */}
+        <main className="flex-1">{children}</main>
 
-      <LiveChatWidget />
+        <LiveChatWidget />
 
-      {/* ─── Premium Footer ─── */}
-      <footer className="border-t border-white/[0.06] bg-gradient-to-b from-[#0B1528] to-[#070F1E]">
+        {/* ─── Premium Footer ─── */}
+        <footer className="border-t border-white/[0.06] bg-gradient-to-b from-[#0B1528] to-[#070F1E]">
 
         <div className="mx-auto max-w-7xl px-5 py-16 lg:px-10">
           {/* Top: Brand + Link Columns */}
@@ -105,5 +107,6 @@ export default async function PublicRouteLayout({ children }: { children: React.
         </div>
       </footer>
     </div>
+    </AuthProvider>
   );
 }

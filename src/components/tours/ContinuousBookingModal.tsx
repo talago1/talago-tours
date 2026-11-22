@@ -28,6 +28,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { PaymentScheme } from '@/types/checkout';
 import { supabaseClient } from '@/lib/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 import type { ZoneOption } from '@/types/booking';
 
 export interface ContinuousBookingModalProps {
@@ -111,10 +112,16 @@ export default function ContinuousBookingModal({
   const [email, setEmail] = useState('');
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
 
+  const { user: authUser, isAuthenticated, sessionToken: centralSessionToken } = useAuth();
+
   // Pickup info
-  const isHotelPickupSupported = tour.hotelPickupIncluded !== false && tour.pickupType !== 'meeting_point' && tour.pickupType !== 'none';
-  const isMeetingPointOnly = tour.pickupType === 'meeting_point' || (tour.pickupType !== 'hotel' && !tour.hotelPickupIncluded);
-  const isNoPickup = tour.pickupType === 'none';
+  const rawPickupType = (tour.pickupType || 'hotel').toLowerCase();
+  const isNoPickup = rawPickupType === 'none';
+  const isMeetingPointExplicit = rawPickupType === 'meeting_point';
+  const isAirport = rawPickupType === 'airport';
+  const isHotelPickupIncluded = tour.hotelPickupIncluded === true;
+  const isHotelPickupSupported = !isNoPickup && !isMeetingPointExplicit && (isHotelPickupIncluded || rawPickupType === 'hotel' || rawPickupType === 'both');
+  const isMeetingPointOnly = isMeetingPointExplicit || (!isHotelPickupSupported && !isNoPickup && !isAirport);
   const [pickupType, setPickupType] = useState<'HOTEL' | 'MEETING_POINT' | 'AIRPORT'>(
     isHotelPickupSupported ? 'HOTEL' : 'MEETING_POINT'
   );
@@ -125,9 +132,22 @@ export default function ContinuousBookingModal({
 
   // Single Authoritative Payment Scheme
   const [paymentScheme, setPaymentScheme] = useState<PaymentScheme>(PaymentScheme.PAY_ON_ARRIVAL);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+
+  // Auto-sync customer identity from useAuth()
+  useEffect(() => {
+    if (isAuthenticated && authUser) {
+      const verifiedName = (authUser.name && authUser.name !== 'User' && !authUser.name.startsWith('Traveler #'))
+        ? authUser.name
+        : (authUser.telegramUsername ? `@${authUser.telegramUsername}` : null);
+      const verifiedPhone = authUser.phone || authUser.telegramPhone || null;
+      const verifiedEmail = (authUser.email && !authUser.email.endsWith('@noreply.talago.com')) ? authUser.email : null;
+
+      if (verifiedName) setLeadName((prev) => (prev.trim() ? prev : verifiedName));
+      if (verifiedPhone) setPhone((prev) => (prev.trim() ? prev : verifiedPhone));
+      if (verifiedEmail) setEmail((prev) => (prev.trim() ? prev : verifiedEmail));
+    }
+  }, [isAuthenticated, authUser, isOpen]);
 
   // Submission & UI status
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -203,6 +223,7 @@ export default function ContinuousBookingModal({
         if (draft.roomNumber) setRoomNumber(draft.roomNumber);
         if (draft.specialRequirements) setSpecialRequirements(draft.specialRequirements);
         if (draft.selectedZoneId) setSelectedZoneId(draft.selectedZoneId);
+        if (draft.bookingAnswers) setBookingAnswers(draft.bookingAnswers);
       } else {
         if (initialDate) setDepartureDate(initialDate);
         if (initialTime) setSelectedTime(initialTime);
@@ -226,51 +247,8 @@ export default function ContinuousBookingModal({
 
       // Authoritative authenticated customer recognition & preliminary hold request
       (async () => {
-        let bearerToken: string | null = null;
-        try {
-          const { data: { session } } = await supabaseClient.auth.getSession();
-          if (session?.access_token) {
-            bearerToken = session.access_token;
-            setSessionToken(session.access_token);
-          }
-        } catch {}
-
-        const headers: Record<string, string> = {};
-        if (bearerToken) headers['Authorization'] = `Bearer ${bearerToken}`;
-
-        let currentU: any = null;
-        let tokenToUse: string | null = bearerToken;
-
-        try {
-          const authRes = await fetch('/api/auth/session', { headers, credentials: 'same-origin', cache: 'no-store' });
-          if (authRes.ok) {
-            const authData = await authRes.json();
-            if (authData?.authenticated && authData.user) {
-              setIsAuthenticated(true);
-              setCurrentUser(authData.user);
-              currentU = authData.user;
-              if (authData.accessToken) {
-                tokenToUse = authData.accessToken;
-                setSessionToken(authData.accessToken);
-                if (authData.refreshToken) {
-                  supabaseClient.auth.setSession({
-                    access_token: authData.accessToken,
-                    refresh_token: authData.refreshToken,
-                  }).catch(() => {});
-                }
-              }
-              const verifiedName = (currentU.name && currentU.name !== 'User' && !currentU.name.startsWith('Traveler #'))
-                ? currentU.name
-                : (currentU.telegramUsername ? `@${currentU.telegramUsername}` : null);
-              const verifiedPhone = currentU.phone || currentU.telegramPhone || null;
-              const verifiedEmail = (currentU.email && !currentU.email.endsWith('@noreply.talago.com')) ? currentU.email : null;
-
-              if (verifiedName) setLeadName(verifiedName);
-              if (verifiedPhone) setPhone(verifiedPhone);
-              if (verifiedEmail) setEmail(verifiedEmail);
-            }
-          }
-        } catch {}
+        const currentU = authUser;
+        const tokenToUse = centralSessionToken;
 
         // Immediately register visible preliminary booking request (Stage A: Spots held, no inventory deducted)
         try {
@@ -407,7 +385,8 @@ export default function ContinuousBookingModal({
             }
           }
         }
-      } else if (isHotelPickupSupported && pickupType === 'HOTEL') {
+      }
+      if (isHotelPickupSupported && pickupType === 'HOTEL') {
         if (!hotelName.trim()) {
           errs.hotelName = 'Please enter your hotel or pickup address';
         }
@@ -435,6 +414,7 @@ export default function ContinuousBookingModal({
         roomNumber,
         specialRequirements,
         selectedZoneId,
+        bookingAnswers,
       });
       trackFunnelEvent('step_completed', {
         step,
@@ -922,7 +902,7 @@ export default function ContinuousBookingModal({
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-emerald-400 truncate">
-                            Logged in as {currentUser?.name || (currentUser?.telegramUsername ? `@${currentUser.telegramUsername}` : (currentUser?.email || 'Member'))}
+                            Logged in as {authUser?.name || (authUser?.telegramUsername ? `@${authUser.telegramUsername}` : (authUser?.email || 'Member'))}
                           </p>
                           <p className="text-[11px] text-slate-400">This trip will be automatically saved to your account.</p>
                         </div>
@@ -1015,8 +995,13 @@ export default function ContinuousBookingModal({
                       </p>
                     </div>
 
-                    {tour.bookingQuestions && tour.bookingQuestions.length > 0 ? (
+                    {/* Custom Tour Questions (if any) */}
+                    {tour.bookingQuestions && tour.bookingQuestions.length > 0 && (
                       <div className="space-y-3 pt-1">
+                        <div className="border-b border-white/5 pb-2">
+                          <p className="text-xs font-bold text-slate-300">Activity Requirements</p>
+                          <p className="text-[11px] text-slate-400">Please provide the details below for your trip preparation.</p>
+                        </div>
                         {tour.bookingQuestions.map((q) => {
                           const qError = errors[`question_${q.id}`];
                           const val = bookingAnswers[q.id] ?? '';
@@ -1059,7 +1044,10 @@ export default function ContinuousBookingModal({
                           );
                         })}
                       </div>
-                    ) : isNoPickup ? (
+                    )}
+
+                    {/* Logistics / Arrival Mode */}
+                    {isNoPickup ? (
                       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center space-y-2">
                         <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-[#00E5FF]/20 text-[#00E5FF]">
                           <MapPin className="h-5 w-5" />

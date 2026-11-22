@@ -6,9 +6,8 @@ import { User, Globe, LayoutDashboard, LogOut, ChevronDown, DollarSign, Heart } 
 import { useLanguage, type LanguageCode, languageLabels } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useWishlist } from '@/context/WishlistContext';
-import { supabaseClient } from '@/lib/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import type { Session } from '@supabase/supabase-js';
 import CustomerNotificationCenter from './CustomerNotificationCenter';
 
 const LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
@@ -26,45 +25,14 @@ export default function NavActions() {
   const { language, setLanguage, dict } = useLanguage();
   const { currency, setCurrency, symbols, supportedCurrencies } = useCurrency();
   const { count } = useWishlist();
+  const { user, isAuthenticated, signOut } = useAuth();
   const router = useRouter();
   const [langOpen, setLangOpen] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
-  const [serverUser, setServerUser] = useState<{
-    email?: string;
-    name?: string;
-    telegramPhotoUrl?: string | null;
-    telegramUsername?: string | null;
-  } | null>(null);
   const langRef = useRef<HTMLDivElement>(null);
   const currencyRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
-
-  // Bootstrap session state + listen for changes
-  useEffect(() => {
-    supabaseClient.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        setSession(data.session);
-      } else {
-        fetch('/api/auth/session')
-          .then((res) => (res.ok ? res.json() : null))
-          .then((authData) => {
-            if (authData?.authenticated && authData.user) {
-              setServerUser(authData.user);
-            }
-          })
-          .catch(() => {});
-      }
-    });
-
-    const { data: listener } = supabaseClient.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (s) setServerUser(null);
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -78,21 +46,14 @@ export default function NavActions() {
   }, []);
 
   const handleSignOut = useCallback(async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
-    try {
-      await supabaseClient.auth.signOut();
-    } catch {}
-    setSession(null);
-    setServerUser(null);
     setUserOpen(false);
+    await signOut();
     router.push('/');
     router.refresh();
-  }, [router]);
+  }, [signOut, router]);
 
-  const activeEmail = session?.user?.email || serverUser?.email || '';
-  const activeName = serverUser?.name || activeEmail.split('@')[0] || '';
+  const activeEmail = user?.email || '';
+  const activeName = user?.name || (activeEmail ? activeEmail.split('@')[0] : '');
   const userInitial = (activeName[0] || activeEmail[0] || 'T').toUpperCase();
 
   return (
@@ -182,7 +143,7 @@ export default function NavActions() {
       <div className="h-6 w-px bg-white/10" />
 
       {/* ── Auth: Logged In → Avatar Dropdown | Logged Out → Sign In button ── */}
-      {(session || serverUser) ? (
+      {(isAuthenticated && user) ? (
         <div ref={userRef} className="relative">
           <button
             type="button"
@@ -190,9 +151,9 @@ export default function NavActions() {
             className="inline-flex items-center gap-2 rounded-full border border-[#00E5FF]/25 bg-[#00E5FF]/10 py-1 pl-1.5 pr-3 text-xs font-bold text-[#00E5FF] transition-all hover:bg-[#00E5FF]/20"
           >
             {/* Avatar circle or photo */}
-            {serverUser?.telegramPhotoUrl ? (
+            {user?.telegramPhotoUrl ? (
               <img
-                src={serverUser.telegramPhotoUrl}
+                src={user.telegramPhotoUrl}
                 alt={activeName}
                 className="h-6 w-6 rounded-full object-cover border border-[#00E5FF]/40"
               />
@@ -215,8 +176,8 @@ export default function NavActions() {
                 {activeEmail && activeEmail !== activeName && !activeEmail.endsWith('@noreply.talago.com') && (
                   <p className="truncate text-xs text-slate-400">{activeEmail}</p>
                 )}
-                {serverUser?.telegramUsername && (
-                  <span className="inline-block mt-1 text-[11px] font-mono text-[#00E5FF]">@{serverUser.telegramUsername}</span>
+                {user?.telegramUsername && (
+                  <span className="inline-block mt-1 text-[11px] font-mono text-[#00E5FF]">@{user.telegramUsername}</span>
                 )}
               </div>
               <Link

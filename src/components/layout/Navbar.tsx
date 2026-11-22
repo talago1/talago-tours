@@ -6,8 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Menu, X, User, Globe, LayoutDashboard, LogOut, ChevronDown, UserPlus, LogIn } from 'lucide-react';
 import { useLanguage, type LanguageCode, languageLabels } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
-import { supabaseClient } from '@/lib/supabase/client';
-import type { Session } from '@supabase/supabase-js';
+import { useAuth } from '@/context/AuthContext';
 import NavLinks from './NavLinks';
 import NavActions from './NavActions';
 import GlobalSearch from './GlobalSearch';
@@ -29,13 +28,7 @@ export default function Navbar() {
   const { currency, setCurrency, symbols, supportedCurrencies } = useCurrency();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
-  const [serverUser, setServerUser] = useState<{
-    email?: string;
-    name?: string;
-    telegramPhotoUrl?: string | null;
-    telegramUsername?: string | null;
-  } | null>(null);
+  const { user, isAuthenticated, signOut } = useAuth();
   const [mobileLangOpen, setMobileLangOpen] = useState(false);
   const [mobileCurrencyOpen, setMobileCurrencyOpen] = useState(false);
 
@@ -46,46 +39,14 @@ export default function Navbar() {
     setMobileCurrencyOpen(false);
   }, [pathname]);
 
-  // Auth session listener
-  useEffect(() => {
-    supabaseClient.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        setSession(data.session);
-      } else {
-        fetch('/api/auth/session')
-          .then((res) => (res.ok ? res.json() : null))
-          .then((authData) => {
-            if (authData?.authenticated && authData.user) {
-              setServerUser(authData.user);
-            }
-          })
-          .catch(() => {});
-      }
-    });
-
-    const { data: listener } = supabaseClient.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (s) setServerUser(null);
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
   async function handleSignOut() {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
-    try {
-      await supabaseClient.auth.signOut();
-    } catch {}
-    setSession(null);
-    setServerUser(null);
     setMobileMenuOpen(false);
+    await signOut();
     window.location.href = '/';
   }
 
-  const activeEmail = session?.user?.email || serverUser?.email || '';
-  const activeName = serverUser?.name || activeEmail.split('@')[0] || '';
+  const activeEmail = user?.email || '';
+  const activeName = user?.name || (activeEmail ? activeEmail.split('@')[0] : '');
   const userInitial = (activeName[0] || activeEmail[0] || 'T').toUpperCase();
 
   return (
@@ -255,13 +216,13 @@ export default function Navbar() {
 
             {/* Auth Actions */}
             <div className="mt-2 border-t border-white/10 pt-5">
-              {(session || serverUser) ? (
+              {(isAuthenticated && user) ? (
                 <div className="space-y-3">
                   {/* User Profile Card */}
                   <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-                    {serverUser?.telegramPhotoUrl ? (
+                    {user?.telegramPhotoUrl ? (
                       <img
-                        src={serverUser.telegramPhotoUrl}
+                        src={user.telegramPhotoUrl}
                         alt={activeName}
                         className="h-10 w-10 rounded-full object-cover border border-[#00E5FF]/40"
                       />
@@ -273,8 +234,8 @@ export default function Navbar() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-bold text-slate-400">Signed in as</p>
                       <p className="truncate text-sm font-bold text-white">{activeName || activeEmail}</p>
-                      {serverUser?.telegramUsername && (
-                        <p className="truncate text-xs text-[#00E5FF] font-mono">@{serverUser.telegramUsername}</p>
+                      {user?.telegramUsername && (
+                        <p className="truncate text-xs text-[#00E5FF] font-mono">@{user.telegramUsername}</p>
                       )}
                     </div>
                   </div>

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/context/AuthContext';
 
 export interface CustomerNotificationItem {
   id: string;
@@ -54,10 +55,10 @@ function storeReadIds(ids: Set<string>) {
 export default function CustomerNotificationCenter() {
   const router = useRouter();
   const { language } = useLanguage();
+  const { isAuthenticated, sessionToken } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<CustomerNotificationItem[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(() => getStoredReadIds());
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -76,14 +77,15 @@ export default function CustomerNotificationCenter() {
   }, [isOpen]);
 
   const fetchCustomerNotifications = useCallback(async () => {
+    if (!isAuthenticated) {
+      setNotifications([]);
+      return;
+    }
     try {
       const headers: Record<string, string> = {};
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`;
-        }
-      } catch {}
+      if (sessionToken) {
+        headers['Authorization'] = `Bearer ${sessionToken}`;
+      }
 
       const res = await fetch('/api/public/my-bookings', {
         headers,
@@ -92,17 +94,16 @@ export default function CustomerNotificationCenter() {
       });
 
       if (!res.ok) {
-        setIsAuthenticated(false);
+        setNotifications([]);
         return;
       }
 
       const data = await res.json();
       if (!data?.authenticated) {
-        setIsAuthenticated(false);
+        setNotifications([]);
         return;
       }
 
-      setIsAuthenticated(true);
       const items: CustomerNotificationItem[] = [];
       const currentRead = getStoredReadIds();
 
@@ -194,7 +195,7 @@ export default function CustomerNotificationCenter() {
     } catch {
       // Non-fatal
     }
-  }, [language]);
+  }, [isAuthenticated, sessionToken, language]);
 
   useEffect(() => {
     fetchCustomerNotifications();

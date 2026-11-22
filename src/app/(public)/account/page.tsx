@@ -8,6 +8,7 @@ import { supabaseClient } from '@/lib/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { useAuth } from '@/context/AuthContext';
 import { LANGUAGES, type LanguageCode } from '@/lib/i18n';
 import type { SupportedCurrency } from '@/utils/currency';
 import dynamic from 'next/dynamic';
@@ -182,6 +183,7 @@ export default function AccountPage() {
     }
   }, [searchParams]);
   const { getWhatsAppUrl } = useContactSettings();
+  const { user: authUser, isAuthenticated, isLoading: authLoading, sessionToken, signOut, refreshAuth, updateUserLocally } = useAuth();
 
   // Auth & Profile state
   const [loading, setLoading] = useState(true);
@@ -217,146 +219,61 @@ export default function AccountPage() {
   const [sendingMsg, setSendingMsg] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
-  // Init Auth & Load Customer Data (Single Authoritative Request)
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  // Fetch Bookings with single request
+  const loadBookings = useCallback(async (token?: string | null) => {
     try {
-      // 1. Authoritative customer account data fetch
-      // Include client Bearer token as fallback for fresh browser sessions
       const headers: Record<string, string> = {};
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`;
-        }
-      } catch {}
-
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const res = await fetch('/api/public/my-bookings', {
         headers,
         credentials: 'same-origin',
         cache: 'no-store',
       });
-
       if (res.ok) {
         const data = await res.json();
-        if (data.authenticated && data.user) {
-          setAuthenticated(true);
-          setUserProfile(data.user);
-          setEditName(data.user.name || '');
-          setEditPhone(data.user.phone || data.user.telegramPhone || '');
-          setBookings(Array.isArray(data.bookings) ? data.bookings : []);
-          setReservations(Array.isArray(data.reservations) ? data.reservations : []);
-          return;
-        }
+        setBookings(Array.isArray(data.bookings) ? data.bookings : []);
+        setReservations(Array.isArray(data.reservations) ? data.reservations : []);
       }
-
-      // 2. Check /api/auth/session fallback (e.g. Telegram or server cookie session)
-      try {
-        const sessRes = await fetch('/api/auth/session', {
-          credentials: 'same-origin',
-          cache: 'no-store',
-        });
-        if (sessRes.ok) {
-          const sessData = await sessRes.json();
-          if (sessData.authenticated && sessData.user) {
-            setAuthenticated(true);
-            setUserProfile(sessData.user);
-            setEditName(sessData.user.name || '');
-            setEditPhone(sessData.user.phone || sessData.user.telegramPhone || '');
-
-            // Re-attempt fetching bookings, using accessToken returned by session endpoint when available
-            try {
-              const retryHeaders: Record<string, string> = {};
-              const retryToken = sessData.accessToken;
-              if (retryToken) retryHeaders['Authorization'] = `Bearer ${retryToken}`;
-              const retryRes = await fetch('/api/public/my-bookings', {
-                headers: retryHeaders,
-                credentials: 'same-origin',
-                cache: 'no-store',
-              });
-              if (retryRes.ok) {
-                const retryData = await retryRes.json();
-                setBookings(Array.isArray(retryData.bookings) ? retryData.bookings : []);
-                setReservations(Array.isArray(retryData.reservations) ? retryData.reservations : []);
-              }
-            } catch {}
-
-            return;
-          }
-        }
-      } catch {}
-
-      // 3. If server session was not active but client has a Supabase token, sync once and retry
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session?.access_token) {
-          const syncRes = await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              access_token: session.access_token,
-              refresh_token: session.refresh_token,
-            }),
-          });
-          if (syncRes.ok) {
-            // Use the client-side Bearer token directly — the POST above set the cookie,
-            // but on some CDN edges the cookie may not propagate within the same request chain.
-            const retryRes = await fetch('/api/public/my-bookings', {
-              headers: { 'Authorization': `Bearer ${session.access_token}` },
-              credentials: 'same-origin',
-              cache: 'no-store',
-            });
-            if (retryRes.ok) {
-              const retryData = await retryRes.json();
-              if (retryData.authenticated && retryData.user) {
-                setAuthenticated(true);
-                setUserProfile(retryData.user);
-                setEditName(retryData.user.name || '');
-                setEditPhone(retryData.user.phone || retryData.user.telegramPhone || '');
-                setBookings(Array.isArray(retryData.bookings) ? retryData.bookings : []);
-                setReservations(Array.isArray(retryData.reservations) ? retryData.reservations : []);
-                return;
-              }
-            }
-          }
-        }
-      } catch {}
-
-      // 4. Grace retry for fast redirects (e.g. Telegram bridge finishing storage write)
-      try {
-        await new Promise((r) => setTimeout(r, 300));
-        const { data: { session: retrySession } } = await supabaseClient.auth.getSession();
-        if (retrySession?.access_token) {
-          const retryRes = await fetch('/api/public/my-bookings', {
-            headers: { Authorization: `Bearer ${retrySession.access_token}` },
-            credentials: 'same-origin',
-            cache: 'no-store',
-          });
-          if (retryRes.ok) {
-            const retryData = await retryRes.json();
-            if (retryData.authenticated && retryData.user) {
-              setAuthenticated(true);
-              setUserProfile(retryData.user);
-              setEditName(retryData.user.name || '');
-              setEditPhone(retryData.user.phone || retryData.user.telegramPhone || '');
-              setBookings(Array.isArray(retryData.bookings) ? retryData.bookings : []);
-              setReservations(Array.isArray(retryData.reservations) ? retryData.reservations : []);
-              return;
-            }
-          }
-        }
-      } catch {}
-
-      setAuthenticated(false);
-      setUserProfile(null);
-    } catch (err) {
-      console.error('Account load error:', err);
-      setAuthenticated(false);
-      setUserProfile(null);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.warn('Failed to load bookings:', e);
     }
   }, []);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    const refreshed = await refreshAuth();
+    if (refreshed) {
+      setAuthenticated(true);
+      setUserProfile(refreshed as any);
+      setEditName(refreshed.name || '');
+      setEditPhone(refreshed.phone || refreshed.telegramPhone || '');
+      await loadBookings(sessionToken);
+    } else {
+      setAuthenticated(false);
+      setUserProfile(null);
+      setBookings([]);
+      setReservations([]);
+    }
+    setLoading(false);
+  }, [refreshAuth, loadBookings, sessionToken]);
+
+  // Synchronize immediately with central useAuth state
+  useEffect(() => {
+    if (authLoading) return;
+    if (isAuthenticated && authUser) {
+      setAuthenticated(true);
+      setUserProfile(authUser as any);
+      setEditName(authUser.name || '');
+      setEditPhone(authUser.phone || authUser.telegramPhone || '');
+      loadBookings(sessionToken).finally(() => setLoading(false));
+    } else {
+      setAuthenticated(false);
+      setUserProfile(null);
+      setBookings([]);
+      setReservations([]);
+      setLoading(false);
+    }
+  }, [authLoading, isAuthenticated, authUser, sessionToken, loadBookings]);
 
   const fetchChatMessages = useCallback(async (refOverride?: string | null) => {
     const bookingRef = refOverride !== undefined ? refOverride : selectedChatBookingRef;
@@ -414,53 +331,9 @@ export default function AccountPage() {
     }
   }, [activeTab, selectedChatBookingRef, bookings, reservations, fetchChatMessages]);
 
-  useEffect(() => {
-    let mounted = true;
-
-    // Safety guard: loading can never remain true indefinitely
-    const safetyTimer = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 4000);
-
-    loadData();
-
-    // Listen only for explicit sign out events from other tabs
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event) => {
-      if (event === 'SIGNED_OUT') {
-        // Guard against client-init false logouts: check server session before clearing
-        try {
-          const check = await fetch('/api/auth/session', { cache: 'no-store' });
-          const checkData = await check.json();
-          if (!checkData?.authenticated) {
-            setAuthenticated(false);
-            setUserProfile(null);
-            setBookings([]);
-            setReservations([]);
-          }
-        } catch {
-          setAuthenticated(false);
-          setUserProfile(null);
-          setBookings([]);
-          setReservations([]);
-        }
-      }
-    });
-
-    return () => {
-      mounted = false;
-      clearTimeout(safetyTimer);
-      subscription.unsubscribe();
-    };
-  }, [loadData]);
-
   // Sign out handler
   const handleSignOut = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
-    try {
-      await supabaseClient.auth.signOut();
-    } catch {}
+    await signOut();
     window.location.href = '/';
   };
 
@@ -490,8 +363,8 @@ export default function AccountPage() {
       setIsEditingProfile(false);
       if (data.user) {
         setUserProfile((prev) => (prev ? { ...prev, name: data.user.name, phone: data.user.phone } : prev));
+        updateUserLocally({ name: data.user.name, phone: data.user.phone });
       }
-      await loadData();
       setTimeout(() => setProfileSuccess(false), 4000);
     } catch (err: any) {
       setProfileError(err.message || 'Error updating profile');

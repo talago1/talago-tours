@@ -71,14 +71,14 @@ const INTERESTS: InterestItem[] = [
   },
   {
     id: 'cultural',
-    defaultLabel: 'Pyramids & Ancient Sights',
+    defaultLabel: 'Cultural & Historical Tours',
     translations: {
-      de: 'Pyramiden & Historisches',
-      ru: 'Пирамиды и древности',
-      fr: 'Pyramides & monuments',
-      it: 'Piramidi e antichità',
-      pl: 'Piramidy i zabytki',
-      es: 'Pirámides y monumentos',
+      de: 'Kultur & Geschichte',
+      ru: 'Культура и история',
+      fr: 'Culture & Histoire',
+      it: 'Cultura e storia',
+      pl: 'Kultura i historia',
+      es: 'Cultura e historia',
     },
     icon: Landmark,
     link: '/tours?type=cultural',
@@ -142,7 +142,7 @@ export default function ExploreByInterest() {
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-[#00E5FF]" />
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#00E5FF]">
-              {interestsDict.sectionTitle || 'Explore by Experience'}
+              {interestsDict.sectionTitle || 'Explore Experiences by Category'}
             </h3>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">

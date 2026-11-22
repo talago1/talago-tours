@@ -7,26 +7,33 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const bookingReference = searchParams.get('bookingReference')?.trim();
-  const leadId = searchParams.get('leadId')?.trim();
-  const conversationId = searchParams.get('conversationId')?.trim();
+  const rawBookingRef = searchParams.get('bookingReference')?.trim();
+  const rawLeadId = searchParams.get('leadId')?.trim();
+  let conversationId = searchParams.get('conversationId')?.trim();
+  const visitorToken = searchParams.get('visitorToken')?.trim();
 
-  // If fetching for a specific booking or lead:
-  if (bookingReference || leadId || conversationId) {
+  // Handle prefix conventions (e.g. conv:cmv... or lead:cmv...)
+  let bookingReference = rawBookingRef;
+  let leadId = rawLeadId;
+  if (bookingReference?.startsWith('conv:')) {
+    conversationId = bookingReference.slice(5);
+    bookingReference = undefined;
+  } else if (bookingReference?.startsWith('lead:')) {
+    leadId = bookingReference.slice(5);
+    bookingReference = undefined;
+  }
+
+  // If fetching for a specific booking, lead, conversation, or visitor:
+  if (bookingReference || leadId || conversationId || visitorToken) {
     let conv = null;
     if (conversationId) {
       conv = await prisma.liveChatConversation.findUnique({
         where: { id: conversationId },
         include: { messages: { orderBy: { createdAt: 'asc' }, take: 200 } },
       });
-    } else if (bookingReference) {
+    } else if (visitorToken) {
       conv = await prisma.liveChatConversation.findFirst({
-        where: {
-          OR: [
-            { bookingReference },
-            { visitorToken: `booking:${bookingReference}` },
-          ],
-        },
+        where: { visitorToken },
         include: { messages: { orderBy: { createdAt: 'asc' }, take: 200 } },
       });
     } else if (leadId) {
@@ -35,6 +42,19 @@ export async function GET(request: NextRequest) {
           OR: [
             { leadId },
             { visitorToken: `lead:${leadId}` },
+            { visitorToken: leadId },
+          ],
+        },
+        include: { messages: { orderBy: { createdAt: 'asc' }, take: 200 } },
+      });
+    } else if (bookingReference) {
+      conv = await prisma.liveChatConversation.findFirst({
+        where: {
+          OR: [
+            { id: bookingReference },
+            { bookingReference },
+            { visitorToken: bookingReference },
+            { visitorToken: `booking:${bookingReference}` },
           ],
         },
         include: { messages: { orderBy: { createdAt: 'asc' }, take: 200 } },
@@ -147,9 +167,17 @@ export async function POST(request: NextRequest) {
     const text = sanitizeText(body.text || body.message, 1200);
     if (!text) return NextResponse.json({ error: 'Message is required' }, { status: 400 });
 
-    const bookingReference = sanitizePlain(body.bookingReference, 50) || undefined;
-    const leadId = sanitizePlain(body.leadId, 60) || undefined;
-    const conversationId = sanitizePlain(body.conversationId, 60) || undefined;
+    let bookingReference = sanitizePlain(body.bookingReference, 50) || undefined;
+    let leadId = sanitizePlain(body.leadId, 60) || undefined;
+    let conversationId = sanitizePlain(body.conversationId, 60) || undefined;
+
+    if (bookingReference?.startsWith('conv:')) {
+      conversationId = bookingReference.slice(5);
+      bookingReference = undefined;
+    } else if (bookingReference?.startsWith('lead:')) {
+      leadId = bookingReference.slice(5);
+      bookingReference = undefined;
+    }
 
     let conv = null;
     if (conversationId) {
