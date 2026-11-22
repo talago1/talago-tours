@@ -19,6 +19,8 @@ public/uploads/*
 !public/uploads/.gitkeep
 .vercel
 scripts/backups/
+scripts/dev_data_backup.json
+scripts/*.json
 scripts/*.json
 .cursor/
 

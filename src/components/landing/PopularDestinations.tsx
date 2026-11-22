@@ -76,7 +76,7 @@ export default function PopularDestinations({ destinations }: PopularDestination
             return (
               <Link
                 key={dest.id}
-                href={`/destinations/${dest.slug}`}
+                href={`/tours?destination=${dest.slug}`}
                 className="group relative w-[72vw] max-w-[270px] shrink-0 snap-start sm:w-auto overflow-hidden rounded-[1.75rem] shadow-xl shadow-black/40 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[#00E5FF]/20"
               >
                 <div className={`aspect-[4/5] bg-gradient-to-br ${getGradient(index)} p-5 flex flex-col justify-end relative`}>

@@ -5,7 +5,7 @@ import { useLanguage } from '@/context/LanguageContext';
 
 const NAV_LINKS = [
   { key: 'tours' as const, href: '/tours', fallback: 'Tours' },
-  { key: 'destinations' as const, href: '/destinations', fallback: 'Destinations' },
+  { key: 'destinations' as const, href: '/tours', fallback: 'Destinations' },
   { key: 'blog' as const, href: '/blog', fallback: 'Blog' },
   { key: 'aboutUs' as const, href: '/about', fallback: 'About Us' },
   { key: 'faq' as const, href: '/faq', fallback: 'FAQ' },

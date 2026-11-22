@@ -77,6 +77,26 @@ export const DESTINATION_TRANSLATIONS: Record<string, Record<string, string>> = 
 };
 
 export const CATEGORY_TRANSLATIONS: Record<string, Record<string, string>> = {
+  watersports: {
+    en: 'Water Sports',
+    de: 'Wassersport',
+    ru: 'Водные виды спорта',
+    uk: 'Водні види спорту',
+    fr: 'Sports nautiques',
+    it: 'Sport acquatici',
+    pl: 'Sporty wodne',
+    es: 'Deportes acuáticos',
+  },
+  adventure: {
+    en: 'Adventure & Outdoor',
+    de: 'Abenteuer & Outdoor',
+    ru: 'Приключения и активный отдых',
+    uk: 'Пригоди та активний відпочинок',
+    fr: 'Aventure & Plein air',
+    it: 'Avventura e attività all’aperto',
+    pl: 'Przygoda i outdoor',
+    es: 'Aventura y actividades al aire libre',
+  },
   snorkeling: {
     en: 'Snorkeling & Coral Reefs',
     de: 'Schnorcheln & Riffe',
@@ -193,7 +213,9 @@ export function getLocalizedCategoryName(
   const lower = clean.toLowerCase().replace(/[\s_-]+/g, '');
 
   let lookupKey = 'sea';
-  if (lower.includes('snorkeling') || lower.includes('reef')) lookupKey = 'snorkeling';
+  if (lower.includes('watersport')) lookupKey = 'watersports';
+  else if (lower.includes('adventure') || lower.includes('outdoor')) lookupKey = 'adventure';
+  else if (lower.includes('snorkeling') || lower.includes('reef')) lookupKey = 'snorkeling';
   else if (lower.includes('diving') || lower.includes('scuba')) lookupKey = 'diving';
   else if (lower.includes('safari') || lower.includes('desert') || lower.includes('quad')) lookupKey = 'safari';
   else if (lower.includes('cultural') || lower.includes('historical') || lower.includes('pyramid') || lower.includes('temple')) lookupKey = 'cultural';

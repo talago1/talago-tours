@@ -23,6 +23,7 @@ import {
   Plane,
 } from 'lucide-react';
 import CountryCodeSelector from '@/components/checkout/CountryCodeSelector';
+import BookingCalendar from './BookingCalendar';
 import { saveBookingDraft, loadBookingDraft, clearBookingDraft } from '@/utils/bookingDraftStorage';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
@@ -684,7 +685,7 @@ export default function ContinuousBookingModal({
                   <span>{(dict as any).booking?.viewBoardingPass || 'View Boarding Pass'}</span>
                 </a>
                 <a
-                  href={isAuthenticated ? '/account?tab=bookings' : '/my-bookings'}
+                  href="/account?tab=bookings"
                   className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3.5 text-xs font-bold text-white hover:bg-white/10 transition"
                 >
                   <span>{(dict as any).booking?.goToMyBookings || 'Go to My Bookings'}</span>
@@ -707,44 +708,31 @@ export default function ContinuousBookingModal({
                       <p className="text-xs text-slate-400 mt-0.5">{(dict as any).booking?.step1Desc || 'Choose your departure date and preferred pickup time.'}</p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-300 mb-1.5">{(dict as any).booking?.departureDateLabel || 'Departure Date *'}</label>
-                        <input
-                          type="date"
-                          value={departureDate}
-                          min={(() => {
-                            const hours = tour.cutoffHours ?? 24;
-                            const minDate = new Date(Date.now() + Math.max(hours, 1) * 3600000);
-                            return minDate.toISOString().split('T')[0];
-                          })()}
-                          onChange={(e) => setDepartureDate(e.target.value)}
-                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white focus:border-[#00E5FF] focus:outline-none"
-                        />
-                        {errors.departureDate && (
-                          <p className="text-[11px] text-rose-400 mt-1 font-medium">{errors.departureDate}</p>
-                        )}
-                        {/* Scarcity indicator — only shown when spots are genuinely low */}
-                        {availableSpots !== null && availableSpots <= 5 && availableSpots > 0 && (
-                          <div className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                            <span className="text-[11px] font-bold text-amber-400">
-                              {((dict as any).booking?.spotsLeft || 'Only {{n}} spot(s) left on this date').replace('{{n}}', String(availableSpots))}
-                            </span>
-                          </div>
-                        )}
-                        {availableSpots === 0 && (
-                          <div className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-red-500/10 border border-red-500/20 px-2.5 py-1.5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
-                            <span className="text-[11px] font-bold text-red-400">
-                              {(dict as any).booking?.soldOut || 'Sold out on this date — please choose another'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-2">{(dict as any).booking?.departureDateLabel || 'Departure Date *'}</label>
+                      <BookingCalendar
+                        tourId={tour.id}
+                        selectedDate={departureDate}
+                        onSelectDate={(date, avail) => {
+                          setDepartureDate(date);
+                          if (avail) {
+                            setAvailableSpots(avail.remaining ?? null);
+                          }
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.departureDate;
+                            return next;
+                          });
+                        }}
+                        cutoffHours={tour.cutoffHours ?? 12}
+                        basePriceUSD={tour.adultPrice}
+                        compact
+                      />
+                      {errors.departureDate && (
+                        <p className="text-[11px] text-rose-400 mt-1.5 font-medium">{errors.departureDate}</p>
+                      )}
                       {availablePickupTimes.length > 0 && (
-                        <div>
+                        <div className="mt-3">
                           <label className="block text-xs font-bold text-slate-300 mb-1.5">Pickup Time Slot</label>
                           <select
                             value={selectedTime}

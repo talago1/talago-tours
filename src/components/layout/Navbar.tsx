@@ -105,7 +105,7 @@ export default function Navbar() {
                 {dict.navbar.tours}
               </Link>
               <Link
-                href="/destinations"
+                href="/tours"
                 className="flex items-center rounded-xl px-4 py-3 text-base font-bold text-slate-200 transition-all hover:bg-white/5 hover:text-[#00E5FF]"
               >
                 {dict.navbar.destinations}

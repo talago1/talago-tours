@@ -28,6 +28,7 @@ import {
 import PriceSummarySidebar from '@/components/checkout/PriceSummarySidebar';
 import Button from '@/components/ui/Button';
 import CountryCodeSelector from '@/components/checkout/CountryCodeSelector';
+import BookingCalendar from '@/components/tours/BookingCalendar';
 import { PaymentScheme, type CheckoutFormData, type InitializeResponse, type SelectedAddonPayload } from '@/types/checkout';
 import type { BookingQuestion } from '@/types/tourEditor';
 import type { PromoDiscount } from '@/utils/promo';
@@ -311,7 +312,7 @@ export default function CheckoutPage() {
   const [dateAvailability, setDateAvailability] = useState<{
     status: string;
     remaining: number;
-    adultPrice?: number;
+    adultPrice?: number | null;
   } | null>(null);
   const [dateAvailLoading, setDateAvailLoading] = useState(false);
   const [confirmData, setConfirmData] = useState<InitializeResponse | null>(null);
@@ -888,70 +889,30 @@ export default function CheckoutPage() {
                 <CalendarDays className="h-5 w-5 text-[#06B6D4]" />
                 {dict.checkout.travelDetails}
               </h2>
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <FormField label={dict.checkout.departureDate} required>
-                  {(() => {
-                    // Min date = today + cutoffHours
-                    const cutoff = tour?.cutoffHours ?? 12;
-                    const minDate = new Date(Date.now() + cutoff * 3_600_000);
-                    const minDateStr = minDate.toISOString().slice(0, 10);
+              <div>
+                <label className="block text-sm font-bold text-white mb-2">{dict.checkout.departureDate} *</label>
+                <BookingCalendar
+                  tourId={tour.id}
+                  selectedDate={departureDate}
+                  onSelectDate={(date, avail) => {
+                    setDepartureDate(date);
+                    if (avail) {
+                      setDateAvailability({
+                        status: avail.status,
+                        remaining: avail.remaining,
+                        adultPrice: avail.adultPrice ?? null,
+                      });
+                    }
+                    if (errorMessage) setErrorMessage('');
+                  }}
+                  cutoffHours={tour.cutoffHours ?? 12}
+                  basePriceUSD={tour.adultPrice}
+                />
+                {!departureDate && errorMessage && (
+                  <p className="mt-1.5 text-xs font-semibold text-rose-400">{errorMessage}</p>
+                )}
 
-                    const avStatus = dateAvailability?.status;
-                    const isUnavailable = avStatus && !['AVAILABLE'].includes(avStatus);
-                    const remaining = dateAvailability?.remaining ?? null;
-
-                    return (
-                      <>
-                        <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-300 focus-within:bg-white/[0.06] ${
-                          isUnavailable
-                            ? 'border-rose-500/40 bg-rose-900/10'
-                            : 'border-white/10 bg-white/[0.04] hover:border-white/20 focus-within:border-[#06B6D4]/40'
-                        }`}>
-                          <CalendarDays className={`h-5 w-5 shrink-0 ${isUnavailable ? 'text-rose-400' : 'text-slate-500'}`} />
-                          <input
-                            id="departureDate"
-                            type="date"
-                            value={departureDate}
-                            min={minDateStr}
-                            onChange={(e) => setDepartureDate(e.target.value)}
-                            className="flex-1 bg-transparent text-base font-medium text-white outline-none [color-scheme:dark]"
-                          />
-                          {dateAvailLoading && (
-                            <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
-                          )}
-                        </div>
-                        {/* Availability feedback badge */}
-                        {departureDate && !dateAvailLoading && dateAvailability && (
-                          <div className={`mt-2 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold ${
-                            avStatus === 'AVAILABLE'
-                              ? remaining !== null && remaining <= 5
-                                ? 'border border-amber-500/30 bg-amber-900/20 text-amber-300'
-                                : 'border border-emerald-500/30 bg-emerald-900/20 text-emerald-300'
-                              : 'border border-rose-500/30 bg-rose-900/20 text-rose-300'
-                          }`}>
-                            {avStatus === 'AVAILABLE' ? (
-                              remaining !== null && remaining <= 5 ? (
-                                <><AlertCircle className="h-3.5 w-3.5" /> Only {remaining} spot{remaining === 1 ? '' : 's'} left on this date!</>
-                              ) : (
-                                <><CheckCircle2 className="h-3.5 w-3.5" /> Available — {remaining !== null ? `${remaining} spots remaining` : 'Check availability'}</>
-                              )
-                            ) : avStatus === 'SOLD_OUT' ? (
-                              <><AlertCircle className="h-3.5 w-3.5" /> This date is fully booked. Please choose another date.</>
-                            ) : avStatus === 'BLACKOUT' || avStatus === 'CLOSED' ? (
-                              <><AlertCircle className="h-3.5 w-3.5" /> Tour not available on this date. Please choose another.</>
-                            ) : avStatus === 'WEATHER_CANCELLED' ? (
-                              <><AlertCircle className="h-3.5 w-3.5" /> This date is cancelled (weather). Please choose another.</>
-                            ) : avStatus === 'PRIVATE_EVENT' ? (
-                              <><AlertCircle className="h-3.5 w-3.5" /> Private event on this date. Please choose another.</>
-                            ) : null}
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </FormField>
-
-                <div className="sm:col-span-2 mt-2 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
                   <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
                     <Users className="h-4 w-4 text-[#06B6D4]" />
                     {dict.checkout.selectTravelers}

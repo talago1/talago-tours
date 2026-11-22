@@ -45,7 +45,7 @@ export default function FooterContent() {
       icon: Compass,
       links: [
         { label: dict.navbar?.tours || 'All Tours', href: '/tours' },
-        { label: dict.navbar?.destinations || 'Destinations', href: '/destinations' },
+        { label: dict.navbar?.destinations || 'Destinations', href: '/tours' },
         { label: dict.catalog?.bestSeller || 'Top Rated', href: '/tours?sort=rating_desc' },
         { label: dict.navbar?.blog || 'Travel Journal', href: '/blog' },
         { label: dict.navbar?.faq || 'FAQ', href: '/faq' },
@@ -66,7 +66,7 @@ export default function FooterContent() {
       icon: ShieldCheck,
       links: [
         { label: dict.footer?.contactUs || 'Contact Concierge', href: '/support' },
-        { label: dict.navbar?.myBookings || 'My Bookings & Tickets', href: '/my-bookings' },
+        { label: dict.navbar?.myBookings || 'My Bookings & Tickets', href: '/account?tab=bookings' },
         { label: 'Terms of Service', href: '/terms' },
         { label: dict.footer?.bookingTerms || 'Booking Terms', href: '/booking-terms' },
         { label: dict.footer?.cancellationPolicy || dict.cancellationPage?.badge || 'Cancellation Policy', href: '/cancellation' },
