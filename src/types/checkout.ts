@@ -53,6 +53,7 @@ export interface InitializeRequest {
 
 export interface InitializeResponse {
   bookingId: string;
+  bookingReference?: string;
   accessToken: string;
   transactionId: string;
   amountPaidOnline: number;

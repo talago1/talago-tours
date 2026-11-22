@@ -11,6 +11,7 @@ import type { Session } from '@supabase/supabase-js';
 import NavLinks from './NavLinks';
 import NavActions from './NavActions';
 import GlobalSearch from './GlobalSearch';
+import CustomerNotificationCenter from './CustomerNotificationCenter';
 
 const LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
   { code: 'en', label: 'EN', native: 'English' },
@@ -109,15 +110,19 @@ export default function Navbar() {
           <NavActions />
         </nav>
 
-        {/* Mobile Menu Button */}
-        <button
-          type="button"
-          aria-label="Toggle navigation menu"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition-all hover:bg-white/10 hover:text-white lg:hidden"
-        >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* Mobile Header Actions */}
+        <div className="flex items-center gap-2 lg:hidden">
+          <CustomerNotificationCenter />
+          {/* Mobile Menu Button */}
+          <button
+            type="button"
+            aria-label="Toggle navigation menu"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition-all hover:bg-white/10 hover:text-white"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu Drawer */}

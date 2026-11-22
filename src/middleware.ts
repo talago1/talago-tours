@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { ADMIN_SESSION_COOKIE, getAdminToken } from '@/utils/adminAuth';
+import { ADMIN_SESSION_COOKIE, getAdminToken, safeTokenCompare } from '@/utils/adminAuth';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -35,7 +35,7 @@ export function middleware(request: NextRequest) {
 
   if (
     configuredToken &&
-    (cookieToken === configuredToken || bearerToken === configuredToken)
+    (safeTokenCompare(cookieToken, configuredToken) || safeTokenCompare(bearerToken, configuredToken))
   ) {
     return NextResponse.next();
   }

@@ -152,6 +152,19 @@ export default function PublicTourCard({
     return dict.catalog.sea;
   };
 
+  const formatTourCategory = (raw: string | null | undefined) => {
+    if (!raw) return getLocalizedCategory(cat);
+    const clean = raw.trim();
+    const lower = clean.toLowerCase();
+    if (lower === 'safari' || lower === 'desert') return dict.catalog.safari || 'Safari';
+    if (lower === 'cultural') return dict.catalog.cultural || 'Cultural';
+    if (lower === 'spa' || lower === 'wellness') return dict.catalog.spa || 'Spa';
+    if (lower === 'entertainment') return dict.catalog.entertainment || 'Entertainment';
+    if (lower === 'sea') return dict.catalog.sea || 'Sea';
+    // If the tour has a specific category like "Historical", "Snorkeling", "Diving", "City Tour", display it accurately:
+    return clean.charAt(0).toUpperCase() + clean.slice(1).replace(/_/g, ' ');
+  };
+
   const gallery = (tour.galleryImages || []).filter(Boolean) as string[];
   const allImages = [tour.coverImage, ...gallery].filter(
     (x): x is string => typeof x === 'string' && x.length > 0
@@ -285,7 +298,7 @@ export default function PublicTourCard({
             {/* Top Row: Location & Rating */}
             <div className="flex items-center justify-between gap-1 mb-1.5 text-[11px]">
               <span className="font-bold text-[#00E5FF] truncate max-w-[130px]">
-                {tour.destination?.name || 'Red Sea'} · {getLocalizedCategory(cat)}
+                {tour.destination?.name || 'Red Sea'} · {formatTourCategory(tour.category)}
               </span>
               {tour.ratingCount > 0 ? (
                 <span className="flex items-center gap-0.5 font-bold text-white shrink-0">
@@ -398,7 +411,7 @@ export default function PublicTourCard({
           <div className="flex absolute bottom-3 left-3 right-3 z-10 items-center justify-between">
             <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#070F1E]/80 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-md">
               {getCategoryIcon(cat)}
-              <span>{getLocalizedCategory(cat)}</span>
+              <span>{formatTourCategory(tour.category)}</span>
             </div>
             <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-[#070F1E]/80 px-2.5 py-1 text-xs font-bold text-slate-300 backdrop-blur-md">
               <Clock className="h-3 w-3 text-slate-400" />

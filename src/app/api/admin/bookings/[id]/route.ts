@@ -129,7 +129,29 @@ export async function DELETE(
         data: { bookingId: null },
       });
 
-      // 3. Delete the booking
+      // 3. Clean up associated live chat conversations and messages (prevents ghost unread badges)
+      await tx.liveChatConversation.deleteMany({
+        where: {
+          OR: [
+            { bookingId: params.id },
+            { bookingReference: existing.bookingReference },
+            { visitorToken: `booking:${existing.bookingReference}` },
+          ],
+        },
+      });
+
+      // 4. Clean up notification delivery logs
+      await tx.notificationLog.deleteMany({
+        where: { bookingId: params.id },
+      });
+
+      // 5. Unlink any booking leads
+      await tx.bookingLead.updateMany({
+        where: { bookingId: params.id },
+        data: { bookingId: null },
+      });
+
+      // 6. Delete the booking
       await tx.booking.delete({
         where: { id: params.id },
       });

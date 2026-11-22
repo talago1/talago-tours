@@ -12,6 +12,12 @@ This document records all specialized agent skills installed and maintained for 
 | **vercel-react-best-practices** | `vercel-labs/agent-skills` | `.agents/skills/vercel-react-best-practices/SKILL.md` | Performance and code hygiene guidelines for React & Next.js: reducing bundle size, client vs server components, eliminating re-renders, Suspense boundaries. |
 | **vercel-optimize** | `vercel-labs/agent-skills` | `.agents/skills/vercel-optimize/SKILL.md` | Vercel production optimization: caching strategies, image optimization, edge function execution limits, bandwidth and invocation cost reduction. |
 | **web-design-guidelines** | `vercel-labs/agent-skills` | `.agents/skills/web-design-guidelines/SKILL.md` | UX/UI accessibility, responsive design check (mobile/tablet/desktop), micro-interactions, form states, and design system consistency. |
+| **unslop** | `heydamir/unslop` | `.agents/skills/unslop/SKILL.md` | UX/UI anti-pattern remediation, clean typography, polish, and removing synthetic/bloated UI tropes. |
+| **frontend-design** | `anthropics/skills` | `.agents/skills/frontend-design/SKILL.md` | Production frontend design patterns, accessible components, and aesthetic refinement. |
+| **webapp-testing** | `anthropics/skills` | `.agents/skills/webapp-testing/SKILL.md` | Automated and end-to-end webapp verification (Playwright, browser workflows, smoke tests). |
+| **supabase-postgres-best-practices** | `supabase/agent-skills` | `.agents/skills/supabase-postgres-best-practices/SKILL.md` | PostgreSQL indexing, RLS security, query performance, and connection/pooling best practices. |
+| **superpowers** | `obra/superpowers` | `.agents/skills/superpowers/using-superpowers/SKILL.md` | Modular workflow skills: systematic debugging, test-driven execution, and verification before completion. |
+| **speed-engineer** | Built-in project skill | `.agents/skills/speed-engineer/SKILL.md` | Performance engineering: DB indexes, N+1 queries, pagination, image optimization, caching, and skeleton loading. |
 
 ---
 

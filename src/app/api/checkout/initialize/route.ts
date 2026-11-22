@@ -90,6 +90,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Idempotency check: if this reservation lead already has an initialized booking, return it cleanly
+    if (requestedReservationId) {
+      const existingLeadWithBooking = await prisma.bookingLead.findUnique({
+        where: { id: requestedReservationId },
+        select: { bookingId: true },
+      });
+      if (existingLeadWithBooking?.bookingId) {
+        const existingBooking = await prisma.booking.findUnique({
+          where: { id: existingLeadWithBooking.bookingId },
+          select: {
+            id: true,
+            bookingReference: true,
+            accessToken: true,
+            status: true,
+            paymentStatus: true,
+            paymentScheme: true,
+            totalPriceUSD: true,
+            amountPaidOnline: true,
+            amountDueOnArrival: true,
+            currency: true,
+          },
+        });
+        if (existingBooking) {
+          return NextResponse.json({
+            success: true,
+            bookingId: existingBooking.id,
+            bookingReference: existingBooking.bookingReference,
+            accessToken: existingBooking.accessToken,
+            paymentScheme: existingBooking.paymentScheme,
+            totalPrice: existingBooking.totalPriceUSD,
+            amountPaidOnline: existingBooking.amountPaidOnline,
+            amountDueOnArrival: existingBooking.amountDueOnArrival,
+            currency: existingBooking.currency,
+            status: existingBooking.status,
+            isExisting: true,
+          });
+        }
+      }
+    }
+
     if (typeof paymentScheme !== 'string' || !PAYMENT_SCHEMES.has(paymentScheme)) {
       return NextResponse.json(
         { error: 'A valid payment scheme is required.', code: 'VALIDATION_ERROR' },
@@ -596,6 +636,7 @@ export async function POST(request: NextRequest) {
 
     const responsePayload: InitializeResponse = {
       bookingId: result.booking.id,
+      bookingReference: result.booking.bookingReference,
       accessToken: result.booking.accessToken,
       transactionId: result.transaction.id,
       amountPaidOnline,

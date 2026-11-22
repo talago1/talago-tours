@@ -136,19 +136,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Deduplication check: recent active lead within last 10 minutes
+    // Deduplication check: recent active lead within last 10 minutes for the SAME tour and travel date
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
 
     const existingLead = await prisma.bookingLead.findFirst({
       where: {
         createdAt: { gte: tenMinutesAgo },
-          status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
+        status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
+        // Must belong to the exact same tour
         OR: [
-          ...(sessionId ? [{ sessionId }] : []),
-          ...(customerPhone ? [{ customerPhone }] : []),
-          ...(customerEmail ? [{ customerEmail }] : []),
+          ...(tourId ? [{ tourId }] : []),
+          ...(tourSlug ? [{ tourSlug }] : []),
         ],
-        ...(tourId ? { tourId } : {}),
+        // If a travel date is specified, must match the same date to avoid overwriting distinct dates
+        ...(travelDate ? { travelDate } : {}),
+        AND: [
+          {
+            OR: [
+              ...(sessionId ? [{ sessionId }] : []),
+              ...(customerPhone ? [{ customerPhone }] : []),
+              ...(customerEmail ? [{ customerEmail }] : []),
+            ],
+          },
+        ],
       },
       orderBy: { createdAt: 'desc' },
     });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -217,7 +217,8 @@ function validateForm(
 
   const effectivePickupType = (data.pickupType || tour?.pickupType || 'hotel').toLowerCase();
   const isNoPickup = effectivePickupType === 'meeting_point' || effectivePickupType === 'none';
-  if (!isNoPickup && (!data.hotelName || !data.hotelName.trim())) {
+  const isHotelPickupRequired = tour?.hotelPickupIncluded !== false && !isNoPickup;
+  if (isHotelPickupRequired && (!data.hotelName || !data.hotelName.trim())) {
     errors.hotelName = m.hotelRequired;
   }
 
@@ -322,6 +323,8 @@ export default function CheckoutPage() {
   const [selectedZoneFee, setSelectedZoneFee] = useState<number>(0);
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
   const [bookingAnswers, setBookingAnswers] = useState<Record<string, any>>({});
+
+  const draftLoadedRef = useRef(false);
 
   const totalPayingGuests = adultsCount + childrenCount;
 
@@ -436,9 +439,9 @@ export default function CheckoutPage() {
 
             setForm((prev) => ({
               ...prev,
-              leadName: verifiedName || prev.leadName,
-              phone: verifiedPhone || prev.phone,
-              email: verifiedEmail || prev.email,
+              ...(verifiedName ? { leadName: verifiedName } : {}),
+              ...(verifiedPhone ? { phone: verifiedPhone } : {}),
+              ...(verifiedEmail ? { email: verifiedEmail } : {}),
             }));
           }
         }
@@ -467,27 +470,30 @@ export default function CheckoutPage() {
 
   // Synchronize counts from search parameters on mount
   useEffect(() => {
-    const draft = loadBookingDraft(tourId);
-    if (draft) {
-      if (draft.departureDate) setDepartureDate(draft.departureDate);
-      if (draft.selectedTime) setForm((prev) => ({ ...prev, pickupTime: draft.selectedTime || prev.pickupTime }));
-      if (draft.adultsCount) setAdultsCount(draft.adultsCount);
-      if (typeof draft.childrenCount === 'number') setChildrenCount(draft.childrenCount);
-      if (typeof draft.infantsCount === 'number') setInfantsCount(draft.infantsCount);
-      if (draft.selectedAddons) setSelectedAddons(draft.selectedAddons);
-      if (draft.selectedZoneId) {
-        setSelectedZoneId(draft.selectedZoneId);
+    if (!draftLoadedRef.current) {
+      draftLoadedRef.current = true;
+      const draft = loadBookingDraft(tourId);
+      if (draft) {
+        if (draft.departureDate) setDepartureDate(draft.departureDate);
+        if (draft.selectedTime) setForm((prev) => ({ ...prev, pickupTime: draft.selectedTime || prev.pickupTime }));
+        if (draft.adultsCount) setAdultsCount(draft.adultsCount);
+        if (typeof draft.childrenCount === 'number') setChildrenCount(draft.childrenCount);
+        if (typeof draft.infantsCount === 'number') setInfantsCount(draft.infantsCount);
+        if (draft.selectedAddons) setSelectedAddons(draft.selectedAddons);
+        if (draft.selectedZoneId) {
+          setSelectedZoneId(draft.selectedZoneId);
+        }
+        setForm((prev) => ({
+          ...prev,
+          leadName: prev.leadName.trim() ? prev.leadName : (draft.leadName || prev.leadName),
+          phone: prev.phone.trim() ? prev.phone : (draft.phone || prev.phone),
+          email: prev.email.trim() ? prev.email : (draft.email || prev.email),
+          pickupType: draft.pickupType || prev.pickupType,
+          hotelName: draft.hotelName || prev.hotelName,
+          roomNumber: draft.roomNumber || prev.roomNumber,
+          specialRequirements: draft.specialRequirements || prev.specialRequirements,
+        }));
       }
-      setForm((prev) => ({
-        ...prev,
-        leadName: prev.leadName.trim() ? prev.leadName : (draft.leadName || prev.leadName),
-        phone: prev.phone.trim() ? prev.phone : (draft.phone || prev.phone),
-        email: prev.email.trim() ? prev.email : (draft.email || prev.email),
-        pickupType: draft.pickupType || prev.pickupType,
-        hotelName: draft.hotelName || prev.hotelName,
-        roomNumber: draft.roomNumber || prev.roomNumber,
-        specialRequirements: draft.specialRequirements || prev.specialRequirements,
-      }));
     }
     const queryAdults = searchParams.get('adults');
     if (queryAdults) setAdultsCount(Math.max(1, parseInt(queryAdults, 10)));
@@ -833,7 +839,7 @@ export default function CheckoutPage() {
           <h1 className="text-3xl font-black text-white">{dict.checkout.successTitle}</h1>
           <p className="mt-3 text-slate-400">
             {dict.checkout.successRef}{' '}
-            <span className="font-bold text-white">{confirmData.bookingId}</span>
+            <span className="font-bold text-white">{confirmData.bookingReference || confirmData.bookingId}</span>
           </p>
 
           {confirmData.amountDueOnArrival > 0 && (

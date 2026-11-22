@@ -6,6 +6,16 @@ if (typeof window !== 'undefined') {
 
 export const ADMIN_SESSION_COOKIE = 'talago_admin_session';
 
+export function safeTokenCompare(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 export function getAdminToken(): string | null {
   return process.env.ADMIN_API_TOKEN?.trim() || null;
 }
@@ -28,7 +38,8 @@ export function isAdminRequest(request: NextRequest): boolean {
     return false;
   }
 
-  if (request.cookies.get(ADMIN_SESSION_COOKIE)?.value === configuredToken) {
+  const cookieVal = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
+  if (safeTokenCompare(cookieVal, configuredToken)) {
     return true;
   }
 
@@ -37,5 +48,5 @@ export function isAdminRequest(request: NextRequest): boolean {
     ? authorization.slice('Bearer '.length).trim()
     : null;
 
-  return bearerToken === configuredToken;
+  return safeTokenCompare(bearerToken, configuredToken);
 }

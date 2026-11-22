@@ -112,7 +112,12 @@ export default function ContinuousBookingModal({
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
 
   // Pickup info
-  const [pickupType, setPickupType] = useState<'HOTEL' | 'MEETING_POINT' | 'AIRPORT'>('HOTEL');
+  const isHotelPickupSupported = tour.hotelPickupIncluded !== false && tour.pickupType !== 'meeting_point' && tour.pickupType !== 'none';
+  const isMeetingPointOnly = tour.pickupType === 'meeting_point' || (tour.pickupType !== 'hotel' && !tour.hotelPickupIncluded);
+  const isNoPickup = tour.pickupType === 'none';
+  const [pickupType, setPickupType] = useState<'HOTEL' | 'MEETING_POINT' | 'AIRPORT'>(
+    isHotelPickupSupported ? 'HOTEL' : 'MEETING_POINT'
+  );
   const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [hotelName, setHotelName] = useState('');
   const [roomNumber, setRoomNumber] = useState('');
@@ -189,9 +194,8 @@ export default function ContinuousBookingModal({
         else setInfantsCount(initialInfants);
         if (draft.selectedAddons) setSelectedAddons(draft.selectedAddons);
         else setSelectedAddons(initialAddons || {});
-        if (draft.leadName) setLeadName(draft.leadName);
-        if (draft.phone) setPhone(draft.phone);
-        if (draft.email) setEmail(draft.email);
+        // draft contact fields (leadName/phone/email) are applied below,
+        // only if the user is not authenticated (auth overrides in async IIFE)
         if (draft.pickupType && ['HOTEL', 'MEETING_POINT', 'AIRPORT'].includes(draft.pickupType)) setPickupType(draft.pickupType as any);
         if (draft.hotelName) setHotelName(draft.hotelName);
         if (draft.roomNumber) setRoomNumber(draft.roomNumber);
@@ -401,7 +405,7 @@ export default function ContinuousBookingModal({
             }
           }
         }
-      } else if (tour.hotelPickupIncluded && pickupType === 'HOTEL') {
+      } else if (isHotelPickupSupported && pickupType === 'HOTEL') {
         if (!hotelName.trim()) {
           errs.hotelName = 'Please enter your hotel or pickup address';
         }
@@ -1053,35 +1057,64 @@ export default function ContinuousBookingModal({
                           );
                         })}
                       </div>
+                    ) : isNoPickup ? (
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center space-y-2">
+                        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-[#00E5FF]/20 text-[#00E5FF]">
+                          <MapPin className="h-5 w-5" />
+                        </div>
+                        <h4 className="text-sm font-bold text-white">Direct On-Site Arrival</h4>
+                        <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                          This experience starts directly at the venue. No hotel pickup or transfer logistics required.
+                        </p>
+                      </div>
+                    ) : isMeetingPointOnly ? (
+                      <div className="rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/5 p-5 space-y-2.5">
+                        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#00E5FF]">
+                          <MapPin className="h-4 w-4" />
+                          <span>Designated Meeting Point</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-white">{tour.meetingPointName || 'Main Pier / Central Meeting Point'}</h4>
+                        {tour.meetingPointAddress && (
+                          <p className="text-xs text-slate-300">{tour.meetingPointAddress}</p>
+                        )}
+                        {tour.meetingPointLandmark && (
+                          <p className="text-xs text-amber-300 font-medium">📍 Landmark: {tour.meetingPointLandmark}</p>
+                        )}
+                        {tour.meetingPointInstructions && (
+                          <p className="text-[11px] text-slate-400 italic mt-1 leading-relaxed">{tour.meetingPointInstructions}</p>
+                        )}
+                      </div>
                     ) : (
                       <>
-                        {/* Mode Toggle */}
-                        <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl border border-white/10 bg-white/[0.02]">
-                          <button
-                            type="button"
-                            onClick={() => setPickupType('HOTEL')}
-                            className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
-                              pickupType === 'HOTEL'
-                                ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20'
-                                : 'text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            <Building className="h-3.5 w-3.5" />
-                            {(dict as any).booking?.hotelPickup || 'Hotel Pickup'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPickupType('MEETING_POINT')}
-                            className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
-                              pickupType === 'MEETING_POINT'
-                                ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20'
-                                : 'text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            <MapPin className="h-3.5 w-3.5" />
-                            {(dict as any).booking?.meetingPoint || 'Meeting Point'}
-                          </button>
-                        </div>
+                        {/* Mode Toggle when both Hotel Pickup and Meeting Point are offered */}
+                        {(tour.meetingPointName || tour.pickupType === 'both') && (
+                          <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl border border-white/10 bg-white/[0.02]">
+                            <button
+                              type="button"
+                              onClick={() => setPickupType('HOTEL')}
+                              className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                                pickupType === 'HOTEL'
+                                  ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20'
+                                  : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              <Building className="h-3.5 w-3.5" />
+                              {(dict as any).booking?.hotelPickup || 'Hotel Pickup'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPickupType('MEETING_POINT')}
+                              className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                                pickupType === 'MEETING_POINT'
+                                  ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20'
+                                  : 'text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              <MapPin className="h-3.5 w-3.5" />
+                              {(dict as any).booking?.meetingPoint || 'Meeting Point'}
+                            </button>
+                          </div>
+                        )}
 
                         {pickupType === 'HOTEL' ? (
                           <div className="space-y-3 pt-1">

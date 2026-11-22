@@ -300,6 +300,11 @@ export async function POST(request: NextRequest) {
 
       for (let i = 0; i < eligibleIds.length; i += CHUNK_SIZE) {
         const chunk = eligibleIds.slice(i, i + CHUNK_SIZE);
+        const chunkRefs = matchingBookings
+          .filter((b) => chunk.includes(b.id))
+          .map((b) => b.bookingReference)
+          .filter(Boolean);
+
         await prisma.$transaction(async (tx) => {
           // Delete reviews associated with these bookings
           await tx.review.deleteMany({
@@ -307,6 +312,18 @@ export async function POST(request: NextRequest) {
           });
           // Delete leads associated with these bookings
           await tx.bookingLead.deleteMany({
+            where: { bookingId: { in: chunk } },
+          });
+          // Delete associated chat conversations and notification logs
+          await tx.liveChatConversation.deleteMany({
+            where: {
+              OR: [
+                { bookingId: { in: chunk } },
+                { bookingReference: { in: chunkRefs } },
+              ],
+            },
+          });
+          await tx.notificationLog.deleteMany({
             where: { bookingId: { in: chunk } },
           });
           // Delete bookings

@@ -9,6 +9,7 @@ import { useWishlist } from '@/context/WishlistContext';
 import { supabaseClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import type { Session } from '@supabase/supabase-js';
+import CustomerNotificationCenter from './CustomerNotificationCenter';
 
 const LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
   { code: 'en', label: 'EN', native: 'English' },
@@ -174,6 +175,9 @@ export default function NavActions() {
           </span>
         )}
       </Link>
+
+      {/* ── Customer In-App Notification Center ── */}
+      <CustomerNotificationCenter />
 
       <div className="h-6 w-px bg-white/10" />
 

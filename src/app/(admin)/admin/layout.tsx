@@ -20,6 +20,7 @@ import {
   Users,
   MessageCircle,
 } from 'lucide-react';
+import AdminNotificationCenter from '@/components/admin/AdminNotificationCenter';
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -146,6 +147,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main content */}
       <div className="min-w-0 lg:pl-64">
+        {/* Desktop Top Header Bar */}
+        <header className="sticky top-0 z-30 hidden lg:flex items-center justify-between border-b border-white/10 bg-[#070F1E]/80 px-8 py-3.5 backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-black uppercase tracking-[0.2em] text-[#00E5FF]">Admin Portal</span>
+            <span className="text-slate-600">/</span>
+            <span className="text-xs font-bold text-slate-300 capitalize">{pathname.replace(/^\/admin\/?/, '') || 'Overview'}</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <AdminNotificationCenter />
+            <Link
+              href="/"
+              target="_blank"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <span>Live Site</span>
+              <LogOut className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </header>
+
         {/* Mobile header */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-[#070F1E]/80 px-4 py-3 backdrop-blur-xl lg:hidden">
           <button
@@ -161,7 +182,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span className="truncate text-2xl font-black uppercase tracking-[0.34em] text-white">TALAGO</span>
             <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40" />
           </div>
-          <div className="w-9" />
+          <AdminNotificationCenter />
         </header>
 
         {/* Page content */}

@@ -262,9 +262,13 @@ export default function AccountPage() {
             setEditName(sessData.user.name || '');
             setEditPhone(sessData.user.phone || sessData.user.telegramPhone || '');
 
-            // Re-attempt fetching bookings now that session is confirmed
+            // Re-attempt fetching bookings, using accessToken returned by session endpoint when available
             try {
+              const retryHeaders: Record<string, string> = {};
+              const retryToken = sessData.accessToken;
+              if (retryToken) retryHeaders['Authorization'] = `Bearer ${retryToken}`;
               const retryRes = await fetch('/api/public/my-bookings', {
+                headers: retryHeaders,
                 credentials: 'same-origin',
                 cache: 'no-store',
               });
@@ -293,7 +297,10 @@ export default function AccountPage() {
             }),
           });
           if (syncRes.ok) {
+            // Use the client-side Bearer token directly — the POST above set the cookie,
+            // but on some CDN edges the cookie may not propagate within the same request chain.
             const retryRes = await fetch('/api/public/my-bookings', {
+              headers: { 'Authorization': `Bearer ${session.access_token}` },
               credentials: 'same-origin',
               cache: 'no-store',
             });

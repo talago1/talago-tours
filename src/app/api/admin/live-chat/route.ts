@@ -105,7 +105,40 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  return NextResponse.json({ conversations });
+  // Verify linked booking and lead existence to prevent phantom unread badges from deleted records
+  const bookingRefs = conversations
+    .map((c) => c.bookingReference)
+    .filter((ref): ref is string => Boolean(ref));
+  const leadIds = conversations
+    .map((c) => c.leadId)
+    .filter((id): id is string => Boolean(id));
+
+  const [existingBookings, existingLeads] = await Promise.all([
+    bookingRefs.length > 0
+      ? prisma.booking.findMany({
+          where: { bookingReference: { in: bookingRefs } },
+          select: { bookingReference: true },
+        })
+      : Promise.resolve([]),
+    leadIds.length > 0
+      ? prisma.bookingLead.findMany({
+          where: { id: { in: leadIds } },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const existingBookingSet = new Set(existingBookings.map((b) => b.bookingReference));
+  const existingLeadSet = new Set(existingLeads.map((l) => l.id));
+
+  // Retain only conversations whose booking/lead exists, or generic visitor chats
+  const validConversations = conversations.filter((c) => {
+    if (c.bookingReference && !existingBookingSet.has(c.bookingReference)) return false;
+    if (c.leadId && !existingLeadSet.has(c.leadId)) return false;
+    return true;
+  });
+
+  return NextResponse.json({ conversations: validConversations });
 }
 
 export async function POST(request: NextRequest) {

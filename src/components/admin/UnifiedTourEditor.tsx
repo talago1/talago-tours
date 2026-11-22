@@ -1234,13 +1234,42 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                     <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                       Primary Category
                     </label>
-                    <input
-                      type="text"
-                      value={data.category}
-                      onChange={(e) => updateData({ category: e.target.value })}
-                      placeholder="sea / safari / culture / diving"
-                      className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
-                    />
+                    <div className="space-y-2">
+                      <select
+                        value={
+                          ['Snorkeling', 'Diving', 'Boat Trip', 'Desert Safari', 'Cultural & Historical', 'Historical', 'City Tour', 'Spa & Wellness', 'Entertainment', 'Adventure', 'Sea'].includes(data.category)
+                            ? data.category
+                            : data.category ? '__custom__' : ''
+                        }
+                        onChange={(e) => {
+                          if (e.target.value !== '__custom__') {
+                            updateData({ category: e.target.value });
+                          }
+                        }}
+                        className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-3 text-sm text-white focus:border-[#00E5FF] outline-none"
+                      >
+                        <option value="">Select a category...</option>
+                        <option value="Snorkeling">Snorkeling & Reefs</option>
+                        <option value="Diving">Scuba Diving</option>
+                        <option value="Boat Trip">Boat Trips & Yacht Charters</option>
+                        <option value="Desert Safari">Desert Safari & Quad Biking</option>
+                        <option value="Cultural & Historical">Cultural & Historical</option>
+                        <option value="Historical">Historical</option>
+                        <option value="City Tour">City Tours & Sightseeing</option>
+                        <option value="Spa & Wellness">Spa & Wellness</option>
+                        <option value="Entertainment">Entertainment & Shows</option>
+                        <option value="Adventure">Adventure & Water Sports</option>
+                        <option value="Sea">Sea Excursions</option>
+                        <option value="__custom__">Custom Category...</option>
+                      </select>
+                      <input
+                        type="text"
+                        value={data.category || ''}
+                        onChange={(e) => updateData({ category: e.target.value })}
+                        placeholder="Or type custom category (e.g. Fishing, Eco-Tour)"
+                        className="w-full rounded-xl border border-white/10 bg-[#070F1E] px-4 py-2 text-xs text-white placeholder-slate-500 focus:border-[#00E5FF] outline-none"
+                      />
+                    </div>
                   </div>
 
                   <div>
