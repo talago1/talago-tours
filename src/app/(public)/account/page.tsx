@@ -14,6 +14,8 @@ import dynamic from 'next/dynamic';
 
 const WriteReviewModal = dynamic(() => import('@/components/modals/WriteReviewModal'), { ssr: false });
 const CancellationModal = dynamic(() => import('@/components/modals/CancellationModal'), { ssr: false });
+import CountryCodeSelector from '@/components/checkout/CountryCodeSelector';
+import { normalizePhoneNumber } from '@/utils/sanitize';
 import { useContactSettings } from '@/hooks/useContactSettings';
 import {
   CalendarDays,
@@ -475,7 +477,7 @@ export default function AccountPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editName.trim(),
-          phone: editPhone.trim(),
+          phone: normalizePhoneNumber(editPhone.trim()),
         }),
       });
 
@@ -1795,12 +1797,9 @@ export default function AccountPage() {
 
                   <div>
                     <label className="block text-xs font-bold text-slate-300 mb-1.5">{dict.account.profile.phoneNumber}</label>
-                    <input
-                      type="tel"
+                    <CountryCodeSelector
                       value={editPhone}
-                      onChange={(e) => setEditPhone(e.target.value)}
-                      placeholder={dict.account.profile.phonePlaceholder}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-white focus:border-[#00E5FF] focus:outline-none"
+                      onChange={(val) => setEditPhone(val)}
                     />
                   </div>
 

@@ -474,11 +474,31 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
   const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
   const [conversations, setConversations] = useState<any[]>([]);
 
+  const handledDeepLinkRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (searchParams.get('filter') === 'messages') {
+    const filterParam = searchParams.get('filter');
+    if (filterParam === 'messages') {
       setFilterUnreadOnly(true);
+    } else if (filterParam === 'cancellations') {
+      setFilterCancellationsOnly(true);
     }
-  }, [searchParams]);
+
+    const refParam = searchParams.get('ref') || searchParams.get('chatRef') || searchParams.get('conversationId');
+    if (refParam && handledDeepLinkRef.current !== refParam) {
+      handledDeepLinkRef.current = refParam;
+      setChatBookingRef(refParam);
+
+      // If deep linking to a specific booking, filter or expand that booking
+      if (!refParam.startsWith('lead:')) {
+        setSearchQuery(refParam);
+        const match = bookings.find((b) => b.bookingReference.toLowerCase() === refParam.toLowerCase());
+        if (match) {
+          setExpandedId(match.id);
+        }
+      }
+    }
+  }, [searchParams, bookings]);
 
   const fetchConversations = useCallback(async () => {
     try {

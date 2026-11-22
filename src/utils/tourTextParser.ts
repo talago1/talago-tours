@@ -279,7 +279,7 @@ export function parseTourText(rawText: string): TourTextParseResult {
   if (badges.includes('recommend')) resultData.isRecommended = true;
   if (badges.includes('vip')) resultData.isVip = true;
   if (badges.includes('family')) resultData.isFamilyFriendly = true;
-  if (badges.includes('new')) resultData.isNew = true;
+  if (/\bnew\b/i.test(badgesRaw) || /\bnew arrival\b/i.test(badgesRaw)) resultData.isNew = true;
 
   // ─── 2. DESTINATION & LOCATION ─────────────────────────────────────────────
   const sec2 = ex.getSectionBlock('2') || ex.getSectionBlock('DESTINATION');

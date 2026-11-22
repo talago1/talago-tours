@@ -65,7 +65,7 @@ async function main() {
   console.log({ convCount, msgCount });
 
   const unreadVisitorMsgs = await prisma.liveChatMessage.count({
-    where: { senderType: 'VISITOR', isRead: false },
+    where: { sender: 'VISITOR', isRead: false },
   });
   console.log({ unreadVisitorMsgs });
 
@@ -93,6 +93,8 @@ async function main() {
       category: true,
       destinationId: true,
       destination: { select: { name: true, slug: true } },
+      isNew: true,
+      customBadge: true,
       bookingQuestions: true,
       hotelPickupIncluded: true,
       pickupType: true,

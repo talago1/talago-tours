@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { normalizePhoneNumber } from '@/utils/sanitize';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -233,8 +234,8 @@ function buildMessage(data: BookingNotificationData): string {
 // ---------------------------------------------------------------------------
 
 function sanitizePhoneForWhatsApp(phone: string): string {
-  const cleaned = phone.replace(/[\s\-()]/g, '');
-  return cleaned.startsWith('+') ? cleaned.substring(1) : cleaned;
+  const normalized = normalizePhoneNumber(phone);
+  return normalized.replace(/\D/g, '');
 }
 
 // ---------------------------------------------------------------------------

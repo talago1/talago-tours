@@ -433,7 +433,7 @@ export default function CheckoutPage() {
             const u = data.user;
             const verifiedName = (u.name && u.name !== 'User' && !u.name.startsWith('Traveler #'))
               ? u.name
-              : (u.telegramUsername ? `@${u.telegramUsername}` : null);
+              : (u.telegramUsername ? `@${u.telegramUsername}` : (u.email && !u.email.endsWith('@noreply.talago.com') ? u.email.split('@')[0] : null));
             const verifiedPhone = u.phone || u.telegramPhone || null;
             const verifiedEmail = (u.email && !u.email.endsWith('@noreply.talago.com')) ? u.email : null;
 

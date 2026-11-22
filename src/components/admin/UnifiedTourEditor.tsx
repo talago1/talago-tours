@@ -768,6 +768,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
         isVip: data.isVip,
         isFamilyFriendly: data.isFamilyFriendly,
         isNew: data.isNew,
+        replacedByTourId: data.replacedByTourId || undefined,
         customBadge: data.customBadge || undefined,
         secondaryCategories: data.secondaryCategories,
         tags: data.tags,

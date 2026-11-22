@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
       metaDescription,
       keywords,
       pickupAreas,
+      replacedByTourId,
     } = body;
 
     const isDraft = status === 'DRAFT';
@@ -473,6 +474,7 @@ export async function POST(request: NextRequest) {
         metaTitle: metaTitle || null,
         metaDescription: metaDescription || null,
         keywords: Array.isArray(keywords) ? keywords : [],
+        replacedByTourId: replacedByTourId || null,
       },
       select: {
         id: true,

@@ -64,7 +64,7 @@ export default function AdminNotificationCenter() {
         const unreadCount = conv._count?.messages || 0;
         if (unreadCount > 0 && conv.messages && conv.messages[0]) {
           const lastMsg = conv.messages[0];
-          const targetRef = conv.bookingReference || conv.leadId || conv.visitorToken.replace(/^(booking|lead):/, '');
+          const targetRef = conv.bookingReference || (conv.leadId ? `lead:${conv.leadId}` : null) || conv.visitorToken;
           notifs.push({
             id: `chat-${conv.id}`,
             type: 'unread_message',

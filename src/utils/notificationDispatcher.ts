@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { parseSettingValue, DEFAULT_SETTINGS } from '@/lib/systemSettings';
 import { generateReviewToken } from '@/utils/reviewToken';
 import { sendEmail } from '@/lib/email';
+import { normalizePhoneNumber } from '@/utils/sanitize';
 
 async function getNotificationSettings() {
   try {
@@ -48,8 +49,8 @@ function getBaseUrl(): string {
 }
 
 function sanitizePhoneForWhatsApp(phone: string): string {
-  const cleaned = phone.replace(/[\s\-()]/g, '');
-  return cleaned.startsWith('+') ? cleaned.substring(1) : cleaned;
+  const normalized = normalizePhoneNumber(phone);
+  return normalized.replace(/\D/g, '');
 }
 
 // ---------------------------------------------------------------------------

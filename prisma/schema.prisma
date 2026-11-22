@@ -268,6 +268,11 @@ model Tour {
   zone       Zone?      @relation(fields: [zoneId], references: [id], onDelete: SetNull)
   destination Destination? @relation(fields: [destinationId], references: [id])
 
+  // Tour Lineage & Predecessors (for retired tour replacement)
+  replacedByTourId String?
+  replacedBy       Tour?   @relation("TourLineage", fields: [replacedByTourId], references: [id], onDelete: SetNull)
+  predecessors     Tour[]  @relation("TourLineage")
+
   bookings        Booking[]
   mediaAssets     MediaAsset[]
   reviews         Json?

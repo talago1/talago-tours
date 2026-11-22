@@ -392,18 +392,7 @@ export async function GET(request: NextRequest) {
       const returnTo = ${JSON.stringify(returnTo)};
       const supabaseUrl = ${JSON.stringify(supabaseUrl)};
 
-      // 1. First-party same-origin session synchronization (guarantees server cookies & booking adoption)
-      try {
-        await fetch('/api/auth/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken })
-        });
-      } catch (e) {
-        console.warn('Session sync warning:', e);
-      }
-
-      // 2. Populate Supabase client localStorage for instant client-side SDK auth
+      // 1. Populate Supabase client localStorage for instant client-side SDK auth
       try {
         if (supabaseUrl) {
           const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
@@ -433,7 +422,17 @@ export async function GET(request: NextRequest) {
         }
       } catch (e) {}
 
-      // 3. Clean instant navigation to destination
+      // 2. Non-blocking background sync for server session adoption (cookies already set on this HTTP response)
+      try {
+        fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
+          keepalive: true,
+        }).catch(() => {});
+      } catch (e) {}
+
+      // 3. Instant seamless transition to destination
       window.location.replace(returnTo);
     })();
   </script>

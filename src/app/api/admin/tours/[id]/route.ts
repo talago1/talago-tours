@@ -128,6 +128,7 @@ export async function PUT(
       cutoffHours,
       durationDisplay,
       routeStops,
+      replacedByTourId,
       activityTypes,
       hasGuide,
       guideLanguages,
@@ -363,6 +364,7 @@ export async function PUT(
     if (isVip !== undefined) updateData.isVip = Boolean(isVip);
     if (isFamilyFriendly !== undefined) updateData.isFamilyFriendly = Boolean(isFamilyFriendly);
     if (isNew !== undefined) updateData.isNew = Boolean(isNew);
+    if (replacedByTourId !== undefined) updateData.replacedByTourId = replacedByTourId || null;
     if (customBadge !== undefined) updateData.customBadge = customBadge || null;
     if (secondaryCategories !== undefined) updateData.secondaryCategories = Array.isArray(secondaryCategories) ? secondaryCategories : [];
     if (tags !== undefined) updateData.tags = Array.isArray(tags) ? tags : [];

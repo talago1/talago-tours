@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Search, Check } from 'lucide-react';
+import { normalizePhoneNumber } from '@/utils/sanitize';
 
 export interface CountryCode {
   name: string;
@@ -63,20 +64,35 @@ export default function CountryCodeSelector({
   error,
   onBlur,
 }: CountryCodeSelectorProps) {
-  const [selectedCountry, setSelectedCountry] = useState<CountryCode>(COUNTRIES[0]); // default Germany
+  const [selectedCountry, setSelectedCountry] = useState<CountryCode>(COUNTRIES[3]); // default Egypt (+20)
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [localInput, setLocalInput] = useState('');
+  const isTypingRef = useRef(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Parse incoming value to detect country dial code if present
+  // Parse incoming value to detect country dial code and extract local digits
   useEffect(() => {
-    if (!value) return;
+    if (!value) {
+      if (!isTypingRef.current) setLocalInput('');
+      return;
+    }
     const clean = value.trim();
     if (clean.startsWith('+')) {
       const match = COUNTRIES.slice().sort((a, b) => b.dial.length - a.dial.length).find((c) => clean.startsWith(c.dial));
       if (match) {
         setSelectedCountry((prev) => (prev.code === match.code ? prev : match));
+        if (!isTypingRef.current) {
+          const rest = clean.slice(match.dial.length).trim();
+          // Strip redundant trunk 0 from old stored values (e.g. +20010... -> 10...)
+          const stripped = (rest.startsWith('0') && rest.length > 2) ? rest.replace(/^0+/, '') : rest;
+          setLocalInput(stripped);
+        }
+        return;
       }
+    }
+    if (!isTypingRef.current) {
+      setLocalInput(clean);
     }
   }, [value]);
 
@@ -102,47 +118,93 @@ export default function CountryCodeSelector({
     );
   }, [search]);
 
-  // Extract the local part without the selected dial code
-  const localNumber = useMemo(() => {
-    if (!value) return '';
-    if (value.startsWith(selectedCountry.dial)) {
-      return value.slice(selectedCountry.dial.length).trim();
-    }
-    if (value.startsWith('+')) {
-      // Different country code typed
-      return value.replace(/^\+\d+/, '').trim();
-    }
-    return value.replace(/^\+/, '').trim();
-  }, [value, selectedCountry]);
-
   const handleCountrySelect = (country: CountryCode) => {
     setSelectedCountry(country);
     setIsOpen(false);
     setSearch('');
-    // Reconstruct full number
-    const cleanLocal = localNumber.replace(/^0+/, ''); // strip leading 0 if switching code
-    onChange(`${country.dial}${cleanLocal}`);
+    isTypingRef.current = false;
+    const cleanDigits = localInput.replace(/\D/g, '').replace(/^0+/, '');
+    if (cleanDigits) {
+      const canonical = normalizePhoneNumber(`${country.dial}${cleanDigits}`, country.dial);
+      onChange(canonical);
+    } else {
+      onChange(country.dial);
+    }
   };
 
   const handleLocalNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let input = e.target.value.trim();
-    // If the customer pastes an international number starting with +
-    if (input.startsWith('+')) {
-      const match = COUNTRIES.slice().sort((a, b) => b.dial.length - a.dial.length).find((c) => input.startsWith(c.dial));
+    isTypingRef.current = true;
+    const input = e.target.value;
+
+    // If the customer pastes an international number starting with + or 00
+    if (input.trim().startsWith('+') || input.trim().startsWith('00')) {
+      const normalized = normalizePhoneNumber(input.trim());
+      const match = COUNTRIES.slice().sort((a, b) => b.dial.length - a.dial.length).find((c) => normalized.startsWith(c.dial));
       if (match) {
         setSelectedCountry(match);
-        onChange(input);
+        const national = normalized.slice(match.dial.length);
+        setLocalInput(national);
+        onChange(normalized);
+        isTypingRef.current = false;
         return;
       }
-      onChange(input);
+      onChange(normalized);
+      isTypingRef.current = false;
       return;
     }
 
-    // Normal typing: remove any leading zero and non-digits
-    const digitsOnly = input.replace(/\D/g, '');
-    const cleanDigits = digitsOnly.replace(/^0+/, '');
-    onChange(`${selectedCountry.dial}${cleanDigits}`);
+    // Normal typing: keep what the user types in local display (digits and spaces allowed)
+    // Only strip non-digits except space
+    const sanitizedInput = input.replace(/[^\d\s]/g, '');
+    setLocalInput(sanitizedInput);
+
+    const digitsOnly = sanitizedInput.replace(/\D/g, '');
+    if (!digitsOnly) {
+      onChange('');
+      return;
+    }
+
+    // If user typed '0' as first character, keep displaying '0', but compute canonical E.164
+    if (digitsOnly === '0') {
+      onChange(selectedCountry.dial);
+      return;
+    }
+
+    // If user types national format e.g. 01012345678, strip the trunk zero for E.164 canonical
+    const nationalDigits = digitsOnly.startsWith('0') ? digitsOnly.slice(1) : digitsOnly;
+    const fullNumber = `${selectedCountry.dial}${nationalDigits}`;
+    const canonical = normalizePhoneNumber(fullNumber, selectedCountry.dial);
+    onChange(canonical);
   };
+
+  const handleInputBlur = () => {
+    isTypingRef.current = false;
+    // On blur, normalize the local display by stripping trunk 0 if present
+    const digitsOnly = localInput.replace(/\D/g, '');
+    if (digitsOnly.startsWith('0') && digitsOnly.length > 2) {
+      setLocalInput(digitsOnly.slice(1));
+    }
+    if (onBlur) onBlur();
+  };
+
+  const placeholderText = useMemo(() => {
+    switch (selectedCountry.code) {
+      case 'EG':
+        return '010 1234 5678';
+      case 'DE':
+        return '171 2345678';
+      case 'GB':
+        return '7123 456789';
+      case 'US':
+      case 'CA':
+        return '555 123 4567';
+      case 'SA':
+      case 'AE':
+        return '50 123 4567';
+      default:
+        return '123 456 7890';
+    }
+  }, [selectedCountry.code]);
 
   return (
     <div className="space-y-1">
@@ -215,11 +277,11 @@ export default function CountryCodeSelector({
         <input
           id="phone"
           type="tel"
-          value={localNumber}
+          value={localInput}
           onChange={handleLocalNumberChange}
-          onBlur={onBlur}
-          placeholder="171 2345678"
-          className="w-full rounded-r-2xl bg-transparent px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600"
+          onBlur={handleInputBlur}
+          placeholder={placeholderText}
+          className="w-full rounded-r-2xl bg-transparent px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 font-medium"
         />
       </div>
 

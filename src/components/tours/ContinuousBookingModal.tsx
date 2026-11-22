@@ -194,8 +194,10 @@ export default function ContinuousBookingModal({
         else setInfantsCount(initialInfants);
         if (draft.selectedAddons) setSelectedAddons(draft.selectedAddons);
         else setSelectedAddons(initialAddons || {});
-        // draft contact fields (leadName/phone/email) are applied below,
-        // only if the user is not authenticated (auth overrides in async IIFE)
+        // Apply draft contact fields; authenticated user details below will override if logged in
+        if (draft.leadName) setLeadName(draft.leadName);
+        if (draft.phone) setPhone(draft.phone);
+        if (draft.email) setEmail(draft.email);
         if (draft.pickupType && ['HOTEL', 'MEETING_POINT', 'AIRPORT'].includes(draft.pickupType)) setPickupType(draft.pickupType as any);
         if (draft.hotelName) setHotelName(draft.hotelName);
         if (draft.roomNumber) setRoomNumber(draft.roomNumber);
@@ -1447,14 +1449,43 @@ export default function ContinuousBookingModal({
 
                 {/* Fallback to full checkout route */}
                 <div className="text-center pt-1">
-                  <a
-                    href={`/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}${
-                      departureDate ? `&date=${encodeURIComponent(departureDate)}` : ''
-                    }`}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        saveBookingDraft(tour.id, {
+                          departureDate,
+                          selectedTime,
+                          adultsCount,
+                          childrenCount,
+                          infantsCount,
+                          selectedAddons,
+                          leadName,
+                          phone,
+                          email,
+                          pickupType,
+                          hotelName,
+                          roomNumber,
+                          specialRequirements,
+                          selectedZoneId,
+                        });
+                      } catch {}
+
+                      const activeAddons = Object.keys(selectedAddons).filter((k) => selectedAddons[k]).join(',');
+                      const query = new URLSearchParams({
+                        adults: String(adultsCount),
+                        children: String(childrenCount),
+                        infants: String(infantsCount),
+                        ...(departureDate ? { date: departureDate } : {}),
+                        ...(selectedTime ? { time: selectedTime } : {}),
+                        ...(activeAddons ? { addons: activeAddons } : {}),
+                      });
+                      window.location.href = `/checkout/${tour.id}?${query.toString()}`;
+                    }}
                     className="text-[11px] text-slate-500 hover:text-[#00E5FF] transition underline decoration-dotted"
                   >
                     Prefer full checkout page? Click here
-                  </a>
+                  </button>
                 </div>
               </div>
             </div>

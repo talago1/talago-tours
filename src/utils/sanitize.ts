@@ -65,14 +65,57 @@ export function sanitizeEmail(val: unknown): string {
 }
 
 /**
+ * Normalizes an international phone number to canonical E.164 format.
+ * Strips duplicate trunk zeroes between country dial code and national subscriber number
+ * (e.g. +20010... -> +2010..., +4407... -> +447..., +4901... -> +491...).
+ */
+export function normalizePhoneNumber(raw: unknown, defaultDial = '+20'): string {
+  if (!raw) return '';
+  let str = String(raw).trim();
+  if (!str) return '';
+
+  const hasPlus = str.startsWith('+');
+  let digits = str.replace(/\D/g, '');
+  if (!digits) return '';
+
+  if (str.startsWith('00')) {
+    digits = digits.replace(/^00/, '');
+    str = '+' + digits;
+  } else if (hasPlus) {
+    str = '+' + digits;
+  } else {
+    // Check if it already starts with an international dial code without plus (e.g. 2010... or 4917...)
+    if (digits.startsWith('20') && digits.length >= 11) {
+      str = '+' + digits;
+    } else if (digits.startsWith('0')) {
+      const national = digits.replace(/^0+/, '');
+      const cleanDial = defaultDial.startsWith('+') ? defaultDial : `+${defaultDial}`;
+      str = `${cleanDial}${national}`;
+    } else {
+      const cleanDial = defaultDial.startsWith('+') ? defaultDial : `+${defaultDial}`;
+      str = `${cleanDial}${digits}`;
+    }
+  }
+
+  // Strip redundant national trunk 0 immediately following country dial codes:
+  // Egypt (+20): +20 01[0125]xxxxxxxx -> +20 1[0125]xxxxxxxx
+  if (/^\+200(1[0125]\d{8})$/.test(str)) {
+    str = str.replace(/^\+200/, '+20');
+  } else if (/^\+(\d{1,4})0([1-9]\d{5,14})$/.test(str)) {
+    // General international numbers where a national trunk 0 was erroneously included
+    str = str.replace(/^\+(\d{1,4})0([1-9]\d{5,14})$/, '+$1$2');
+  }
+
+  return str.slice(0, 25);
+}
+
+/**
  * Normalizes phone numbers allowing leading +, numbers, spaces, and hyphens.
+ * Canonicalizes to E.164 without duplicate trunk zero.
  */
 export function sanitizePhone(val: unknown): string {
   if (!val) return '';
-  const str = String(val).trim();
-  const hasPlus = str.startsWith('+');
-  const digitsOnly = str.replace(/[^\d]/g, '');
-  return `${hasPlus ? '+' : ''}${digitsOnly}`.slice(0, 25);
+  return normalizePhoneNumber(val);
 }
 
 /**

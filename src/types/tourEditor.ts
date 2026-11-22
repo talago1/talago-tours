@@ -305,6 +305,7 @@ export interface TourEditorData {
   slug: string;
   type: 'SHARED' | 'PRIVATE';
   status: 'DRAFT' | 'ACTIVE' | 'HIDDEN' | 'ARCHIVED' | 'COMING_SOON';
+  replacedByTourId?: string | null;
   category: string;
   secondaryCategories: string[];
   tags: string[];
@@ -447,6 +448,7 @@ export function createDefaultTourEditorData(): TourEditorData {
     slug: '',
     type: 'SHARED',
     status: 'DRAFT',
+    replacedByTourId: null,
     category: 'sea',
     secondaryCategories: [],
     tags: [],
