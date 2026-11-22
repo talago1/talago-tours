@@ -8,10 +8,9 @@ test.describe('Critical Architecture & Journeys: Auth, Booking, Notifications & 
 
     // It should cleanly land on /auth?returnTo=/account with sign-in controls visible
     await page.waitForURL((url) => url.pathname === '/auth', { timeout: 10_000 });
-    const emailTab = page.getByRole('button', { name: 'Email', exact: true });
-    await expect(emailTab).toBeVisible();
-    await emailTab.click();
     await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Continue with Telegram' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
 
     // Verify session API responds with JSON and authenticated: false for guest without crashing
     const sessionRes = await page.request.get('/api/auth/session');

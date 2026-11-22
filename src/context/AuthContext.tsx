@@ -1,11 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { supabaseClient } from '@/lib/supabase/client';
 
 export interface AuthUser {
   id: string;
-  email: string;
+  email?: string | null;
   name: string;
   phone?: string | null;
   telegramId?: string | null;
@@ -13,8 +12,6 @@ export interface AuthUser {
   telegramPhone?: string | null;
   telegramPhotoUrl?: string | null;
   role?: string;
-  isShadow?: boolean;
-  profileLoaded?: boolean;
 }
 
 interface AuthContextType {
@@ -38,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const initialLoadDone = useRef(false);
 
-  // Broadcast auth state changes to other tabs / windows
+  // Broadcast authentication changes to other open tabs
   const broadcastAuthChange = useCallback((action: 'SIGN_IN' | 'SIGN_OUT') => {
     try {
       if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -49,70 +46,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
-  // Authoritative session fetcher
+  // Authoritative server-side session check
   const refreshAuth = useCallback(async (): Promise<AuthUser | null> => {
     try {
-      // 0. Check for one-time auth handoff ticket in URL query
-      let ticketParam: string | null = null;
-      if (typeof window !== 'undefined') {
-        const urlParams = new URLSearchParams(window.location.search);
-        ticketParam = urlParams.get('auth_ticket');
-        if (ticketParam) {
-          // Clean URL immediately without page reload so ticket is never exposed
-          const cleanUrl = new URL(window.location.href);
-          cleanUrl.searchParams.delete('auth_ticket');
-          window.history.replaceState({}, '', cleanUrl.toString());
-        }
-      }
-
-      if (ticketParam) {
-        const ticketRes = await fetch('/api/auth/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ticket: ticketParam }),
-          credentials: 'same-origin',
-        });
-        if (ticketRes.ok) {
-          const ticketData = await ticketRes.json();
-          if (ticketData?.authenticated && ticketData.user) {
-            const authUser = ticketData.user as AuthUser;
-            setUser(authUser);
-            setIsAuthenticated(true);
-            setSessionToken(ticketData.accessToken || null);
-
-            if (ticketData.accessToken && ticketData.refreshToken) {
-              supabaseClient.auth.setSession({
-                access_token: ticketData.accessToken,
-                refresh_token: ticketData.refreshToken,
-              }).catch(() => {});
-            }
-
-            try {
-              const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
-              document.cookie = `talago_session=${encodeURIComponent(ticketData.accessToken)}; Path=/; Max-Age=604800; SameSite=Lax${secureFlag}`;
-            } catch {}
-
-            setIsLoading(false);
-            broadcastAuthChange('SIGN_IN');
-            return authUser;
-          }
-        }
-      }
-
-      // 1. Check client-side Supabase token
-      let clientBearer: string | null = null;
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session?.access_token) {
-          clientBearer = session.access_token;
-        }
-      } catch {}
-
-      const headers: Record<string, string> = {};
-      if (clientBearer) headers['Authorization'] = `Bearer ${clientBearer}`;
-
       const res = await fetch('/api/auth/session', {
-        headers,
+        method: 'GET',
         credentials: 'same-origin',
         cache: 'no-store',
       });
@@ -123,44 +61,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const authUser = data.user as AuthUser;
           setUser(authUser);
           setIsAuthenticated(true);
-          const tok = data.accessToken || clientBearer;
-          setSessionToken(tok || null);
-
-          // Keep client Supabase storage hydrated if server provided fresh tokens
-          if (data.accessToken && data.refreshToken) {
-            supabaseClient.auth.setSession({
-              access_token: data.accessToken,
-              refresh_token: data.refreshToken,
-            }).catch(() => {});
-          }
-
+          setSessionToken('active');
           setIsLoading(false);
           return authUser;
-        } else if (clientBearer) {
-          // If server confirmed unauthenticated but client still held stale bearer, evict it
-          supabaseClient.auth.signOut().catch(() => {});
         }
       }
     } catch (e) {
-      console.warn('[AuthContext] session check exception:', e);
+      console.warn('[AuthContext] session check warning:', e);
     }
 
-    // Definitively unauthenticated
     setUser(null);
     setSessionToken(null);
     setIsAuthenticated(false);
     setIsLoading(false);
     return null;
-  }, [broadcastAuthChange]);
+  }, []);
 
-  // Sign out cleanly everywhere
+  // Universal sign out
   const signOut = useCallback(async () => {
     setIsLoading(true);
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
-    try {
-      await supabaseClient.auth.signOut();
     } catch {}
 
     setUser(null);
@@ -178,27 +99,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser((prev) => (prev ? { ...prev, ...partial } : prev));
   }, []);
 
-  // Initial mount: run single authoritative session resolution
+  // Initial load & listeners
   useEffect(() => {
     if (!initialLoadDone.current) {
       initialLoadDone.current = true;
       refreshAuth();
     }
 
-    // Listen to Supabase client auth state changes
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (session?.access_token) {
-          setSessionToken(session.access_token);
-        }
-        refreshAuth();
-      } else if (event === 'SIGNED_OUT') {
-        // Confirm with server before clearing in case of client-only timeout
+    // Refresh when tab gains focus (e.g. after returning from Telegram or Google)
+    const handleFocus = () => {
+      refreshAuth();
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
         refreshAuth();
       }
     });
 
-    // Listen to multi-tab sync
+    // Cross-tab sync
     let bc: BroadcastChannel | null = null;
     try {
       if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -210,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
 
     return () => {
-      subscription.unsubscribe();
+      window.removeEventListener('focus', handleFocus);
       if (bc) bc.close();
     };
   }, [refreshAuth]);

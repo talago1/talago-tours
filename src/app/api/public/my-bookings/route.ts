@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionFromRequest } from '@/server/auth';
 import { applySessionCookies, resolveRequestUser } from '@/server/customerSession';
 import {
   adoptOwnedBookings,
@@ -16,47 +17,64 @@ const NO_STORE = { 'cache-control': 'no-store, private' };
 /**
  * GET /api/public/my-bookings
  * Returns all bookings and reservations for the authenticated customer.
- * Reads the Authorization Bearer token (Supabase access token) from header or talago_session cookie.
+ * Reads the HTTP-only talago_session cookie or Authorization header.
  */
 export async function GET(request: NextRequest) {
   try {
-    const auth = await resolveRequestUser(request);
-    const user = auth?.user;
-    if (!user?.email) {
-      return NextResponse.json({ authenticated: false, bookings: [], reservations: [] }, { status: 200, headers: NO_STORE });
+    const session = await getSessionFromRequest(request);
+    let profile = null;
+
+    if (session?.id) {
+      profile = await prisma.customerProfile.findUnique({
+        where: { id: session.id },
+      });
+    }
+    if (!profile && session?.telegramId) {
+      profile = await prisma.customerProfile.findUnique({
+        where: { telegramId: session.telegramId },
+      });
+    }
+    if (!profile && session?.email) {
+      profile = await prisma.customerProfile.findUnique({
+        where: { email: session.email },
+      });
     }
 
-    const { profile, telegramMatch, guestMatch } = await resolveCustomerProfileForUser(user);
+    // Fallback to legacy user resolver if session not found
+    let user: any = null;
+    let guestMatch: RegExpMatchArray | null = null;
+    if (!profile) {
+      const auth = await resolveRequestUser(request);
+      user = auth?.user;
+      if (user?.email) {
+        const resolved = await resolveCustomerProfileForUser(user);
+        profile = resolved.profile;
+        guestMatch = resolved.guestMatch;
+      }
+    }
+
     if (!profile) {
       return NextResponse.json({ authenticated: false, bookings: [], reservations: [] }, { status: 200, headers: NO_STORE });
     }
 
-    const isTelegram = Boolean(telegramMatch || profile.telegramId);
-    const isGuestSynthetic = Boolean(guestMatch);
-
-    let displayName = profile?.name;
+    let displayName = profile.name;
     if (!displayName || displayName.startsWith('Traveler #')) {
-      if (profile?.telegramUsername) {
+      if (profile.telegramUsername) {
         displayName = `@${profile.telegramUsername}`;
-      } else if (user.user_metadata?.name || user.user_metadata?.full_name) {
-        displayName = user.user_metadata?.name || user.user_metadata?.full_name;
-      } else if (isGuestSynthetic) {
-        displayName = `+${guestMatch![1]}`;
-      } else {
-        displayName = user.email.split('@')[0];
+      } else if (profile.email) {
+        displayName = profile.email.split('@')[0];
       }
     }
 
-    const metaPhone = typeof user.user_metadata?.phone === 'string' ? user.user_metadata.phone : null;
-    const metaEmail = typeof user.user_metadata?.email === 'string' ? user.user_metadata.email : null;
     const phones = [
       profile.phone,
       profile.telegramPhone,
-      user.phone,
-      metaPhone,
+      session?.phone,
+      session?.telegramPhone,
       guestMatch ? guestMatch[1] : null,
-    ];
-    const emails = [user.email, profile.email, metaEmail];
+    ].filter(Boolean);
+
+    const emails = [profile.email, session?.email].filter(Boolean) as string[];
 
     await adoptOwnedBookings({ profileId: profile.id, emails, phones }).catch((error) => {
       console.warn('[my-bookings] booking adoption warning:', error);
@@ -231,7 +249,20 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const userPayload = formatUserProfile(user, profile, telegramMatch);
+    const effectiveUser = user || ({
+      id: profile.id,
+      email: profile.email,
+      phone: profile.phone || profile.telegramPhone || null,
+      user_metadata: {
+        name: profile.name,
+        full_name: profile.name,
+        preferred_username: profile.telegramUsername,
+        picture: profile.telegramPhotoUrl,
+        telegram_id: profile.telegramId,
+      },
+    } as any);
+
+    const userPayload = formatUserProfile(effectiveUser, profile, profile.telegramId ? { id: profile.telegramId } as any : null);
 
     const response = NextResponse.json(
       {
@@ -242,9 +273,6 @@ export async function GET(request: NextRequest) {
       },
       { headers: NO_STORE }
     );
-    if (auth?.persist && auth.accessToken) {
-      applySessionCookies(response, auth.accessToken, auth.refreshToken);
-    }
     return response;
   } catch (err) {
     console.error('[my-bookings-route] Error:', err);

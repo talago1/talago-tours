@@ -1,22 +1,23 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Loader2,
   Mail,
-  ShieldAlert,
-  MessageCircle,
-  SendHorizontal,
+  Lock,
+  User,
+  Phone,
+  ArrowRight,
+  ShieldCheck,
   CheckCircle2,
-  ExternalLink,
-  RefreshCw,
-  Info,
+  AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 import { supabaseClient } from '@/lib/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
-import { useContactSettings } from '@/hooks/useContactSettings';
+import { useAuth } from '@/context/AuthContext';
 
 function safeReturnTarget(raw: string | null | undefined): string {
   if (!raw) return '/account';
@@ -69,183 +70,66 @@ function TelegramIcon({ className = 'h-4 w-4' }: { className?: string }) {
 
 function AuthPageContent() {
   const { dict } = useLanguage();
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const { getWhatsAppUrl } = useContactSettings();
+  const { isAuthenticated, refreshAuth } = useAuth();
 
-  const [authMethod, setAuthMethod] = useState<'GOOGLE' | 'TELEGRAM' | 'EMAIL'>('GOOGLE');
-  // If ?mode=register is present, jump straight to email register
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
-
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [mode, setMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Telegram OIDC state
-  const [telegramConfig, setTelegramConfig] = useState<{
-    configured: boolean;
-    botUsername: string | null;
-    oidcConfigured?: boolean;
-  } | null>(null);
-
-  // Email states
+  // Form states
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [isPasswordMode, setIsPasswordMode] = useState(false);
 
-  // Check URL errors on mount + handle ?mode=register & ?method=telegram
+  const targetReturn = safeReturnTarget(searchParams.get('returnTo'));
+
+  // Initialize mode from query param
   useEffect(() => {
-    const errorParam = searchParams.get('error');
-    if (errorParam) {
-      const decoded = decodeURIComponent(errorParam);
-      setMessage({ type: 'error', text: decoded });
-      if (decoded.toLowerCase().includes('telegram')) {
-        setAuthMethod('TELEGRAM');
-      }
-    }
     if (searchParams.get('mode') === 'register') {
-      setAuthMethod('EMAIL');
-      setIsRegisterMode(true);
+      setMode('REGISTER');
     }
-    if (searchParams.get('method') === 'telegram') {
-      setAuthMethod('TELEGRAM');
+    const err = searchParams.get('error');
+    if (err) {
+      setMessage({ type: 'error', text: decodeURIComponent(err) });
     }
   }, [searchParams]);
 
-  // If already authenticated, redirect to /account (or returnTo) immediately
+  // If already authenticated, redirect immediately
   useEffect(() => {
-    let active = true;
-
-    async function checkExistingAuth() {
-      const targetReturn = safeReturnTarget(searchParams.get('returnTo'));
-
-      try {
-        const res = await fetch('/api/auth/session', { cache: 'no-store', credentials: 'same-origin' });
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.authenticated && active) {
-            window.location.replace(targetReturn);
-            return;
-          }
-        }
-      } catch {}
-
-      if (active) {
-        setIsCheckingAuth(false);
-      }
+    if (isAuthenticated) {
+      window.location.replace(targetReturn);
     }
+  }, [isAuthenticated, targetReturn]);
 
-    const timer = setTimeout(() => {
-      if (active) {
-        setIsCheckingAuth(false);
-      }
-    }, 2500);
-
-    checkExistingAuth();
-
-    // Also listen for auth state change
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      if (session?.access_token && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-        const targetReturn = safeReturnTarget(searchParams.get('returnTo'));
-        try {
-          const syncRes = await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              access_token: session.access_token,
-              refresh_token: session.refresh_token,
-            }),
-          });
-          const syncData = await syncRes.json().catch(() => null);
-          if (syncData?.authenticated) {
-            window.location.replace(targetReturn);
-          } else {
-            // Stale or dead session rejected by server — evict from localStorage
-            await supabaseClient.auth.signOut().catch(() => {});
-          }
-        } catch {
-          await supabaseClient.auth.signOut().catch(() => {});
-        }
-      }
-    });
-
-    return () => {
-      active = false;
-      clearTimeout(timer);
-      subscription.unsubscribe();
-    };
-  }, [searchParams]);
-
-  // Load Telegram config with safe watchdog timeout
-  useEffect(() => {
-    let active = true;
-    fetch('/api/auth/telegram/config')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (active) {
-          if (data) {
-            setTelegramConfig(data);
-          } else {
-            setTelegramConfig({ configured: true, botUsername: 'talagoo_bot', oidcConfigured: true });
-          }
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setTelegramConfig({ configured: true, botUsername: 'talagoo_bot', oidcConfigured: true });
-        }
-      });
-
-    // Watchdog: never keep the user waiting on "Loading Telegram login…" past 1.5 seconds
-    const timer = setTimeout(() => {
-      if (active) {
-        setTelegramConfig((prev) => prev ?? { configured: true, botUsername: 'talagoo_bot', oidcConfigured: true });
-      }
-    }, 1500);
-
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, []);
-
-  // ---------------------------------------------------------------------------
-  // Telegram OIDC standard OAuth2/OIDC redirect flow
-  // ---------------------------------------------------------------------------
-  const handleTelegramOidc = useCallback(async () => {
+  // 1. One-Click Telegram Login
+  const handleTelegramLogin = useCallback(async () => {
     setLoading(true);
-    setMessage({ type: 'info', text: 'Connecting to Telegram…' });
-
+    setMessage(null);
     try {
-      const targetReturn = safeReturnTarget(searchParams.get('returnTo'));
       const res = await fetch(`/api/auth/telegram/authorize?returnTo=${encodeURIComponent(targetReturn)}`, {
         credentials: 'same-origin',
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Could not start Telegram login. Please try again.');
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || 'Telegram login unavailable. Please use email or Google.');
       }
-      const { url } = await res.json();
-
-      // Top-level browser navigation — standard OAuth/OIDC flow works seamlessly on all devices
-      window.location.href = url;
+      window.location.href = data.url;
     } catch (err: any) {
       setLoading(false);
-      setMessage({ type: 'error', text: err?.message || 'Telegram login failed. Please try again.' });
+      setMessage({ type: 'error', text: err?.message || 'Could not connect to Telegram.' });
     }
-  }, [searchParams]);
+  }, [targetReturn]);
 
-  // ---------------------------------------------------------------------------
-  // Google OAuth (Supabase)
-  // ---------------------------------------------------------------------------
-  async function handleGoogleSignIn() {
+  // 2. One-Click Google Login
+  const handleGoogleLogin = useCallback(async () => {
     setLoading(true);
     setMessage(null);
-
     try {
       const cleanOrigin = window.location.origin.replace(/^\uFEFF/, '').trim().replace(/\/+$/, '');
-      const targetReturn = searchParams.get('returnTo') || '/account';
       const redirectUri = `${cleanOrigin}/auth/callback?next=${encodeURIComponent(targetReturn)}`;
+
       const { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -255,388 +139,263 @@ function AuthPageContent() {
       });
 
       if (error) throw error;
-
       if (data?.url) {
-        try {
-          const preflight = await fetch(data.url, { method: 'GET', redirect: 'manual' });
-          if (preflight.status === 400) {
-            setLoading(false);
-            setMessage({
-              type: 'error',
-              text: 'Google Sign-In is awaiting provider activation in the Supabase Dashboard. In the meantime, please use Telegram or Email.',
-            });
-            return;
-          }
-        } catch {
-          // CORS blocked — continue
-        }
         window.location.href = data.url;
       }
     } catch (err: any) {
       setLoading(false);
       setMessage({
         type: 'error',
-        text:
-          err?.message?.includes('provider is not enabled') || err?.message?.includes('Unsupported provider')
-            ? 'Google Sign-In is awaiting provider activation in Supabase Auth. Please use Telegram or Email in the meantime.'
-            : err?.message || 'Could not initiate Google Sign-In.',
+        text: err?.message || 'Google sign-in is currently unavailable. Please use Telegram or Email.',
       });
     }
-  }
+  }, [targetReturn]);
 
-  // ---------------------------------------------------------------------------
-  // Email auth (magic link or password)
-  // ---------------------------------------------------------------------------
-  async function handleEmailAuth(event: React.FormEvent) {
-    event.preventDefault();
+  // 3. Email & Password Submission (Login or Register)
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+
     if (!email || !email.includes('@')) {
-      setMessage({ type: 'error', text: dict?.authPage?.invalidEmail || 'Please enter a valid email address.' });
+      setMessage({ type: 'error', text: 'Please enter a valid email address.' });
+      return;
+    }
+    if (!password || password.length < 6) {
+      setMessage({ type: 'error', text: 'Password must be at least 6 characters.' });
+      return;
+    }
+    if (mode === 'REGISTER' && !name.trim()) {
+      setMessage({ type: 'error', text: 'Please enter your full name.' });
       return;
     }
 
     setLoading(true);
-    setMessage(null);
 
     try {
-      if (isPasswordMode || isRegisterMode) {
-        if (isRegisterMode) {
-          // Direct registration flow
-          const { error: signUpError } = await supabaseClient.auth.signUp({ email, password });
-          if (signUpError) throw signUpError;
-          setMessage({ type: 'success', text: dict?.authPage?.registrationSuccess || 'Account created! Check your email to confirm.' });
-        } else {
-          // Sign-in with password; fall back to sign-up on "invalid credentials"
-          const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-          if (error) {
-            const { error: signUpError } = await supabaseClient.auth.signUp({ email, password });
-            if (signUpError) throw signUpError;
-            setMessage({ type: 'success', text: dict?.authPage?.registrationSuccess || 'Registration successful! Check your email to confirm.' });
-          } else if (data.session) {
-            const targetReturn = searchParams.get('returnTo') || '/account';
-            const syncRes = await fetch('/api/auth/session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                access_token: data.session.access_token,
-                refresh_token: data.session.refresh_token,
-              }),
-            }).catch(() => null);
+      const endpoint = mode === 'LOGIN' ? '/api/auth/login' : '/api/auth/register';
+      const body = mode === 'LOGIN' ? { email, password } : { email, password, name, phone };
 
-            if (!syncRes || !syncRes.ok) {
-              console.warn('[auth] session cookie sync warning, proceeding with client session');
-            }
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'same-origin',
+      });
 
-            setMessage({ type: 'success', text: dict?.authPage?.signedInSuccess || 'Signed in successfully! Redirecting...' });
-            window.location.replace(targetReturn);
-          }
-        }
-      } else {
-        const targetReturn = searchParams.get('returnTo') || '/account';
-        const res = await fetch('/api/auth/magic-link', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ email, redirectTo: targetReturn }),
-        });
+      const data = await res.json();
 
-        const resData = await res.json();
-        if (!res.ok) throw new Error(resData.error || 'Failed to send magic link.');
-
-        setMessage({ type: 'success', text: dict?.authPage?.magicLinkSent || 'Sign-in link sent! Please check your email inbox.' });
+      if (!res.ok) {
+        throw new Error(data.error || 'Authentication failed. Please check your credentials.');
       }
+
+      setMessage({ type: 'success', text: mode === 'LOGIN' ? 'Signed in! Redirecting…' : 'Account created! Redirecting…' });
+      await refreshAuth();
+      window.location.replace(targetReturn);
     } catch (err: any) {
-      setMessage({ type: 'error', text: err?.message || 'An unexpected error occurred.' });
-    } finally {
+      setMessage({ type: 'error', text: err?.message || 'An error occurred during authentication.' });
       setLoading(false);
     }
-  }
-
-  // Determine Telegram UI mode
-  const oidcReady = telegramConfig?.oidcConfigured === true;
-  const legacyReady = telegramConfig?.configured && telegramConfig?.botUsername && !oidcReady;
-
-  if (isCheckingAuth) {
-    return (
-      <main className="min-h-screen bg-[#070F1E] flex flex-col justify-center items-center px-4 py-12 text-[#F8FAFC]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,#0ea5e9/8,transparent_55%)] pointer-events-none" />
-        <div className="relative flex flex-col items-center justify-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
-            Checking session…
-          </span>
-        </div>
-      </main>
-    );
-  }
+  };
 
   return (
     <main className="min-h-screen bg-[#070F1E] flex flex-col justify-center items-center px-4 py-12 text-[#F8FAFC]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,#0ea5e9/8,transparent_55%)] pointer-events-none" />
 
-      <div className="relative w-full max-w-md rounded-[2.5rem] border border-white/10 bg-[#0B1528]/85 p-6 sm:p-10 shadow-2xl shadow-black/60 backdrop-blur-xl">
+      <div className="relative w-full max-w-md">
         {/* Brand Header */}
-        <div className="text-center mb-6">
-          <Link href="/" className="inline-flex items-center gap-3 mb-3 transition-all hover:scale-[1.02]">
-            <span className="text-2xl font-black uppercase tracking-[0.34em] text-white">TALAGO</span>
-            <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308] shadow-lg shadow-[#EAB308]/40" />
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-block group transition-transform active:scale-95">
+            <span className="text-3xl font-black tracking-tight text-white group-hover:text-[#00E5FF] transition-colors">
+              TALAGO<span className="text-[#FF5B00]">.</span>
+            </span>
           </Link>
-          <h1 className="text-2xl font-black text-white">
-            {isRegisterMode ? 'Create Your Account' : (dict?.authPage?.title || 'Sign In or Register')}
-          </h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-400">
-            {isRegisterMode
-              ? 'Join TALAGO — your next adventure starts here.'
-              : 'Access your bookings, boarding passes, and custom travel itinerary.'}
+          <p className="mt-2 text-xs font-bold uppercase tracking-widest text-[#00E5FF]">
+            Traveler Account & Bookings
           </p>
         </div>
 
-        {/* Authentication Mode Switcher */}
-        <div className="mb-6 grid grid-cols-3 gap-1.5 rounded-2xl bg-white/[0.04] p-1.5 border border-white/10 text-center">
-          <button
-            type="button"
-            onClick={() => { setAuthMethod('GOOGLE'); setMessage(null); }}
-            className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-2 text-xs font-bold transition-all ${
-              authMethod === 'GOOGLE'
-                ? 'bg-white/15 border border-white/30 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <GoogleIcon className="h-4 w-4 shrink-0" />
-            <span>Google</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setAuthMethod('TELEGRAM'); setMessage(null); }}
-            className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-2 text-xs font-bold transition-all ${
-              authMethod === 'TELEGRAM'
-                ? 'bg-sky-500/20 border border-sky-500/50 text-sky-300 shadow-md shadow-sky-500/10'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <TelegramIcon className="h-4 w-4 text-sky-400 shrink-0" />
-            <span>Telegram</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setAuthMethod('EMAIL'); setMessage(null); }}
-            className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-2 text-xs font-bold transition-all ${
-              authMethod === 'EMAIL'
-                ? 'bg-white/15 border border-white/30 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Mail className="h-4 w-4 text-slate-300 shrink-0" />
-            <span>Email</span>
-          </button>
-        </div>
-
-        {/* Global Feedback Banner */}
-        {message && (
-          <div
-            className={`mb-5 rounded-2xl border p-3.5 text-xs font-semibold flex gap-2.5 ${
-              message.type === 'success'
-                ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
-                : message.type === 'info'
-                ? 'border-sky-500/20 bg-sky-500/10 text-sky-300'
-                : 'border-red-500/20 bg-red-500/10 text-red-300'
-            }`}
-          >
-            {message.type === 'success' ? (
-              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-400" />
-            ) : message.type === 'info' ? (
-              <Info className="h-4 w-4 shrink-0 mt-0.5 text-sky-400" />
-            ) : (
-              <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
-            )}
-            <span>{message.text}</span>
-          </div>
-        )}
-
-        {/* ── TAB 1: TELEGRAM ── */}
-        {authMethod === 'TELEGRAM' && (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 p-4 text-center">
-              <div className="flex justify-center mb-2">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/20 text-sky-400">
-                  <TelegramIcon className="h-5 w-5" />
-                </span>
-              </div>
-              <h2 className="text-sm font-bold text-white">Instant Sign In with Telegram</h2>
-              <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-                Log in seamlessly using your verified Telegram account. No SMS, no password, and no mandatory email required.
-              </p>
-            </div>
-
-            {/* OIDC Button (preferred) */}
-            {telegramConfig === null ? (
-              <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-400">
-                <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
-                <span>Loading Telegram login…</span>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <button
-                  type="button"
-                  onClick={handleTelegramOidc}
-                  disabled={loading}
-                  className="w-full inline-flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[#229ED9] to-[#0088cc] py-4 text-sm font-black text-white shadow-xl shadow-sky-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
-                >
-                  {loading ? (
-                    <Loader2 className="h-5 w-5 animate-spin text-white" />
-                  ) : (
-                    <>
-                      <TelegramIcon className="h-5 w-5 text-white" />
-                      <span>Continue with Telegram</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
-
-            <p className="text-[11px] text-center text-slate-500">
-              Your Telegram identity is verified cryptographically via server-side OIDC token validation.
-            </p>
-          </div>
-        )}
-
-        {/* ── TAB 2: GOOGLE ── */}
-        {authMethod === 'GOOGLE' && (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-center">
-              <div className="flex justify-center mb-2">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white">
-                  <GoogleIcon className="h-5 w-5" />
-                </span>
-              </div>
-              <h2 className="text-sm font-bold text-white">Continue with Google</h2>
-              <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-                Fast and secure sign in using your Google account. Your bookings and itineraries will be linked to your email address.
-              </p>
-            </div>
-
+        {/* Auth Card */}
+        <div className="rounded-[2rem] border border-white/10 bg-[#0B1528]/90 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+          {/* Mode Switcher Tabs */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-white/[0.04] border border-white/10 mb-6">
             <button
               type="button"
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-white/20 bg-white/[0.06] py-3.5 text-sm font-bold text-white shadow-xl transition-all duration-300 hover:bg-white/[0.12] hover:scale-[1.02] disabled:opacity-60 disabled:pointer-events-none"
+              onClick={() => { setMode('LOGIN'); setMessage(null); }}
+              className={`py-2.5 rounded-xl text-xs font-black tracking-wider transition-all ${
+                mode === 'LOGIN'
+                  ? 'bg-gradient-to-r from-[#00E5FF] to-[#0284C7] text-[#070F1E] shadow-lg shadow-[#00E5FF]/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
             >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('REGISTER'); setMessage(null); }}
+              className={`py-2.5 rounded-xl text-xs font-black tracking-wider transition-all ${
+                mode === 'REGISTER'
+                  ? 'bg-gradient-to-r from-[#00E5FF] to-[#0284C7] text-[#070F1E] shadow-lg shadow-[#00E5FF]/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Create Account
+            </button>
+          </div>
+
+          {/* Feedback Message */}
+          {message && (
+            <div
+              className={`mb-5 flex items-start gap-2.5 rounded-xl p-3.5 text-xs font-medium ${
+                message.type === 'error'
+                  ? 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+                  : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+              }`}
+            >
+              {message.type === 'error' ? (
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
               ) : (
-                <>
-                  <GoogleIcon className="h-5 w-5" />
-                  <span>Continue with Google</span>
-                </>
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
               )}
+              <span>{message.text}</span>
+            </div>
+          )}
+
+          {/* 1-Click Instant Social Auth */}
+          <div className="space-y-3 mb-6">
+            {/* Telegram 1-Click */}
+            <button
+              type="button"
+              onClick={handleTelegramLogin}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 rounded-xl bg-[#229ED9] hover:bg-[#1E8EC4] text-white py-3 px-4 text-xs font-black tracking-wide shadow-lg shadow-[#229ED9]/25 hover:scale-[1.01] active:scale-[0.99] transition disabled:opacity-50"
+            >
+              <TelegramIcon className="h-4 w-4 shrink-0" />
+              <span>Continue with Telegram</span>
             </button>
 
-            <p className="text-[11px] text-center text-slate-500">
-              OAuth 2.0 authenticated directly via Supabase Auth without storing your password.
-            </p>
+            {/* Google 1-Click */}
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white py-3 px-4 text-xs font-bold tracking-wide hover:border-white/30 hover:scale-[1.01] active:scale-[0.99] transition disabled:opacity-50"
+            >
+              <GoogleIcon className="h-4 w-4 shrink-0" />
+              <span>Continue with Google</span>
+            </button>
           </div>
-        )}
 
-        {/* ── TAB 3: EMAIL ── */}
-        {authMethod === 'EMAIL' && (
-          <form onSubmit={handleEmailAuth} className="space-y-4">
-            {/* Register vs Sign-in context banner */}
-            <div className={`rounded-xl border p-2.5 text-center text-xs ${
-              isRegisterMode
-                ? 'border-[#00E5FF]/20 bg-[#00E5FF]/5 text-[#00E5FF]'
-                : 'border-white/5 bg-white/[0.02] text-slate-400'
-            }`}>
-              {isRegisterMode
-                ? 'Create your TALAGO account with email and password.'
-                : 'Email sign-in is optional. Use Telegram or Google for faster, passwordless access.'}
-            </div>
+          {/* Divider */}
+          <div className="relative flex items-center justify-center mb-6">
+            <div className="border-t border-white/10 w-full" />
+            <span className="bg-[#0B1528] px-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 shrink-0">
+              or with email
+            </span>
+            <div className="border-t border-white/10 w-full" />
+          </div>
 
-            <label className="block">
-              <span className="mb-2 block text-xs font-bold text-slate-300">
-                {dict?.authPage?.emailLabel || 'Email Address'}
-              </span>
-              <div className="relative flex items-center">
-                <Mail className="absolute left-4 h-4 w-4 text-slate-500" />
+          {/* Email / Password Form */}
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
+            {mode === 'REGISTER' && (
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">Full Name *</label>
+                <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 focus-within:border-[#00E5FF] focus-within:bg-white/[0.08] transition">
+                  <User className="h-4 w-4 text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Alexander Schmidt"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-transparent text-xs font-bold text-white placeholder-slate-500 outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">Email Address *</label>
+              <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 focus-within:border-[#00E5FF] focus-within:bg-white/[0.08] transition">
+                <Mail className="h-4 w-4 text-slate-400 shrink-0" />
                 <input
                   type="email"
                   required
-                  placeholder={dict?.authPage?.emailPlaceholder || 'you@example.com'}
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white outline-none transition-all duration-300 focus:border-[#06B6D4] focus:ring-1 focus:ring-[#06B6D4] text-sm"
+                  className="w-full bg-transparent text-xs font-bold text-white placeholder-slate-500 outline-none"
                 />
               </div>
-            </label>
+            </div>
 
-            {(isPasswordMode || isRegisterMode) && (
-              <label className="block">
-                <span className="mb-2 block text-xs font-bold text-slate-300">
-                  {dict?.authPage?.passwordLabel || 'Password'}
-                </span>
+            {mode === 'REGISTER' && (
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  Phone / WhatsApp <span className="text-slate-500 font-normal">(optional)</span>
+                </label>
+                <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 focus-within:border-[#00E5FF] focus-within:bg-white/[0.08] transition">
+                  <Phone className="h-4 w-4 text-slate-400 shrink-0" />
+                  <input
+                    type="tel"
+                    placeholder="+20 123 456 7890"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-transparent text-xs font-bold text-white placeholder-slate-500 outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">Password *</label>
+              <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 focus-within:border-[#00E5FF] focus-within:bg-white/[0.08] transition">
+                <Lock className="h-4 w-4 text-slate-400 shrink-0" />
                 <input
                   type="password"
                   required
-                  placeholder={dict?.authPage?.passwordPlaceholder || '••••••••'}
+                  minLength={6}
+                  placeholder="At least 6 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white outline-none transition-all duration-300 focus:border-[#06B6D4] focus:ring-1 focus:ring-[#06B6D4] text-sm"
+                  className="w-full bg-transparent text-xs font-bold text-white placeholder-slate-500 outline-none"
                 />
-              </label>
-            )}
+              </div>
+            </div>
 
             <button
               type="submit"
               disabled={loading}
-              className={`w-full inline-flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black uppercase tracking-wider shadow-xl transition-all duration-300 hover:scale-[1.02] disabled:opacity-60 disabled:pointer-events-none ${
-                isRegisterMode
-                  ? 'bg-gradient-to-r from-[#00E5FF] to-[#0284C7] text-[#070F1E] shadow-[#00E5FF]/20 hover:shadow-[#00E5FF]/40'
-                  : 'bg-[#EAB308] text-[#070F1E] shadow-[#EAB308]/20 hover:bg-[#FACC15]'
-              }`}
+              className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] py-3 px-4 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 hover:scale-[1.01] active:scale-[0.99] transition disabled:opacity-50"
             >
               {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : isRegisterMode ? (
-                'Create Account'
-              ) : isPasswordMode ? (
-                dict?.authPage?.signInRegister || 'Sign In / Register'
+                <Loader2 className="h-4 w-4 animate-spin text-[#070F1E]" />
               ) : (
-                dict?.authPage?.sendMagicLink || 'Send Sign-In Link'
+                <>
+                  <span>{mode === 'LOGIN' ? 'Sign In' : 'Create Account'}</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </>
               )}
             </button>
-
-            <div className="mt-4 text-center border-t border-white/5 pt-3 space-y-2">
-              {!isRegisterMode && (
-                <button
-                  type="button"
-                  onClick={() => { setIsPasswordMode((prev) => !prev); setMessage(null); }}
-                  className="text-xs font-bold text-[#06B6D4] hover:text-[#EAB308] transition-colors"
-                >
-                  {isPasswordMode
-                    ? (dict?.authPage?.useMagicLink || 'Use passwordless sign-in link instead')
-                    : (dict?.authPage?.usePassword || 'Use email password instead')}
-                </button>
-              )}
-              {isRegisterMode && (
-                <button
-                  type="button"
-                  onClick={() => { setIsRegisterMode(false); setIsPasswordMode(false); setMessage(null); }}
-                  className="text-xs font-bold text-slate-400 hover:text-white transition-colors"
-                >
-                  Already have an account? Sign in
-                </button>
-              )}
-            </div>
           </form>
-        )}
 
-        {/* Guest Booking Lookup link */}
-        <div className="mt-6 pt-4 text-center border-t border-white/10">
-          <p className="text-xs text-slate-400">
-            Booked as a guest?{' '}
-            <Link href="/my-bookings" className="font-bold text-[#00E5FF] hover:underline">
-              Lookup your booking with reference &amp; phone
-            </Link>
-          </p>
+          {/* Guest Booking Lookup link */}
+          <div className="mt-6 pt-5 border-t border-white/10 text-center">
+            <p className="text-xs text-slate-400">
+              Have an existing reservation?{' '}
+              <Link
+                href="/account?tab=lookup"
+                className="text-[#00E5FF] font-bold hover:underline"
+              >
+                Look up booking as guest →
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Security badge */}
+        <div className="mt-6 flex items-center justify-center gap-2 text-[11px] text-slate-400">
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+          <span>Encrypted 256-bit secure session • Zero spam guarantee</span>
         </div>
       </div>
     </main>
@@ -647,8 +406,8 @@ export default function AuthPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-[#070F1E] flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
+        <main className="min-h-screen bg-[#070F1E] flex flex-col justify-center items-center px-4 py-12 text-[#F8FAFC]">
+          <Loader2 className="h-8 w-8 animate-spin text-[#00E5FF]" />
         </main>
       }
     >

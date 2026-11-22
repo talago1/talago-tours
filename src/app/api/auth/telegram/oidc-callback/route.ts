@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import { createClient } from '@supabase/supabase-js';
 import { prisma } from '@/lib/prisma';
-import { supabaseAdmin } from '@/lib/supabase/server';
-import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
+import { createSessionToken, setSessionCookie } from '@/server/auth';
 import { adoptOwnedBookings } from '@/server/customerBookings';
-import { applySessionCookies, createAuthTicket, setServerSessionCookies } from '@/server/customerSession';
 
 export const dynamic = 'force-dynamic';
 
-const LIMIT = 20;
-const WINDOW_MS = 5 * 60 * 1000;
-
 const TELEGRAM_ISSUER = 'https://oauth.telegram.org';
-const TELEGRAM_JWKS_URL = new URL('https://oauth.telegram.org/.well-known/jwks.json');
-const jwks = createRemoteJWKSet(TELEGRAM_JWKS_URL);
+const jwks = createRemoteJWKSet(new URL('https://oauth.telegram.org/.well-known/jwks.json'));
 
-/** Allow only safe relative paths to prevent open-redirect and login loops. */
+/** Allow only safe relative paths to prevent open-redirect vulnerabilities. */
 function safePath(raw: string | null | undefined): string {
   if (!raw) return '/account';
   const decoded = decodeURIComponent(raw).trim();
@@ -35,44 +28,124 @@ function safePath(raw: string | null | undefined): string {
   return decoded;
 }
 
-function cleanBaseUrl(url: string | undefined, fallback: string): string {
+function cleanBaseUrl(url?: string | null, fallback = ''): string {
   if (!url) return fallback;
-  return url.replace(/^[\uFEFF\s]+/, '').trim().replace(/\/+$/, '') || fallback;
+  return url.replace(/^[\uFEFF\s]+/, '').replace(/\/+$/, '');
+}
+
+/**
+ * Creates an authoritative HTML bridge response that sets the session cookie
+ * on a first-party 200 OK document response, then navigates directly to target.
+ * This guarantees 100% cookie acceptance across all browsers including Safari ITP and mobile WebViews.
+ */
+function createAuthBridgeResponse(targetUrl: string, sessionToken: string): NextResponse {
+  const safeTarget = safePath(targetUrl);
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="0;url=${safeTarget}">
+  <title>Authenticating with Talago...</title>
+  <style>
+    body {
+      background: #070F1E;
+      color: #F8FAFC;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .card {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 32px 24px;
+      max-width: 360px;
+      width: 100%;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(0, 229, 255, 0.2);
+      border-top-color: #00E5FF;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="spinner"></div>
+    <h3 style="margin:0 0 8px;font-size:16px;font-weight:700;">Welcome to Talago</h3>
+    <p style="margin:0;font-size:13px;color:#94A3B8;">Finalizing secure login...</p>
+  </div>
+  <script>
+    try {
+      window.location.replace(${JSON.stringify(safeTarget)});
+    } catch (e) {
+      window.location.href = ${JSON.stringify(safeTarget)};
+    }
+  </script>
+</body>
+</html>`;
+
+  const response = new NextResponse(html, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    },
+  });
+
+  setSessionCookie(response, sessionToken);
+
+  // Clear transient PKCE cookie
+  response.cookies.set('tg_pkce', '', {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 0,
+  });
+
+  return response;
 }
 
 export async function GET(request: NextRequest) {
-  const limit = rateLimit(clientKey(request, 'auth-telegram-oidc-callback'), LIMIT, WINDOW_MS);
-  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
-
   const { searchParams } = request.nextUrl;
   const code = searchParams.get('code');
   const stateFromQuery = searchParams.get('state');
-  const errorParam = searchParams.get('error');
+  const error = searchParams.get('error');
+  const errorDescription = searchParams.get('error_description');
 
-  // ── If Telegram returned an error ──────────────────────────────────────────
-  if (errorParam) {
-    const msg = encodeURIComponent(`Telegram declined the login request: ${errorParam}`);
-    return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
+  if (error || !code || !stateFromQuery) {
+    const errorMsg = errorDescription || error || 'Telegram authorization cancelled or missing parameters.';
+    console.warn('[tg-oidc-callback] authorization failed or cancelled:', { error, errorDescription });
+    return NextResponse.redirect(new URL(`/auth?error=${encodeURIComponent(errorMsg)}`, request.nextUrl.origin));
   }
 
-  if (!code || !stateFromQuery) {
-    const msg = encodeURIComponent('Missing authorization code or state from Telegram.');
-    return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
-  }
-
-  // ── Read and validate PKCE state (Cookie + Database fallback for strict mobile browsers) ──
+  // 1. Retrieve PKCE state from cookie or DB fallback
   let pkceRaw = request.cookies.get('tg_pkce')?.value;
-  if (!pkceRaw && stateFromQuery) {
-    try {
-      const dbSetting = await prisma.systemSetting.findUnique({
-        where: { key: `tg_pkce_${stateFromQuery}` },
-      });
-      if (dbSetting?.value) {
-        pkceRaw = dbSetting.value;
-        prisma.systemSetting.delete({ where: { key: `tg_pkce_${stateFromQuery}` } }).catch(() => {});
-      }
-    } catch (e) {
-      console.warn('[tg-oidc-callback] DB pkce lookup warning:', e);
+  if (!pkceRaw) {
+    const dbState = await prisma.systemSetting.findUnique({
+      where: { key: `tg_pkce_${stateFromQuery}` },
+    });
+    pkceRaw = dbState?.value;
+    if (pkceRaw) {
+      await prisma.systemSetting.delete({ where: { key: `tg_pkce_${stateFromQuery}` } }).catch(() => {});
     }
   }
 
@@ -97,26 +170,11 @@ export async function GET(request: NextRequest) {
     require('crypto').timingSafeEqual(stateBuf, expectedBuf);
 
   if (!stateMatch) {
-    const msg = encodeURIComponent('State mismatch. Possible CSRF attempt. Please try again.');
+    const msg = encodeURIComponent('State mismatch. Please try again.');
     return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
   }
 
   const returnTo = safePath(pkce.returnTo);
-
-  // ── One-time state replay protection ─────────────────────────────────────
-  const replayKey = `tg_oidc_state_${pkce.state}`;
-  const alreadyUsed = await prisma.systemSetting.findUnique({ where: { key: replayKey } });
-  if (alreadyUsed) {
-    const dest = new URL(returnTo, request.nextUrl.origin);
-    if (alreadyUsed.value?.startsWith('ticket:')) {
-      dest.searchParams.set('auth_ticket', alreadyUsed.value.slice('ticket:'.length));
-    }
-    return NextResponse.redirect(dest, { status: 303 });
-  }
-  // Mark as processing immediately
-  await prisma.systemSetting
-    .create({ data: { key: replayKey, value: 'processing' } })
-    .catch(() => {/* concurrent collision */});
 
   const clientId = process.env.TELEGRAM_OIDC_CLIENT_ID;
   const clientSecret = process.env.TELEGRAM_OIDC_CLIENT_SECRET;
@@ -128,7 +186,7 @@ export async function GET(request: NextRequest) {
   const origin = cleanBaseUrl(process.env.NEXT_PUBLIC_APP_URL, request.nextUrl.origin);
   const redirectUri = pkce.redirectUri || `${origin}/api/auth/telegram/oidc-callback`;
 
-  // ── Exchange authorization code for tokens ────────────────────────────────
+  // 2. Exchange authorization code for tokens
   let idToken: string;
   try {
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
@@ -136,16 +194,14 @@ export async function GET(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${basicAuth}`,
+        Authorization: `Basic ${basicAuth}`,
       },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
         redirect_uri: redirectUri,
-        client_id: clientId,
-        client_secret: clientSecret,
         code_verifier: pkce.codeVerifier,
-      }).toString(),
+      }),
     });
 
     const tokenData = await tokenRes.json();
@@ -163,7 +219,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
   }
 
-  // ── Verify ID token via JWKS ──────────────────────────────────────────────
+  // 3. Verify ID token via Telegram JWKS
   let claims: any;
   try {
     const { payload } = await jwtVerify(idToken, jwks, {
@@ -171,7 +227,6 @@ export async function GET(request: NextRequest) {
       audience: clientId,
     });
 
-    // Validate nonce to prevent replay via ID token substitution
     if (payload.nonce !== pkce.nonce) {
       const msg = encodeURIComponent('Nonce mismatch in Telegram ID token. Please try again.');
       return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
@@ -184,7 +239,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
   }
 
-  // ── Extract Telegram identity from verified claims ─────────────────────────
+  // 4. Extract verified Telegram identity
   const telegramId = String(claims.sub);
   const rawFullName =
     (typeof claims.name === 'string' && claims.name.trim()) ||
@@ -194,235 +249,103 @@ export async function GET(request: NextRequest) {
   const fullName = rawFullName && rawFullName !== 'User' ? rawFullName : `Traveler #${telegramId}`;
   const telegramUsername = (claims.preferred_username as string) || null;
   const telegramPhotoUrl = (claims.picture as string) || null;
-  const telegramBotAccess = !!(claims['telegram:bot_access']);
-  // Phone is only present if the user granted the 'phone' scope.
-  // SECURITY & IDENTITY INTEGRITY:
-  // Never mark a phone number verified simply because a value exists.
-  // Only consider verified when explicitly asserted as true by the validated OIDC provider claims.
+  const telegramBotAccess = !!claims['telegram:bot_access'];
   const rawPhone = (claims.phone_number as string) || null;
   const telegramPhone = rawPhone && rawPhone.trim().length > 0 ? rawPhone.trim() : null;
   const telegramPhoneVerified = Boolean(claims.phone_number_verified === true);
 
-  const syntheticEmail = `telegram-${telegramId}@noreply.talago.com`;
+  // 5. Upsert CustomerProfile in database
+  let profile = await prisma.customerProfile.findUnique({
+    where: { telegramId },
+  });
 
-  // ── Upsert CustomerProfile & Unify Identity ───────────────────────────────
-  let resolvedProfileId: string | null = null;
-  try {
-    const existingByTgId = await prisma.customerProfile.findUnique({
-      where: { telegramId },
+  if (profile) {
+    profile = await prisma.customerProfile.update({
+      where: { id: profile.id },
+      data: {
+        name: fullName,
+        telegramUsername,
+        telegramPhotoUrl,
+        telegramBotAccess,
+        telegramConnectedAt: new Date(),
+        isShadow: false,
+        ...(telegramPhone
+          ? {
+              phone: profile.phone || (telegramPhoneVerified ? telegramPhone : undefined),
+              telegramPhone,
+              telegramPhoneVerified,
+            }
+          : {}),
+      },
     });
+  } else {
+    // Check if a profile with verified phone already exists to merge
+    let existingByPhone = null;
+    if (telegramPhone && telegramPhoneVerified) {
+      existingByPhone = await prisma.customerProfile.findFirst({
+        where: {
+          OR: [{ phone: telegramPhone }, { telegramPhone: telegramPhone }],
+        },
+      });
+    }
 
-    if (existingByTgId) {
-      const updated = await prisma.customerProfile.update({
-        where: { telegramId },
+    if (existingByPhone) {
+      profile = await prisma.customerProfile.update({
+        where: { id: existingByPhone.id },
         data: {
+          telegramId,
+          telegramUsername,
+          telegramPhotoUrl,
+          telegramBotAccess,
+          telegramConnectedAt: new Date(),
+          telegramPhone,
+          telegramPhoneVerified,
+          isShadow: false,
+        },
+      });
+    } else {
+      const syntheticEmail = `telegram-${telegramId}@noreply.talago.com`;
+      profile = await prisma.customerProfile.create({
+        data: {
+          telegramId,
+          email: syntheticEmail,
           name: fullName,
           telegramUsername,
           telegramPhotoUrl,
           telegramBotAccess,
           telegramConnectedAt: new Date(),
+          phone: telegramPhoneVerified ? telegramPhone : null,
+          telegramPhone: telegramPhone || null,
+          telegramPhoneVerified,
           isShadow: false,
-          ...(telegramPhone
-            ? {
-                phone: existingByTgId.phone || (telegramPhoneVerified ? telegramPhone : undefined),
-                telegramPhone,
-                telegramPhoneVerified,
-              }
-            : {}),
         },
       });
-      resolvedProfileId = updated.id;
-    } else {
-      // Check if a profile with this phone number already exists
-      // ONLY link by phone if the phone claim is explicitly verified by the provider
-      let existingByPhone = null;
-      if (telegramPhone && telegramPhoneVerified) {
-        existingByPhone = await prisma.customerProfile.findFirst({
-          where: {
-            OR: [
-              { phone: telegramPhone },
-              { telegramPhone: telegramPhone },
-            ],
-          },
-        });
-      }
-
-      if (existingByPhone) {
-        const merged = await prisma.customerProfile.update({
-          where: { id: existingByPhone.id },
-          data: {
-            telegramId,
-            telegramUsername,
-            telegramPhotoUrl,
-            telegramBotAccess,
-            telegramConnectedAt: new Date(),
-            telegramPhone,
-            telegramPhoneVerified,
-            isShadow: false,
-            ...(!existingByPhone.phone && telegramPhoneVerified ? { phone: telegramPhone } : {}),
-          },
-        });
-        resolvedProfileId = merged.id;
-      } else {
-        const created = await prisma.customerProfile.upsert({
-          where: { email: syntheticEmail },
-          create: {
-            email: syntheticEmail,
-            name: fullName,
-            telegramId,
-            telegramUsername,
-            telegramPhotoUrl,
-            telegramBotAccess,
-            telegramConnectedAt: new Date(),
-            isShadow: false,
-            ...(telegramPhone
-              ? {
-                  phone: telegramPhoneVerified ? telegramPhone : null,
-                  telegramPhone,
-                  telegramPhoneVerified,
-                }
-              : {}),
-          },
-          update: {
-            name: fullName,
-            telegramId,
-            telegramUsername,
-            telegramPhotoUrl,
-            telegramBotAccess,
-            telegramConnectedAt: new Date(),
-            isShadow: false,
-            ...(telegramPhone
-              ? {
-                  phone: telegramPhoneVerified ? telegramPhone : undefined,
-                  telegramPhone,
-                  telegramPhoneVerified,
-                }
-              : {}),
-          },
-        });
-        resolvedProfileId = created.id;
-      }
     }
-
-    if (resolvedProfileId) {
-      await adoptOwnedBookings({
-        profileId: resolvedProfileId,
-        emails: [syntheticEmail],
-        phones: [telegramPhoneVerified ? telegramPhone : null].filter((p): p is string => Boolean(p)),
-      }).catch((e) => console.warn('[tg-oidc] initial adoption warning:', e));
-    }
-  } catch (err) {
-    console.error('[tg-oidc-callback] CustomerProfile upsert error:', err);
   }
 
-  // ── Mint a Supabase Auth session ──────────────────────────────────────────
-  // We use generateLink with type: 'magiclink' + server-side verifyOtp.
-  // This produces an authentic, signed JWT session from Supabase without requiring user interaction.
-  let session: { access_token: string; refresh_token: string } | null = null;
-  let verifiedSupabaseUserId = '';
-
-  try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
-      email: syntheticEmail,
-    });
-
-    if (linkError) {
-      console.error('[tg-oidc-callback] generateLink error:', linkError.message);
-    } else if (linkData?.properties?.hashed_token && supabaseUrl && supabaseAnonKey) {
-      const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
-
-      const { data: verifyData, error: verifyError } = await supabaseAnon.auth.verifyOtp({
-        token_hash: linkData.properties.hashed_token,
-        type: linkData.properties.verification_type,
-      });
-
-      if (verifyError) {
-        console.error('[tg-oidc-callback] verifyOtp error:', verifyError.message);
-      } else if (verifyData?.session) {
-        session = {
-          access_token: verifyData.session.access_token,
-          refresh_token: verifyData.session.refresh_token,
-        };
-
-        if (verifyData.user?.id) {
-          verifiedSupabaseUserId = verifyData.user.id;
-          await supabaseAdmin.auth.admin.updateUserById(verifyData.user.id, {
-            ...(telegramPhone ? { phone: telegramPhone } : {}),
-            user_metadata: {
-              name: fullName,
-              full_name: fullName,
-              preferred_username: telegramUsername,
-              picture: telegramPhotoUrl,
-              avatar_url: telegramPhotoUrl,
-              telegram_id: telegramId,
-              ...(telegramPhone ? { phone: telegramPhone } : {}),
-            },
-          }).catch(() => {});
-        }
-      }
-    }
-  } catch (err) {
-    console.error('[tg-oidc-callback] Supabase session error:', err);
+  // 6. Adopt historical bookings linked to phone
+  if (profile?.id && telegramPhone) {
+    adoptOwnedBookings({
+      profileId: profile.id,
+      phones: [telegramPhone],
+      emails: profile.email ? [profile.email] : [],
+    }).catch((e) => console.warn('[tg-oidc] booking adoption warning:', e));
   }
 
-  // ── First-Party HTML Client Bridge ───────────────────────────────────────
-  // Instead of a 302/307 redirect from a cross-site origin (which Safari ITP,
-  // mobile WebViews, and strict browser policies drop Set-Cookie headers for),
-  // we return a 200 OK document response.
-  // 1. Cookies set on 200 OK document responses are ALWAYS accepted by browsers.
-  // 2. The client script populates Supabase client localStorage and runs a
-  //    same-origin first-party fetch to /api/auth/session before navigating.
-  // 3. This guarantees 100% session persistence on both client and server across all browsers.
-  if (!session?.access_token) {
-    console.error('[tg-oidc-callback] Failed to mint Supabase session for', syntheticEmail);
-    const msg = encodeURIComponent('Failed to create customer session. Please try logging in again.');
-    return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
-  }
-
-  // ── Authoritative Standard OAuth2 303 Redirect with Session Cookies ────────
-  // 1. Set cookies in Next.js Server Cookie Store (next/headers)
-  setServerSessionCookies(session.access_token, session.refresh_token);
-
-  // 2. Mint single-use handoff ticket to survive strict mobile/cross-site cookie blocking
-  const authTicket = await createAuthTicket({
-    accessToken: session.access_token,
-    refreshToken: session.refresh_token,
-    userId: verifiedSupabaseUserId,
+  // 7. Mint authoritative Talago session token
+  const sessionToken = await createSessionToken({
+    id: profile.id,
+    name: profile.name,
+    email: profile.email || null,
+    phone: profile.phone || profile.telegramPhone || null,
+    telegramId: profile.telegramId,
+    telegramUsername: profile.telegramUsername,
+    telegramPhone: profile.telegramPhone,
+    telegramPhotoUrl: profile.telegramPhotoUrl,
+    role: 'CUSTOMER',
+    authProvider: 'telegram',
   });
 
-  // Store ticket in replay key for concurrent / prefetch requests
-  await prisma.systemSetting.upsert({
-    where: { key: replayKey },
-    create: { key: replayKey, value: `ticket:${authTicket}` },
-    update: { value: `ticket:${authTicket}` },
-  }).catch(() => {});
-
-  const destUrl = new URL(returnTo, request.nextUrl.origin);
-  if (authTicket) {
-    destUrl.searchParams.set('auth_ticket', authTicket);
-  }
-
-  const response = NextResponse.redirect(destUrl, {
-    status: 303,
-  });
-
-  // Clear the PKCE cookie
-  response.cookies.set('tg_pkce', '', {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 0,
-  });
-
-  // 3. Set cookies on the response object
-  applySessionCookies(response, session.access_token, session.refresh_token);
-
-  return response;
+  // 8. Return authoritative First-Party HTML Document Bridge Response
+  return createAuthBridgeResponse(returnTo, sessionToken);
 }

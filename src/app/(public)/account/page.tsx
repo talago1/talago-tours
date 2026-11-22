@@ -220,20 +220,9 @@ export default function AccountPage() {
   const [chatLoading, setChatLoading] = useState(false);
 
   // Fetch Bookings with single request
-  const loadBookings = useCallback(async (token?: string | null) => {
+  const loadBookings = useCallback(async () => {
     try {
-      let activeToken = token || sessionToken;
-      if (!activeToken) {
-        try {
-          const { data: { session } } = await supabaseClient.auth.getSession();
-          activeToken = session?.access_token || null;
-        } catch {}
-      }
-
-      const headers: Record<string, string> = {};
-      if (activeToken) headers['Authorization'] = `Bearer ${activeToken}`;
       const res = await fetch('/api/public/my-bookings', {
-        headers,
         credentials: 'same-origin',
         cache: 'no-store',
       });
@@ -245,25 +234,7 @@ export default function AccountPage() {
     } catch (e) {
       console.warn('Failed to load bookings:', e);
     }
-  }, [sessionToken]);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    const refreshed = await refreshAuth();
-    if (refreshed) {
-      setAuthenticated(true);
-      setUserProfile(refreshed as any);
-      setEditName(refreshed.name || '');
-      setEditPhone(refreshed.phone || refreshed.telegramPhone || '');
-      await loadBookings(sessionToken);
-    } else {
-      setAuthenticated(false);
-      setUserProfile(null);
-      setBookings([]);
-      setReservations([]);
-    }
-    setLoading(false);
-  }, [refreshAuth, loadBookings, sessionToken]);
+  }, []);
 
   // Synchronize immediately with central useAuth state
   useEffect(() => {
@@ -274,7 +245,7 @@ export default function AccountPage() {
       setEditName(authUser.name || '');
       setEditPhone(authUser.phone || authUser.telegramPhone || '');
       setLoading(false);
-      loadBookings(sessionToken);
+      loadBookings();
     } else {
       setAuthenticated(false);
       setUserProfile(null);
@@ -282,26 +253,7 @@ export default function AccountPage() {
       setReservations([]);
       setLoading(false);
     }
-  }, [authLoading, isAuthenticated, authUser, sessionToken, loadBookings]);
-
-  // Watchdog: under no circumstances should any user be stuck on "Loading Talago Account…" past 3.5s
-  useEffect(() => {
-    const watchdog = setTimeout(() => {
-      setLoading((current) => {
-        if (current) {
-          if (isAuthenticated && authUser) {
-            setAuthenticated(true);
-            setUserProfile(authUser as any);
-          } else {
-            setAuthenticated(false);
-          }
-          return false;
-        }
-        return current;
-      });
-    }, 3500);
-    return () => clearTimeout(watchdog);
-  }, [isAuthenticated, authUser]);
+  }, [authLoading, isAuthenticated, authUser, loadBookings]);
 
   const fetchChatMessages = useCallback(async (refOverride?: string | null) => {
     const bookingRef = refOverride !== undefined ? refOverride : selectedChatBookingRef;
@@ -479,7 +431,7 @@ export default function AccountPage() {
       setLinkSuccess(data.message || 'Booking linked successfully to your account!');
       setLinkRef('');
       setLinkPhone('');
-      await loadData();
+      await loadBookings();
       setTimeout(() => {
         setShowLinkModal(false);
         setLinkSuccess(null);
