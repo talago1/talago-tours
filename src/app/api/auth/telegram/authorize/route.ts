@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 
 export const dynamic = 'force-dynamic';
@@ -79,6 +80,20 @@ export async function GET(request: NextRequest) {
   });
 
   const authUrl = `https://oauth.telegram.org/auth?${params.toString()}`;
+
+  // Store PKCE state in database by state key for 15 minutes to survive cross-site cookie blocking
+  await prisma.systemSetting.upsert({
+    where: { key: `tg_pkce_${state}` },
+    create: {
+      key: `tg_pkce_${state}`,
+      value: pkcePayload,
+    },
+    update: {
+      value: pkcePayload,
+    },
+  }).catch((err) => {
+    console.warn('[auth-telegram-authorize] could not persist state in DB:', err);
+  });
 
   const response = NextResponse.json({ url: authUrl });
 

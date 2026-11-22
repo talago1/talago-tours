@@ -60,8 +60,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
   }
 
-  // ── Read and validate PKCE cookie ─────────────────────────────────────────
-  const pkceRaw = request.cookies.get('tg_pkce')?.value;
+  // ── Read and validate PKCE state (Cookie + Database fallback for strict mobile browsers) ──
+  let pkceRaw = request.cookies.get('tg_pkce')?.value;
+  if (!pkceRaw && stateFromQuery) {
+    try {
+      const dbSetting = await prisma.systemSetting.findUnique({
+        where: { key: `tg_pkce_${stateFromQuery}` },
+      });
+      if (dbSetting?.value) {
+        pkceRaw = dbSetting.value;
+        prisma.systemSetting.delete({ where: { key: `tg_pkce_${stateFromQuery}` } }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[tg-oidc-callback] DB pkce lookup warning:', e);
+    }
+  }
+
   if (!pkceRaw) {
     const msg = encodeURIComponent('Login session expired. Please try signing in again.');
     return NextResponse.redirect(new URL(`/auth?error=${msg}`, request.nextUrl.origin));
@@ -115,9 +129,13 @@ export async function GET(request: NextRequest) {
   // ── Exchange authorization code for tokens ────────────────────────────────
   let idToken: string;
   try {
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
     const tokenRes = await fetch('https://oauth.telegram.org/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${basicAuth}`,
+      },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
@@ -422,19 +440,38 @@ export async function GET(request: NextRequest) {
         }
       } catch (e) {}
 
-      // 2. Non-blocking background sync for server session adoption (cookies already set on this HTTP response)
+      // 2. Synchronize server session & cookies before navigation
       try {
-        fetch('/api/auth/session', {
+        await fetch('/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
-          keepalive: true,
-        }).catch(() => {});
+        });
       } catch (e) {}
 
-      // 3. Instant seamless transition to destination
+      // 3. Set client-accessible session cookie as secondary guarantee
+      try {
+        const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = 'talago_session=' + encodeURIComponent(accessToken) + '; Path=/; Max-Age=604800; SameSite=Lax' + secureFlag;
+      } catch (e) {}
+
+      // 4. Notify all open tabs via BroadcastChannel
+      try {
+        if ('BroadcastChannel' in window) {
+          const ch = new BroadcastChannel('talago_auth_sync');
+          ch.postMessage({ action: 'SIGN_IN', timestamp: Date.now() });
+          ch.close();
+        }
+      } catch (e) {}
+
+      // 5. Navigate to return destination
       window.location.replace(returnTo);
     })();
+
+    // Safety fallback: ensure navigation never hangs
+    setTimeout(function() {
+      window.location.replace(${JSON.stringify(returnTo)});
+    }, 1200);
   </script>
 </body>
 </html>`;

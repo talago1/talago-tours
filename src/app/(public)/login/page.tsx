@@ -36,7 +36,7 @@ function LoginRedirectContent() {
 
       // 1. Check server session cookie first
       try {
-        const res = await fetch('/api/auth/session', { cache: 'no-store' });
+        const res = await fetch('/api/auth/session', { cache: 'no-store', credentials: 'same-origin' });
         const data = await res.json();
         if (data?.authenticated && active) {
           if (data.accessToken && data.refreshToken) {

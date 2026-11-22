@@ -94,15 +94,22 @@ function AuthPageContent() {
   const [password, setPassword] = useState('');
   const [isPasswordMode, setIsPasswordMode] = useState(false);
 
-  // Check URL errors on mount + handle ?mode=register
+  // Check URL errors on mount + handle ?mode=register & ?method=telegram
   useEffect(() => {
     const errorParam = searchParams.get('error');
     if (errorParam) {
-      setMessage({ type: 'error', text: decodeURIComponent(errorParam) });
+      const decoded = decodeURIComponent(errorParam);
+      setMessage({ type: 'error', text: decoded });
+      if (decoded.toLowerCase().includes('telegram')) {
+        setAuthMethod('TELEGRAM');
+      }
     }
     if (searchParams.get('mode') === 'register') {
       setAuthMethod('EMAIL');
       setIsRegisterMode(true);
+    }
+    if (searchParams.get('method') === 'telegram') {
+      setAuthMethod('TELEGRAM');
     }
   }, [searchParams]);
 
@@ -138,7 +145,7 @@ function AuthPageContent() {
 
       // 2. Check server session cookie
       try {
-        const res = await fetch('/api/auth/session', { cache: 'no-store' });
+        const res = await fetch('/api/auth/session', { cache: 'no-store', credentials: 'same-origin' });
         if (res.ok) {
           const data = await res.json();
           if (data?.authenticated && active) {
@@ -228,7 +235,9 @@ function AuthPageContent() {
 
     try {
       const targetReturn = safeReturnTarget(searchParams.get('returnTo'));
-      const res = await fetch(`/api/auth/telegram/authorize?returnTo=${encodeURIComponent(targetReturn)}`);
+      const res = await fetch(`/api/auth/telegram/authorize?returnTo=${encodeURIComponent(targetReturn)}`, {
+        credentials: 'same-origin',
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Could not start Telegram login. Please try again.');
