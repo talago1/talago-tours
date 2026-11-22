@@ -261,6 +261,10 @@ export default function PublicTourCard({
               <span className="rounded bg-gradient-to-r from-[#FFD700] to-[#EAB308] px-1.5 py-0.5 text-[9px] font-black uppercase text-[#070F1E] shadow">
                 Best Seller
               </span>
+            ) : tour.isNew ? (
+              <span className="rounded bg-emerald-500/20 border border-emerald-500/40 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-400 shadow">
+                {dict.catalog.isNew || 'New'}
+              </span>
             ) : hasDiscount ? (
               <span className="rounded bg-red-500/90 px-1.5 py-0.5 text-[9px] font-black uppercase text-white shadow">
                 -{discountPercent}%
@@ -298,9 +302,11 @@ export default function PublicTourCard({
                   <span>{tour.ratingAverage.toFixed(1)}</span>
                   <span className="text-[10px] text-slate-400">({tour.ratingCount})</span>
                 </span>
-              ) : (
-                <span className="text-[10px] font-semibold text-[#00E5FF] shrink-0">New</span>
-              )}
+              ) : tour.isNew ? (
+                <span className="text-[10px] font-semibold text-[#00E5FF] shrink-0">
+                  {(dict.catalog as any)?.newExperience || 'New'}
+                </span>
+              ) : null}
             </div>
 
             {/* Title */}
@@ -427,12 +433,12 @@ export default function PublicTourCard({
                     ({tour.ratingCount} {dict.catalog.reviews})
                   </span>
                 </div>
-              ) : (
+              ) : tour.isNew ? (
                 <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#00E5FF]">
                   <Sparkles className="h-3.5 w-3.5 text-[#00E5FF]" />
                   <span>{(dict.catalog as any)?.newExperience || 'New Experience'}</span>
                 </div>
-              )}
+              ) : null}
 
               {tour.instantConfirmation !== false && (
                 <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-400">

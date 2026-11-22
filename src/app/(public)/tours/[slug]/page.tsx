@@ -122,6 +122,7 @@ export default async function TourDetailPage({ params }: Props) {
       hotelPickupIncluded: true,
       ratingAverage: true,
       ratingCount: true,
+      isNew: true,
       adultPrice: true,
       priceAdult: true,
       originalPrice: true,
@@ -211,6 +212,7 @@ export default async function TourDetailPage({ params }: Props) {
         hotelPickupIncluded: true,
         ratingAverage: true,
         ratingCount: true,
+        isNew: true,
         adultPrice: true,
         priceAdult: true,
         originalPrice: true,
@@ -621,6 +623,7 @@ export default async function TourDetailPage({ params }: Props) {
           hasGuide: tour.hasGuide ?? null,
           guideLanguages: Array.isArray(tour.guideLanguages) ? (tour.guideLanguages as string[]) : [],
           cutoffHours: tour.cutoffHours ?? null,
+          isNew: Boolean(tour.isNew),
           bookingQuestions: Array.isArray(tour.bookingQuestions) ? (tour.bookingQuestions as Array<Record<string, unknown>>) : [],
         }}
         reviews={{ distribution, reviews, ratingAverage: effectiveRatingAverage, ratingCount: effectiveReviewCount }}

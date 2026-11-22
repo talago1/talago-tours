@@ -139,6 +139,7 @@ interface TourData {
   instantConfirmation?: boolean | null;
   hasGuide?: boolean | null;
   guideLanguages?: string[];
+  isNew?: boolean;
   bookingQuestions?: Array<Record<string, unknown>>;
 }
 
@@ -945,19 +946,24 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
             <div className="mb-8">
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 {tour.ratingCount > 0 ? (
-                  <div className="flex items-center gap-1.5">
-                    <StarRating rating={tour.ratingAverage} />
-                    <span className="text-sm font-semibold text-slate-300">
-                      {tour.ratingAverage.toFixed(1)} ({tour.ratingCount} {dict.catalog.reviews})
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 rounded-full border border-[#00E5FF]/20 bg-[#00E5FF]/10 px-3 py-1 text-xs font-bold text-[#00E5FF]">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>{(dict.catalog as any)?.newExperience || 'New Experience'}</span>
-                  </div>
-                )}
-                <span className="text-slate-600">·</span>
+                  <>
+                    <div className="flex items-center gap-1.5">
+                      <StarRating rating={tour.ratingAverage} />
+                      <span className="text-sm font-semibold text-slate-300">
+                        {tour.ratingAverage.toFixed(1)} ({tour.ratingCount} {dict.catalog.reviews})
+                      </span>
+                    </div>
+                    <span className="text-slate-600">·</span>
+                  </>
+                ) : tour.isNew ? (
+                  <>
+                    <div className="flex items-center gap-1.5 rounded-full border border-[#00E5FF]/20 bg-[#00E5FF]/10 px-3 py-1 text-xs font-bold text-[#00E5FF]">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>{(dict.catalog as any)?.newExperience || 'New Experience'}</span>
+                    </div>
+                    <span className="text-slate-600">·</span>
+                  </>
+                ) : null}
                 <span className="flex items-center gap-1.5 text-sm text-slate-400">
                   <MapPin className="h-4 w-4 text-[#00E5FF]" />
                   {tour.destination.name}

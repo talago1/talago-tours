@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { normalizePhoneForWhatsApp } from '@/utils/sanitize';
 import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 import BookingRowActions from './BookingRowActions';
 import BookingInvoiceModal from './BookingInvoiceModal';
@@ -68,7 +69,7 @@ function SkeletonRow() {
 }
 
 function ExpandedDetails({ booking, onOpenChat, onReviewCancellation }: { booking: ActiveQueueTicket; onOpenChat: (ref: string) => void; onReviewCancellation?: (id: string, action: 'APPROVE' | 'DECLINE') => void }) {
-  const cleanPhone = (booking.customerPhone || '').replace(/[^0-9]/g, '');
+  const cleanPhone = normalizePhoneForWhatsApp(booking.customerPhone);
   const cashDue = booking.amountDueOnArrival ?? (booking.paymentScheme === 'FULL' ? 0 : Math.max(0, booking.totalPriceUSD - (booking.amountPaidOnline ?? 0)));
   const paidOnline = booking.amountPaidOnline ?? (booking.paymentScheme === 'FULL' ? booking.totalPriceUSD : 0);
 

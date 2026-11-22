@@ -117,14 +117,17 @@ export default function ContinuousBookingModal({
 
   // Pickup info
   const rawPickupType = (tour.pickupType || 'hotel').toLowerCase();
-  const isNoPickup = rawPickupType === 'none';
+  const isNoPickup = rawPickupType === 'none' || rawPickupType === 'no_pickup';
   const isMeetingPointExplicit = rawPickupType === 'meeting_point';
   const isAirport = rawPickupType === 'airport';
   const isHotelPickupIncluded = tour.hotelPickupIncluded === true;
-  const isHotelPickupSupported = !isNoPickup && !isMeetingPointExplicit && (isHotelPickupIncluded || rawPickupType === 'hotel' || rawPickupType === 'both');
-  const isMeetingPointOnly = isMeetingPointExplicit || (!isHotelPickupSupported && !isNoPickup && !isAirport);
+  const isHotelPickupSupported =
+    !isNoPickup &&
+    !isMeetingPointExplicit &&
+    (isHotelPickupIncluded || rawPickupType === 'both' || (zones && zones.length > 0));
+  const isMeetingPointOnly = isMeetingPointExplicit || (!isHotelPickupSupported && Boolean(tour.meetingPointName));
   const [pickupType, setPickupType] = useState<'HOTEL' | 'MEETING_POINT' | 'AIRPORT'>(
-    isHotelPickupSupported ? 'HOTEL' : 'MEETING_POINT'
+    isHotelPickupSupported ? 'HOTEL' : (isMeetingPointOnly ? 'MEETING_POINT' : (isAirport ? 'AIRPORT' : 'MEETING_POINT'))
   );
   const [selectedZoneId, setSelectedZoneId] = useState<string>('');
   const [hotelName, setHotelName] = useState('');
@@ -382,7 +385,9 @@ export default function ContinuousBookingModal({
     if (currentStep === 3) {
       if (tour.bookingQuestions && tour.bookingQuestions.length > 0) {
         for (const q of tour.bookingQuestions) {
-          if (q.required) {
+          const isRoomQuestion = String(q.id || '').toLowerCase().includes('room') || String(q.question || '').toLowerCase().includes('room');
+          // Room number is never universally mandatory
+          if (q.required && !isRoomQuestion) {
             const val = bookingAnswers[q.id];
             if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
               errs[`question_${q.id}`] = 'This field is required';
@@ -993,58 +998,78 @@ export default function ContinuousBookingModal({
                     </div>
 
                     {/* Custom Tour Questions (if any) */}
-                    {tour.bookingQuestions && tour.bookingQuestions.length > 0 && (
-                      <div className="space-y-3 pt-1">
-                        <div className="border-b border-white/5 pb-2">
-                          <p className="text-xs font-bold text-slate-300">Activity Requirements</p>
-                          <p className="text-[11px] text-slate-400">Please provide the details below for your trip preparation.</p>
+                    {(() => {
+                      const displayedQuestions = (tour.bookingQuestions || []).filter((q) => {
+                        const qId = (q.id || '').toLowerCase();
+                        const qText = (q.question || '').toLowerCase();
+                        // Traveler contact details are handled in Step 2
+                        if (qId.includes('name') || qText.includes('full name')) return false;
+                        if (qId.includes('phone') || qText.includes('phone number')) return false;
+                        // If hotel transfer inputs are active, avoid asking hotel / room twice
+                        if (isHotelPickupSupported && pickupType === 'HOTEL') {
+                          if (qId.includes('hotel') || qText.includes('hotel name')) return false;
+                          if (qId.includes('room') || qText.includes('room number')) return false;
+                        }
+                        return true;
+                      });
+
+                      if (displayedQuestions.length === 0) return null;
+
+                      return (
+                        <div className="space-y-3 pt-1">
+                          <div className="border-b border-white/5 pb-2">
+                            <p className="text-xs font-bold text-slate-300">Activity Requirements</p>
+                            <p className="text-[11px] text-slate-400">Please provide the details below for your trip preparation.</p>
+                          </div>
+                          {displayedQuestions.map((q) => {
+                            const isRoomQuestion = String(q.id || '').toLowerCase().includes('room') || String(q.question || '').toLowerCase().includes('room');
+                            const isRequired = q.required && !isRoomQuestion;
+                            const qError = errors[`question_${q.id}`];
+                            const val = bookingAnswers[q.id] ?? '';
+                            return (
+                              <div key={q.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 space-y-1.5">
+                                <label className="block text-xs font-bold text-slate-300">
+                                  {q.question} {isRequired && <span className="text-[#FF5B00] ml-1">*</span>}
+                                </label>
+                                {q.helpText && <p className="text-[11px] text-slate-400">{q.helpText}</p>}
+                                {q.type === 'select' && q.options ? (
+                                  <select
+                                    value={val}
+                                    onChange={(e) => setBookingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                                    className="w-full rounded-xl border border-white/10 bg-[#0B1528] px-3.5 py-2.5 text-xs font-bold text-white focus:border-[#00E5FF] focus:outline-none"
+                                  >
+                                    <option value="">Select an option…</option>
+                                    {q.options.map((opt, i) => (
+                                      <option key={i} value={opt}>{opt}</option>
+                                    ))}
+                                  </select>
+                                ) : q.type === 'textarea' ? (
+                                  <textarea
+                                    rows={2}
+                                    value={val}
+                                    placeholder={q.placeholder || ''}
+                                    onChange={(e) => setBookingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs font-bold text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
+                                  />
+                                ) : (
+                                  <input
+                                    type="text"
+                                    value={val}
+                                    placeholder={q.placeholder || ''}
+                                    onChange={(e) => setBookingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
+                                  />
+                                )}
+                                {qError && <p className="text-[11px] text-rose-400 font-medium">{qError}</p>}
+                              </div>
+                            );
+                          })}
                         </div>
-                        {tour.bookingQuestions.map((q) => {
-                          const qError = errors[`question_${q.id}`];
-                          const val = bookingAnswers[q.id] ?? '';
-                          return (
-                            <div key={q.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 space-y-1.5">
-                              <label className="block text-xs font-bold text-slate-300">
-                                {q.question} {q.required && <span className="text-[#FF5B00] ml-1">*</span>}
-                              </label>
-                              {q.helpText && <p className="text-[11px] text-slate-400">{q.helpText}</p>}
-                              {q.type === 'select' && q.options ? (
-                                <select
-                                  value={val}
-                                  onChange={(e) => setBookingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                                  className="w-full rounded-xl border border-white/10 bg-[#0B1528] px-3.5 py-2.5 text-xs font-bold text-white focus:border-[#00E5FF] focus:outline-none"
-                                >
-                                  <option value="">Select an option…</option>
-                                  {q.options.map((opt, i) => (
-                                    <option key={i} value={opt}>{opt}</option>
-                                  ))}
-                                </select>
-                              ) : q.type === 'textarea' ? (
-                                <textarea
-                                  rows={2}
-                                  value={val}
-                                  placeholder={q.placeholder || ''}
-                                  onChange={(e) => setBookingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs font-bold text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
-                                />
-                              ) : (
-                                <input
-                                  type="text"
-                                  value={val}
-                                  placeholder={q.placeholder || ''}
-                                  onChange={(e) => setBookingAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-bold text-white placeholder-slate-500 focus:border-[#00E5FF] focus:outline-none"
-                                />
-                              )}
-                              {qError && <p className="text-[11px] text-rose-400 font-medium">{qError}</p>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Logistics / Arrival Mode */}
-                    {isNoPickup ? (
+                    {isNoPickup || (!isHotelPickupSupported && !tour.meetingPointName && !isMeetingPointExplicit) ? (
                       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center space-y-2">
                         <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-[#00E5FF]/20 text-[#00E5FF]">
                           <MapPin className="h-5 w-5" />
@@ -1054,7 +1079,7 @@ export default function ContinuousBookingModal({
                           This experience starts directly at the venue. No hotel pickup or transfer logistics required.
                         </p>
                       </div>
-                    ) : isMeetingPointOnly ? (
+                    ) : isMeetingPointOnly || (!isHotelPickupSupported && tour.meetingPointName) ? (
                       <div className="rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/5 p-5 space-y-2.5">
                         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#00E5FF]">
                           <MapPin className="h-4 w-4" />

@@ -1328,7 +1328,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                       { key: 'isRecommended', label: 'Recommended' },
                       { key: 'isVip', label: 'VIP' },
                       { key: 'isFamilyFriendly', label: 'Family Friendly' },
-                      { key: 'isNew', label: 'New Arrival' },
+                      { key: 'isNew', label: 'New Experience (Badge)' },
                     ].map(({ key, label }) => (
                       <label
                         key={key}

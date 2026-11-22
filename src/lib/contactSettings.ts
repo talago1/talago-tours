@@ -1,15 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { DEFAULT_SETTINGS, parseSettingValue } from '@/lib/systemSettings';
+import { normalizePhoneNumber, normalizePhoneForWhatsApp, buildWhatsAppLink } from '@/utils/sanitize';
 
-/**
- * Normalizes any phone number into an international E.164-compatible digit string
- * with no leading '+', spaces, dashes, or symbols.
- * Example: "+20 122 243 4602" -> "201222434602"
- */
-export function normalizePhoneForWhatsApp(phone: string): string {
-  if (!phone) return '';
-  return phone.replace(/[^\d]/g, '');
-}
+export { normalizePhoneForWhatsApp, buildWhatsAppLink };
 
 /**
  * Validates whether a string is a potentially valid international phone number.
@@ -18,17 +11,6 @@ export function normalizePhoneForWhatsApp(phone: string): string {
 export function isValidInternationalPhone(phone: string): boolean {
   const digits = normalizePhoneForWhatsApp(phone);
   return digits.length >= 8 && digits.length <= 15;
-}
-
-/**
- * Builds an official WhatsApp link: https://wa.me/<digits>?text=<encoded_message>
- * If phone is empty, falls back to the configured fallback or default.
- */
-export function buildWhatsAppLink(phone: string, message?: string): string {
-  const digits = normalizePhoneForWhatsApp(phone);
-  if (!digits) return '#';
-  if (!message) return `https://wa.me/${digits}`;
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
 
 /**

@@ -193,6 +193,16 @@ export async function POST(request: NextRequest) {
 
     // Resolve effective pickup configuration
     const effectivePickupType = (pickupType || tour.pickupType || 'hotel').toLowerCase();
+    const isHotelTransferConfigured =
+      tour.hotelPickupIncluded === true ||
+      effectivePickupType === 'both';
+
+    const requiresHotel =
+      isHotelTransferConfigured &&
+      effectivePickupType !== 'none' &&
+      effectivePickupType !== 'no_pickup' &&
+      effectivePickupType !== 'meeting_point' &&
+      pickupType !== 'MEETING_POINT';
 
     // Validate checkout fields
     const formErrors = validateCheckoutForm({
@@ -206,7 +216,7 @@ export async function POST(request: NextRequest) {
       customerPhone: phone || '',
       maxGuestCount: tour.maxCapacity,
       pickupType: effectivePickupType,
-      requiresHotelPickup: tour.hotelPickupIncluded && effectivePickupType === 'hotel',
+      requiresHotelPickup: requiresHotel,
       allowPhoneOnly: isPhoneOnlyBooking,
     });
 
@@ -289,7 +299,9 @@ export async function POST(request: NextRequest) {
     // Validate custom booking questions
     const tourQuestions = Array.isArray(tour.bookingQuestions) ? (tour.bookingQuestions as any[]) : [];
     for (const q of tourQuestions) {
-      if (q && q.required) {
+      const isRoom = String(q.id || '').toLowerCase().includes('room') || String(q.question || '').toLowerCase().includes('room');
+      // Room number is never universally mandatory
+      if (q && q.required && !isRoom) {
         const val = rawBookingAnswers ? rawBookingAnswers[q.id] : undefined;
         if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
           return NextResponse.json(

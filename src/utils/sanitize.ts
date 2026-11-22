@@ -66,47 +66,132 @@ export function sanitizeEmail(val: unknown): string {
 
 /**
  * Normalizes an international phone number to canonical E.164 format.
- * Strips duplicate trunk zeroes between country dial code and national subscriber number
- * (e.g. +20010... -> +2010..., +4407... -> +447..., +4901... -> +491...).
+ * - Handles Egypt (+20):
+ *   - Domestic 010, 011, 012, 015 (11 digits, e.g. 01012345678) -> +201012345678 (single removal of leading zero)
+ *   - +20 followed by domestic 0 (e.g. +2001012345678) -> +201012345678
+ *   - Raw without + (e.g. 201012345678 or 2001012345678) -> +201012345678
+ *   - National without leading 0 (e.g. 1012345678 with defaultDial +20) -> +201012345678
+ *   - Already normalized (e.g. +201012345678) -> +201012345678 (idempotent, never produces +21...)
+ *   - Never duplicates country code (+20201012345678 -> +201012345678)
+ * - Handles general international numbers:
+ *   - Strips domestic trunk zero where appropriate (e.g. +4407... -> +447..., +4901... -> +491...)
+ *   - Never strips zeroes belonging to country codes (e.g. +380 Ukraine, +20 Egypt, +502, etc.)
+ *   - Never removes significant digits
  */
 export function normalizePhoneNumber(raw: unknown, defaultDial = '+20'): string {
   if (!raw) return '';
   let str = String(raw).trim();
   if (!str) return '';
 
+  // Remove whitespace, dashes, parentheses, dots
+  str = str.replace(/[\s\-\(\)\.]/g, '');
+
+  // Handle double zero international prefix (e.g. 002010... -> +2010...)
+  if (str.startsWith('00')) {
+    str = '+' + str.slice(2);
+  }
+
+  // Handle repeated pluses
+  str = str.replace(/^\++/, '+');
+
   const hasPlus = str.startsWith('+');
   let digits = str.replace(/\D/g, '');
   if (!digits) return '';
 
-  if (str.startsWith('00')) {
-    digits = digits.replace(/^00/, '');
-    str = '+' + digits;
-  } else if (hasPlus) {
-    str = '+' + digits;
-  } else {
-    // Check if it already starts with an international dial code without plus (e.g. 2010... or 4917...)
-    if (digits.startsWith('20') && digits.length >= 11) {
-      str = '+' + digits;
-    } else if (digits.startsWith('0')) {
-      const national = digits.replace(/^0+/, '');
-      const cleanDial = defaultDial.startsWith('+') ? defaultDial : `+${defaultDial}`;
-      str = `${cleanDial}${national}`;
-    } else {
-      const cleanDial = defaultDial.startsWith('+') ? defaultDial : `+${defaultDial}`;
-      str = `${cleanDial}${digits}`;
+  const cleanDefaultDial = defaultDial.startsWith('+') ? defaultDial : `+${defaultDial}`;
+  const defaultDialDigits = cleanDefaultDial.replace(/\D/g, '');
+
+  // 1. Check for repeated country code (e.g. 20201012345678 -> 201012345678)
+  if (digits.startsWith('2020') && digits.length >= 12) {
+    const afterFirst20 = digits.slice(2);
+    if (afterFirst20.startsWith('201') || afterFirst20.startsWith('2001')) {
+      digits = afterFirst20;
     }
   }
 
-  // Strip redundant national trunk 0 immediately following country dial codes:
-  // Egypt (+20): +20 01[0125]xxxxxxxx -> +20 1[0125]xxxxxxxx
-  if (/^\+200(1[0125]\d{8})$/.test(str)) {
-    str = str.replace(/^\+200/, '+20');
-  } else if (/^\+(\d{1,4})0([1-9]\d{5,14})$/.test(str)) {
-    // General international numbers where a national trunk 0 was erroneously included
-    str = str.replace(/^\+(\d{1,4})0([1-9]\d{5,14})$/, '+$1$2');
+  // 2. Specific Egyptian Number Normalization
+  // If digits start with 200 (e.g. 2001012345678 -> 201012345678)
+  if (digits.startsWith('2001') && digits.length === 13) {
+    digits = '20' + digits.slice(3);
+    return `+${digits}`;
   }
 
-  return str.slice(0, 25);
+  // If already starts with 201[0125]xxxxxxxx (12 digits)
+  if (/^201[0125]\d{8}$/.test(digits)) {
+    return `+${digits}`;
+  }
+
+  // If input was local Egyptian number starting with 01[0125]xxxxxxxx (11 digits)
+  if (/^01[0125]\d{8}$/.test(digits)) {
+    return `+20${digits.slice(1)}`;
+  }
+
+  // If input was 10-digit Egyptian mobile without trunk zero (1[0125]xxxxxxxx) and defaultDial is +20
+  if (defaultDialDigits === '20' && /^1[0125]\d{8}$/.test(digits)) {
+    return `+20${digits}`;
+  }
+
+  // 3. General International Numbers
+  if (hasPlus) {
+    // UK (+44): +4407... -> +447...
+    if (/^440[1-9]\d{8,9}$/.test(digits)) {
+      digits = '44' + digits.slice(3);
+    }
+    // Germany (+49): +4901... -> +491...
+    else if (/^490[1-9]\d{8,11}$/.test(digits)) {
+      digits = '49' + digits.slice(3);
+    }
+    // France (+33): +330[1-9]... -> +33[1-9]...
+    else if (/^330[1-9]\d{8}$/.test(digits)) {
+      digits = '33' + digits.slice(3);
+    }
+    // Poland (+48): +480... -> +48...
+    else if (/^480[1-9]\d{8}$/.test(digits)) {
+      digits = '48' + digits.slice(3);
+    }
+    return `+${digits}`.slice(0, 25);
+  }
+
+  // Input did not have leading '+'
+  // If digits start with common international prefixes and length looks international
+  if (digits.length >= 10 && !digits.startsWith('0')) {
+    if (digits.startsWith(defaultDialDigits)) {
+      return `+${digits}`.slice(0, 25);
+    }
+    const knownCountryPrefixes = ['49', '44', '33', '34', '39', '48', '380', '7', '1'];
+    const hasKnownPrefix = knownCountryPrefixes.some((p) => digits.startsWith(p));
+    if (hasKnownPrefix) {
+      return `+${digits}`.slice(0, 25);
+    }
+  }
+
+  // Domestic number with leading 0 (generic fallback)
+  if (digits.startsWith('0')) {
+    const national = digits.replace(/^0+/, '');
+    return `${cleanDefaultDial}${national}`.slice(0, 25);
+  }
+
+  // Otherwise prepend defaultDial
+  return `${cleanDefaultDial}${digits}`.slice(0, 25);
+}
+
+/**
+ * Returns digits-only canonical string for WhatsApp links (no leading '+').
+ * E.g. '+201012345678' -> '201012345678'
+ */
+export function normalizePhoneForWhatsApp(phone: unknown, defaultDial = '+20'): string {
+  const canonical = normalizePhoneNumber(phone, defaultDial);
+  return canonical.replace(/\D/g, '');
+}
+
+/**
+ * Builds an official WhatsApp link: https://wa.me/<digits>?text=<encoded_message>
+ */
+export function buildWhatsAppLink(phone: unknown, message?: string, defaultDial = '+20'): string {
+  const digits = normalizePhoneForWhatsApp(phone, defaultDial);
+  if (!digits) return '#';
+  if (!message) return `https://wa.me/${digits}`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
 
 /**

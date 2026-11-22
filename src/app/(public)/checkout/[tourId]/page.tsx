@@ -218,8 +218,9 @@ function validateForm(
   }
 
   const rawPickupType = (data.pickupType || tour?.pickupType || 'hotel').toLowerCase();
-  const isNoPickup = rawPickupType === 'meeting_point' || rawPickupType === 'none';
-  const isHotelPickupSupported = !isNoPickup && (tour?.hotelPickupIncluded === true || rawPickupType === 'hotel' || rawPickupType === 'both');
+  const isNoPickup = rawPickupType === 'meeting_point' || rawPickupType === 'none' || rawPickupType === 'no_pickup';
+  const isHotelPickupIncluded = tour?.hotelPickupIncluded === true;
+  const isHotelPickupSupported = !isNoPickup && rawPickupType !== 'meeting_point' && (isHotelPickupIncluded || rawPickupType === 'both');
   const isHotelPickupRequired = isHotelPickupSupported && (data.pickupType === 'HOTEL' || !data.pickupType);
   if (isHotelPickupRequired && (!data.hotelName || !data.hotelName.trim())) {
     errors.hotelName = m.hotelRequired;
@@ -229,7 +230,9 @@ function validateForm(
 
   if (tour?.bookingQuestions && tour.bookingQuestions.length > 0) {
     for (const q of tour.bookingQuestions) {
-      if (q.required) {
+      const isRoom = String(q.id || '').toLowerCase().includes('room') || String(q.question || '').toLowerCase().includes('room');
+      // Room number is never universally mandatory
+      if (q.required && !isRoom) {
         const ans = data.bookingAnswers?.[q.id];
         if (ans === undefined || ans === null || (typeof ans === 'string' && ans.trim() === '')) {
           (errors as Record<string, string>)[`question_${q.id}`] = 'This field is required';
@@ -1045,9 +1048,9 @@ export default function CheckoutPage() {
                   {(() => {
                     const rawTourPickupType = (tour?.pickupType || 'hotel').toLowerCase();
                     const isHotelPickupIncluded = tour?.hotelPickupIncluded === true;
-                    const isHotelPickupSupported = rawTourPickupType !== 'none' && rawTourPickupType !== 'meeting_point' && (isHotelPickupIncluded || rawTourPickupType === 'hotel' || rawTourPickupType === 'both');
-                    const isMeetingPointOnly = rawTourPickupType === 'meeting_point' || (!isHotelPickupSupported && rawTourPickupType !== 'none' && rawTourPickupType !== 'airport');
-                    const isNoPickup = rawTourPickupType === 'none';
+                    const isHotelPickupSupported = rawTourPickupType !== 'none' && rawTourPickupType !== 'no_pickup' && rawTourPickupType !== 'meeting_point' && (isHotelPickupIncluded || rawTourPickupType === 'both');
+                    const isMeetingPointOnly = rawTourPickupType === 'meeting_point' || (!isHotelPickupSupported && Boolean(tour?.meetingPointName));
+                    const isNoPickup = rawTourPickupType === 'none' || rawTourPickupType === 'no_pickup' || (!isHotelPickupSupported && !isMeetingPointOnly && rawTourPickupType !== 'airport');
                     const isAirport = rawTourPickupType === 'airport';
                     const isBoth = (rawTourPickupType === 'both' || Boolean(tour?.meetingPointName && isHotelPickupSupported));
 
@@ -1376,7 +1379,26 @@ export default function CheckoutPage() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {tour.bookingQuestions.map((q) => {
+                      {tour.bookingQuestions
+                        .filter((q) => {
+                          const qId = (q.id || '').toLowerCase();
+                          const qText = (q.question || '').toLowerCase();
+                          // Contact details already collected above
+                          if (qId.includes('name') || qText.includes('full name')) return false;
+                          if (qId.includes('phone') || qText.includes('phone number')) return false;
+                          // If hotel pickup section is active, avoid asking hotel/room twice
+                          const hasActiveHotelPickup =
+                            (tour.hotelPickupIncluded === true || tour.pickupType === 'both') &&
+                            form.pickupType !== 'MEETING_POINT';
+                          if (hasActiveHotelPickup) {
+                            if (qId.includes('hotel') || qText.includes('hotel name')) return false;
+                            if (qId.includes('room') || qText.includes('room number')) return false;
+                          }
+                          return true;
+                        })
+                        .map((q) => {
+                        const isRoom = String(q.id || '').toLowerCase().includes('room') || String(q.question || '').toLowerCase().includes('room');
+                        const isRequired = q.required && !isRoom;
                         const qError = (errors as Record<string, string>)[`question_${q.id}`];
                         const val = bookingAnswers[q.id] ?? '';
 
@@ -1395,7 +1417,7 @@ export default function CheckoutPage() {
                           >
                             <label className="block text-xs font-bold uppercase text-slate-300 mb-1.5">
                               {q.question}
-                              {q.required && <span className="text-[#FF5B00] ml-1">*</span>}
+                              {isRequired && <span className="text-[#FF5B00] ml-1">*</span>}
                             </label>
 
                             {q.helpText && (
