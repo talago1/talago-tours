@@ -35,8 +35,10 @@ export async function GET(request: NextRequest) {
 
   const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL;
   const appUrl = cleanBaseUrl(rawAppUrl, request.nextUrl.origin);
+  const rawReturnTo = searchParams.get('returnTo');
+  const safeReturn = rawReturnTo && rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('//') && rawReturnTo !== '/login' && rawReturnTo !== '/auth' ? rawReturnTo : '/account';
   const failureRedirect = `${appUrl}/auth?error=telegram_failed`;
-  const successRedirect = `${appUrl}/account`;
+  const successRedirect = `${appUrl}${safeReturn}`;
 
   if (!id || !auth_date || !hash) {
     return NextResponse.redirect(`${failureRedirect}&reason=incomplete_payload`);
@@ -229,11 +231,29 @@ export async function GET(request: NextRequest) {
             body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken })
           });
         } catch (e) {}
+
+        try {
+          const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+          document.cookie = 'talago_session=' + encodeURIComponent(accessToken) + '; Path=/; Max-Age=604800; SameSite=Lax' + secureFlag;
+        } catch (e) {}
+
+        try {
+          if ('BroadcastChannel' in window) {
+            const ch = new BroadcastChannel('talago_auth_sync');
+            ch.postMessage({ action: 'SIGN_IN', timestamp: Date.now() });
+            ch.close();
+          }
+        } catch (e) {}
       }
 
       // 3. Clean navigation to destination
       window.location.replace(successRedirect);
     })();
+
+    // Safety fallback
+    setTimeout(function() {
+      window.location.replace(${JSON.stringify(successRedirect)});
+    }, 1200);
   </script>
 </body>
 </html>`;

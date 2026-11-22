@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { sanitizePlain, sanitizePhone } from '@/utils/sanitize';
@@ -106,10 +107,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-    if (error || !user || !user.email) {
+    let user: SessionUser | null = null;
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (userData?.user?.email) {
+      user = userData.user as SessionUser;
+    } else if (refreshToken) {
+      // Auto-refresh when access token is expired but valid refresh_token exists
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+      if (supabaseUrl && supabaseAnonKey) {
+        try {
+          const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
+          const { data: refreshData } = await supabaseAnon.auth.refreshSession({
+            refresh_token: refreshToken,
+          });
+          if (refreshData?.session?.user?.email && refreshData.session.access_token) {
+            user = refreshData.session.user as SessionUser;
+            token = refreshData.session.access_token;
+            refreshToken = refreshData.session.refresh_token || refreshToken;
+          }
+        } catch (refreshErr) {
+          console.warn('[session-post] auto-refresh failed:', refreshErr);
+        }
+      }
+    }
+
+    if (!user || !user.email) {
       return NextResponse.json(
-        { authenticated: false, error: 'Invalid token' },
+        { authenticated: false, error: 'Invalid or expired token' },
         { status: 401, headers: NO_STORE }
       );
     }

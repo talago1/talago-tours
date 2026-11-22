@@ -68,6 +68,36 @@ function TelegramIcon({ className = 'h-4 w-4' }: { className?: string }) {
   );
 }
 
+function TelegramWidgetButton({
+  botUsername,
+  returnTo,
+}: {
+  botUsername: string;
+  returnTo: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    containerRef.current.innerHTML = '';
+    const script = document.createElement('script');
+    script.src = 'https://telegram.org/js/telegram-widget.js?22';
+    script.setAttribute('data-telegram-login', botUsername);
+    script.setAttribute('data-size', 'large');
+    script.setAttribute('data-radius', '12');
+    script.setAttribute('data-request-access', 'write');
+    script.setAttribute('data-auth-url', `/api/auth/telegram/callback?returnTo=${encodeURIComponent(returnTo)}`);
+    script.async = true;
+    containerRef.current.appendChild(script);
+  }, [botUsername, returnTo]);
+
+  return (
+    <div className="flex flex-col items-center justify-center pt-2">
+      <div ref={containerRef} className="min-h-[44px] flex justify-center" />
+    </div>
+  );
+}
+
 function AuthPageContent() {
   const { dict } = useLanguage();
   const router = useRouter();
@@ -137,8 +167,14 @@ function AuthPageContent() {
             window.location.replace(targetReturn);
             return;
           } else if (syncRes && syncRes.status === 401) {
-            // Client session was invalid/expired; clear it to avoid bouncing
-            await supabaseClient.auth.signOut().catch(() => {});
+            // Client session was invalid/expired; clear local storage cleanly without triggering 403 network logout
+            try {
+              const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+              if (supabaseUrl) {
+                const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
+                localStorage.removeItem(`sb-${projectRef}-auth-token`);
+              }
+            } catch {}
           }
         }
       } catch {}
@@ -491,46 +527,41 @@ function AuthPageContent() {
                 <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
                 <span>Loading Telegram login…</span>
               </div>
-            ) : oidcReady ? (
-              <button
-                type="button"
-                onClick={handleTelegramOidc}
-                disabled={loading}
-                className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-sky-500/40 bg-sky-500/10 py-3.5 text-sm font-bold text-sky-200 shadow-xl transition-all duration-300 hover:bg-sky-500/20 hover:scale-[1.02] disabled:opacity-60 disabled:pointer-events-none"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
-                ) : (
-                  <>
-                    <TelegramIcon className="h-5 w-5 text-sky-400" />
-                    <span>Continue with Telegram</span>
-                  </>
-                )}
-              </button>
-            ) : telegramConfig?.configured ? (
-              /* Legacy widget fallback — show unavailability notice when OIDC not set */
-              <div className="text-center rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-xs text-slate-400 w-full space-y-2">
-                <p className="font-semibold text-amber-300">Telegram Login Needs Configuration</p>
-                <p className="text-[11px] text-slate-400">
-                  Telegram OIDC credentials are not yet set. Once the BotFather OIDC setup is complete and{' '}
-                  <code className="text-sky-300">TELEGRAM_OIDC_CLIENT_ID</code> is added to your environment, this button will activate.
-                </p>
-                <a
-                  href="https://t.me/talagoo_bot"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-300 hover:bg-sky-500/20 transition-all"
-                >
-                  <TelegramIcon className="h-3.5 w-3.5" />
-                  <span>Message @talagoo_bot</span>
-                </a>
-              </div>
             ) : (
-              <div className="text-center rounded-xl border border-white/10 bg-white/[0.02] p-4 text-xs text-slate-400 w-full">
-                <p className="font-semibold text-slate-300">Telegram Bot Setup Notice</p>
-                <p className="mt-1 text-[11px] text-slate-400">
-                  To enable Telegram Login, configure <code className="text-sky-300">TELEGRAM_BOT_TOKEN</code> and OIDC credentials in your environment variables.
-                </p>
+              <div className="space-y-4">
+                {oidcReady && (
+                  <button
+                    type="button"
+                    onClick={handleTelegramOidc}
+                    disabled={loading}
+                    className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-sky-500/40 bg-sky-500/10 py-3.5 text-sm font-bold text-sky-200 shadow-xl transition-all duration-300 hover:bg-sky-500/20 hover:scale-[1.02] disabled:opacity-60 disabled:pointer-events-none"
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
+                    ) : (
+                      <>
+                        <TelegramIcon className="h-5 w-5 text-sky-400" />
+                        <span>Continue with Telegram (OAuth)</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {telegramConfig?.botUsername && (
+                  <div className="pt-1">
+                    {oidcReady && (
+                      <div className="relative flex py-2 items-center">
+                        <div className="flex-grow border-t border-white/10" />
+                        <span className="flex-shrink mx-3 text-[11px] uppercase tracking-wider text-slate-400">or use telegram widget</span>
+                        <div className="flex-grow border-t border-white/10" />
+                      </div>
+                    )}
+                    <TelegramWidgetButton
+                      botUsername={telegramConfig.botUsername}
+                      returnTo={safeReturnTarget(searchParams.get('returnTo'))}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
