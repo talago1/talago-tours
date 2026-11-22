@@ -326,6 +326,7 @@ export default function CheckoutPage() {
   const [bookingAnswers, setBookingAnswers] = useState<Record<string, any>>({});
 
   const draftLoadedRef = useRef(false);
+  const idempotencyKeyRef = useRef<string>('');
 
   const totalPayingGuests = adultsCount + childrenCount;
 
@@ -403,9 +404,9 @@ export default function CheckoutPage() {
 
       setForm((prev) => ({
         ...prev,
-        ...(verifiedName && !prev.leadName.trim() ? { leadName: verifiedName } : {}),
-        ...(verifiedPhone && !prev.phone.trim() ? { phone: verifiedPhone } : {}),
-        ...(verifiedEmail && !prev.email.trim() ? { email: verifiedEmail } : {}),
+        ...(verifiedName ? { leadName: verifiedName } : {}),
+        ...(verifiedPhone ? { phone: verifiedPhone } : {}),
+        ...(verifiedEmail ? { email: verifiedEmail } : {}),
       }));
     }
   }, [isAuthenticated, authUser]);
@@ -428,16 +429,27 @@ export default function CheckoutPage() {
         if (draft.bookingAnswers) {
           setBookingAnswers(draft.bookingAnswers);
         }
-        setForm((prev) => ({
-          ...prev,
-          leadName: prev.leadName.trim() ? prev.leadName : (draft.leadName || prev.leadName),
-          phone: prev.phone.trim() ? prev.phone : (draft.phone || prev.phone),
-          email: prev.email.trim() ? prev.email : (draft.email || prev.email),
-          pickupType: draft.pickupType || prev.pickupType,
-          hotelName: draft.hotelName || prev.hotelName,
-          roomNumber: draft.roomNumber || prev.roomNumber,
-          specialRequirements: draft.specialRequirements || prev.specialRequirements,
-        }));
+        // Only load contact details from draft if unauthenticated so verified profile isn't overridden
+        if (!isAuthenticated) {
+          setForm((prev) => ({
+            ...prev,
+            leadName: prev.leadName.trim() ? prev.leadName : (draft.leadName || prev.leadName),
+            phone: prev.phone.trim() ? prev.phone : (draft.phone || prev.phone),
+            email: prev.email.trim() ? prev.email : (draft.email || prev.email),
+            pickupType: draft.pickupType || prev.pickupType,
+            hotelName: draft.hotelName || prev.hotelName,
+            roomNumber: draft.roomNumber || prev.roomNumber,
+            specialRequirements: draft.specialRequirements || prev.specialRequirements,
+          }));
+        } else {
+          setForm((prev) => ({
+            ...prev,
+            pickupType: draft.pickupType || prev.pickupType,
+            hotelName: draft.hotelName || prev.hotelName,
+            roomNumber: draft.roomNumber || prev.roomNumber,
+            specialRequirements: draft.specialRequirements || prev.specialRequirements,
+          }));
+        }
       }
     }
     const queryAdults = searchParams.get('adults');
@@ -664,8 +676,13 @@ export default function CheckoutPage() {
         } catch {}
       }
 
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = 'tlg_idemp_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+      }
+
       const initHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKeyRef.current,
       };
       if (authToken) {
         initHeaders['Authorization'] = `Bearer ${authToken}`;
@@ -678,6 +695,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           tourId: tour.id,
           reservationId,
+          idempotencyKey: idempotencyKeyRef.current,
           departureDate,
           guestCount: adultsCount + childrenCount + infantsCount,
           adultsCount,

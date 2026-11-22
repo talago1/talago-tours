@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Anchor, Bus, Compass, DollarSign, UserCheck, ShieldCheck, Plus, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
+import { Anchor, Bus, Compass, DollarSign, UserCheck, ShieldCheck, Plus, CheckCircle2, AlertCircle, FileText, Send, Phone, Car } from 'lucide-react';
 
 interface CrewAssignmentItem {
   id: string;
@@ -72,9 +72,44 @@ export default function TripDispatcher({ tourId, date }: { tourId: string; date:
     setNewExpenseNotes('');
   };
 
-  const totalExpenseUSD = expenses
-    .filter((e) => e.currency === 'USD')
-    .reduce((sum, e) => sum + e.amount, 0);
+  const [totalExpenseUSD, setTotalExpenseUSD] = useState(0);
+
+  const [dispatchDriverName, setDispatchDriverName] = useState('Ahmed Hassan');
+  const [dispatchDriverPhone, setDispatchDriverPhone] = useState('+20 100 876 5432');
+  const [dispatchVehicle, setDispatchVehicle] = useState('Toyota Coaster VIP — Plate 4821');
+  const [dispatchNotes, setDispatchNotes] = useState('Please wait in the hotel main lobby 5 minutes before scheduled pickup time.');
+  const [dispatching, setDispatching] = useState(false);
+  const [dispatchStatus, setDispatchStatus] = useState<string | null>(null);
+
+  const handleBroadcastDispatch = async () => {
+    if (!dispatchDriverName.trim()) {
+      alert('Please provide a driver name.');
+      return;
+    }
+    setDispatching(true);
+    setDispatchStatus(null);
+    try {
+      const res = await fetch('/api/admin/operations/dispatch/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tourId,
+          departureDate: date,
+          driverName: dispatchDriverName.trim(),
+          driverPhone: dispatchDriverPhone.trim(),
+          vehicleDetails: dispatchVehicle.trim(),
+          pickupNotes: dispatchNotes.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to dispatch briefing');
+      setDispatchStatus(`Successfully dispatched driver briefings to ${data.dispatchedCount} / ${data.totalGuests} guests via WhatsApp & Email!`);
+    } catch (err: any) {
+      setDispatchStatus(`Error: ${err.message || 'Dispatch failed'}`);
+    } finally {
+      setDispatching(false);
+    }
+  };
 
   return (
     <div className="space-y-8 text-[#F8FAFC]">
@@ -105,6 +140,90 @@ export default function TripDispatcher({ tourId, date }: { tourId: string; date:
             <FileText className="h-3.5 w-3.5" />
             Download Manifest
           </a>
+        </div>
+      </div>
+
+      {/* Automated Driver Briefing Card */}
+      <div className="rounded-3xl border border-cyan-500/30 bg-gradient-to-r from-[#0B1528] to-[#070F1E] p-6 shadow-2xl backdrop-blur-md">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#00E5FF]/20 text-[#00E5FF]">
+              <Car className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white">Guest Transfer Briefing Dispatcher</h3>
+              <p className="text-xs text-slate-400">Broadcast driver contact, pickup timing, and vehicle details straight to travelers via WhatsApp & Email</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-xs font-bold text-[#00E5FF] border border-cyan-500/20">
+            Automated WhatsApp + Email
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 pt-2">
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1">Assigned Driver Name *</label>
+            <input
+              type="text"
+              value={dispatchDriverName}
+              onChange={(e) => setDispatchDriverName(e.target.value)}
+              placeholder="Driver full name"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#00E5FF]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1">Driver Phone / WhatsApp</label>
+            <input
+              type="text"
+              value={dispatchDriverPhone}
+              onChange={(e) => setDispatchDriverPhone(e.target.value)}
+              placeholder="e.g. +20 100 876 5432"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#00E5FF]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1">Vehicle Model &amp; Plate #</label>
+            <input
+              type="text"
+              value={dispatchVehicle}
+              onChange={(e) => setDispatchVehicle(e.target.value)}
+              placeholder="e.g. Toyota Coaster — Plate 4821"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#00E5FF]"
+            />
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <label className="block text-xs font-bold text-slate-300 mb-1">Departure Notes / Lobby Directives (Optional)</label>
+          <input
+            type="text"
+            value={dispatchNotes}
+            onChange={(e) => setDispatchNotes(e.target.value)}
+            placeholder="e.g. Driver will meet you at the main hotel lobby. Look for the Talago badge."
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#00E5FF]"
+          />
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+          <button
+            type="button"
+            onClick={handleBroadcastDispatch}
+            disabled={dispatching || !dispatchDriverName.trim()}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 transition-all hover:scale-[1.02] active:scale-98 disabled:opacity-40"
+          >
+            {dispatching ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+            <span>Broadcast Driver Details to All Departure Guests</span>
+          </button>
+
+          {dispatchStatus && (
+            <p className={`text-xs font-bold ${dispatchStatus.startsWith('Error') ? 'text-rose-400' : 'text-emerald-400'}`}>
+              {dispatchStatus}
+            </p>
+          )}
         </div>
       </div>
 

@@ -404,5 +404,6 @@ export function formatUserProfile(
     telegramBotAccess: Boolean(profile?.telegramBotAccess),
     telegramConnectedAt: profile?.telegramConnectedAt ? new Date(profile.telegramConnectedAt).toISOString() : null,
     provider: isTelegram ? ('telegram' as const) : isGoogle ? ('google' as const) : ('email' as const),
+    profileLoaded: Boolean(profile),
   };
 }

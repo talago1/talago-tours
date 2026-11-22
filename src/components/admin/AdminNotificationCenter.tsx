@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -36,12 +37,48 @@ export default function AdminNotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<AdminActionNotification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const updatePosition = useCallback(() => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPos({
+        top: rect.bottom + 8,
+        right: Math.max(16, window.innerWidth - rect.right),
+      });
+    }
+  }, []);
+
+  // Update position on open, scroll, or resize
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
+    }
+  }, [isOpen, updatePosition]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     }
@@ -117,9 +154,10 @@ export default function AdminNotificationCenter() {
   };
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative">
       {/* Bell Button */}
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Admin Action Queue"
@@ -133,9 +171,13 @@ export default function AdminNotificationCenter() {
         )}
       </button>
 
-      {/* Dropdown Panel */}
-      {isOpen && (
-        <div className="absolute right-0 top-11 z-50 w-80 sm:w-96 rounded-2xl border border-white/10 bg-[#0B1528] shadow-2xl shadow-black/80 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
+      {/* Dropdown Panel rendered via Portal directly onto document.body to avoid parent clipping and stacking contexts */}
+      {isOpen && mounted && dropdownPos && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={panelRef}
+          style={{ top: `${dropdownPos.top}px`, right: `${dropdownPos.right}px` }}
+          className="fixed z-[9999] w-80 sm:w-96 rounded-2xl border border-white/10 bg-[#0B1528] shadow-2xl shadow-black/90 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150"
+        >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
             <div className="flex items-center gap-2">
@@ -233,7 +275,8 @@ export default function AdminNotificationCenter() {
               <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

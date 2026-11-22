@@ -41,9 +41,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ authenticated: false }, { headers: NO_STORE });
     }
 
-    const { profile, telegramMatch } = await resolveCustomerProfileForUser(auth.user);
-    if (!profile) {
-      return NextResponse.json({ authenticated: false }, { headers: NO_STORE });
+    let profile = null;
+    let telegramMatch = null;
+    try {
+      const resolved = await resolveCustomerProfileForUser(auth.user);
+      profile = resolved.profile;
+      telegramMatch = resolved.telegramMatch;
+    } catch (profileErr) {
+      console.warn('[session-get] profile resolution warning:', profileErr);
     }
 
     const userPayload = formatUserProfile(auth.user, profile, telegramMatch);
@@ -52,6 +57,7 @@ export async function GET(request: NextRequest) {
       {
         authenticated: true,
         user: userPayload,
+        profileLoaded: Boolean(profile),
         accessToken: auth.accessToken,
         refreshToken: auth.refreshToken,
       },
@@ -108,20 +114,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { profile, telegramMatch } = await resolveCustomerProfileForUser(user as SessionUser);
-    if (!profile) {
-      return NextResponse.json(
-        { authenticated: false, error: 'Could not resolve profile' },
-        { status: 500, headers: NO_STORE }
-      );
-    }
+    let profile = null;
+    let telegramMatch = null;
+    try {
+      const resolved = await resolveCustomerProfileForUser(user as SessionUser);
+      profile = resolved.profile;
+      telegramMatch = resolved.telegramMatch;
 
-    // Auto-adopt any bookings matching this customer
-    await adoptOwnedBookings({
-      profileId: profile.id,
-      emails: [user.email, profile.email],
-      phones: [profile.phone, profile.telegramPhone, user.phone],
-    }).catch(() => {});
+      if (profile) {
+        // Auto-adopt any bookings matching this customer
+        await adoptOwnedBookings({
+          profileId: profile.id,
+          emails: [user.email, profile.email],
+          phones: [profile.phone, profile.telegramPhone, user.phone],
+        }).catch(() => {});
+      }
+    } catch (profileErr) {
+      console.warn('[session-post] profile resolution warning:', profileErr);
+    }
 
     const userPayload = formatUserProfile(user as SessionUser, profile, telegramMatch);
 
@@ -129,6 +139,7 @@ export async function POST(request: NextRequest) {
       {
         authenticated: true,
         user: userPayload,
+        profileLoaded: Boolean(profile),
         accessToken: token,
         refreshToken: refreshToken,
       },

@@ -14,6 +14,7 @@ import {
   Edit2,
   Trash2,
   Loader2,
+  Star,
 } from 'lucide-react';
 
 interface BookingRowActionsProps {
@@ -40,6 +41,7 @@ export default function BookingRowActions({
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [sendingReview, setSendingReview] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -114,6 +116,23 @@ export default function BookingRowActions({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed');
       setDeleting(false);
+    }
+  };
+
+  const handleSendReview = async () => {
+    setSendingReview(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/bookings/${ticket.id}/send-review-invite`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send review invite');
+      alert(`Review invitation sent successfully to ${ticket.customerName}!`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send invite');
+    } finally {
+      setSendingReview(false);
     }
   };
 
@@ -199,6 +218,22 @@ export default function BookingRowActions({
         </button>
 
         <WhatsAppButton ticket={{ ...ticket, status: localStatus }} />
+
+        {(localStatus === 'CONFIRMED' || localStatus === 'COMPLETED') && (
+          <button
+            type="button"
+            onClick={handleSendReview}
+            disabled={sendingReview}
+            title="Send post-tour review invitation (WhatsApp / Email)"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 transition-all hover:border-amber-500/50 hover:bg-amber-500/20 disabled:opacity-40"
+          >
+            {sendingReview ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Star className="h-3.5 w-3.5" />
+            )}
+          </button>
+        )}
 
         {error && (
           <span className="text-[10px] text-red-400">{error}</span>

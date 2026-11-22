@@ -35,6 +35,8 @@ export async function POST(request: NextRequest) {
     return tooManyRequests(limit.retryAfterSeconds);
   }
 
+  let idempotencyKey: string | null = null;
+
   try {
     const body = await request.json();
     const {
@@ -50,6 +52,10 @@ export async function POST(request: NextRequest) {
     const requestedReservationId = typeof body.reservationId === 'string'
       ? sanitizePlain(body.reservationId, 50)
       : '';
+    const rawIdempotencyKey = typeof body.idempotencyKey === 'string'
+      ? body.idempotencyKey
+      : request.headers.get('idempotency-key');
+    idempotencyKey = rawIdempotencyKey ? sanitizePlain(rawIdempotencyKey.trim(), 100) : null;
 
     if (!tourId || !departureDate || !formData) {
       return NextResponse.json(
@@ -118,6 +124,7 @@ export async function POST(request: NextRequest) {
             bookingId: existingBooking.id,
             bookingReference: existingBooking.bookingReference,
             accessToken: existingBooking.accessToken,
+            confirmationUrl: `/booking/${existingBooking.accessToken}`,
             paymentScheme: existingBooking.paymentScheme,
             totalPrice: existingBooking.totalPriceUSD,
             amountPaidOnline: existingBooking.amountPaidOnline,
@@ -127,6 +134,41 @@ export async function POST(request: NextRequest) {
             isExisting: true,
           });
         }
+      }
+    }
+
+    // Direct idempotency key check (database unique column)
+    if (idempotencyKey) {
+      const existingByKey = await prisma.booking.findUnique({
+        where: { idempotencyKey },
+        select: {
+          id: true,
+          bookingReference: true,
+          accessToken: true,
+          status: true,
+          paymentStatus: true,
+          paymentScheme: true,
+          totalPriceUSD: true,
+          amountPaidOnline: true,
+          amountDueOnArrival: true,
+          currency: true,
+        },
+      });
+      if (existingByKey) {
+        return NextResponse.json({
+          success: true,
+          bookingId: existingByKey.id,
+          bookingReference: existingByKey.bookingReference,
+          accessToken: existingByKey.accessToken,
+          confirmationUrl: `/booking/${existingByKey.accessToken}`,
+          paymentScheme: existingByKey.paymentScheme,
+          totalPrice: existingByKey.totalPriceUSD,
+          amountPaidOnline: existingByKey.amountPaidOnline,
+          amountDueOnArrival: existingByKey.amountDueOnArrival,
+          currency: existingByKey.currency,
+          status: existingByKey.status,
+          isExisting: true,
+        });
       }
     }
 
@@ -420,6 +462,7 @@ export async function POST(request: NextRequest) {
         data: {
           bookingReference,
           accessToken: generateAccessToken(),
+          idempotencyKey: idempotencyKey || null,
           tourId,
           zoneId: tour.zoneId,
           hotelName: hotelName?.trim() || null,
@@ -714,6 +757,42 @@ export async function POST(request: NextRequest) {
         },
         { status: 409 }
       );
+    }
+    // Atomic race handling: if concurrent duplicate request hit at the same millisecond with the same idempotencyKey
+    if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2002') {
+      if (idempotencyKey) {
+        const existingByKey = await prisma.booking.findUnique({
+          where: { idempotencyKey },
+          select: {
+            id: true,
+            bookingReference: true,
+            accessToken: true,
+            status: true,
+            paymentStatus: true,
+            paymentScheme: true,
+            totalPriceUSD: true,
+            amountPaidOnline: true,
+            amountDueOnArrival: true,
+            currency: true,
+          },
+        });
+        if (existingByKey) {
+          return NextResponse.json({
+            success: true,
+            bookingId: existingByKey.id,
+            bookingReference: existingByKey.bookingReference,
+            accessToken: existingByKey.accessToken,
+            confirmationUrl: `/booking/${existingByKey.accessToken}`,
+            paymentScheme: existingByKey.paymentScheme,
+            totalPrice: existingByKey.totalPriceUSD,
+            amountPaidOnline: existingByKey.amountPaidOnline,
+            amountDueOnArrival: existingByKey.amountDueOnArrival,
+            currency: existingByKey.currency,
+            status: existingByKey.status,
+            isExisting: true,
+          });
+        }
+      }
     }
     console.error('Checkout initialize API error:', error);
     return NextResponse.json(

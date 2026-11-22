@@ -14,6 +14,7 @@ export interface AuthUser {
   telegramPhotoUrl?: string | null;
   role?: string;
   isShadow?: boolean;
+  profileLoaded?: boolean;
 }
 
 interface AuthContextType {

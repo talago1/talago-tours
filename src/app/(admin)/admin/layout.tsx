@@ -148,7 +148,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main content */}
       <div className="min-w-0 lg:pl-64">
         {/* Desktop Top Header Bar */}
-        <header className="sticky top-0 z-30 hidden lg:flex items-center justify-between border-b border-white/10 bg-[#070F1E]/80 px-8 py-3.5 backdrop-blur-xl">
+        <header className="sticky top-0 z-40 hidden lg:flex items-center justify-between border-b border-white/10 bg-[#070F1E]/80 px-8 py-3.5 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <span className="text-xs font-black uppercase tracking-[0.2em] text-[#00E5FF]">Admin Portal</span>
             <span className="text-slate-600">/</span>
@@ -168,7 +168,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Mobile header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-[#070F1E]/80 px-4 py-3 backdrop-blur-xl lg:hidden">
+        <header className="sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-[#070F1E]/80 px-4 py-3 backdrop-blur-xl lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
             className="rounded-full p-2 text-slate-400 hover:text-white"

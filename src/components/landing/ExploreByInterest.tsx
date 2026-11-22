@@ -34,6 +34,7 @@ const INTERESTS: InterestItem[] = [
       it: 'Gite in barca e yacht',
       pl: 'Rejsy łodzią i jachtem',
       es: 'Cruceros en barco y yate',
+      uk: 'Морські прогулянки та яхти',
     },
     icon: Ship,
     link: '/tours?type=boat_trip',
@@ -49,6 +50,7 @@ const INTERESTS: InterestItem[] = [
       it: 'Snorkeling e barriere',
       pl: 'Snurkowanie i rafy',
       es: 'Esnórquel y arrecifes',
+      uk: 'Снорклінг та коралові рифи',
     },
     icon: Fish,
     link: '/tours?type=snorkeling',
@@ -64,6 +66,7 @@ const INTERESTS: InterestItem[] = [
       it: 'Safari e quad',
       pl: 'Safari na pustyni i quady',
       es: 'Safari y quads',
+      uk: 'Сафарі в пустелі та квадроцикли',
     },
     icon: Mountain,
     link: '/tours?type=safari',
@@ -79,6 +82,7 @@ const INTERESTS: InterestItem[] = [
       it: 'Cultura e storia',
       pl: 'Kultura i historia',
       es: 'Cultura e historia',
+      uk: 'Культурні та історичні тури',
     },
     icon: Landmark,
     link: '/tours?type=cultural',
@@ -94,6 +98,7 @@ const INTERESTS: InterestItem[] = [
       it: 'Escursioni giornaliere',
       pl: 'Wycieczki całodniowe',
       es: 'Excursiones de día',
+      uk: 'Одноденні екскурсії',
     },
     icon: Compass,
     link: '/tours?type=day_trips',
@@ -109,6 +114,7 @@ const INTERESTS: InterestItem[] = [
       it: 'Immersioni subacquee',
       pl: 'Nurkowanie z akwalungiem',
       es: 'Buceo con botella',
+      uk: 'Дайвінг з аквалангом',
     },
     icon: Waves,
     link: '/tours?type=diving',
@@ -124,6 +130,7 @@ const INTERESTS: InterestItem[] = [
       it: 'Charter privati & VIP',
       pl: 'Prywatne czartery & VIP',
       es: 'Chárteres privados & VIP',
+      uk: 'Приватні чартери та VIP',
     },
     icon: Crown,
     link: '/tours?type=private',
@@ -159,8 +166,10 @@ export default function ExploreByInterest() {
         <div className="flex items-center gap-2.5 overflow-x-auto pb-1.5 pt-0.5 px-0.5 scrollbar-none snap-x snap-mandatory scroll-smooth -webkit-overflow-scrolling-touch">
           {INTERESTS.map((interest) => {
             const Icon = interest.icon;
+            const camelKey = interest.id.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
             const label =
               interestsDict[interest.id] ||
+              interestsDict[camelKey] ||
               interest.translations?.[language] ||
               interest.defaultLabel;
 

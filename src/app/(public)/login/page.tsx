@@ -54,17 +54,22 @@ function LoginRedirectContent() {
       try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (session?.access_token && active) {
-          // Sync cookie and redirect
-          await fetch('/api/auth/session', {
+          // Sync cookie and redirect only if sync succeeds
+          const syncRes = await fetch('/api/auth/session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               access_token: session.access_token,
               refresh_token: session.refresh_token,
             }),
-          }).catch(() => {});
-          window.location.replace(returnTo);
-          return;
+          }).catch(() => null);
+
+          if (syncRes && syncRes.ok && active) {
+            window.location.replace(returnTo);
+            return;
+          } else {
+            await supabaseClient.auth.signOut().catch(() => {});
+          }
         }
       } catch {}
 

@@ -133,6 +133,7 @@ export default function ContinuousBookingModal({
   // Single Authoritative Payment Scheme
   const [paymentScheme, setPaymentScheme] = useState<PaymentScheme>(PaymentScheme.PAY_ON_ARRIVAL);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const idempotencyKeyRef = React.useRef<string>('');
 
   // Auto-sync customer identity from useAuth()
   useEffect(() => {
@@ -143,9 +144,9 @@ export default function ContinuousBookingModal({
       const verifiedPhone = authUser.phone || authUser.telegramPhone || null;
       const verifiedEmail = (authUser.email && !authUser.email.endsWith('@noreply.talago.com')) ? authUser.email : null;
 
-      if (verifiedName) setLeadName((prev) => (prev.trim() ? prev : verifiedName));
-      if (verifiedPhone) setPhone((prev) => (prev.trim() ? prev : verifiedPhone));
-      if (verifiedEmail) setEmail((prev) => (prev.trim() ? prev : verifiedEmail));
+      if (verifiedName) setLeadName(verifiedName);
+      if (verifiedPhone) setPhone(verifiedPhone);
+      if (verifiedEmail) setEmail(verifiedEmail);
     }
   }, [isAuthenticated, authUser, isOpen]);
 
@@ -214,10 +215,12 @@ export default function ContinuousBookingModal({
         else setInfantsCount(initialInfants);
         if (draft.selectedAddons) setSelectedAddons(draft.selectedAddons);
         else setSelectedAddons(initialAddons || {});
-        // Apply draft contact fields; authenticated user details below will override if logged in
-        if (draft.leadName) setLeadName(draft.leadName);
-        if (draft.phone) setPhone(draft.phone);
-        if (draft.email) setEmail(draft.email);
+        // Apply draft contact fields only if unauthenticated to avoid overriding signed-in profile
+        if (!isAuthenticated) {
+          if (draft.leadName) setLeadName(draft.leadName);
+          if (draft.phone) setPhone(draft.phone);
+          if (draft.email) setEmail(draft.email);
+        }
         if (draft.pickupType && ['HOTEL', 'MEETING_POINT', 'AIRPORT'].includes(draft.pickupType)) setPickupType(draft.pickupType as any);
         if (draft.hotelName) setHotelName(draft.hotelName);
         if (draft.roomNumber) setRoomNumber(draft.roomNumber);
@@ -438,10 +441,15 @@ export default function ContinuousBookingModal({
     setErrors({});
     trackFunnelEvent('submission_started', { paymentScheme, totalEstimatedPrice: grandTotal });
 
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = 'tlg_idemp_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+    }
+
     try {
       const payload = {
         tourId: tour.id,
         reservationId: preliminaryLeadId || undefined,
+        idempotencyKey: idempotencyKeyRef.current,
         departureDate,
         guestCount: adultsCount + childrenCount + infantsCount,
         adultsCount,
@@ -484,6 +492,7 @@ export default function ContinuousBookingModal({
 
       const initHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKeyRef.current,
       };
       if (authToken) {
         initHeaders['Authorization'] = `Bearer ${authToken}`;
