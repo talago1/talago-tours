@@ -28,7 +28,6 @@ function safeReturnTarget(raw: string | null | undefined): string {
     decoded === '/auth' ||
     decoded.startsWith('/login?') ||
     decoded.startsWith('/auth?') ||
-    decoded.startsWith('/auth/telegram-success') ||
     /[\r\n]/.test(decoded)
   ) {
     return '/account';
@@ -65,36 +64,6 @@ function TelegramIcon({ className = 'h-4 w-4' }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
       <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
     </svg>
-  );
-}
-
-function TelegramWidgetButton({
-  botUsername,
-  returnTo,
-}: {
-  botUsername: string;
-  returnTo: string;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    containerRef.current.innerHTML = '';
-    const script = document.createElement('script');
-    script.src = 'https://telegram.org/js/telegram-widget.js?22';
-    script.setAttribute('data-telegram-login', botUsername);
-    script.setAttribute('data-size', 'large');
-    script.setAttribute('data-radius', '12');
-    script.setAttribute('data-request-access', 'write');
-    script.setAttribute('data-auth-url', `/api/auth/telegram/callback?returnTo=${encodeURIComponent(returnTo)}`);
-    script.async = true;
-    containerRef.current.appendChild(script);
-  }, [botUsername, returnTo]);
-
-  return (
-    <div className="flex flex-col items-center justify-center pt-2">
-      <div ref={containerRef} className="min-h-[44px] flex justify-center" />
-    </div>
   );
 }
 
@@ -150,36 +119,6 @@ function AuthPageContent() {
     async function checkExistingAuth() {
       const targetReturn = safeReturnTarget(searchParams.get('returnTo'));
 
-      // 1. Check client session
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session?.access_token && active) {
-          const syncRes = await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              access_token: session.access_token,
-              refresh_token: session.refresh_token,
-            }),
-          }).catch(() => null);
-
-          if (syncRes && syncRes.ok && active) {
-            window.location.replace(targetReturn);
-            return;
-          } else if (syncRes && syncRes.status === 401) {
-            // Client session was invalid/expired; clear local storage cleanly without triggering 403 network logout
-            try {
-              const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-              if (supabaseUrl) {
-                const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
-                localStorage.removeItem(`sb-${projectRef}-auth-token`);
-              }
-            } catch {}
-          }
-        }
-      } catch {}
-
-      // 2. Check server session cookie
       try {
         const res = await fetch('/api/auth/session', { cache: 'no-store', credentials: 'same-origin' });
         if (res.ok) {
@@ -529,39 +468,21 @@ function AuthPageContent() {
               </div>
             ) : (
               <div className="space-y-4">
-                {oidcReady && (
-                  <button
-                    type="button"
-                    onClick={handleTelegramOidc}
-                    disabled={loading}
-                    className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-sky-500/40 bg-sky-500/10 py-3.5 text-sm font-bold text-sky-200 shadow-xl transition-all duration-300 hover:bg-sky-500/20 hover:scale-[1.02] disabled:opacity-60 disabled:pointer-events-none"
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
-                    ) : (
-                      <>
-                        <TelegramIcon className="h-5 w-5 text-sky-400" />
-                        <span>Continue with Telegram (OAuth)</span>
-                      </>
-                    )}
-                  </button>
-                )}
-
-                {telegramConfig?.botUsername && (
-                  <div className="pt-1">
-                    {oidcReady && (
-                      <div className="relative flex py-2 items-center">
-                        <div className="flex-grow border-t border-white/10" />
-                        <span className="flex-shrink mx-3 text-[11px] uppercase tracking-wider text-slate-400">or use telegram widget</span>
-                        <div className="flex-grow border-t border-white/10" />
-                      </div>
-                    )}
-                    <TelegramWidgetButton
-                      botUsername={telegramConfig.botUsername}
-                      returnTo={safeReturnTarget(searchParams.get('returnTo'))}
-                    />
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={handleTelegramOidc}
+                  disabled={loading}
+                  className="w-full inline-flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[#229ED9] to-[#0088cc] py-4 text-sm font-black text-white shadow-xl shadow-sky-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
+                >
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-white" />
+                  ) : (
+                    <>
+                      <TelegramIcon className="h-5 w-5 text-white" />
+                      <span>Continue with Telegram</span>
+                    </>
+                  )}
+                </button>
               </div>
             )}
 

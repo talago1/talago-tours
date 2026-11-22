@@ -29,7 +29,6 @@ function safePath(raw: string | null): string {
     decoded === '/auth' ||
     decoded.startsWith('/login?') ||
     decoded.startsWith('/auth?') ||
-    decoded.startsWith('/auth/telegram-success') ||
     /[\r\n]/.test(decoded)
   ) {
     return '/account';

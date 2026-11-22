@@ -1,111 +1,20 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
-import { supabaseClient } from '@/lib/supabase/client';
+export const dynamic = 'force-dynamic';
 
-function safePath(raw: string | null): string {
-  if (!raw) return '/account';
-  const decoded = decodeURIComponent(raw).trim();
-  if (
-    !decoded.startsWith('/') ||
-    decoded.startsWith('//') ||
-    decoded.startsWith('/\\') ||
-    decoded.includes('://') ||
-    decoded === '/login' ||
-    decoded === '/auth' ||
-    decoded.startsWith('/login?') ||
-    decoded.startsWith('/auth?') ||
-    /[\r\n]/.test(decoded)
-  ) {
-    return '/account';
-  }
-  return decoded;
+interface Props {
+  searchParams: Record<string, string | string[] | undefined>;
 }
 
-function LoginRedirectContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    let active = true;
-
-    async function checkAndRedirect() {
-      const returnTo = safePath(searchParams.get('returnTo'));
-
-      // 1. Check server session cookie first
-      try {
-        const res = await fetch('/api/auth/session', { cache: 'no-store', credentials: 'same-origin' });
-        const data = await res.json();
-        if (data?.authenticated && active) {
-          if (data.accessToken && data.refreshToken) {
-            await supabaseClient.auth.setSession({
-              access_token: data.accessToken,
-              refresh_token: data.refreshToken,
-            }).catch(() => {});
-          }
-          window.location.replace(returnTo);
-          return;
-        }
-      } catch {}
-
-      // 2. Check client Supabase session
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session?.access_token && active) {
-          // Sync cookie and redirect only if sync succeeds
-          const syncRes = await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              access_token: session.access_token,
-              refresh_token: session.refresh_token,
-            }),
-          }).catch(() => null);
-
-          if (syncRes && syncRes.ok && active) {
-            window.location.replace(returnTo);
-            return;
-          } else {
-            await supabaseClient.auth.signOut().catch(() => {});
-          }
-        }
-      } catch {}
-
-      // 3. Not authenticated -> redirect to /auth preserving query parameters
-      if (active) {
-        const params = searchParams.toString();
-        const authPath = params ? `/auth?${params}` : '/auth';
-        router.replace(authPath);
-      }
+export default function LoginPage({ searchParams }: Props) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams || {})) {
+    if (typeof value === 'string') {
+      params.set(key, value);
+    } else if (Array.isArray(value) && value.length > 0) {
+      params.set(key, value[0]);
     }
-
-    checkAndRedirect();
-
-    return () => {
-      active = false;
-    };
-  }, [router, searchParams]);
-
-  return (
-    <main className="min-h-screen bg-[#070F1E] flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-[#00E5FF]" />
-    </main>
-  );
+  }
+  const qs = params.toString();
+  redirect(qs ? `/auth?${qs}` : '/auth');
 }
-
-export default function LoginPage() {
-  return (
-    <Suspense
-      fallback={
-        <main className="min-h-screen bg-[#070F1E] flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#00E5FF]" />
-        </main>
-      }
-    >
-      <LoginRedirectContent />
-    </Suspense>
-  );
-}
-
