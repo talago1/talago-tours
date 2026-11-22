@@ -222,8 +222,16 @@ export default function AccountPage() {
   // Fetch Bookings with single request
   const loadBookings = useCallback(async (token?: string | null) => {
     try {
+      let activeToken = token || sessionToken;
+      if (!activeToken) {
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          activeToken = session?.access_token || null;
+        } catch {}
+      }
+
       const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (activeToken) headers['Authorization'] = `Bearer ${activeToken}`;
       const res = await fetch('/api/public/my-bookings', {
         headers,
         credentials: 'same-origin',
@@ -237,7 +245,7 @@ export default function AccountPage() {
     } catch (e) {
       console.warn('Failed to load bookings:', e);
     }
-  }, []);
+  }, [sessionToken]);
 
   const loadData = useCallback(async () => {
     setLoading(true);

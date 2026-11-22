@@ -87,6 +87,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }).catch(() => {});
             }
 
+            try {
+              const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+              document.cookie = `talago_session=${encodeURIComponent(ticketData.accessToken)}; Path=/; Max-Age=604800; SameSite=Lax${secureFlag}`;
+            } catch {}
+
             setIsLoading(false);
             broadcastAuthChange('SIGN_IN');
             return authUser;

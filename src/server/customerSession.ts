@@ -87,11 +87,30 @@ export async function consumeAuthTicket(ticket: string): Promise<{
     const setting = await prisma.systemSetting.findUnique({ where: { key } });
     if (!setting?.value) return null;
 
-    // Delete immediately so it can never be reused
-    await prisma.systemSetting.delete({ where: { key } }).catch(() => {});
-
     const parsed = JSON.parse(setting.value);
-    if (parsed.expiresAt && parsed.expiresAt < Date.now()) return null;
+    if (parsed.expiresAt && parsed.expiresAt < Date.now()) {
+      await prisma.systemSetting.delete({ where: { key } }).catch(() => {});
+      return null;
+    }
+
+    // Allow a 15-second grace window for concurrent requests (StrictMode, parallel component mounts),
+    // then purge the ticket so it cannot be reused.
+    if (parsed.consumedAt) {
+      if (Date.now() - parsed.consumedAt > 15000) {
+        await prisma.systemSetting.delete({ where: { key } }).catch(() => {});
+        return null;
+      }
+    } else {
+      await prisma.systemSetting.update({
+        where: { key },
+        data: {
+          value: JSON.stringify({
+            ...parsed,
+            consumedAt: Date.now(),
+          }),
+        },
+      }).catch(() => {});
+    }
 
     return {
       accessToken: parsed.accessToken as string,
