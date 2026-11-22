@@ -142,6 +142,7 @@ export default async function TourDetailPage({ params }: Props) {
       cancellationPolicy: true,
       freeCancellationHours: true,
       cutoffHours: true,
+      bookingQuestions: true,
       hasGuide: true,
       guideLanguages: true,
       allowDeposit: true,
@@ -619,6 +620,7 @@ export default async function TourDetailPage({ params }: Props) {
           hasGuide: tour.hasGuide ?? null,
           guideLanguages: Array.isArray(tour.guideLanguages) ? (tour.guideLanguages as string[]) : [],
           cutoffHours: tour.cutoffHours ?? null,
+          bookingQuestions: Array.isArray(tour.bookingQuestions) ? (tour.bookingQuestions as Array<Record<string, unknown>>) : [],
         }}
         reviews={{ distribution, reviews, ratingAverage: effectiveRatingAverage, ratingCount: effectiveReviewCount }}
         relatedTours={relatedTours}
