@@ -37,7 +37,6 @@ import { isSupabaseStorageImage } from '@/utils/imageOptimization';
 import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useWishlist } from '@/context/WishlistContext';
-import { supabaseClient } from '@/lib/supabase/client';
 import { saveBookingDraft } from '@/utils/bookingDraftStorage';
 import { getLocalizedDestinationName, getLocalizedCategoryName } from '@/utils/destinationTranslations';
 import { DEFAULT_TOUR_SERVICES } from '@/types/services';
@@ -140,6 +139,7 @@ interface TourData {
   instantConfirmation?: boolean | null;
   hasGuide?: boolean | null;
   guideLanguages?: string[];
+  bookingQuestions?: Array<Record<string, unknown>>;
 }
 
 interface ReviewsData {
@@ -871,7 +871,6 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
   const { formatPrice } = useCurrency();
 
   const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
-  const [isStartingReservation, setIsStartingReservation] = useState(false);
 
   const toggleAddon = (id: string) => {
     setSelectedAddons((prev) => {
@@ -905,8 +904,9 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
   const dateQuery = selectedDate ? `&date=${encodeURIComponent(selectedDate)}` : '';
   const reserveHref = `/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}${selectedTime ? `&time=${encodeURIComponent(selectedTime)}` : ''}${dateQuery}${addonsQuery}`;
 
-  const startReservation = useCallback(async (source: string = 'BOOK_BUTTON') => {
-    // 1. Immediately save current draft state to sessionStorage
+  // Open the booking modal immediately after persisting the user's current draft selections.
+  // The ContinuousBookingModal handles the booking-interest hold on mount.
+  const startReservation = useCallback((_source: string = 'BOOK_BUTTON') => {
     saveBookingDraft(tour.id, {
       departureDate: selectedDate || undefined,
       selectedTime: selectedTime || undefined,
@@ -915,44 +915,8 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
       infantsCount,
       selectedAddons,
     });
-
-    // 2. Open booking modal immediately without blocking
     setBookingModalOpen(true);
-
-    // 3. Fire-and-forget background interest logging
-    try {
-      if (typeof window !== 'undefined') {
-        let sid = sessionStorage.getItem('talago_sid');
-        if (!sid) {
-          sid = 'sid_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
-          sessionStorage.setItem('talago_sid', sid);
-        }
-        supabaseClient.auth.getSession().then(({ data: { session } }) => {
-          fetch('/api/public/booking-interest', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-            },
-            body: JSON.stringify({
-              tourId: tour.id,
-              tourSlug: tour.slug,
-              tourTitle: localizedTitle,
-              adults: adultsCount,
-              children: childrenCount,
-              totalEstimatedPrice: totalPrice,
-              currency: 'USD',
-              source,
-              sessionId: sid,
-              travelDate: selectedDate
-                ? (selectedTime ? `${selectedDate} ${selectedTime}` : selectedDate)
-                : (selectedTime ? `Time: ${selectedTime}` : undefined),
-            }),
-          }).catch(() => {});
-        }).catch(() => {});
-      }
-    } catch {}
-  }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, infantsCount, selectedAddons, totalPrice, selectedDate, selectedTime]);
+  }, [tour.id, selectedDate, selectedTime, adultsCount, childrenCount, infantsCount, selectedAddons]);
 
   const cancelHours = tour.freeCancellationHours ?? 24;
   const cancelHoursText = cancelHours > 0
@@ -1715,11 +1679,11 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
               <button
                 type="button"
                 onClick={() => void startReservation('DESKTOP_PRIMARY_BOOK_NOW')}
-                disabled={isStartingReservation || !pricePerAdult || pricePerAdult <= 0}
+                disabled={!pricePerAdult || pricePerAdult <= 0}
                 className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {pricePerAdult > 0
-                  ? (isStartingReservation ? 'Creating reservation...' : dict.tourDetails.bookNow || 'Book Now')
+                  ? dict.tourDetails.bookNow || 'Book Now'
                   : 'Pricing Confirmation Required'} <span aria-hidden="true">→</span>
               </button>
 
@@ -2145,10 +2109,10 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 <button
                   type="button"
                   onClick={() => void startReservation('MOBILE_STICKY_BAR')}
-                  disabled={isStartingReservation || !pricePerAdult || pricePerAdult <= 0}
+                  disabled={!pricePerAdult || pricePerAdult <= 0}
                   className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] via-[#00C2E0] to-[#00A3BF] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <span>{pricePerAdult > 0 ? (isStartingReservation ? 'Saving...' : dict.tourDetails.bookNow || 'Book Now') : 'Inquire'}</span>
+                  <span>{pricePerAdult > 0 ? dict.tourDetails.bookNow || 'Book Now' : 'Inquire'}</span>
                   <span className="text-base leading-none">→</span>
                 </button>
               </div>
