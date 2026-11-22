@@ -147,16 +147,24 @@ function AuthPageContent() {
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (session?.access_token && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
         const targetReturn = safeReturnTarget(searchParams.get('returnTo'));
-        const syncRes = await fetch('/api/auth/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-          }),
-        }).catch(() => null);
-        if (syncRes && syncRes.ok) {
-          window.location.replace(targetReturn);
+        try {
+          const syncRes = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+            }),
+          });
+          const syncData = await syncRes.json().catch(() => null);
+          if (syncData?.authenticated) {
+            window.location.replace(targetReturn);
+          } else {
+            // Stale or dead session rejected by server — evict from localStorage
+            await supabaseClient.auth.signOut().catch(() => {});
+          }
+        } catch {
+          await supabaseClient.auth.signOut().catch(() => {});
         }
       }
     });

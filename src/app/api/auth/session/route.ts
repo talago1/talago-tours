@@ -147,10 +147,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user || !user.email) {
-      return NextResponse.json(
+      const res = NextResponse.json(
         { authenticated: false, error: 'Invalid or expired token' },
-        { status: 401, headers: NO_STORE }
+        { status: 200, headers: NO_STORE }
       );
+      clearSessionCookies(res);
+      return res;
     }
 
     let profile = null;

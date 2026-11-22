@@ -23,12 +23,12 @@ export async function GET(request: NextRequest) {
     const auth = await resolveRequestUser(request);
     const user = auth?.user;
     if (!user?.email) {
-      return NextResponse.json({ authenticated: false, error: 'Unauthorized' }, { status: 401, headers: NO_STORE });
+      return NextResponse.json({ authenticated: false, bookings: [], reservations: [] }, { status: 200, headers: NO_STORE });
     }
 
     const { profile, telegramMatch, guestMatch } = await resolveCustomerProfileForUser(user);
     if (!profile) {
-      return NextResponse.json({ authenticated: false, error: 'Invalid session' }, { status: 401, headers: NO_STORE });
+      return NextResponse.json({ authenticated: false, bookings: [], reservations: [] }, { status: 200, headers: NO_STORE });
     }
 
     const isTelegram = Boolean(telegramMatch || profile.telegramId);

@@ -136,6 +136,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setIsLoading(false);
           return authUser;
+        } else if (clientBearer) {
+          // If server confirmed unauthenticated but client still held stale bearer, evict it
+          supabaseClient.auth.signOut().catch(() => {});
         }
       }
     } catch (e) {
