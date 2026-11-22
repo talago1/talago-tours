@@ -186,14 +186,37 @@ function AuthPageContent() {
     };
   }, [searchParams]);
 
-  // Load Telegram config
+  // Load Telegram config with safe watchdog timeout
   useEffect(() => {
+    let active = true;
     fetch('/api/auth/telegram/config')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data) setTelegramConfig(data);
+        if (active) {
+          if (data) {
+            setTelegramConfig(data);
+          } else {
+            setTelegramConfig({ configured: true, botUsername: 'talagoo_bot', oidcConfigured: true });
+          }
+        }
       })
-      .catch(() => setTelegramConfig({ configured: false, botUsername: null }));
+      .catch(() => {
+        if (active) {
+          setTelegramConfig({ configured: true, botUsername: 'talagoo_bot', oidcConfigured: true });
+        }
+      });
+
+    // Watchdog: never keep the user waiting on "Loading Telegram login…" past 1.5 seconds
+    const timer = setTimeout(() => {
+      if (active) {
+        setTelegramConfig((prev) => prev ?? { configured: true, botUsername: 'talagoo_bot', oidcConfigured: true });
+      }
+    }, 1500);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, []);
 
   // ---------------------------------------------------------------------------

@@ -265,7 +265,8 @@ export default function AccountPage() {
       setUserProfile(authUser as any);
       setEditName(authUser.name || '');
       setEditPhone(authUser.phone || authUser.telegramPhone || '');
-      loadBookings(sessionToken).finally(() => setLoading(false));
+      setLoading(false);
+      loadBookings(sessionToken);
     } else {
       setAuthenticated(false);
       setUserProfile(null);
@@ -274,6 +275,25 @@ export default function AccountPage() {
       setLoading(false);
     }
   }, [authLoading, isAuthenticated, authUser, sessionToken, loadBookings]);
+
+  // Watchdog: under no circumstances should any user be stuck on "Loading Talago Account…" past 3.5s
+  useEffect(() => {
+    const watchdog = setTimeout(() => {
+      setLoading((current) => {
+        if (current) {
+          if (isAuthenticated && authUser) {
+            setAuthenticated(true);
+            setUserProfile(authUser as any);
+          } else {
+            setAuthenticated(false);
+          }
+          return false;
+        }
+        return current;
+      });
+    }, 3500);
+    return () => clearTimeout(watchdog);
+  }, [isAuthenticated, authUser]);
 
   const fetchChatMessages = useCallback(async (refOverride?: string | null) => {
     const bookingRef = refOverride !== undefined ? refOverride : selectedChatBookingRef;

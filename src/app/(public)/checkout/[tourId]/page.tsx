@@ -396,17 +396,17 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (isAuthenticated && authUser) {
       const u = authUser;
-      const verifiedName = (u.name && u.name !== 'User' && !u.name.startsWith('Traveler #'))
+      const verifiedName = (u.name && u.name !== 'User')
         ? u.name
-        : (u.telegramUsername ? `@${u.telegramUsername}` : (u.email && !u.email.endsWith('@noreply.talago.com') ? u.email.split('@')[0] : null));
+        : (u.telegramUsername ? `@${u.telegramUsername}` : (u.name || (u.email && !u.email.endsWith('@noreply.talago.com') ? u.email.split('@')[0] : null)));
       const verifiedPhone = u.phone || u.telegramPhone || null;
       const verifiedEmail = (u.email && !u.email.endsWith('@noreply.talago.com')) ? u.email : null;
 
       setForm((prev) => ({
         ...prev,
-        ...(verifiedName ? { leadName: verifiedName } : {}),
-        ...(verifiedPhone ? { phone: verifiedPhone } : {}),
-        ...(verifiedEmail ? { email: verifiedEmail } : {}),
+        leadName: prev.leadName.trim() ? prev.leadName : (verifiedName || prev.leadName),
+        phone: prev.phone.trim() ? prev.phone : (verifiedPhone || prev.phone),
+        email: prev.email.trim() ? prev.email : (verifiedEmail || prev.email),
       }));
     }
   }, [isAuthenticated, authUser]);

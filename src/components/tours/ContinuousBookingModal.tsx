@@ -138,15 +138,15 @@ export default function ContinuousBookingModal({
   // Auto-sync customer identity from useAuth()
   useEffect(() => {
     if (isAuthenticated && authUser) {
-      const verifiedName = (authUser.name && authUser.name !== 'User' && !authUser.name.startsWith('Traveler #'))
+      const verifiedName = (authUser.name && authUser.name !== 'User')
         ? authUser.name
-        : (authUser.telegramUsername ? `@${authUser.telegramUsername}` : null);
+        : (authUser.telegramUsername ? `@${authUser.telegramUsername}` : (authUser.name || null));
       const verifiedPhone = authUser.phone || authUser.telegramPhone || null;
       const verifiedEmail = (authUser.email && !authUser.email.endsWith('@noreply.talago.com')) ? authUser.email : null;
 
-      if (verifiedName) setLeadName(verifiedName);
-      if (verifiedPhone) setPhone(verifiedPhone);
-      if (verifiedEmail) setEmail(verifiedEmail);
+      if (verifiedName) setLeadName((prev) => prev.trim() ? prev : verifiedName);
+      if (verifiedPhone) setPhone((prev) => prev.trim() ? prev : verifiedPhone);
+      if (verifiedEmail) setEmail((prev) => prev.trim() ? prev : verifiedEmail);
     }
   }, [isAuthenticated, authUser, isOpen]);
 

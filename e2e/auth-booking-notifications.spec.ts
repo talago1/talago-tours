@@ -59,13 +59,13 @@ test.describe('Critical Architecture & Journeys: Auth, Booking, Notifications & 
     await expect(categorySection.first()).toBeVisible();
 
     // Verify Cultural & Historical Tours appears instead of Pyramids
-    const culturalChip = page.locator('text=Cultural & Historical Tours');
+    const culturalChip = page.locator('text=Cultural & Historical Tours').first();
     await expect(culturalChip).toBeVisible();
 
     // Verify other canonical categories are present
-    await expect(page.locator('text=Boat & Yacht Cruises')).toBeVisible();
-    await expect(page.locator('text=Snorkeling & Coral Reefs')).toBeVisible();
-    await expect(page.locator('text=Desert Safari & Quads')).toBeVisible();
+    await expect(page.locator('text=Boat & Yacht Cruises').first()).toBeVisible();
+    await expect(page.locator('text=Snorkeling & Coral Reefs').first()).toBeVisible();
+    await expect(page.locator('text=Desert Safari & Quads').first()).toBeVisible();
     await expect(page.locator('text=Full-Day Excursions')).toBeVisible();
     await expect(page.locator('text=Scuba Diving')).toBeVisible();
     await expect(page.locator('text=Private Charters & VIP')).toBeVisible();
@@ -75,10 +75,10 @@ test.describe('Critical Architecture & Journeys: Auth, Booking, Notifications & 
     await page.goto('/?lang=de');
 
     // German category translations
-    await expect(page.locator('text=Kultur & Geschichte').or(page.locator('text=Kultur- & historische Touren'))).toBeVisible();
-    await expect(page.locator('text=Boot- & Yachtfahrten')).toBeVisible();
-    await expect(page.locator('text=Schnorcheln & Riffe')).toBeVisible();
-    await expect(page.locator('text=Wüstensafari & Quads')).toBeVisible();
+    await expect(page.locator('text=Kultur & Geschichte').or(page.locator('text=Kultur- & historische Touren')).first()).toBeVisible();
+    await expect(page.locator('text=Boot- & Yachtfahrten').first()).toBeVisible();
+    await expect(page.locator('text=Schnorcheln & Riffe').first()).toBeVisible();
+    await expect(page.locator('text=Wüstensafari & Quads').first()).toBeVisible();
   });
 
   test('5. Booking checkout initialize enforces idempotency and creates unique booking', async ({ page }) => {

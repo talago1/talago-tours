@@ -54,6 +54,11 @@
       "source": "local/talago-tours",
       "sourceType": "local",
       "skillPath": ".agents/skills/speed-engineer/SKILL.md"
+    },
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/ui-ux-pro-max/SKILL.md"
     }
   }
 }

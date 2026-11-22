@@ -18,6 +18,9 @@ This document records all specialized agent skills installed and maintained for 
 | **supabase-postgres-best-practices** | `supabase/agent-skills` | `.agents/skills/supabase-postgres-best-practices/SKILL.md` | PostgreSQL indexing, RLS security, query performance, and connection/pooling best practices. |
 | **superpowers** | `obra/superpowers` | `.agents/skills/superpowers/using-superpowers/SKILL.md` | Modular workflow skills: systematic debugging, test-driven execution, and verification before completion. |
 | **speed-engineer** | Built-in project skill | `.agents/skills/speed-engineer/SKILL.md` | Performance engineering: DB indexes, N+1 queries, pagination, image optimization, caching, and skeleton loading. |
+| **ui-ux-pro-max** | `nextlevelbuilder/ui-ux-pro-max-skill` | `.agents/skills/ui-ux-pro-max/SKILL.md` | Design intelligence for professional travel UX: typography, color palettes, responsive cards, touch targets, and accessible dialogs. |
+| **writing-plans** | `obra/superpowers` | `.agents/skills/superpowers/writing-plans/SKILL.md` | Structured task-by-task execution planning before major architectural refactoring. |
+| **test-driven-development** | `obra/superpowers` | `.agents/skills/superpowers/test-driven-development/SKILL.md` | Strict RED -> GREEN -> REFACTOR engineering workflow for all behavior changes. |
 
 ---
 

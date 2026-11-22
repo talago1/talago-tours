@@ -22,6 +22,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { getCategoryGradient, normalizeCategory } from '@/utils/tourCategory';
+import { getLocalizedDestinationName, getLocalizedCategoryName } from '@/utils/destinationTranslations';
 
 export interface PublicTourCardData {
   id: string;
@@ -153,16 +154,7 @@ export default function PublicTourCard({
   };
 
   const formatTourCategory = (raw: string | null | undefined) => {
-    if (!raw) return getLocalizedCategory(cat);
-    const clean = raw.trim();
-    const lower = clean.toLowerCase();
-    if (lower === 'safari' || lower === 'desert') return dict.catalog.safari || 'Safari';
-    if (lower === 'cultural') return dict.catalog.cultural || 'Cultural';
-    if (lower === 'spa' || lower === 'wellness') return dict.catalog.spa || 'Spa';
-    if (lower === 'entertainment') return dict.catalog.entertainment || 'Entertainment';
-    if (lower === 'sea') return dict.catalog.sea || 'Sea';
-    // If the tour has a specific category like "Historical", "Snorkeling", "Diving", "City Tour", display it accurately:
-    return clean.charAt(0).toUpperCase() + clean.slice(1).replace(/_/g, ' ');
+    return getLocalizedCategoryName(raw, language, dict) || getLocalizedCategory(cat);
   };
 
   const gallery = (tour.galleryImages || []).filter(Boolean) as string[];
@@ -298,7 +290,7 @@ export default function PublicTourCard({
             {/* Top Row: Location & Rating */}
             <div className="flex items-center justify-between gap-1 mb-1.5 text-[11px]">
               <span className="font-bold text-[#00E5FF] truncate max-w-[130px]">
-                {tour.destination?.name || 'Red Sea'} · {formatTourCategory(tour.category)}
+                {(tour.destination?.name ? getLocalizedDestinationName(tour.destination.slug, language, tour.destination.name) : getLocalizedDestinationName('red-sea', language, 'Red Sea'))} · {formatTourCategory(tour.category)}
               </span>
               {tour.ratingCount > 0 ? (
                 <span className="flex items-center gap-0.5 font-bold text-white shrink-0">

@@ -38,6 +38,8 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { supabaseClient } from '@/lib/supabase/client';
+import { saveBookingDraft } from '@/utils/bookingDraftStorage';
+import { getLocalizedDestinationName, getLocalizedCategoryName } from '@/utils/destinationTranslations';
 import { DEFAULT_TOUR_SERVICES } from '@/types/services';
 import TourCard from '@/components/public/TourCard';
 import dynamic from 'next/dynamic';
@@ -173,7 +175,7 @@ function HeroSlider({
   destinationSlug?: string;
   category: string | null;
 }) {
-  const { dict } = useLanguage();
+  const { dict, language } = useLanguage();
   const [current, setCurrent] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -325,11 +327,11 @@ function HeroSlider({
               className="group/badge inline-flex items-center gap-1.5 rounded-full border border-[#00E5FF]/30 bg-[#0B1528]/85 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#00E5FF] shadow-2xl backdrop-blur-md transition-all hover:bg-[#00E5FF] hover:text-[#070F1E] hover:scale-105"
             >
               <MapPin className="h-3.5 w-3.5 text-[#00E5FF] group-hover/badge:text-[#070F1E] transition-colors" />
-              <span>{destinationName}</span>
+              <span>{getLocalizedDestinationName(destinationSlug, language, destinationName)}</span>
             </Link>
           ) : (
             <span className="rounded-full border border-[#00E5FF]/20 bg-[#0B1528]/80 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#00E5FF] shadow-xl backdrop-blur-md">
-              {destinationName}
+              {getLocalizedDestinationName(destinationSlug, language, destinationName)}
             </span>
           )}
 
@@ -340,7 +342,7 @@ function HeroSlider({
               className="group/badge inline-flex items-center gap-1.5 rounded-full border border-[#FFD700]/30 bg-[#0B1528]/85 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#FFD700] shadow-2xl backdrop-blur-md transition-all hover:bg-[#FFD700] hover:text-[#070F1E] hover:scale-105"
             >
               <Sparkles className="h-3.5 w-3.5 text-[#FFD700] group-hover/badge:text-[#070F1E] transition-colors" />
-              <span>{category.replace(/_/g, ' ')}</span>
+              <span>{getLocalizedCategoryName(category, language, dict)}</span>
             </Link>
           )}
         </div>
@@ -904,44 +906,53 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
   const reserveHref = `/checkout/${tour.id}?adults=${adultsCount}&children=${childrenCount}&infants=${infantsCount}${selectedTime ? `&time=${encodeURIComponent(selectedTime)}` : ''}${dateQuery}${addonsQuery}`;
 
   const startReservation = useCallback(async (source: string = 'BOOK_BUTTON') => {
-    if (isStartingReservation) return;
-    setIsStartingReservation(true);
+    // 1. Immediately save current draft state to sessionStorage
+    saveBookingDraft(tour.id, {
+      departureDate: selectedDate || undefined,
+      selectedTime: selectedTime || undefined,
+      adultsCount,
+      childrenCount,
+      infantsCount,
+      selectedAddons,
+    });
+
+    // 2. Open booking modal immediately without blocking
+    setBookingModalOpen(true);
+
+    // 3. Fire-and-forget background interest logging
     try {
-      if (typeof window === 'undefined') return;
-      let sid = sessionStorage.getItem('talago_sid');
-      if (!sid) {
-        sid = 'sid_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
-        sessionStorage.setItem('talago_sid', sid);
+      if (typeof window !== 'undefined') {
+        let sid = sessionStorage.getItem('talago_sid');
+        if (!sid) {
+          sid = 'sid_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+          sessionStorage.setItem('talago_sid', sid);
+        }
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
+          fetch('/api/public/booking-interest', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+            },
+            body: JSON.stringify({
+              tourId: tour.id,
+              tourSlug: tour.slug,
+              tourTitle: localizedTitle,
+              adults: adultsCount,
+              children: childrenCount,
+              totalEstimatedPrice: totalPrice,
+              currency: 'USD',
+              source,
+              sessionId: sid,
+              travelDate: selectedDate
+                ? (selectedTime ? `${selectedDate} ${selectedTime}` : selectedDate)
+                : (selectedTime ? `Time: ${selectedTime}` : undefined),
+            }),
+          }).catch(() => {});
+        }).catch(() => {});
       }
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      await fetch('/api/public/booking-interest', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-        },
-        body: JSON.stringify({
-          tourId: tour.id,
-          tourSlug: tour.slug,
-          tourTitle: localizedTitle,
-          adults: adultsCount,
-          children: childrenCount,
-          totalEstimatedPrice: totalPrice,
-          currency: 'USD',
-          source,
-          sessionId: sid,
-          travelDate: selectedDate
-            ? (selectedTime ? `${selectedDate} ${selectedTime}` : selectedDate)
-            : (selectedTime ? `Time: ${selectedTime}` : undefined),
-        }),
-      });
-    } catch {
-      // Reservation logging must never block the customer from completing checkout.
-    } finally {
-      setBookingModalOpen(true);
-      setIsStartingReservation(false);
-    }
-  }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, totalPrice, selectedDate, selectedTime, isStartingReservation]);
+    } catch {}
+  }, [tour.id, tour.slug, localizedTitle, adultsCount, childrenCount, infantsCount, selectedAddons, totalPrice, selectedDate, selectedTime]);
 
   const cancelHours = tour.freeCancellationHours ?? 24;
   const cancelHoursText = cancelHours > 0

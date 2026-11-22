@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { ArrowRight, MapPin } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { isSupabaseStorageImage } from '@/utils/imageOptimization';
+import { getLocalizedDestinationName } from '@/utils/destinationTranslations';
 
 interface DestinationData {
   id: string;
@@ -69,7 +70,7 @@ export default function PopularDestinations({ destinations }: PopularDestination
               | Record<string, { name?: string; description?: string }>
               | null
               | undefined;
-            const localizedName = t?.[language]?.name || t?.en?.name || dest.name;
+            const localizedName = t?.[language]?.name || getLocalizedDestinationName(dest.slug, language, t?.en?.name || dest.name);
             const localizedDesc = t?.[language]?.description || t?.en?.description || dest.description;
 
             return (

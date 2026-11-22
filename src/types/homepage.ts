@@ -106,6 +106,7 @@ export const DEFAULT_HOMEPAGE_COLLECTIONS: HomepageCollectionConfig[] = [
     translations: {
       de: { title: 'Top-Erlebnisse in Ägypten', subtitle: 'Handverlesene und beliebteste Aktivitäten mit verifizierten Bewertungen' },
       ru: { title: 'Лучшие экскурсии в Египте', subtitle: 'Отборные и самые популярные программы с проверенными отзывами' },
+      uk: { title: 'Найкращі екскурсії в Єгипті', subtitle: 'Добірні та найпопулярніші враження з перевіреними відгуками мандрівників' },
       fr: { title: 'Meilleures expériences en Égypte', subtitle: 'Activités sélectionnées et très prisées avec avis vérifiés' },
       it: { title: 'Migliori esperienze in Egitto', subtitle: 'Attività selezionate e più popolari con recensioni verificate' },
       pl: { title: 'Najlepsze atrakcje w Egipcie', subtitle: 'Wybrane i najpopularniejsze wycieczki ze sprawdzonymi opiniami' },
@@ -125,6 +126,7 @@ export const DEFAULT_HOMEPAGE_COLLECTIONS: HomepageCollectionConfig[] = [
     translations: {
       de: { title: 'Aktivitäten in Hurghada', subtitle: 'Kristallklare Riffe, Giftun-Insel-Bootstouren und Quad-Safaris' },
       ru: { title: 'Чем заняться в Хургаде', subtitle: 'Коралловые рифы, морские прогулки на остров Гифтун и сафари на квадроциклах' },
+      uk: { title: 'Чим зайнятися в Хургаді', subtitle: 'Кришталеві коралові рифи, морські прогулянки на острів Гіфтун та сафарі на квадроциклах' },
       fr: { title: 'Choses à faire à Hurghada', subtitle: 'Récifs de corail, sorties en bateau vers l\'île Giftoun et safaris en quad' },
       it: { title: 'Cosa fare a Hurghada', subtitle: 'Barriere coralline, gite in barca all\'isola Giftun e safari in quad nel deserto' },
       pl: { title: 'Co robić w Hurghadzie', subtitle: 'Rafy koralowe, rejsy na wyspę Giftun i safari na quadach po Saharze' },
@@ -144,6 +146,7 @@ export const DEFAULT_HOMEPAGE_COLLECTIONS: HomepageCollectionConfig[] = [
     translations: {
       de: { title: 'Aktivitäten in Sharm El Sheikh', subtitle: 'Weltbekanntes Tauchen in Ras Mohammed & Sinai-Bergtouren' },
       ru: { title: 'Чем заняться в Шарм-эль-Шейхе', subtitle: 'Мировой дайвинг в Рас-Мохаммед и походы на гору Синай' },
+      uk: { title: 'Чим зайнятися в Шарм-ель-Шейху', subtitle: 'Всесвітньо відомий дайвінг у Рас-Мохаммед та походи на гору Синай' },
       fr: { title: 'Choses à faire à Charm el-Cheikh', subtitle: 'Plongée renommée à Ras Mohammed et randonnées au mont Sinaï' },
       it: { title: 'Cosa fare a Sharm El Sheikh', subtitle: 'Immersioni famose a Ras Mohammed ed escursioni sul monte Sinai' },
       pl: { title: 'Co robić w Szarm el-Szejk', subtitle: 'Nurkowanie w Ras Mohammed i wyprawy w góry Synaj' },
@@ -163,6 +166,7 @@ export const DEFAULT_HOMEPAGE_COLLECTIONS: HomepageCollectionConfig[] = [
     translations: {
       de: { title: 'Aktivitäten in Marsa Alam', subtitle: 'Meeresschildkröten beobachten, unberührte Buchten und Delfinriffe' },
       ru: { title: 'Чем заняться в Марса-Аламе', subtitle: 'Встречи с морскими черепахами, девственные бухты и рифы дельфинов' },
+      uk: { title: 'Чим зайнятися в Марса-Аламі', subtitle: 'Зустрічі з морськими черепахами, дикі коралові бухти та рифи дельфінів' },
     },
   },
   {
@@ -178,6 +182,7 @@ export const DEFAULT_HOMEPAGE_COLLECTIONS: HomepageCollectionConfig[] = [
     translations: {
       de: { title: 'Aktivitäten in Kairo', subtitle: 'Die großen Pyramiden von Gizeh, das Grand Museum & Nil-Dinner-Kreuzfahrten' },
       ru: { title: 'Чем заняться в Каире', subtitle: 'Великие пирамиды Гизы, Большой музей и ужины на круизном лайнере по Нилу' },
+      uk: { title: 'Чим зайнятися в Каїрі', subtitle: 'Великі піраміди Гізи, Великий Єгипетський музей та вечеря на круїзі Нілом' },
     },
   },
   {
@@ -193,6 +198,7 @@ export const DEFAULT_HOMEPAGE_COLLECTIONS: HomepageCollectionConfig[] = [
     translations: {
       de: { title: 'Aktivitäten in Luxor', subtitle: 'Tal der Könige, Karnak-Tempel & Heißluftballonfahrten zum Sonnenaufgang' },
       ru: { title: 'Чем заняться в Луксоре', subtitle: 'Долина Царей, Карнакский храм и полёты на воздушном шаре на рассвете' },
+      uk: { title: 'Чим зайнятися в Луксорі', subtitle: 'Долина Царів, Карнакський храм та польоти на повітряній кулі на світанку' },
     },
   },
   {
@@ -208,6 +214,7 @@ export const DEFAULT_HOMEPAGE_COLLECTIONS: HomepageCollectionConfig[] = [
     translations: {
       de: { title: 'See- & Bootstouren', subtitle: 'Private Katamarane, Inselhüpfen und Halbtauchboot-Touren' },
       ru: { title: 'Морские прогулки и яхты', subtitle: 'Частные катамараны, круизы по островам и батискафы' },
+      uk: { title: 'Морські прогулянки та яхти', subtitle: 'Приватні катамарани, круїзи островами та коралові тури на батискафі' },
     },
   },
   {
@@ -223,6 +230,7 @@ export const DEFAULT_HOMEPAGE_COLLECTIONS: HomepageCollectionConfig[] = [
     translations: {
       de: { title: 'Wüsten- & Safari-Abenteuer', subtitle: 'Quads, Dünenbuggys, Beduinentee und Abendessen unter den Sternen' },
       ru: { title: 'Сафари и пустынные приключения', subtitle: 'Квадроциклы, багги, чай у бедуинов и ужин под звездами' },
+      uk: { title: 'Сафарі та пригоди в пустелі', subtitle: 'Квадроцикли, баггі по дюнах, бедуїнський чай та вечеря під зорями' },
     },
   },
 ];
