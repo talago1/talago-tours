@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { sanitizePlain, sanitizePhone } from '@/utils/sanitize';
 import {
   applySessionCookies,
+  consumeAuthTicket,
   resolveRequestUser,
   type SessionUser,
 } from '@/server/customerSession';
@@ -80,17 +81,28 @@ export async function POST(request: NextRequest) {
     let token: string | null = null;
     let refreshToken: string | null = null;
 
+    let body: any = null;
+    try {
+      body = await request.json();
+    } catch {}
+
+    // 1. Consume 1-time auth handoff ticket if provided
+    if (body?.ticket) {
+      const ticketSession = await consumeAuthTicket(body.ticket);
+      if (ticketSession) {
+        token = ticketSession.accessToken;
+        refreshToken = ticketSession.refreshToken;
+      }
+    }
+
     const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
+    if (!token && authHeader?.startsWith('Bearer ')) {
       token = authHeader.slice('Bearer '.length).trim();
     }
 
-    if (!token) {
-      try {
-        const body = await request.json();
-        token = body?.access_token || body?.token || null;
-        refreshToken = body?.refresh_token || null;
-      } catch {}
+    if (!token && body) {
+      token = body?.access_token || body?.token || null;
+      refreshToken = body?.refresh_token || null;
     }
 
     if (!token) {

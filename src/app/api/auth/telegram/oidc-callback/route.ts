@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 import { adoptOwnedBookings } from '@/server/customerBookings';
+import { applySessionCookies, createAuthTicket, setServerSessionCookies } from '@/server/customerSession';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,14 +107,16 @@ export async function GET(request: NextRequest) {
   const replayKey = `tg_oidc_state_${pkce.state}`;
   const alreadyUsed = await prisma.systemSetting.findUnique({ where: { key: replayKey } });
   if (alreadyUsed) {
-    // If this state was already processed (e.g. mobile browser prefetch, double request),
-    // redirect directly to destination (returnTo) rather than bouncing to /auth with an error.
-    return NextResponse.redirect(new URL(returnTo, request.nextUrl.origin));
+    const dest = new URL(returnTo, request.nextUrl.origin);
+    if (alreadyUsed.value?.startsWith('ticket:')) {
+      dest.searchParams.set('auth_ticket', alreadyUsed.value.slice('ticket:'.length));
+    }
+    return NextResponse.redirect(dest, { status: 303 });
   }
-  // Mark as used immediately
+  // Mark as processing immediately
   await prisma.systemSetting
-    .create({ data: { key: replayKey, value: new Date().toISOString() } })
-    .catch(() => {/* concurrent collision — still continue since first create wins */});
+    .create({ data: { key: replayKey, value: 'processing' } })
+    .catch(() => {/* concurrent collision */});
 
   const clientId = process.env.TELEGRAM_OIDC_CLIENT_ID;
   const clientSecret = process.env.TELEGRAM_OIDC_CLIENT_SECRET;
@@ -383,8 +386,29 @@ export async function GET(request: NextRequest) {
   }
 
   // ── Authoritative Standard OAuth2 303 Redirect with Session Cookies ────────
-  // Clean, RFC-compliant redirect directly to the destination with Set-Cookie headers.
-  const response = NextResponse.redirect(new URL(returnTo, request.nextUrl.origin), {
+  // 1. Set cookies in Next.js Server Cookie Store (next/headers)
+  setServerSessionCookies(session.access_token, session.refresh_token);
+
+  // 2. Mint single-use handoff ticket to survive strict mobile/cross-site cookie blocking
+  const authTicket = await createAuthTicket({
+    accessToken: session.access_token,
+    refreshToken: session.refresh_token,
+    userId: verifiedSupabaseUserId,
+  });
+
+  // Store ticket in replay key for concurrent / prefetch requests
+  await prisma.systemSetting.upsert({
+    where: { key: replayKey },
+    create: { key: replayKey, value: `ticket:${authTicket}` },
+    update: { value: `ticket:${authTicket}` },
+  }).catch(() => {});
+
+  const destUrl = new URL(returnTo, request.nextUrl.origin);
+  if (authTicket) {
+    destUrl.searchParams.set('auth_ticket', authTicket);
+  }
+
+  const response = NextResponse.redirect(destUrl, {
     status: 303,
   });
 
@@ -397,25 +421,8 @@ export async function GET(request: NextRequest) {
     maxAge: 0,
   });
 
-  // Set the authoritative talago_session cookie (7 days)
-  response.cookies.set('talago_session', session.access_token, {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 7,
-  });
-
-  // Set the authoritative talago_refresh cookie (30 days) for server auto-refresh
-  if (session.refresh_token) {
-    response.cookies.set('talago_refresh', session.refresh_token, {
-      path: '/',
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24 * 30,
-    });
-  }
+  // 3. Set cookies on the response object
+  applySessionCookies(response, session.access_token, session.refresh_token);
 
   return response;
 }

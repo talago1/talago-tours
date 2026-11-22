@@ -38,9 +38,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const initialLoadDone = useRef(false);
 
+  // Broadcast auth state changes to other tabs / windows
+  const broadcastAuthChange = useCallback((action: 'SIGN_IN' | 'SIGN_OUT') => {
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const channel = new BroadcastChannel(AUTH_SYNC_CHANNEL);
+        channel.postMessage({ action, timestamp: Date.now() });
+        channel.close();
+      }
+    } catch {}
+  }, []);
+
   // Authoritative session fetcher
   const refreshAuth = useCallback(async (): Promise<AuthUser | null> => {
     try {
+      // 0. Check for one-time auth handoff ticket in URL query
+      let ticketParam: string | null = null;
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        ticketParam = urlParams.get('auth_ticket');
+        if (ticketParam) {
+          // Clean URL immediately without page reload so ticket is never exposed
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('auth_ticket');
+          window.history.replaceState({}, '', cleanUrl.toString());
+        }
+      }
+
+      if (ticketParam) {
+        const ticketRes = await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticket: ticketParam }),
+          credentials: 'same-origin',
+        });
+        if (ticketRes.ok) {
+          const ticketData = await ticketRes.json();
+          if (ticketData?.authenticated && ticketData.user) {
+            const authUser = ticketData.user as AuthUser;
+            setUser(authUser);
+            setIsAuthenticated(true);
+            setSessionToken(ticketData.accessToken || null);
+
+            if (ticketData.accessToken && ticketData.refreshToken) {
+              supabaseClient.auth.setSession({
+                access_token: ticketData.accessToken,
+                refresh_token: ticketData.refreshToken,
+              }).catch(() => {});
+            }
+
+            setIsLoading(false);
+            broadcastAuthChange('SIGN_IN');
+            return authUser;
+          }
+        }
+      }
+
       // 1. Check client-side Supabase token
       let clientBearer: string | null = null;
       try {
@@ -90,18 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(false);
     setIsLoading(false);
     return null;
-  }, []);
-
-  // Broadcast auth state changes to other tabs / windows
-  const broadcastAuthChange = useCallback((action: 'SIGN_IN' | 'SIGN_OUT') => {
-    try {
-      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        const channel = new BroadcastChannel(AUTH_SYNC_CHANNEL);
-        channel.postMessage({ action, timestamp: Date.now() });
-        channel.close();
-      }
-    } catch {}
-  }, []);
+  }, [broadcastAuthChange]);
 
   // Sign out cleanly everywhere
   const signOut = useCallback(async () => {

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import crypto from 'crypto';
 import { createClient, type User } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 
 export type SessionUser = User & { phone?: string | null };
 
@@ -19,11 +22,94 @@ const COOKIE_BASE = {
   secure: process.env.NODE_ENV === 'production',
 };
 
+/**
+ * Sets session cookies in the Next.js Server Cookie Store (next/headers).
+ * Guarantees server-side cookie emission in Route Handlers and Server Actions.
+ */
+export function setServerSessionCookies(
+  accessToken: string,
+  refreshToken?: string | null,
+) {
+  try {
+    const cookieStore = cookies();
+    cookieStore.set('talago_session', accessToken, {
+      ...COOKIE_BASE,
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    if (refreshToken) {
+      cookieStore.set('talago_refresh', refreshToken, {
+        ...COOKIE_BASE,
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    }
+  } catch {
+    // Non-header context fallback
+  }
+}
+
+/**
+ * Creates a cryptographically random, short-lived (2 minutes) one-time handoff ticket.
+ * Used during cross-site redirects (e.g. Telegram OAuth) so the destination page
+ * can execute a 100% same-origin first-party sync and hydrate client state.
+ */
+export async function createAuthTicket(payload: {
+  accessToken: string;
+  refreshToken?: string | null;
+  userId?: string | null;
+}): Promise<string> {
+  const ticket = crypto.randomBytes(32).toString('hex');
+  const key = `auth_ticket_${ticket}`;
+  await prisma.systemSetting.create({
+    data: {
+      key,
+      value: JSON.stringify({
+        accessToken: payload.accessToken,
+        refreshToken: payload.refreshToken || null,
+        userId: payload.userId || null,
+        expiresAt: Date.now() + 2 * 60 * 1000,
+      }),
+    },
+  });
+  return ticket;
+}
+
+/**
+ * Consumes a one-time handoff ticket. Deletes it immediately to enforce single-use.
+ */
+export async function consumeAuthTicket(ticket: string): Promise<{
+  accessToken: string;
+  refreshToken: string | null;
+  userId: string | null;
+} | null> {
+  if (!ticket || typeof ticket !== 'string' || ticket.length < 16) return null;
+  const key = `auth_ticket_${ticket}`;
+  try {
+    const setting = await prisma.systemSetting.findUnique({ where: { key } });
+    if (!setting?.value) return null;
+
+    // Delete immediately so it can never be reused
+    await prisma.systemSetting.delete({ where: { key } }).catch(() => {});
+
+    const parsed = JSON.parse(setting.value);
+    if (parsed.expiresAt && parsed.expiresAt < Date.now()) return null;
+
+    return {
+      accessToken: parsed.accessToken as string,
+      refreshToken: (parsed.refreshToken as string) || null,
+      userId: (parsed.userId as string) || null,
+    };
+  } catch (err) {
+    console.warn('[customerSession] ticket consumption error:', err);
+    return null;
+  }
+}
+
 export function applySessionCookies(
   response: NextResponse,
   accessToken: string,
   refreshToken?: string | null,
 ) {
+  setServerSessionCookies(accessToken, refreshToken);
   response.cookies.set('talago_session', accessToken, {
     ...COOKIE_BASE,
     maxAge: 60 * 60 * 24 * 7,
