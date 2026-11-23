@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 import { sanitizePlain, sanitizePhone, sanitizeEmail } from '@/utils/sanitize';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getSessionFromRequest } from '@/server/auth';
+import { LeadStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     const requestedTourId = body.tourId ? sanitizePlain(body.tourId, 50) : null;
     const requestedTourSlug = body.tourSlug ? sanitizePlain(body.tourSlug, 100) : null;
     let customerName = body.customerName ? sanitizePlain(body.customerName, 100) : null;
-    const customerPhone = body.customerPhone ? sanitizePhone(body.customerPhone) : null;
+    let customerPhone = body.customerPhone ? sanitizePhone(body.customerPhone) : null;
     let customerEmail = body.customerEmail ? sanitizeEmail(body.customerEmail) : null;
     const travelDate = body.travelDate ? sanitizePlain(body.travelDate, 30) : null;
     const adults = parseGuestCount(body.adults, 1, 1);
@@ -47,7 +49,9 @@ export async function POST(request: NextRequest) {
     const totalEstimatedPrice = parseEstimatedPrice(body.totalEstimatedPrice);
     const currency = body.currency ? sanitizePlain(body.currency, 10).toUpperCase() : 'USD';
     const source = body.source ? sanitizePlain(body.source, 50) : 'BOOK_BUTTON';
-    const sessionId = body.sessionId ? sanitizePlain(body.sessionId, 100) : null;
+    const rawAttemptId = body.attemptId || body.idempotencyKey || body.sessionId;
+    const attemptId = rawAttemptId ? sanitizePlain(String(rawAttemptId), 100) : null;
+    const sessionId = attemptId;
     const notes = body.notes ? sanitizePlain(body.notes, 500) : null;
 
     if (!requestedTourId && !requestedTourSlug) {
@@ -66,18 +70,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Currency must be a three-letter ISO code.' }, { status: 400 });
     }
 
-    // A signed-in customer is the source of truth for the profile email. Do
-    // not let a browser claim another person's address just to place a draft
-    // reservation in their account.
-    const authHeader = request.headers.get('authorization');
-    const accessToken = authHeader?.startsWith('Bearer ')
-      ? authHeader.slice('Bearer '.length).trim()
-      : null;
-    if (accessToken) {
-      const { data: { user } } = await supabaseAdmin.auth.getUser(accessToken);
-      if (user?.email) {
-        customerEmail = user.email.toLowerCase();
-        customerName = sanitizePlain(user.user_metadata?.name, 100) || customerName;
+    // A signed-in customer is the source of truth for the profile identity.
+    const authSession = await getSessionFromRequest(request);
+    if (authSession) {
+      if (authSession.email && !authSession.email.endsWith('@noreply.talago.com')) {
+        customerEmail = customerEmail || authSession.email.toLowerCase();
+      }
+      if (authSession.phone || authSession.telegramPhone) {
+        customerPhone = customerPhone || sanitizePhone(authSession.phone || authSession.telegramPhone);
+      }
+      if (authSession.name && !customerName) {
+        customerName = sanitizePlain(authSession.name, 100);
+      }
+    } else {
+      const authHeader = request.headers.get('authorization');
+      const accessToken = authHeader?.startsWith('Bearer ')
+        ? authHeader.slice('Bearer '.length).trim()
+        : null;
+      if (accessToken) {
+        const { data: { user } } = await supabaseAdmin.auth.getUser(accessToken).catch(() => ({ data: { user: null } }));
+        if (user?.email) {
+          customerEmail = user.email.toLowerCase();
+          customerName = sanitizePlain(user.user_metadata?.name, 100) || customerName;
+        }
       }
     }
 
@@ -139,29 +154,39 @@ export async function POST(request: NextRequest) {
     // Deduplication check: recent active lead within last 10 minutes for the SAME tour and travel date
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
 
-    const existingLead = await prisma.bookingLead.findFirst({
-      where: {
-        createdAt: { gte: tenMinutesAgo },
-        status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
-        // Must belong to the exact same tour
-        OR: [
-          ...(tourId ? [{ tourId }] : []),
-          ...(tourSlug ? [{ tourSlug }] : []),
-        ],
-        // If a travel date is specified, must match the same date to avoid overwriting distinct dates
-        ...(travelDate ? { travelDate } : {}),
-        AND: [
-          {
+    const existingLead = attemptId
+      ? await prisma.bookingLead.findFirst({
+          where: {
+            tourId,
+            bookingId: null,
+            status: { in: [LeadStatus.INTERESTED, LeadStatus.IN_PROGRESS, LeadStatus.CONTACTED] },
+            sessionId: attemptId,
+          },
+          orderBy: { createdAt: 'desc' },
+        })
+      : await prisma.bookingLead.findFirst({
+          where: {
+            createdAt: { gte: tenMinutesAgo },
+            status: { in: [LeadStatus.INTERESTED, LeadStatus.IN_PROGRESS, LeadStatus.CONTACTED] },
+            bookingId: null,
+            // Must belong to the exact same tour
             OR: [
-              ...(sessionId ? [{ sessionId }] : []),
-              ...(customerPhone ? [{ customerPhone }] : []),
-              ...(customerEmail ? [{ customerEmail }] : []),
+              ...(tourId ? [{ tourId }] : []),
+              ...(tourSlug ? [{ tourSlug }] : []),
+            ],
+            // If a travel date is specified, must match the same date to avoid overwriting distinct dates
+            ...(travelDate ? { travelDate } : {}),
+            AND: [
+              {
+                OR: [
+                  ...(customerPhone ? [{ customerPhone }] : []),
+                  ...(customerEmail ? [{ customerEmail }] : []),
+                ],
+              },
             ],
           },
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+          orderBy: { createdAt: 'desc' },
+        });
 
     let lead;
     let isNewNotificationNeeded = false;
@@ -224,11 +249,11 @@ export async function POST(request: NextRequest) {
     if (isNewReservation) {
       const reservationMessage = `[${reservationReference}] New preliminary booking request: ${tourTitle}. Travel Date: ${travelDate || 'Flexible'}. Guests: ${adults} adult${adults === 1 ? '' : 's'}${children > 0 ? `, ${children} child${children === 1 ? '' : 'ren'}` : ''}.${totalEstimatedPrice ? ` Estimated value: ${totalEstimatedPrice} ${currency}.` : ''}`;
       try {
-        const leadChatToken = `lead:${lead.id}`;
+        const conversationToken = attemptId ? `attempt:${attemptId}` : `lead:${lead.id}`;
         const conversation = await prisma.liveChatConversation.upsert({
-          where: { visitorToken: leadChatToken },
+          where: { visitorToken: conversationToken },
           create: {
-            visitorToken: leadChatToken,
+            visitorToken: conversationToken,
             visitorName: customerName || undefined,
             visitorEmail: customerEmail || undefined,
             visitorPhone: customerPhone || undefined,
@@ -250,7 +275,18 @@ export async function POST(request: NextRequest) {
           },
           select: { id: true },
         });
-        await prisma.liveChatMessage.create({ data: { conversationId: conversation.id, sender: 'SYSTEM', body: reservationMessage } });
+
+        const existingSystemMsg = await prisma.liveChatMessage.findFirst({
+          where: {
+            conversationId: conversation.id,
+            body: { contains: reservationReference },
+          },
+        });
+        if (!existingSystemMsg) {
+          await prisma.liveChatMessage.create({
+            data: { conversationId: conversation.id, sender: 'SYSTEM', body: reservationMessage },
+          });
+        }
       } catch (chatError) {
         // The reservation itself must remain available even if inbox logging
         // is temporarily unavailable.

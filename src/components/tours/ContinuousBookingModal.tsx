@@ -139,6 +139,13 @@ export default function ContinuousBookingModal({
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const idempotencyKeyRef = React.useRef<string>('');
 
+  // Generate stable booking attempt ID on modal open
+  useEffect(() => {
+    if (isOpen && !idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = 'tlg_att_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+    }
+  }, [isOpen]);
+
   // Auto-sync customer identity from useAuth()
   useEffect(() => {
     if (isAuthenticated && authUser) {
@@ -353,13 +360,21 @@ export default function ContinuousBookingModal({
         errs.phone = 'Valid phone number is required';
       }
       if (Object.keys(errs).length === 0) {
+        if (!idempotencyKeyRef.current) {
+          idempotencyKeyRef.current = 'tlg_att_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+        }
         // Sync preliminary request with completed contact details
         fetch('/api/public/booking-interest', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(centralSessionToken ? { Authorization: `Bearer ${centralSessionToken}` } : {}),
+          },
+          credentials: 'same-origin',
           body: JSON.stringify({
             tourId: tour.id,
             tourSlug: tour.slug,
+            attemptId: idempotencyKeyRef.current,
             travelDate: departureDate || undefined,
             adults: adultsCount,
             children: childrenCount,
@@ -448,13 +463,14 @@ export default function ContinuousBookingModal({
     trackFunnelEvent('submission_started', { paymentScheme, totalEstimatedPrice: grandTotal });
 
     if (!idempotencyKeyRef.current) {
-      idempotencyKeyRef.current = 'tlg_idemp_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+      idempotencyKeyRef.current = 'tlg_att_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
     }
 
     try {
       const payload = {
         tourId: tour.id,
         reservationId: preliminaryLeadId || undefined,
+        attemptId: idempotencyKeyRef.current,
         idempotencyKey: idempotencyKeyRef.current,
         departureDate,
         guestCount: adultsCount + childrenCount + infantsCount,
@@ -533,6 +549,7 @@ export default function ContinuousBookingModal({
         scheme: data.scheme || paymentScheme,
       });
       clearBookingDraft(tour.id);
+      idempotencyKeyRef.current = '';
       setConfirmedBooking({
         bookingReference: data.bookingReference || `TLG-${data.bookingId?.slice(-6).toUpperCase()}`,
         accessToken: data.accessToken,

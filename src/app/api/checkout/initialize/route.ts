@@ -5,6 +5,7 @@ import { generateBookingReference } from '@/utils/bookingReference';
 import { generateAccessToken } from '@/utils/bookingToken';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { resolveRequestUser } from '@/server/customerSession';
+import { getSessionFromRequest } from '@/server/auth';
 import { adoptOwnedBookings, findProfileByContact } from '@/server/customerBookings';
 
 import { enforceCapacity, CapacityExceededError } from '@/utils/capacityEngine';
@@ -56,6 +57,8 @@ export async function POST(request: NextRequest) {
       ? body.idempotencyKey
       : request.headers.get('idempotency-key');
     idempotencyKey = rawIdempotencyKey ? sanitizePlain(rawIdempotencyKey.trim(), 100) : null;
+    const rawAttemptId = body.attemptId || body.idempotencyKey || rawIdempotencyKey;
+    const attemptId = rawAttemptId ? sanitizePlain(String(rawAttemptId).trim(), 100) : null;
 
     if (!tourId || !departureDate || !formData) {
       return NextResponse.json(
@@ -298,11 +301,30 @@ export async function POST(request: NextRequest) {
 
     // Validate custom booking questions
     const tourQuestions = Array.isArray(tour.bookingQuestions) ? (tour.bookingQuestions as any[]) : [];
+    const normalizedBookingAnswers: Record<string, any> = { ...(rawBookingAnswers || {}) };
+
     for (const q of tourQuestions) {
-      const isRoom = String(q.id || '').toLowerCase().includes('room') || String(q.question || '').toLowerCase().includes('room');
+      const qId = String(q.id || '').toLowerCase();
+      const qText = String(q.question || '').toLowerCase();
+      const isRoom = qId.includes('room') || qText.includes('room');
+
+      // Fall back to core form data if this custom question duplicates contact/hotel fields
+      let val = normalizedBookingAnswers[q.id];
+      if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
+        if (qId.includes('name') || qText.includes('name')) {
+          val = leadName;
+        } else if (qId.includes('phone') || qText.includes('phone') || qText.includes('whatsapp')) {
+          val = phone;
+        } else if (qId.includes('hotel') || qText.includes('hotel')) {
+          val = hotelName;
+        }
+        if (val !== undefined && val !== null && val !== '') {
+          normalizedBookingAnswers[q.id] = val;
+        }
+      }
+
       // Room number is never universally mandatory
       if (q && q.required && !isRoom) {
-        const val = rawBookingAnswers ? rawBookingAnswers[q.id] : undefined;
         if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
           return NextResponse.json(
             {
@@ -371,9 +393,21 @@ export async function POST(request: NextRequest) {
 
     const bookingReference = generateBookingReference();
 
-    // Cookie session wins over a stale browser bearer token.
-    const auth = await resolveRequestUser(request);
+    // Authoritative session check (supports Telegram, Google, Email seamlessly)
+    const authSession = await getSessionFromRequest(request);
+    const auth = authSession
+      ? {
+          user: {
+            id: authSession.id,
+            email: authSession.email || (authSession.telegramId ? `telegram-${authSession.telegramId}@noreply.talago.com` : null),
+            phone: authSession.phone || null,
+            name: authSession.name,
+          },
+        }
+      : await resolveRequestUser(request);
+
     const authUserEmail = auth?.user.email?.toLowerCase() ?? null;
+    const authenticatedCustomerId = authSession?.id || (auth?.user?.id ? auth.user.id : null);
 
     // Wrap all record creation in a Serializable transaction.
     // enforceCapacity runs INSIDE the tx using the tx client so that the
@@ -398,13 +432,39 @@ export async function POST(request: NextRequest) {
       }
 
       // Resolve CustomerProfile:
-      // If customer is authenticated, bind booking to their registered account profile.
+      // If customer is authenticated, bind booking to their registered account profile by canonical ID.
       // If customer is guest, use or create shadow profile for guest tracking.
       let profile;
       let existingProfile = null;
       const now = new Date();
 
-      if (authUserEmail) {
+      if (authenticatedCustomerId) {
+        existingProfile = await tx.customerProfile.findUnique({
+          where: { id: authenticatedCustomerId },
+        });
+
+        if (existingProfile) {
+          const updateData: Record<string, any> = {
+            isShadow: false,
+            lastMagicLinkAt: now,
+          };
+          if ((!existingProfile.phone || existingProfile.phone.trim() === '') && phone.trim()) {
+            updateData.phone = phone.trim();
+          }
+          if (
+            (!existingProfile.name || existingProfile.name === 'User' || existingProfile.name.startsWith('Traveler #')) &&
+            leadName.trim()
+          ) {
+            updateData.name = leadName.trim();
+          }
+          profile = await tx.customerProfile.update({
+            where: { id: existingProfile.id },
+            data: updateData,
+          });
+        }
+      }
+
+      if (!profile && authUserEmail) {
         const telegramMatch = authUserEmail.match(/^telegram-(\d+)@noreply\.talago\.com$/);
         existingProfile = await tx.customerProfile.findFirst({
           where: {
@@ -445,8 +505,9 @@ export async function POST(request: NextRequest) {
             },
           });
         }
-      } else {
-        existingProfile = await findProfileByContact(tx, normalizedEmail, phone.trim());
+      } else if (!profile) {
+        const guestEmail = normalizedEmail || (phone.trim() ? deriveGuestEmail(phone.trim()) : null);
+        existingProfile = guestEmail ? await findProfileByContact(tx, guestEmail, phone.trim()) : null;
 
         profile = existingProfile
           ? await tx.customerProfile.update({
@@ -459,9 +520,9 @@ export async function POST(request: NextRequest) {
             })
           : await tx.customerProfile.create({
               data: {
-                email: normalizedEmail,
-                name: leadName.trim(),
-                phone: phone.trim(),
+                email: guestEmail || `guest-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@noreply.talago.com`,
+                name: leadName.trim() || 'Traveler',
+                phone: phone.trim() || undefined,
                 isShadow: true,
                 invitedAt: now,
                 lastMagicLinkAt: now,
@@ -498,7 +559,7 @@ export async function POST(request: NextRequest) {
           bedConfiguration: bedConfiguration?.trim() || null,
           specialRequirements: specialRequirements?.trim() || null,
           selectedAddons: validatedSelectedAddons.length > 0 ? validatedSelectedAddons : undefined,
-          bookingAnswers: rawBookingAnswers && typeof rawBookingAnswers === 'object' && Object.keys(rawBookingAnswers).length > 0 ? rawBookingAnswers : undefined,
+          bookingAnswers: normalizedBookingAnswers && typeof normalizedBookingAnswers === 'object' && Object.keys(normalizedBookingAnswers).length > 0 ? normalizedBookingAnswers : undefined,
           paymentScheme,
           amountPaidOnline,
           amountDueOnArrival,
@@ -537,7 +598,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (authUserEmail && result.profileId) {
-      const metaPhone = typeof auth?.user.user_metadata?.phone === 'string' ? auth.user.user_metadata.phone : null;
+      const metaPhone = typeof (auth?.user as any)?.user_metadata?.phone === 'string' ? (auth?.user as any).user_metadata.phone : null;
       await adoptOwnedBookings({
         profileId: result.profileId,
         emails: [authUserEmail, rawEmail, normalizedEmail, result.profileEmail],
@@ -563,16 +624,24 @@ export async function POST(request: NextRequest) {
               id: requestedReservationId,
             },
           })
-        : await prisma.bookingLead.findFirst({
-            where: {
-              ...activeLead,
-              OR: [
-                ...(phone.trim() ? [{ customerPhone: phone.trim() }] : []),
-                ...(normalizedEmail ? [{ customerEmail: normalizedEmail }] : []),
-              ],
-            },
-            orderBy: { createdAt: 'desc' },
-          });
+        : (attemptId
+            ? await prisma.bookingLead.findFirst({
+                where: {
+                  ...activeLead,
+                  sessionId: attemptId,
+                },
+                orderBy: { createdAt: 'desc' },
+              })
+            : await prisma.bookingLead.findFirst({
+                where: {
+                  ...activeLead,
+                  OR: [
+                    ...(phone.trim() ? [{ customerPhone: phone.trim() }] : []),
+                    ...(normalizedEmail ? [{ customerEmail: normalizedEmail }] : []),
+                  ],
+                },
+                orderBy: { createdAt: 'desc' },
+              }));
       if (matchingLead) {
         await prisma.bookingLead.update({
           where: { id: matchingLead.id },
@@ -585,44 +654,48 @@ export async function POST(request: NextRequest) {
             updatedAt: new Date(),
           },
         });
-
-        // Carry over any lead conversation to the confirmed booking
-        await prisma.liveChatConversation.updateMany({
-          where: {
-            OR: [
-              { leadId: matchingLead.id },
-              { visitorToken: `lead:${matchingLead.id}` },
-            ],
-          },
-          data: {
-            bookingId: result.booking.id,
-            bookingReference: result.booking.bookingReference,
-            visitorName: leadName.trim(),
-            visitorEmail: email.trim(),
-            visitorPhone: phone.trim(),
-          },
-        });
       }
 
-      // Ensure an independent conversation exists for this booking reference
+      // Ensure SINGLE authoritative conversation exists for this booking attempt
       const resolvedTourTitle = (() => {
         const t = tour.translations as Record<string, { title?: string }> | null;
         return t?.en?.title || 'Talago Experience';
       })();
 
+      const attemptToken = attemptId || idempotencyKey;
+
       let bookingConv = await prisma.liveChatConversation.findFirst({
         where: {
           OR: [
+            ...(attemptToken ? [{ visitorToken: `attempt:${attemptToken}` }] : []),
+            ...(matchingLead?.id ? [{ leadId: matchingLead.id }, { visitorToken: `lead:${matchingLead.id}` }] : []),
             { bookingReference: result.booking.bookingReference },
             { visitorToken: `booking:${result.booking.bookingReference}` },
+            ...(result.booking.id ? [{ bookingId: result.booking.id }] : []),
           ],
         },
       });
 
-      if (!bookingConv) {
+      if (bookingConv) {
+        // Attach confirmed booking to this EXACT conversation!
+        bookingConv = await prisma.liveChatConversation.update({
+          where: { id: bookingConv.id },
+          data: {
+            bookingId: result.booking.id,
+            bookingReference: result.booking.bookingReference,
+            visitorName: leadName.trim(),
+            visitorEmail: email.trim() || bookingConv.visitorEmail,
+            visitorPhone: phone.trim() || bookingConv.visitorPhone,
+            tourTitle: resolvedTourTitle,
+            lastPagePath: `/booking/${result.booking.accessToken}`,
+            status: 'OPEN',
+            lastMessageAt: new Date(),
+          },
+        });
+      } else {
         bookingConv = await prisma.liveChatConversation.create({
           data: {
-            visitorToken: `booking:${result.booking.bookingReference}`,
+            visitorToken: attemptToken ? `attempt:${attemptToken}` : `booking:${result.booking.bookingReference}`,
             bookingId: result.booking.id,
             bookingReference: result.booking.bookingReference,
             visitorName: leadName.trim(),
@@ -634,20 +707,17 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Check whether this conversation already has an initial booking message
+      // Check whether this conversation already has an initial booking confirmation message
       if (bookingConv) {
         const existingMsg = await prisma.liveChatMessage.findFirst({
           where: {
             conversationId: bookingConv.id,
-            OR: [
-              { sender: 'SYSTEM' },
-              { body: { contains: result.booking.bookingReference } },
-            ],
+            body: { contains: result.booking.bookingReference },
           },
         });
 
         if (!existingMsg) {
-          const bookingSummary = `[BOOKING INITIALIZED] Reference: #${result.booking.bookingReference} | Guest: ${leadName.trim()} | Tour: ${resolvedTourTitle} | Date: ${departureDate} | Guests: ${totalGuests} (${finalAdultsCount} adults${finalChildrenCount > 0 ? `, ${finalChildrenCount} children` : ''}${finalInfantsCount > 0 ? `, ${finalInfantsCount} infants` : ''}) | Status: ${result.booking.status} | Total: $${finalTotal.toFixed(2)}`;
+          const bookingSummary = `[BOOKING CONFIRMED] Reference: #${result.booking.bookingReference} | Guest: ${leadName.trim()} | Tour: ${resolvedTourTitle} | Date: ${departureDate} | Guests: ${totalGuests} (${finalAdultsCount} adults${finalChildrenCount > 0 ? `, ${finalChildrenCount} children` : ''}${finalInfantsCount > 0 ? `, ${finalInfantsCount} infants` : ''}) | Status: ${result.booking.status} | Total: $${finalTotal.toFixed(2)}`;
 
           await prisma.liveChatMessage.create({
             data: {

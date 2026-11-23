@@ -681,7 +681,7 @@ export default function CheckoutPage() {
       }
 
       if (!idempotencyKeyRef.current) {
-        idempotencyKeyRef.current = 'tlg_idemp_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+        idempotencyKeyRef.current = 'tlg_att_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
       }
 
       const initHeaders: Record<string, string> = {
@@ -699,6 +699,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           tourId: tour.id,
           reservationId,
+          attemptId: idempotencyKeyRef.current,
           idempotencyKey: idempotencyKeyRef.current,
           departureDate,
           guestCount: adultsCount + childrenCount + infantsCount,

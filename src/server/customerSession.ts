@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { createClient, type User } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionFromRequest } from '@/server/auth';
 
 export type SessionUser = User & { phone?: string | null };
 
@@ -156,6 +157,34 @@ async function userFromAccessToken(token: string): Promise<SessionUser | null> {
  * A stale Supabase client bearer must not override it.
  */
 export async function resolveRequestUser(request: NextRequest): Promise<ResolvedSession | null> {
+  // 1. Authoritative Talago session check (works universally for Telegram, Google, Email)
+  const authSession = await getSessionFromRequest(request);
+  if (authSession) {
+    const syntheticEmail =
+      authSession.email ||
+      (authSession.telegramId
+        ? `telegram-${authSession.telegramId}@noreply.talago.com`
+        : `guest-${authSession.id}@noreply.talago.com`);
+
+    return {
+      user: {
+        id: authSession.id,
+        email: syntheticEmail,
+        phone: authSession.phone || undefined,
+        app_metadata: { provider: authSession.authProvider },
+        user_metadata: {
+          name: authSession.name,
+          telegramUsername: authSession.telegramUsername,
+        },
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+      } as any,
+      accessToken: request.cookies.get('talago_session')?.value || '',
+      refreshToken: null,
+      persist: false,
+    };
+  }
+
   const authHeader = request.headers.get('authorization');
   const bearer = authHeader?.startsWith('Bearer ')
     ? authHeader.slice('Bearer '.length).trim()
