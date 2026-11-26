@@ -187,22 +187,30 @@ export default function PublicTourCard({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* ── Wishlist Heart Button ── */}
+      {/* ── Wishlist Heart Button (44×44px accessible touch target) ── */}
       <button
         type="button"
         onClick={handleWishlistToggle}
         aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
-        className={`absolute right-2 top-2 sm:right-3.5 sm:top-3.5 z-20 flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded-full border backdrop-blur-md transition-all duration-200 ${
+        className={`absolute right-1 top-1 sm:right-2 sm:top-2 z-20 flex h-11 w-11 items-center justify-center rounded-full transition-all duration-200 ${
           wishlisted
-            ? 'border-rose-500/60 bg-rose-500/90 shadow-lg shadow-rose-500/40'
-            : 'border-white/20 bg-[#070F1E]/70 opacity-80 sm:opacity-0 group-hover:opacity-100'
+            ? 'opacity-100'
+            : 'opacity-90 sm:opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
         } ${wishAnim ? 'scale-125' : 'scale-100'}`}
       >
-        <Heart
-          className={`h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 transition-all duration-200 ${
-            wishlisted ? 'fill-white text-white' : 'text-white/80'
+        <span
+          className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full border backdrop-blur-md transition-all duration-200 ${
+            wishlisted
+              ? 'border-rose-500/60 bg-rose-500/90 shadow-lg shadow-rose-500/40'
+              : 'border-white/20 bg-[#070F1E]/75'
           }`}
-        />
+        >
+          <Heart
+            className={`h-3 w-3 sm:h-3.5 sm:w-3.5 transition-all duration-200 ${
+              wishlisted ? 'fill-white text-white' : 'text-white/80'
+            }`}
+          />
+        </span>
       </button>
 
       {/* ════════════════════════════════════════════════════════════════
