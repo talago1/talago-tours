@@ -3,8 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getSessionFromRequest } from '@/server/auth';
 import { applySessionCookies, resolveRequestUser } from '@/server/customerSession';
 import {
-  adoptOwnedBookings,
-  listVisibleBookingIds,
+  listBookingsPage,
   listVisibleLeadIds,
   resolveCustomerProfileForUser,
   formatUserProfile,
@@ -109,31 +108,27 @@ export async function GET(request: NextRequest) {
 
     const emails = [profile.email, session?.email].filter(Boolean) as string[];
 
-    // Compute the visible booking ids ONCE and reuse them for adoption and
-    // for the paged query below. Previously adoptOwnedBookings() ran
-    // listVisibleBookingIds() internally and the route called it again,
-    // so the expensive phone/email lookups ran twice per request
-    // (see src/server/customerBookings.ts).
-    const bookingIds = await listVisibleBookingIds({ profileId: profile.id, emails, phones });
-    const leadIds = await listVisibleLeadIds(emails, phones);
-
-    await adoptOwnedBookings({ profileId: profile.id, emails, phones, bookingIds }).catch((error) => {
-      console.warn('[my-bookings] booking adoption warning:', error);
-    });
-
-    // Cursor must belong to this customer's visible bookings; otherwise
-    // Prisma would return an empty page (or throw) for a foreign id.
-    const validCursor = cursorId && bookingIds.includes(cursorId) ? cursorId : null;
+    // No adoption here: GET is a read. Bookings are claimed once at
+    // sign-in (login/register, or POST /api/public/my-bookings/adopt) —
+    // never as a side effect of listing. An UPDATE on every read also
+    // serialized on Booking row locks and made this endpoint slow.
+    //
+    // The page is resolved directly on indexed columns
+    // (customerProfileId / customerEmail / customerPhoneNormalized) with
+    // keyset pagination on (travelDate, id) — see listBookingsPage() in
+    // src/server/customerBookings.ts. The previous implementation first
+    // enumerated EVERY visible booking id (full email/phone scans) and
+    // only then took one page, so pagination never reduced the work.
+    const [{ pageIds, nextCursor, hasMore }, leadIds] = await Promise.all([
+      listBookingsPage({ profileId: profile.id, emails, phones, cursorId, pageSize }),
+      listVisibleLeadIds(emails, phones),
+    ]);
 
     const [bookings, reservations] = await Promise.all([
-      bookingIds.length === 0
+      pageIds.length === 0
         ? Promise.resolve([])
         : prisma.booking.findMany({
-        where: { id: { in: bookingIds } },
-        // Cursor pagination: `cursor` needs a unique field, so we page on
-        // the booking id while keeping the travel-date order (id as
-        // tiebreaker so the order is stable across pages).
-        ...(validCursor ? { cursor: { id: validCursor }, skip: 1 } : {}),
+        where: { id: { in: pageIds } },
         take: pageSize,
         select: {
           id: true,
@@ -349,16 +344,13 @@ export async function GET(request: NextRequest) {
 
     const userPayload = formatUserProfile(effectiveUser, profile, profile.telegramId ? { id: profile.telegramId } as any : null);
 
-    const nextCursor =
-      bookings.length === pageSize ? bookings[bookings.length - 1].id : null;
-
     const response = NextResponse.json(
       {
         authenticated: true,
         user: userPayload,
         bookings: formattedBookings,
         reservations: formattedReservations,
-        pagination: { limit: pageSize, nextCursor, hasMore: nextCursor !== null },
+        pagination: { limit: pageSize, nextCursor, hasMore },
       },
       { headers: NO_STORE }
     );
