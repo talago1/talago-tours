@@ -474,7 +474,11 @@ export async function POST(request: NextRequest) {
         metaTitle: metaTitle || null,
         metaDescription: metaDescription || null,
         keywords: Array.isArray(keywords) ? keywords : [],
-        replacedByTourId: replacedByTourId || null,
+        // Fix: Prisma Client rejects the scalar `replacedByTourId` here
+        // (PrismaClientValidationError: Unknown argument `replacedByTourId`,
+        // even when null). Use the relation input instead, which the
+        // deployed client accepts.
+        replacedBy: replacedByTourId ? { connect: { id: replacedByTourId } } : undefined,
       },
       select: {
         id: true,

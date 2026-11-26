@@ -364,7 +364,14 @@ export async function PUT(
     if (isVip !== undefined) updateData.isVip = Boolean(isVip);
     if (isFamilyFriendly !== undefined) updateData.isFamilyFriendly = Boolean(isFamilyFriendly);
     if (isNew !== undefined) updateData.isNew = Boolean(isNew);
-    if (replacedByTourId !== undefined) updateData.replacedByTourId = replacedByTourId || null;
+    // Fix: same PrismaClientValidationError as in create/route.ts.
+    // Never pass the scalar `replacedByTourId` to Prisma; use the
+    // relation input. `disconnect: true` clears a previous link.
+    if (replacedByTourId !== undefined) {
+      updateData.replacedBy = replacedByTourId
+        ? { connect: { id: replacedByTourId } }
+        : { disconnect: true };
+    }
     if (customBadge !== undefined) updateData.customBadge = customBadge || null;
     if (secondaryCategories !== undefined) updateData.secondaryCategories = Array.isArray(secondaryCategories) ? secondaryCategories : [];
     if (tags !== undefined) updateData.tags = Array.isArray(tags) ? tags : [];
