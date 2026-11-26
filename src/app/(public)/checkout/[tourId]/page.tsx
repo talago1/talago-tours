@@ -500,7 +500,7 @@ export default function CheckoutPage() {
           leadName: prev.leadName.trim() ? prev.leadName : (data.customerName || prev.leadName),
           phone: prev.phone.trim() ? prev.phone : (data.customerPhone || prev.phone),
           email: prev.email.trim() ? prev.email : (data.customerEmail || prev.email),
-          hotelName: prev.hotelName.trim() ? prev.hotelName : (data.hotelName || prev.hotelName),
+          hotelName: prev.hotelName?.trim() ? prev.hotelName : (data.hotelName || prev.hotelName),
           roomNumber: prev.roomNumber ? prev.roomNumber : (data.roomNumber || prev.roomNumber),
           pickupType: data.pickupType || prev.pickupType,
           pickupLocationName: data.pickupLocationName || prev.pickupLocationName,
