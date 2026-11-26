@@ -631,7 +631,7 @@ export default function ContinuousBookingModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="booking-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 bg-[#070F1E]/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-5 md:p-6 bg-[#070F1E]/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
     >
       <div className="relative w-full max-w-4xl rounded-3xl border border-white/10 bg-[#0B1528] shadow-2xl shadow-black/60 overflow-hidden my-auto max-h-[92vh] flex flex-col">
         {/* Header */}
