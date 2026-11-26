@@ -35,73 +35,76 @@ export function collectIdentityEmails(
   return [...set];
 }
 
-// NOTE on phone lookup performance (not fixed in this PR):
-// findIdsByNationalPhone() matches phones with regexp_replace() on the
-// raw customerPhone column, which no B-tree index can serve — every call
-// is a full-table scan of Booking / booking_leads / CustomerProfile, and
-// it runs once per phone key. The proper fix is a normalized phone
-// column (e.g. Booking.customerPhoneNormalized + @@index, same for
-// BookingLead and CustomerProfile) populated at write time, plus a
-// one-off backfill of existing rows — a schema + data change that does
-// not belong in this performance PR. Until then, callers must at least
-// avoid running this lookup more than once per request (see
-// adoptOwnedBookings() below).
+// Phone lookups are served by the normalized phone columns
+// (Booking.customerPhoneNormalized, BookingLead.customerPhoneNormalized,
+// CustomerProfile.phoneNormalized / telegramPhoneNormalized). The columns
+// hold phoneMatchKey() of the raw phone and are maintained by a DB trigger
+// (migration 20261126010000_add_normalized_phone_columns) plus a one-off
+// backfill, so a lookup is a single indexed `IN` query — never a
+// regexp_replace() full-table scan, and never one query per phone key.
+// The trigger keeps the columns in sync, so no write path has to set them;
+// the application only reads them here.
 async function findIdsByNationalPhone(
   db: PhoneDb,
   table: 'booking' | 'lead' | 'profile',
   keys: string[],
 ): Promise<Array<{ id: string; phone: string; telegramPhone?: string | null }>> {
   const safe = [...new Set(keys.filter((key) => /^\d{8,12}$/.test(key)))];
-  const found: Array<{ id: string; phone: string; telegramPhone?: string | null }> = [];
-
-  for (const key of safe) {
-    const minLen = key.length;
-    const maxLen = key.length + 4;
-    try {
-      if (table === 'booking') {
-        const rows = await db.$queryRaw<Array<{ id: string; phone: string }>>`
-          SELECT id, "customerPhone" AS phone
-          FROM "Booking"
-          WHERE char_length(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen}::int AND ${maxLen}::int
-            AND right(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g'), ${key.length}::int) = ${key}
-        `;
-        for (const row of rows) {
-          if (phoneMatchKey(row.phone) === key) found.push(row);
-        }
-      } else if (table === 'lead') {
-        const rows = await db.$queryRaw<Array<{ id: string; phone: string }>>`
-          SELECT id, "customerPhone" AS phone
-          FROM "booking_leads"
-          WHERE char_length(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen}::int AND ${maxLen}::int
-            AND right(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g'), ${key.length}::int) = ${key}
-        `;
-        for (const row of rows) {
-          if (phoneMatchKey(row.phone) === key) found.push(row);
-        }
-      } else {
-        const rows = await db.$queryRaw<Array<{ id: string; phone: string; telegramPhone: string | null }>>`
-          SELECT id, "phone" AS phone, "telegramPhone"
-          FROM "CustomerProfile"
-          WHERE (
-            char_length(regexp_replace(coalesce("phone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen}::int AND ${maxLen}::int
-            AND right(regexp_replace(coalesce("phone", ''), '[^0-9]', '', 'g'), ${key.length}::int) = ${key}
-          ) OR (
-            char_length(regexp_replace(coalesce("telegramPhone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen}::int AND ${maxLen}::int
-            AND right(regexp_replace(coalesce("telegramPhone", ''), '[^0-9]', '', 'g'), ${key.length}::int) = ${key}
-          )
-        `;
-        for (const row of rows) {
-          if (phoneMatchKey(row.phone) === key || phoneMatchKey(row.telegramPhone) === key) {
-            found.push(row);
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('[customer-bookings] normalized phone lookup failed:', error);
+  if (safe.length === 0) return [];
+  try {
+    if (table === 'booking') {
+      const rows = await db.booking.findMany({
+        where: { customerPhoneNormalized: { in: safe } },
+        select: { id: true, customerPhone: true, customerPhoneNormalized: true },
+      });
+      return rows
+        .filter((row) => row.customerPhoneNormalized !== null && safe.includes(row.customerPhoneNormalized))
+        .map((row) => ({ id: row.id, phone: row.customerPhone }));
     }
+    if (table === 'lead') {
+      const rows = await db.bookingLead.findMany({
+        where: { customerPhoneNormalized: { in: safe } },
+        select: { id: true, customerPhone: true, customerPhoneNormalized: true },
+      });
+      return rows
+        .filter((row) => row.customerPhoneNormalized !== null && safe.includes(row.customerPhoneNormalized))
+        .map((row) => ({ id: row.id, phone: row.customerPhone ?? '' }));
+    }
+    const rows = await db.customerProfile.findMany({
+      where: {
+        OR: [{ phoneNormalized: { in: safe } }, { telegramPhoneNormalized: { in: safe } }],
+      },
+      select: {
+        id: true,
+        phone: true,
+        telegramPhone: true,
+        phoneNormalized: true,
+        telegramPhoneNormalized: true,
+      },
+    });
+    return rows
+      .filter(
+        (row) =>
+          (row.phoneNormalized !== null && safe.includes(row.phoneNormalized)) ||
+          (row.telegramPhoneNormalized !== null && safe.includes(row.telegramPhoneNormalized)),
+      )
+      .map((row) => ({ id: row.id, phone: row.phone ?? '', telegramPhone: row.telegramPhone }));
+  } catch (error) {
+    console.warn('[customer-bookings] normalized phone lookup failed:', error);
+    return [];
   }
+}
 
-  return found;
+/**
+ * The single phone normalization for the normalized columns: the national
+ * key from src/utils/phoneMatch.ts. Must stay in sync with the
+ * normalize_phone_key() DB function in migration
+ * 20261126010000_add_normalized_phone_columns (the trigger uses the DB
+ * function; this helper is for any application code that needs the same
+ * value, e.g. tests or one-off scripts).
+ */
+export function normalizePhoneForColumn(raw: unknown): string | null {
+  return phoneMatchKey(raw);
 }
 
 export async function findProfileByContact(
@@ -249,6 +252,90 @@ export async function listVisibleBookingIds(input: {
       return emailHit || phoneHit;
     })
     .map((row) => row.id);
+}
+
+/**
+ * Resolve ONE page of visible booking ids directly on indexed columns,
+ * with keyset pagination on (travelDate, id). This is what GET
+ * /api/public/my-bookings uses.
+ *
+ * The previous implementation enumerated EVERY visible booking id first
+ * (listVisibleBookingIds: email OR + regexp_replace() phone scans over the
+ * whole table) and only then took one page, so pagination never reduced
+ * the work of a request. This query filters by visibility AND the keyset
+ * in a single indexed query and takes pageSize + 1 rows (the extra row
+ * tells the caller whether another page exists).
+ *
+ * Visibility matches listVisibleBookingIds exactly: linked by
+ * customerProfileId, or matching customerEmail (including the guest-*
+ * synthetic emails derived from the customer's phones), or matching the
+ * normalized phone column.
+ */
+export async function listBookingsPage(input: {
+  profileId: string;
+  emails: Array<string | null | undefined>;
+  phones: Array<unknown>;
+  cursorId?: string | null;
+  pageSize: number;
+}): Promise<{ pageIds: string[]; nextCursor: string | null; hasMore: boolean }> {
+  const emails = collectIdentityEmails(input.emails, input.phones);
+  const keys = collectPhoneKeys(input.phones);
+  const emailSet = new Set(emails);
+  const keySet = new Set(keys);
+
+  const visibilityWhere: Prisma.BookingWhereInput = {
+    OR: [
+      { customerProfileId: input.profileId },
+      ...emails.map((email) => ({ customerEmail: { equals: email, mode: 'insensitive' as const } })),
+      ...(keys.length > 0 ? [{ customerPhoneNormalized: { in: keys } }] : []),
+    ],
+  };
+
+  // Keyset pagination on (travelDate, id): the cursor is the last booking
+  // id of the previous page. The cursor row is fetched by primary key and
+  // accepted only if it is visible to this customer; a foreign or stale
+  // cursor falls back to the first page, as before.
+  let keysetWhere: Prisma.BookingWhereInput = {};
+  if (input.cursorId) {
+    const cursorRow = await prisma.booking.findUnique({
+      where: { id: input.cursorId },
+      select: {
+        id: true,
+        travelDate: true,
+        customerProfileId: true,
+        customerEmail: true,
+        customerPhoneNormalized: true,
+      },
+    });
+    const cursorVisible =
+      cursorRow &&
+      (cursorRow.customerProfileId === input.profileId ||
+        emailSet.has(cursorRow.customerEmail.trim().toLowerCase()) ||
+        (cursorRow.customerPhoneNormalized !== null && keySet.has(cursorRow.customerPhoneNormalized)));
+    if (cursorVisible) {
+      keysetWhere = {
+        OR: [
+          { travelDate: { gt: cursorRow.travelDate } },
+          { travelDate: cursorRow.travelDate, id: { gt: cursorRow.id } },
+        ],
+      };
+    }
+  }
+
+  // Fetch one extra row to know whether another page exists.
+  const rows = await prisma.booking.findMany({
+    where: { AND: [visibilityWhere, keysetWhere] },
+    select: { id: true },
+    orderBy: [{ travelDate: 'asc' }, { id: 'asc' }],
+    take: input.pageSize + 1,
+  });
+  const hasMore = rows.length > input.pageSize;
+  const page = hasMore ? rows.slice(0, input.pageSize) : rows;
+  return {
+    pageIds: page.map((row) => row.id),
+    nextCursor: hasMore && page.length > 0 ? page[page.length - 1].id : null,
+    hasMore,
+  };
 }
 
 export async function listVisibleLeadIds(
