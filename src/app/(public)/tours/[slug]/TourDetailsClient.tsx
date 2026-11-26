@@ -1729,35 +1729,10 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => void startReservation('DESKTOP_PRIMARY_BOOK_NOW')}
-                disabled={!pricePerAdult || pricePerAdult <= 0}
-                className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {pricePerAdult > 0
-                  ? dict.tourDetails.bookNow || 'Book Now'
-                  : 'Pricing Confirmation Required'} <span aria-hidden="true">→</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setQuestionModalOpen(true)}
-                className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs font-bold text-slate-300 transition hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/[0.06] hover:text-[#00E5FF]"
-              >
-                <MessageSquare className="h-4 w-4 text-[#00E5FF]" />
-                <span>Ask a Question</span>
-              </button>
-              <p className="mb-6 text-center text-xs text-slate-400">Your reservation is saved pending confirmation. Complete guest, pickup, and payment details next.</p>
-
-              <details className="group border-t border-white/10 pt-4">
-                <summary className="cursor-pointer list-none text-center text-xs font-bold text-slate-400 transition hover:text-[#00E5FF]">
-                  <span className="group-open:hidden">Customize guests, pickup, or add-ons</span>
-                  <span className="hidden group-open:inline">Hide booking preferences</span>
-                </summary>
-                <div className="pt-5">
+              {/* Date, Time, Guests & Add-ons (Sputnik8-style immediate selection) */}
+              <div className="space-y-4 mb-5">
                   {/* Departure Date Selector */}
-                  <div className="mb-6">
+                  <div>
                     {(() => {
                       const cutoff = tour.cutoffHours ?? 12;
                       const minDate = new Date(Date.now() + cutoff * 3_600_000);
@@ -2080,13 +2055,33 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 )}
               </div>
 
+              {/* Primary Book & Ask CTAs */}
+              <button
+                type="button"
+                onClick={() => void startReservation('DESKTOP_PRIMARY_BOOK_NOW')}
+                disabled={!pricePerAdult || pricePerAdult <= 0}
+                className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {pricePerAdult > 0
+                  ? dict.tourDetails.bookNow || 'Book Now'
+                  : 'Pricing Confirmation Required'} <span aria-hidden="true">→</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setQuestionModalOpen(true)}
+                className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs font-bold text-slate-300 transition hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/[0.06] hover:text-[#00E5FF]"
+              >
+                <MessageSquare className="h-4 w-4 text-[#00E5FF]" />
+                <span>Ask a Question</span>
+              </button>
+
               {/* Trust footer */}
-              <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500">
+              <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
                 {dict.tourDetails.secureBooking}
               </div>
-                </div>
-              </details>
+              </div>
             </div>
           </aside>
         </div>
@@ -2211,6 +2206,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
         initialInfants={infantsCount}
         initialAddons={selectedAddons}
         availablePickupTimes={tour.pickupTimes || (tour.pickupTime ? [tour.pickupTime] : [])}
+        startAtContactStep={Boolean(selectedDate)}
         initialResumeData={resumeData}
       />
 

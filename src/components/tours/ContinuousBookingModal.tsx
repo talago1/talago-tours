@@ -81,6 +81,7 @@ export interface ContinuousBookingModalProps {
   initialAddons?: Record<string, boolean>;
   availablePickupTimes?: string[];
   zones?: ZoneOption[];
+  startAtContactStep?: boolean;
   initialResumeData?: {
     leadId: string;
     attemptId: string;
@@ -105,6 +106,7 @@ export default function ContinuousBookingModal({
   initialAddons = {},
   availablePickupTimes = [],
   zones = [],
+  startAtContactStep = false,
   initialResumeData = null,
 }: ContinuousBookingModalProps) {
   const { dict, language } = useLanguage();
@@ -292,45 +294,18 @@ export default function ContinuousBookingModal({
         setPaymentScheme(PaymentScheme.DEPOSIT_ONLINE);
       }
 
-      // Authoritative authenticated customer recognition & preliminary hold request
-      (async () => {
-        const currentU = authUser;
-        const tokenToUse = centralSessionToken;
-
-        // Immediately register visible preliminary booking request (Stage A: Spots held, no inventory deducted)
-        try {
-          const interestHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-          if (tokenToUse) interestHeaders['Authorization'] = `Bearer ${tokenToUse}`;
-
-          const res = await fetch('/api/public/booking-interest', {
-            method: 'POST',
-            headers: interestHeaders,
-            body: JSON.stringify({
-              tourId: tour.id,
-              tourSlug: tour.slug,
-              travelDate: initialDate || undefined,
-              adults: initialAdults || 1,
-              children: initialChildren || 0,
-              totalEstimatedPrice: effectiveAdultPrice * (initialAdults || 1),
-              currency: 'USD',
-              source: 'BOOKING_START',
-              customerName: currentU ? ((currentU.name && currentU.name !== 'User') ? currentU.name : undefined) : (draft?.leadName || undefined),
-              customerPhone: currentU ? (currentU.phone || currentU.telegramPhone || undefined) : (draft?.phone || undefined),
-              customerEmail: currentU ? ((!currentU.email?.endsWith('@noreply.talago.com')) ? currentU.email : undefined) : (draft?.email || undefined),
-            }),
-          });
-          if (res.ok) {
-            const resData = await res.json();
-            if (resData?.leadId) {
-              setPreliminaryLeadId(resData.leadId);
-              setPreliminaryReference(resData.reservationReference);
-            }
-          }
-        } catch {}
-      })();
+      // If date (and time if required) were already selected on the tour page,
+      // jump straight to Step 2 (Customer Details & Registration) to avoid repetition.
+      const needsTime = availablePickupTimes.length > 0 && !initialTime && !draft?.selectedTime;
+      const hasDate = Boolean(initialDate || draft?.departureDate);
+      if (startAtContactStep && hasDate && !needsTime) {
+        setStep(2);
+      } else {
+        setStep(1);
+      }
     }
     prevIsOpenRef.current = isOpen;
-  }, [isOpen, initialDate, initialTime, initialAdults, initialChildren, initialInfants, initialAddons, zones, tour.allowPayAtLocation, tour.allowFullOnline, tour.allowDeposit, tour.id, tour.slug, tour.adultPrice, trackFunnelEvent]);
+  }, [isOpen, initialDate, initialTime, initialAdults, initialChildren, initialInfants, initialAddons, availablePickupTimes.length, startAtContactStep, zones, tour.allowPayAtLocation, tour.allowFullOnline, tour.allowDeposit, tour.id, tour.slug, tour.adultPrice, trackFunnelEvent]);
 
   // Price calculations
   const effectiveAdultPrice = tour.adultPrice || 0;
@@ -697,7 +672,16 @@ export default function ContinuousBookingModal({
                 { s: 4, label: (dict as any).booking?.stepPayment || 'Payment' },
               ].map((item, idx) => (
                 <React.Fragment key={item.s}>
-                  <div className="flex flex-col items-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (item.s < step || item.s === 1) {
+                        setErrors({});
+                        setStep(item.s as 1 | 2 | 3 | 4);
+                      }
+                    }}
+                    className="flex flex-col items-center cursor-pointer focus:outline-none"
+                  >
                     <div
                       className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-black transition ${
                         step === item.s
@@ -712,7 +696,7 @@ export default function ContinuousBookingModal({
                     <span className="hidden sm:block text-[10px] font-bold text-slate-400 mt-1">
                       {item.label}
                     </span>
-                  </div>
+                  </button>
                   {idx < 3 && (
                     <div
                       className={`flex-1 h-0.5 mx-2 rounded-full transition ${
@@ -723,15 +707,6 @@ export default function ContinuousBookingModal({
                 </React.Fragment>
               ))}
             </div>
-            {preliminaryReference && (
-              <div className="mt-2.5 flex items-center justify-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Hold Ref: {preliminaryReference}
-                </span>
-                <span className="text-[10px] text-slate-400">Spot held during booking</span>
-              </div>
-            )}
           </div>
         )}
 
@@ -779,6 +754,16 @@ export default function ContinuousBookingModal({
                 <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-xs text-emerald-300 flex items-center justify-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>{(dict as any).booking?.whatsappDispatch || 'Your e-boarding pass and WhatsApp confirmation are being dispatched.'}</span>
+                </div>
+              )}
+
+              {!isAuthenticated && email.trim() && !email.trim().endsWith('@noreply.talago.com') && (
+                <div className="rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/[0.04] p-4 text-left text-xs text-slate-300 space-y-1">
+                  <p className="font-bold text-white">Your Talago account is ready</p>
+                  <p className="text-[11px] text-slate-400">
+                    Booking <span className="font-mono text-[#00E5FF]">{confirmedBooking.bookingReference}</span> is linked to{' '}
+                    <span className="text-white font-semibold">{email.trim()}</span>. Check your email for confirmation &amp; sign-in instructions.
+                  </p>
                 </div>
               )}
 
@@ -1015,20 +1000,21 @@ export default function ContinuousBookingModal({
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-emerald-400 truncate">
-                            Logged in as {authUser?.name || (authUser?.telegramUsername ? `@${authUser.telegramUsername}` : (authUser?.email || 'Member'))}
+                            Signed in as {authUser?.name || (authUser?.telegramUsername ? `@${authUser.telegramUsername}` : (authUser?.email || 'Member'))}
                           </p>
-                          <p className="text-[11px] text-slate-400">This trip will be automatically saved to your account.</p>
+                          <p className="text-[11px] text-slate-400">Your details are prefilled and this booking will be saved to your account.</p>
                         </div>
                       </div>
                     ) : (
-                      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 flex items-center gap-3">
-                        <div className="h-7 w-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 shrink-0 text-xs">
+                      <div className="rounded-xl border border-[#00E5FF]/20 bg-[#00E5FF]/[0.04] p-3 flex items-center gap-3">
+                        <div className="h-7 w-7 rounded-lg bg-[#00E5FF]/10 border border-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF] shrink-0 text-xs">
                           <User className="h-3.5 w-3.5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-white">{(dict as any).booking?.bookingAsGuest || 'Booking as Guest'}</p>
+                          <p className="text-xs font-bold text-white">{(dict as any).booking?.bookingAsGuest || 'No separate signup needed'}</p>
                           <p className="text-[11px] text-slate-400">
-                            {(dict as any).booking?.haveAccount || 'Have an account?'}{' '}<a href={`/auth?returnTo=/tours/${tour.slug}`} className="text-[#00E5FF] font-bold hover:underline">{(dict as any).booking?.logIn || 'Log in'}</a>{' '}{(dict as any).booking?.toLinkBooking || 'to link this booking.'}
+                            Your Talago account will be created automatically with your email so you can track this booking.{' '}
+                            <a href={`/auth?returnTo=/tours/${tour.slug}`} className="text-[#00E5FF] font-bold hover:underline">{(dict as any).booking?.logIn || 'Sign in'}</a>
                           </p>
                         </div>
                       </div>

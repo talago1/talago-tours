@@ -169,9 +169,14 @@ export async function sendBookingConfirmationEmail(
     </div>
 
     <div style="margin-top:28px;padding:16px;background:rgba(6,182,212,0.08);border-radius:12px;border:1px solid rgba(6,182,212,0.2);">
-      <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.55);line-height:1.7;">
+      <p style="margin:0 0 8px;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.7;">
         🎒 <strong style="color:#06b6d4;">What's next?</strong> Our team will be in touch with joining instructions closer to your travel date. You can also check your booking status and chat with us anytime via your
-        <a href="${SITE_URL}/my-bookings" style="color:#0ea5e9;">My Bookings</a> page.
+        <a href="${SITE_URL}/account?tab=bookings" style="color:#0ea5e9;">Talago Account</a>.
+      </p>
+      <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.55);line-height:1.6;">
+        🔐 <strong style="color:#fff;">Account Access:</strong> Your booking is linked to <span style="color:#06b6d4;">${to}</span>.
+        Sign in anytime with Google, Telegram, or set your password at
+        <a href="${SITE_URL}/auth?email=${encodeURIComponent(to)}" style="color:#0ea5e9;">talago-tours/auth</a> to view this reservation and message your operator.
       </p>
     </div>
   `);

@@ -524,6 +524,7 @@ export async function POST(request: NextRequest) {
         }
       } else if (!profile) {
         const guestEmail = normalizedEmail || (phone.trim() ? deriveGuestEmail(phone.trim()) : null);
+        const hasRealEmail = Boolean(rawEmail && !rawEmail.endsWith('@noreply.talago.com'));
         existingProfile = guestEmail ? await findProfileByContact(tx, guestEmail, phone.trim()) : null;
 
         profile = existingProfile
@@ -532,6 +533,7 @@ export async function POST(request: NextRequest) {
               data: {
                 ...(existingProfile.name === 'User' || !existingProfile.name ? { name: leadName.trim() } : {}),
                 ...(existingProfile.phone ? {} : { phone: phone.trim() }),
+                ...(hasRealEmail && existingProfile.isShadow ? { isShadow: false } : {}),
                 lastMagicLinkAt: now,
               },
             })
@@ -540,7 +542,7 @@ export async function POST(request: NextRequest) {
                 email: guestEmail || `guest-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@noreply.talago.com`,
                 name: leadName.trim() || 'Traveler',
                 phone: phone.trim() || undefined,
-                isShadow: true,
+                isShadow: !hasRealEmail,
                 invitedAt: now,
                 lastMagicLinkAt: now,
               },
@@ -623,6 +625,22 @@ export async function POST(request: NextRequest) {
       }).catch((error) => {
         console.warn('[checkout-initialize] booking adoption warning:', error);
       });
+    } else if (!authUserEmail && rawEmail && !rawEmail.endsWith('@noreply.talago.com')) {
+      // Auto-provision Supabase Auth user for new guests (non-fatal if already registered)
+      // so they can sign in / reset password later with the same email and find this booking.
+      try {
+        await supabaseAdmin.auth.admin.createUser({
+          email: normalizedEmail,
+          email_confirm: true,
+          user_metadata: {
+            name: leadName.trim(),
+            phone: phone.trim(),
+            provisionedVia: 'booking_checkout',
+          },
+        });
+      } catch {
+        // Non-fatal: user may already exist in Supabase Auth
+      }
     }
 
     // A booking is only a conversion after its payment/confirmation state says so.
