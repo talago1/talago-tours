@@ -106,6 +106,7 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
         { ratingAverage: 'desc' },
         { ratingCount: 'desc' },
       ],
+      take: 48,
       select: {
         id: true,
         slug: true,
