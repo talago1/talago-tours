@@ -138,6 +138,25 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Persist in-app Admin Notification for incoming customer message (idempotent per message.id)
+    await prisma.notificationLog.create({
+      data: {
+        bookingId: conversation.id,
+        channel: 'CUSTOMER_MESSAGE_ALERT',
+        recipient: 'Admin Dashboard',
+        status: 'UNREAD',
+        messageId: `msg-${message.id}`,
+        errorMessage: JSON.stringify({
+          conversationId: conversation.id,
+          bookingReference: conversation.bookingReference || null,
+          leadId: conversation.leadId || null,
+          customerName: conversation.visitorName || conversation.visitorEmail || 'Customer',
+          tourTitle: conversation.tourTitle || (body.tourTitle ? sanitizePlain(body.tourTitle, 150) : null),
+          preview: text.slice(0, 140),
+        }),
+      },
+    }).catch(() => {});
+
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {
     console.error('Unable to send live chat message:', error);

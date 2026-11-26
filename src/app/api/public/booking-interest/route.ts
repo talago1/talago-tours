@@ -312,16 +312,37 @@ export async function POST(request: NextRequest) {
         (totalEstimatedPrice ? `💰 *Est. Value:* $${totalEstimatedPrice} ${currency}\n` : '') +
         `📍 *Source:* ${source}`;
 
-      // 1. Log to NotificationLog
-      await prisma.notificationLog.create({
-        data: {
-          bookingId: lead.id, // Using lead id as reference
-          channel: 'LEAD_INTEREST_ALERT',
-          recipient: 'Admin Dashboard',
-          status: 'LOGGED',
-          messageId: lead.id,
-        },
-      }).catch(() => {});
+      // 1. Log persistent in-app Admin Notification (idempotent via messageId)
+      const leadNotifId = `lead-${lead.id}`;
+      const existingLeadNotif = await prisma.notificationLog.findFirst({
+        where: { channel: 'LEAD_INTEREST_ALERT', messageId: leadNotifId },
+        select: { id: true },
+      }).catch(() => null);
+
+      if (!existingLeadNotif) {
+        await prisma.notificationLog.create({
+          data: {
+            bookingId: lead.id,
+            channel: 'LEAD_INTEREST_ALERT',
+            recipient: 'Admin Dashboard',
+            status: 'UNREAD',
+            messageId: leadNotifId,
+            errorMessage: JSON.stringify({
+              leadId: lead.id,
+              reference: reservationReference,
+              customerName: guestDisplay,
+              customerPhone: customerPhone || null,
+              customerEmail: customerEmail || null,
+              tourTitle: tourTitle || tourSlug || tourId,
+              travelDate: travelDate || null,
+              guests: (adults || 1) + (children || 0),
+              totalEstimatedPrice: totalEstimatedPrice ?? null,
+              currency,
+              source,
+            }),
+          },
+        }).catch(() => {});
+      }
 
       // 2. Telegram Alert if configured
       const botToken = process.env.TELEGRAM_BOT_TOKEN;

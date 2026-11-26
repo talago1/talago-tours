@@ -116,6 +116,7 @@ interface BookingItem {
 interface ReservationItem {
   id: string;
   leadId?: string;
+  attemptId?: string | null;
   tourId: string | null;
   tourTitle: string | null;
   tourSlug: string | null;
@@ -205,8 +206,13 @@ export default function AccountPage() {
   // Bookings & Reservations
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [reservations, setReservations] = useState<ReservationItem[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [bookingFilter, setBookingFilter] = useState<'ALL' | 'UPCOMING' | 'PAST' | 'INQUIRIES'>('ALL');
   const [activeReviewTour, setActiveReviewTour] = useState<{ id: string; title: string } | null>(null);
+  const [withdrawTarget, setWithdrawTarget] = useState<ReservationItem | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
 
   // Profile Edit form
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -231,38 +237,99 @@ export default function AccountPage() {
   const [sendingMsg, setSendingMsg] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
-  // Fetch Bookings. The API now paginates (20 per page, cursor), so walk
-  // the pages until nextCursor is null — the account view still shows
-  // the customer's full list, but no single response is huge any more.
-  // Capped at 10 pages (200 bookings) as a safety net.
+  // Fetch first page of Bookings immediately (read-only), and run adoption once per session in background.
   const loadBookings = useCallback(async () => {
     try {
-      const allBookings: BookingItem[] = [];
-      let allReservations: ReservationItem[] = [];
-      let cursor: string | null = null;
-      for (let page = 0; page < 10; page++) {
-        const url: string = cursor
-          ? `/api/public/my-bookings?cursor=${encodeURIComponent(cursor)}`
-          : '/api/public/my-bookings';
-        const res = await fetch(url, {
-          credentials: 'same-origin',
-          cache: 'no-store',
-        });
-        if (!res.ok) break;
-        const data = await res.json();
-        if (Array.isArray(data.bookings)) allBookings.push(...data.bookings);
-        if (page === 0 && Array.isArray(data.reservations)) {
-          allReservations = data.reservations;
+      const res = await fetch('/api/public/my-bookings?limit=20', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setBookings(Array.isArray(data.bookings) ? data.bookings : []);
+      setReservations(Array.isArray(data.reservations) ? data.reservations : []);
+      setNextCursor(data.pagination?.nextCursor || null);
+
+      const userId = data.user?.id;
+      if (userId && typeof window !== 'undefined') {
+        const adoptedKey = `talago_adopted_${userId}`;
+        if (!sessionStorage.getItem(adoptedKey)) {
+          sessionStorage.setItem(adoptedKey, '1');
+          fetch('/api/public/my-bookings/adopt', {
+            method: 'POST',
+            credentials: 'same-origin',
+          })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((adoptData) => {
+              if (adoptData?.adopted) {
+                fetch('/api/public/my-bookings?limit=20', { credentials: 'same-origin', cache: 'no-store' })
+                  .then((r2) => (r2.ok ? r2.json() : null))
+                  .then((d2) => {
+                    if (d2 && Array.isArray(d2.bookings)) {
+                      setBookings(d2.bookings);
+                      if (Array.isArray(d2.reservations)) setReservations(d2.reservations);
+                      setNextCursor(d2.pagination?.nextCursor || null);
+                    }
+                  })
+                  .catch(() => {});
+              }
+            })
+            .catch(() => {});
         }
-        cursor = data.pagination?.nextCursor || null;
-        if (!cursor) break;
       }
-      setBookings(allBookings);
-      setReservations(allReservations);
     } catch (e) {
       console.warn('Failed to load bookings:', e);
     }
   }, []);
+
+  const loadMoreBookings = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/public/my-bookings?limit=20&cursor=${encodeURIComponent(nextCursor)}`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.bookings)) {
+        setBookings((prev) => [...prev, ...data.bookings]);
+      }
+      setNextCursor(data.pagination?.nextCursor || null);
+    } catch (e) {
+      console.warn('Failed to load more bookings:', e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const handleWithdrawRequest = async () => {
+    if (!withdrawTarget || withdrawing) return;
+    setWithdrawing(true);
+    setWithdrawError(null);
+    try {
+      const res = await fetch('/api/public/booking-interest/withdraw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          leadId: withdrawTarget.leadId || withdrawTarget.id,
+          attemptId: withdrawTarget.attemptId || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setWithdrawError(data.error || 'Could not withdraw request.');
+        return;
+      }
+      setReservations((prev) => prev.filter((r) => r.id !== withdrawTarget.id));
+      setWithdrawTarget(null);
+    } catch {
+      setWithdrawError('Network error while withdrawing request.');
+    } finally {
+      setWithdrawing(false);
+    }
+  };
 
   // Synchronize immediately with central useAuth state
   useEffect(() => {
@@ -1246,62 +1313,98 @@ export default function AccountPage() {
             )}
 
             {/* ── Reservations & Inquiry Requests ── */}
+            {nextCursor && (
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={loadMoreBookings}
+                  disabled={loadingMore}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-5 py-2.5 text-xs font-bold text-slate-200 transition disabled:opacity-50"
+                >
+                  {loadingMore ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  <span>{loadingMore ? 'Loading more…' : 'Show more bookings'}</span>
+                </button>
+              </div>
+            )}
+
             {reservations.length > 0 && (
-              <div className="mt-8 space-y-3">
-                <h3 className="text-sm font-black uppercase tracking-wider text-amber-400">
-                  Preliminary Requests & Inquiries
-                </h3>
+              <div className="mt-8 space-y-3" data-testid="my-requests-section">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black uppercase tracking-wider text-amber-400">
+                    My Requests / Preliminary Interests
+                  </h3>
+                  <span className="text-[11px] text-slate-400">Not yet confirmed · No seat reserved</span>
+                </div>
                 <div className="space-y-3">
-                  {reservations.map((res) => (
-                    <div
-                      key={res.id}
-                      className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.03] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          {res.reservationReference && (
-                            <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                              {res.reservationReference}
+                  {reservations.map((res) => {
+                    const resumeHref = res.tourSlug
+                      ? `/tours/${res.tourSlug}?resumeLead=${encodeURIComponent(res.leadId || res.id)}${res.attemptId ? `&attemptId=${encodeURIComponent(res.attemptId)}` : ''}${res.travelDate ? `&date=${encodeURIComponent(res.travelDate)}` : ''}`
+                      : null;
+                    return (
+                      <div
+                        key={res.id}
+                        data-testid={`request-card-${res.id}`}
+                        className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.03] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            {res.reservationReference && (
+                              <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                {res.reservationReference}
+                              </span>
+                            )}
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase border bg-amber-500/10 text-amber-300 border-amber-500/20">
+                              {res.status === 'INTERESTED' ? 'Preliminary Interest' : res.status}
                             </span>
-                          )}
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase border bg-amber-500/10 text-amber-300 border-amber-500/20">
-                            {res.status}
-                          </span>
+                          </div>
+                          <p className="text-sm font-bold text-white line-clamp-1">
+                            {res.tourTitle || 'Tour Inquiry'}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {res.travelDate
+                              ? new Date(res.travelDate).toLocaleDateString(language, { day: 'numeric', month: 'short', year: 'numeric' })
+                              : 'Date TBD'}
+                            {res.adults ? ` · ${res.adults + (res.children || 0)} guests` : ''}
+                          </p>
                         </div>
-                        <p className="text-sm font-bold text-white line-clamp-1">
-                          {res.tourTitle || 'Tour Inquiry'}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {res.travelDate
-                            ? new Date(res.travelDate).toLocaleDateString(language, { day: 'numeric', month: 'short', year: 'numeric' })
-                            : 'Date TBD'}
-                          {res.adults ? ` · ${res.adults + (res.children || 0)} guests` : ''}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {res.tourSlug && (
-                          <Link
-                            href={`/tours/${res.tourSlug}${res.travelDate ? `?date=${res.travelDate}` : ''}`}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 px-3.5 py-2 text-xs font-black text-[#070F1E] transition shadow-sm"
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          {resumeHref && (
+                            <Link
+                              href={resumeHref}
+                              data-testid={`continue-booking-${res.id}`}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 px-3.5 py-2 text-xs font-black text-[#070F1E] transition shadow-sm"
+                            >
+                              <span>Continue Booking</span>
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </Link>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedChatBookingRef(res.leadId ? `lead:${res.leadId}` : (res.reservationReference || res.id));
+                              setActiveTab('messages');
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-3.5 py-2 text-xs font-bold text-amber-300 transition"
                           >
-                            <span>Book Tour</span>
-                            <ChevronRight className="h-3.5 w-3.5" />
-                          </Link>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedChatBookingRef(res.leadId ? `lead:${res.leadId}` : (res.reservationReference || res.id));
-                            setActiveTab('messages');
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-3.5 py-2 text-xs font-bold text-amber-300 transition"
-                        >
-                          <MessageSquare className="h-3.5 w-3.5" />
-                          <span>Chat</span>
-                        </button>
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            <span>Open Conversation</span>
+                          </button>
+                          <button
+                            type="button"
+                            data-testid={`withdraw-request-${res.id}`}
+                            onClick={() => {
+                              setWithdrawError(null);
+                              setWithdrawTarget(res);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-2 text-xs font-bold text-rose-300 transition"
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            <span>Withdraw</span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1976,6 +2079,56 @@ export default function AccountPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ── WITHDRAW REQUEST CONFIRMATION MODAL ── */}
+      {withdrawTarget && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#070F1E]/80 backdrop-blur-md animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0B1528] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/15 text-rose-400">
+                <XCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">Withdraw Preliminary Request?</h3>
+                <p className="text-xs text-slate-400">
+                  {withdrawTarget.tourTitle || 'Tour Inquiry'} ({withdrawTarget.reservationReference})
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              This will mark your preliminary request as withdrawn and remove it from your active requests. Your conversation history will be preserved.
+            </p>
+            {withdrawError && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
+                {withdrawError}
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={withdrawing}
+                onClick={() => setWithdrawTarget(null)}
+                className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2 text-xs font-bold text-slate-300 transition"
+              >
+                Keep Request
+              </button>
+              <button
+                type="button"
+                data-testid="confirm-withdraw-btn"
+                disabled={withdrawing}
+                onClick={handleWithdrawRequest}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-400 px-4 py-2 text-xs font-black text-white transition disabled:opacity-50"
+              >
+                {withdrawing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                <span>{withdrawing ? 'Withdrawing…' : 'Confirm Withdraw'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
