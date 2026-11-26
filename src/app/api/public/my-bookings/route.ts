@@ -3,12 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { getSessionFromRequest } from '@/server/auth';
 import { applySessionCookies, resolveRequestUser } from '@/server/customerSession';
 import {
-  adoptOwnedBookings,
-  listVisibleBookingIds,
-  listVisibleLeadIds,
+  collectIdentityEmails,
   resolveCustomerProfileForUser,
   formatUserProfile,
 } from '@/server/customerBookings';
+import { exactPhoneVariants } from '@/utils/phoneMatch';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,26 +108,31 @@ export async function GET(request: NextRequest) {
 
     const emails = [profile.email, session?.email].filter(Boolean) as string[];
 
-    // Read-only parallel lookup for visible bookings and leads (adoption runs once on sign-in via POST /api/public/my-bookings/adopt)
-    const [bookingIds, leadIds] = await Promise.all([
-      listVisibleBookingIds({ profileId: profile.id, emails, phones }),
-      listVisibleLeadIds(emails, phones),
-    ]);
+    // Single-roundtrip direct OR filter (replaces 5 pre-lookup queries)
+    const identityEmails = collectIdentityEmails(emails, phones);
+    const phoneVariants = [...new Set(phones.flatMap((p) => exactPhoneVariants(p)))];
 
-    // Cursor must belong to this customer's visible bookings; otherwise
-    // Prisma would return an empty page (or throw) for a foreign id.
-    const validCursor = cursorId && bookingIds.includes(cursorId) ? cursorId : null;
+    const bookingOrConditions: any[] = [{ customerProfileId: profile.id }];
+    for (const email of identityEmails) {
+      bookingOrConditions.push({ customerEmail: { equals: email, mode: 'insensitive' as const } });
+    }
+    if (phoneVariants.length > 0) {
+      bookingOrConditions.push({ customerPhone: { in: phoneVariants } });
+    }
 
-    const [bookings, reservations] = await Promise.all([
-      bookingIds.length === 0
-        ? Promise.resolve([])
-        : prisma.booking.findMany({
-        where: { id: { in: bookingIds } },
-        // Cursor pagination: `cursor` needs a unique field, so we page on
-        // the booking id while keeping the travel-date order (id as
-        // tiebreaker so the order is stable across pages).
-        ...(validCursor ? { cursor: { id: validCursor }, skip: 1 } : {}),
-        take: pageSize,
+    const leadOrConditions: any[] = [];
+    for (const email of identityEmails) {
+      leadOrConditions.push({ customerEmail: { equals: email, mode: 'insensitive' as const } });
+    }
+    if (phoneVariants.length > 0) {
+      leadOrConditions.push({ customerPhone: { in: phoneVariants } });
+    }
+
+    const [rawBookings, reservations] = await Promise.all([
+      prisma.booking.findMany({
+        where: { OR: bookingOrConditions },
+        ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+        take: pageSize + 1,
         select: {
           id: true,
           bookingReference: true,
@@ -193,13 +197,13 @@ export async function GET(request: NextRequest) {
         return [];
       }),
 
-      leadIds.length === 0
+      leadOrConditions.length === 0
         ? Promise.resolve([])
         : prisma.bookingLead.findMany({
         where: {
-          id: { in: leadIds },
           bookingId: null,
           status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
+          OR: leadOrConditions,
         },
         select: {
           id: true,
@@ -223,9 +227,10 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    // Only fetch conversations for the bookings on THIS page, not for
-    // every visible booking. (Previously the OR used the full bookingIds
-    // list even though only one page of bookings was returned.)
+    const hasMore = rawBookings.length > pageSize;
+    const bookings = hasMore ? rawBookings.slice(0, pageSize) : rawBookings;
+
+    // Only fetch conversations for the bookings on THIS page
     const pageBookingIds = bookings.map((b) => b.id);
     const bookingRefs = bookings.map((b) => b.bookingReference).filter(Boolean);
     const reservationIds = reservations.map((r) => r.id);
@@ -353,8 +358,7 @@ export async function GET(request: NextRequest) {
 
     const userPayload = formatUserProfile(effectiveUser, profile, profile.telegramId ? { id: profile.telegramId } as any : null);
 
-    const nextCursor =
-      bookings.length === pageSize ? bookings[bookings.length - 1].id : null;
+    const nextCursor = hasMore ? bookings[bookings.length - 1].id : null;
 
     const response = NextResponse.json(
       {

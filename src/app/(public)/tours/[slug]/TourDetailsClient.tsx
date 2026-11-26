@@ -1484,10 +1484,10 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
         category={tour.category}
       />
 
-      {/* Main Content Grid (Content + Single Sticky Side Availability Card) */}
-      <div className="mx-auto max-w-7xl px-5 pb-20 lg:px-10">
-        <div className="relative z-10 mt-6 grid grid-cols-1 gap-10 lg:-mt-28 lg:grid-cols-[1fr_340px]">
-          {/* ----- LEFT: Main Content ----- */}
+      {/* Main Content Container (Centered so floating side card never overlaps content) */}
+      <div className="mx-auto max-w-4xl px-5 pb-20 lg:px-10">
+        <div className="relative z-10 mt-6 lg:-mt-28">
+          {/* ----- Main Content ----- */}
           <div className="min-w-0">
             {/* Title & Meta */}
             <div className="mb-8">
@@ -2235,59 +2235,6 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
             </Accordion>
           </div>
         </div>
-
-          {/* ----- RIGHT: Single Sputnik8-style Sticky Side Card (Desktop, One Button Only) ----- */}
-          <aside className="hidden lg:block">
-            <div
-              data-testid="side-availability-card"
-              className="lg:sticky lg:top-28 rounded-3xl border border-white/10 bg-gradient-to-b from-[#0D1B35]/95 to-[#081224]/95 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl"
-            >
-              <div className="mb-4">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-                  {dict.tourDetails.from}
-                </p>
-                {pricePerAdult > 0 ? (
-                  <div className="mt-1 flex flex-wrap items-baseline gap-2">
-                    <span className="text-3xl font-black text-white">
-                      {formatPrice(pricePerAdult, { round: true })}
-                    </span>
-                    {tour.originalPrice && tour.originalPrice > pricePerAdult && (
-                      <span className="text-sm font-bold text-slate-500 line-through">
-                        {formatPrice(tour.originalPrice, { round: true })}
-                      </span>
-                    )}
-                    <span className="text-xs text-slate-400">{dict.tourDetails.perPerson}</span>
-                  </div>
-                ) : (
-                  <span className="mt-1 block text-xl font-black text-amber-400">Price on request</span>
-                )}
-              </div>
-
-              {tour.ratingCount > 0 && (
-                <div className="mb-5 flex items-center gap-2 text-xs text-slate-300">
-                  <StarRating rating={tour.ratingAverage} />
-                  <span className="font-bold text-white">{tour.ratingAverage.toFixed(1)}</span>
-                  <span className="text-slate-500">({tour.ratingCount})</span>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => {
-                  document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-3.5 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <CalendarDays className="h-4 w-4" />
-                <span>{(dict.tourDetails as any)?.checkAvailability || 'Check Availability'}</span>
-              </button>
-
-              <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-slate-400">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-                <span>{dict.tourDetails.secureBooking}</span>
-              </div>
-            </div>
-          </aside>
         </div>
 
         {/* Related Tours Section (Phase 10) */}
@@ -2310,6 +2257,59 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
           </section>
         )}
       </div>
+
+      {/* Desktop Floating Side Card (Sputnik8-style, One Button Only, always visible on scroll) */}
+      <aside className="hidden lg:block">
+        <div
+          data-testid="side-availability-card"
+          className="fixed right-6 top-1/2 z-40 w-64 -translate-y-1/2 rounded-3xl border border-[#00E5FF]/25 bg-[#0B1528]/95 p-5 shadow-2xl shadow-black/60 backdrop-blur-xl"
+        >
+          <div className="mb-3">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
+              {dict.tourDetails.from}
+            </p>
+            {pricePerAdult > 0 ? (
+              <div className="mt-1 flex flex-wrap items-baseline gap-1.5">
+                <span className="text-3xl font-black text-white">
+                  {formatPrice(pricePerAdult, { round: true })}
+                </span>
+                {tour.originalPrice && tour.originalPrice > pricePerAdult && (
+                  <span className="text-xs font-bold text-slate-500 line-through">
+                    {formatPrice(tour.originalPrice, { round: true })}
+                  </span>
+                )}
+                <span className="text-xs text-slate-400">{dict.tourDetails.perPerson}</span>
+              </div>
+            ) : (
+              <span className="mt-1 block text-lg font-black text-amber-400">Price on request</span>
+            )}
+          </div>
+
+          {tour.ratingCount > 0 && (
+            <div className="mb-4 flex items-center gap-1.5 text-xs text-slate-300">
+              <StarRating rating={tour.ratingAverage} />
+              <span className="font-bold text-white">{tour.ratingAverage.toFixed(1)}</span>
+              <span className="text-slate-500">({tour.ratingCount})</span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-4 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <CalendarDays className="h-4 w-4" />
+            <span>{(dict.tourDetails as any)?.checkAvailability || 'Check Availability'}</span>
+          </button>
+
+          <div className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+            <span>{dict.tourDetails.secureBooking}</span>
+          </div>
+        </div>
+      </aside>
 
       {/* Mobile Sticky Bottom Bar (One Button: Check Availability -> scrolls to #booking-section) */}
       <div
