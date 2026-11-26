@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-const selectFields = {
+const selectFieldsFull = {
   id: true,
   slug: true,
   basePrice: true,
@@ -60,6 +61,38 @@ const selectFields = {
   },
 };
 
+const selectFieldsCard = {
+  id: true,
+  slug: true,
+  coverImage: true,
+  thumbnailUrl: true,
+  basePrice: true,
+  basePriceUSD: true,
+  duration: true,
+  durationHours: true,
+  translations: true,
+  category: true,
+  ratingAverage: true,
+  ratingCount: true,
+  adultPrice: true,
+  originalPrice: true,
+  hotelPickupIncluded: true,
+  destination: { select: { id: true, name: true, slug: true } },
+};
+
+const getCachedActiveTours = unstable_cache(
+  async () => {
+    return prisma.tour.findMany({
+      where: { status: 'ACTIVE' },
+      orderBy: [{ isFeatured: 'desc' }, { ratingAverage: 'desc' }, { createdAt: 'desc' }],
+      select: selectFieldsCard,
+      take: 50,
+    });
+  },
+  ['public-tours-list-v1'],
+  { revalidate: 60, tags: ['tours'] }
+);
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -68,7 +101,7 @@ export async function GET(request: NextRequest) {
     if (id) {
       const tour = await prisma.tour.findUnique({
         where: { id },
-        select: selectFields,
+        select: selectFieldsFull,
       });
 
       if (!tour) {
@@ -106,31 +139,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ...tour, availableZones, paymentMethods });
     }
 
-    const tours = await prisma.tour.findMany({
-      where: {
-        status: 'ACTIVE',
-      },
-      orderBy: [{ isFeatured: 'desc' }, { ratingAverage: 'desc' }, { createdAt: 'desc' }],
-      select: {
-        id: true,
-        slug: true,
-        translations: true,
-        adultPrice: true,
-        basePriceUSD: true,
-        basePrice: true,
-        durationHours: true,
-        coverImage: true,
-        thumbnailUrl: true,
-        category: true,
-        destination: { select: { id: true, name: true, slug: true } },
-      },
-      take: Math.min(Number(searchParams.get('limit') || 50), 50),
-    });
+    const search = (searchParams.get('search') || '').toLowerCase().trim();
+    const requestedLimit = Math.min(Number(searchParams.get('limit') || 50), 50);
+
+    const allCachedTours = await getCachedActiveTours();
 
     // Apply search filter in-memory (translations is JSON, Prisma can't search inside it efficiently without raw SQL)
-    const search = (searchParams.get('search') || '').toLowerCase().trim();
     const filtered = search
-      ? tours.filter((t) => {
+      ? allCachedTours.filter((t) => {
           const slug = t.slug?.toLowerCase() || '';
           const trans = t.translations as any;
           const enTitle = (trans?.en?.title || '').toLowerCase();
@@ -140,10 +156,17 @@ export async function GET(request: NextRequest) {
             enTitle.includes(search) ||
             destName.includes(search)
           );
-        })
-      : tours;
+        }).slice(0, requestedLimit)
+      : allCachedTours.slice(0, requestedLimit);
 
-    return NextResponse.json({ tours: filtered });
+    return NextResponse.json(
+      { tours: filtered },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        },
+      }
+    );
   } catch (err) {
     console.error('Public tours GET error:', err);
     return NextResponse.json({ tours: [] });

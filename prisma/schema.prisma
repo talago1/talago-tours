@@ -109,6 +109,8 @@ model Zone {
   destination Destination? @relation(fields: [destinationId], references: [id])
   tours     Tour[]
   bookings  Booking[]
+
+  @@index([destinationId])
 }
 
 model Tour {
@@ -280,6 +282,9 @@ model Tour {
   reviewEntries   Review[]
   availability    TourAvailability[]
   scheduleRules   TourScheduleRule[]
+
+  @@index([status, isFeatured, isBestSeller, ratingAverage])
+  @@index([destinationId, status])
 }
 
 model Booking {

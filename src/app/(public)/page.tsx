@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { parseSettingValue } from '@/lib/systemSettings';
 import { SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
@@ -28,99 +29,109 @@ export async function generateMetadata({
   return getHomeMetadata(lang);
 }
 
+const getCachedHomepageData = unstable_cache(
+  async () => {
+    const [tours, destinations, bannerSetting, activeTourCount, reviews, collections, homepageSections] = await Promise.all([
+      prisma.tour.findMany({
+        where: { status: 'ACTIVE' },
+        orderBy: [
+          { isFeatured: 'desc' },
+          { isBestSeller: 'desc' },
+          { ratingAverage: 'desc' },
+          { ratingCount: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        take: 24,
+        select: {
+          id: true,
+          slug: true,
+          coverImage: true,
+          galleryImages: true,
+          thumbnailUrl: true,
+          basePriceUSD: true,
+          basePrice: true,
+          duration: true,
+          durationHours: true,
+          translations: true,
+          displayExcerpt: true,
+          cardExcerpt: true,
+          category: true,
+          ratingAverage: true,
+          ratingCount: true,
+          priceAdult: true,
+          adultPrice: true,
+          originalPrice: true,
+          isBestSeller: true,
+          isFeatured: true,
+          isRecommended: true,
+          isVip: true,
+          isNew: true,
+          customBadge: true,
+          hotelPickupIncluded: true,
+          destinationId: true,
+          destination: {
+            select: { id: true, name: true, slug: true },
+          },
+        },
+      }),
+      prisma.destination.findMany({
+        where: {
+          isVisible: true,
+        },
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          imageUrl: true,
+          region: true,
+          city: true,
+          translations: true,
+          _count: {
+            select: {
+              tours: { where: { status: 'ACTIVE' } },
+            },
+          },
+        },
+      }),
+      prisma.systemSetting.findUnique({ where: { key: 'banners' } }),
+      prisma.tour.count({ where: { status: 'ACTIVE' } }),
+      prisma.review.findMany({
+        where: {
+          status: 'APPROVED',
+          isVisible: true,
+          isSeeded: false,
+        },
+        select: {
+          id: true,
+          customerName: true,
+          rating: true,
+          comment: true,
+          country: true,
+          source: true,
+          createdAt: true,
+          tour: { select: { slug: true, translations: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+      }),
+      getHomepageCollections(),
+      getHomepageSections(),
+    ]);
+    return { tours, destinations, bannerSetting, activeTourCount, reviews, collections, homepageSections };
+  },
+  ['homepage-data-v1'],
+  { revalidate: 60, tags: ['tours', 'destinations', 'homepage'] }
+);
+
 export default async function HomePage({
   searchParams,
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
-  const [tours, destinations, bannerSetting, activeTourCount, reviews, collections, homepageSections] = await Promise.all([
-    prisma.tour.findMany({
-      where: { status: 'ACTIVE' },
-      orderBy: [
-        { isFeatured: 'desc' },
-        { isBestSeller: 'desc' },
-        { ratingAverage: 'desc' },
-        { ratingCount: 'desc' },
-        { createdAt: 'desc' },
-      ],
-      select: {
-        id: true,
-        slug: true,
-        coverImage: true,
-        galleryImages: true,
-        thumbnailUrl: true,
-        basePriceUSD: true,
-        basePrice: true,
-        duration: true,
-        durationHours: true,
-        translations: true,
-        displayExcerpt: true,
-        cardExcerpt: true,
-        category: true,
-        ratingAverage: true,
-        ratingCount: true,
-        priceAdult: true,
-        adultPrice: true,
-        originalPrice: true,
-        isBestSeller: true,
-        isFeatured: true,
-        isRecommended: true,
-        isVip: true,
-        isNew: true,
-        customBadge: true,
-        hotelPickupIncluded: true,
-        destinationId: true,
-        destination: {
-          select: { id: true, name: true, slug: true },
-        },
-      },
-    }),
-    prisma.destination.findMany({
-      where: {
-        isVisible: true,
-      },
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        imageUrl: true,
-        region: true,
-        city: true,
-        translations: true,
-        _count: {
-          select: {
-            tours: { where: { status: 'ACTIVE' } },
-          },
-        },
-      },
-    }),
-    prisma.systemSetting.findUnique({ where: { key: 'banners' } }),
-    prisma.tour.count({ where: { status: 'ACTIVE' } }),
-    prisma.review.findMany({
-      where: {
-        status: 'APPROVED',
-        isVisible: true,
-        isSeeded: false,
-      },
-      // Use select instead of include to avoid loading all tour fields
-      select: {
-        id: true,
-        customerName: true,
-        rating: true,
-        comment: true,
-        country: true,
-        source: true,
-        createdAt: true,
-        tour: { select: { slug: true, translations: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 6,
-    }),
-    getHomepageCollections(),
-    getHomepageSections(),
-  ]);
+  const { tours, destinations, bannerSetting, activeTourCount, reviews, collections, homepageSections } =
+    await getCachedHomepageData();
 
   const bannerData = bannerSetting
     ? parseSettingValue<SystemSettings['banners']>(bannerSetting.value, DEFAULT_SYSTEM_SETTINGS.banners)
@@ -136,7 +147,7 @@ export default async function HomePage({
         rating: r.rating,
         comment: r.comment || '',
         tourName: trans?.en?.title || r.tour?.slug,
-        createdAt: r.createdAt,
+        createdAt: new Date(r.createdAt),
         country: r.country,
         source: r.source,
       };

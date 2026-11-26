@@ -152,8 +152,11 @@ test.describe('Admin AI Tour Builder & Tour Creation Layout Quality', () => {
     const nextBtn = page.locator('button:has-text("Next: Content & Itinerary")');
     await nextBtn.click();
 
-    // Verify Step 2 is active
-    await expect(page.locator('text=2. Content, Highlights & Itinerary')).toBeVisible();
+    // Verify Step 2 is active and all Step 2 sections are rendered together on one page
+    await expect(page.locator('h2:has-text("2. Content, Highlights & Itinerary")')).toBeVisible();
+    await expect(page.locator('#section-activities')).toBeVisible();
+    await expect(page.locator('#section-itinerary')).toBeVisible();
+    await expect(page.locator('#section-route')).toBeVisible();
 
     // Navigate back to Step 1
     const backBtn = page.locator('button:has-text("Back: Basics & Location")');

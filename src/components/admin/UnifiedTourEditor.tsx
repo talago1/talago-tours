@@ -128,7 +128,6 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
     };
   });
 
-  const [activeSection, setActiveSection] = useState<TourEditorSectionId>('basic-info');
   const [activeStep, setActiveStep] = useState<number>(1);
   const [quickMode, setQuickMode] = useState(false);
   const [activeLang, setActiveLang] = useState<LanguageCode>('en');
@@ -157,42 +156,29 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   const [assigningFolder, setAssigningFolder] = useState(false);
 
   useEffect(() => {
-    fetch('/api/admin/media/folders')
-      .then((res) => (res.ok ? res.json() : { folders: [] }))
-      .then((d) => {
-        if (Array.isArray(d.folders)) {
-          setMediaFolders(d.folders);
-        }
-      })
-      .catch((err) => console.warn('[UnifiedTourEditor] Could not load media folders:', err));
-
-    // Dynamic languages from Admin Settings
-    fetch('/api/admin/languages')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((d) => {
-        if (d && Array.isArray(d.languages) && d.languages.length > 0) {
-          setEditorLanguages(
-            d.languages.map((l: any) => ({
-              code: l.code,
-              label: l.displayName,
-              flag: l.flag || '🌐',
-            }))
-          );
-        }
-      })
-      .catch((err) => console.warn('[UnifiedTourEditor] Could not load dynamic languages:', err));
-
-    // Tour Services Catalog
-    fetch('/api/admin/services')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((d) => {
-        if (d && Array.isArray(d.services) && d.services.length > 0) {
-          setServicesCatalog(d.services.filter((s: any) => s.isActive));
-        } else {
-          setServicesCatalog(DEFAULT_TOUR_SERVICES);
-        }
-      })
-      .catch(() => setServicesCatalog(DEFAULT_TOUR_SERVICES));
+    Promise.all([
+      fetch('/api/admin/media/folders').then(r => r.ok ? r.json() : { folders: [] }).catch(() => ({ folders: [] })),
+      fetch('/api/admin/languages').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/api/admin/services').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([foldersData, langsData, servicesData]) => {
+      if (Array.isArray(foldersData?.folders)) {
+        setMediaFolders(foldersData.folders);
+      }
+      if (langsData && Array.isArray(langsData.languages) && langsData.languages.length > 0) {
+        setEditorLanguages(
+          langsData.languages.map((l: any) => ({
+            code: l.code,
+            label: l.displayName,
+            flag: l.flag || '🌐',
+          }))
+        );
+      }
+      if (servicesData && Array.isArray(servicesData.services) && servicesData.services.length > 0) {
+        setServicesCatalog(servicesData.services.filter((s: any) => s.isActive));
+      } else {
+        setServicesCatalog(DEFAULT_TOUR_SERVICES);
+      }
+    });
   }, []);
 
   const [editorLanguages, setEditorLanguages] = useState<Array<{ code: string; label: string; flag: string }>>(ALL_LANGUAGES);
@@ -284,7 +270,6 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
     }));
     setIsDirty(true);
     setActiveStep(1);
-    setActiveSection('basic-info');
     setSaveSuccessMessage('AI Tour Draft applied! All 27 sections populated. Please review pricing in Step 4 and media in Step 6.');
   };
 
@@ -814,9 +799,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
   };
 
   // Section navigation
-  const currentIndex = displayedSections.findIndex((s) => s.id === activeSection);
-  const prevSection = currentIndex > 0 ? displayedSections[currentIndex - 1] : null;
-  const nextSection = currentIndex < displayedSections.length - 1 ? displayedSections[currentIndex + 1] : null;
+  // (sections are now all rendered per step, no per-section nav needed)
 
   return (
     <div className="min-h-screen overflow-x-clip bg-[#070F1E] pb-16 font-sans text-slate-100 flex flex-col">
@@ -1024,7 +1007,6 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 type="button"
                 onClick={() => {
                   setActiveStep(step.stepNumber);
-                  setActiveSection(step.sectionIds[0]);
                 }}
                 className={`flex flex-col items-start p-2.5 rounded-xl text-left transition-all ${
                   isCurrent
@@ -1065,97 +1047,81 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
 
             <div className="mb-2 px-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Step Sections ({stepSections.length})
+                All Steps (8)
               </span>
             </div>
 
             <nav className="space-y-1">
-              {stepSections.map((sec) => {
-                const isActive = activeSection === sec.id;
+              {PRIMARY_TOUR_STEPS.map((step) => {
+                const isCurrent = activeStep === step.stepNumber;
+                const isPast = activeStep > step.stepNumber;
                 return (
                   <button
-                    key={sec.id}
+                    key={step.id}
                     type="button"
-                    onClick={() => setActiveSection(sec.id)}
-                    className={`flex w-full min-w-0 items-center justify-between gap-1 rounded-xl px-3 py-2 text-left text-xs font-bold transition ${
-                      isActive
+                    onClick={() => setActiveStep(step.stepNumber)}
+                    className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-bold transition ${
+                      isCurrent
                         ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20 font-black'
-                        : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                        : isPast
+                        ? 'text-slate-300 hover:bg-white/5 hover:text-white'
+                        : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-300'
                     }`}
                   >
-                    <div className="min-w-0 truncate">
-                      <span className="truncate">{sec.shortLabel}</span>
-                    </div>
-                    {sec.isEssential && (
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
-                          isActive
-                            ? 'bg-[#070F1E]/20 text-[#070F1E]'
-                            : 'bg-white/5 text-amber-400 border border-amber-500/20'
-                        }`}
-                      >
-                        Core
-                      </span>
-                    )}
+                    <span className={`text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                      isCurrent ? 'bg-[#070F1E] text-[#00E5FF]' : isPast ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-slate-500'
+                    }`}>
+                      {isPast ? '✓' : step.stepNumber}
+                    </span>
+                    <span className="truncate">{step.shortLabel}</span>
                   </button>
                 );
               })}
             </nav>
-
-            {/* Collapsible All 27 Sections for Power Users */}
-            <details className="mt-4 border-t border-white/5 pt-3">
-              <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 py-1 px-1">
-                All 27 Sections ({displayedSections.length})
-              </summary>
-              <div className="mt-2 space-y-0.5 max-h-48 overflow-y-auto pr-1">
-                {displayedSections.map((sec) => {
-                  const isActive = activeSection === sec.id;
-                  return (
-                    <button
-                      key={sec.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveSection(sec.id);
-                        const step = PRIMARY_TOUR_STEPS.find((s) => s.sectionIds.includes(sec.id));
-                        if (step) setActiveStep(step.stepNumber);
-                      }}
-                      className={`flex w-full items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-[11px] transition ${
-                        isActive ? 'text-[#00E5FF] font-black bg-[#00E5FF]/10' : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <span className="truncate">{sec.shortLabel}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </details>
           </div>
         </aside>
 
         {/* Right Section Content Panel */}
         <main className="flex min-w-0 flex-1 flex-col justify-between rounded-2xl border border-white/10 bg-[#0B1528] p-4 shadow-2xl min-h-[600px] sm:p-6 md:p-8">
           <div>
-            {/* Section Header */}
-            {(() => {
-              const currentMeta = TOUR_EDITOR_SECTIONS.find((s) => s.id === activeSection);
-              return (
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-5">
-                  <div className="min-w-0">
-                    <h2 className="flex items-center gap-2 text-xl font-black text-white">
-                      {currentMeta?.title}
-                    </h2>
-                    <p className="mt-1 text-xs text-slate-400">{currentMeta?.description}</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs font-semibold bg-white/5 px-3 py-1.5 rounded-full border border-white/5 text-slate-300">
-                    <Globe className="w-3.5 h-3.5 text-[#00E5FF]" />
-                    Target: <span className="text-[#00E5FF] font-bold uppercase">{activeLang}</span>
-                  </div>
-                </div>
-              );
-            })()}
+            {/* Step Header */}
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-5">
+              <div className="min-w-0">
+                <h2 className="flex items-center gap-2 text-xl font-black text-white">
+                  {currentStep.title}
+                </h2>
+                <p className="mt-1 text-xs text-slate-400">{currentStep.description}</p>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-semibold bg-white/5 px-3 py-1.5 rounded-full border border-white/5 text-slate-300">
+                <Globe className="w-3.5 h-3.5 text-[#00E5FF]" />
+                Target: <span className="text-[#00E5FF] font-bold uppercase">{activeLang}</span>
+              </div>
+            </div>
 
-            {/* Render Selected Section */}
-            {activeSection === 'basic-info' && (
+            {/* Render All Sections for Current Step Page */}
+            <div className="space-y-10">
+              {currentStep.sectionIds.map((sectionId: TourEditorSectionId) => {
+                const secMeta = TOUR_EDITOR_SECTIONS.find((s) => s.id === sectionId);
+                return (
+                  <section
+                    key={sectionId}
+                    id={`section-${sectionId}`}
+                    className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-5 sm:p-6"
+                  >
+                    <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3.5">
+                      <div>
+                        <h3 className="text-base font-black text-white">{secMeta?.title}</h3>
+                        {secMeta?.description && (
+                          <p className="mt-0.5 text-xs text-slate-400">{secMeta.description}</p>
+                        )}
+                      </div>
+                      {secMeta?.isEssential && (
+                        <span className="rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                          Core
+                        </span>
+                      )}
+                    </div>
+            {sectionId === 'basic-info' && (
               <div className="space-y-6">
                 {/* Compact Quick Creation Tools Strip */}
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-2.5">
@@ -1348,7 +1314,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'destination-location' && (
+            {sectionId === 'destination-location' && (
               <div className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -1453,7 +1419,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'media' && (
+            {sectionId === 'media' && (
               <div className="space-y-8">
                 {/* 1. Media Library Folder Selection & Assignment (Priority 3) */}
                 <div className="rounded-2xl border border-[#00E5FF]/20 bg-gradient-to-br from-[#00E5FF]/5 to-transparent p-5 sm:p-6 shadow-xl">
@@ -1726,7 +1692,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               />
             )}
 
-            {activeSection === 'operator' && (
+            {sectionId === 'operator' && (
               <div className="space-y-6">
                 <div className="rounded-xl border border-white/10 bg-[#070F1E] p-4 text-xs text-slate-400">
                   <p className="font-bold text-white mb-1">Operator & Operations Intelligence</p>
@@ -1789,7 +1755,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'pricing' && (
+            {sectionId === 'pricing' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -1944,7 +1910,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'guest-types' && (
+            {sectionId === 'guest-types' && (
               <div className="space-y-6">
                 <div className="rounded-xl border border-white/10 bg-[#070F1E] p-4 space-y-4">
                   <div className="flex items-center justify-between">
@@ -2075,7 +2041,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'addons' && (
+            {sectionId === 'addons' && (
               <div className="space-y-4">
                 <TourAddonsBuilder
                   addons={data.addons}
@@ -2085,7 +2051,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'availability' && (
+            {sectionId === 'availability' && (
               <div className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -2161,7 +2127,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'schedule' && (
+            {sectionId === 'schedule' && (
               <div className="space-y-5">
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -2215,7 +2181,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'pickup' && (
+            {sectionId === 'pickup' && (
               <div className="space-y-6">
                 {/* Pickup Type Selector */}
                 <div>
@@ -2432,7 +2398,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'meeting-point' && (
+            {sectionId === 'meeting-point' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -2563,7 +2529,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'transportation' && (
+            {sectionId === 'transportation' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -2621,7 +2587,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'route' && (
+            {sectionId === 'route' && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -2719,7 +2685,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'itinerary' && (
+            {sectionId === 'itinerary' && (
               <div className="space-y-4">
                 <ItineraryBuilder
                   milestones={data.itinerary}
@@ -2730,7 +2696,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'activities' && (
+            {sectionId === 'activities' && (
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -3087,7 +3053,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'inclusions' && (
+            {sectionId === 'inclusions' && (
               <div className="space-y-4">
                 <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                   What is Included ({activeLang.toUpperCase()})
@@ -3108,7 +3074,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'exclusions' && (
+            {sectionId === 'exclusions' && (
               <div className="space-y-4">
                 <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                   What is Excluded ({activeLang.toUpperCase()})
@@ -3129,7 +3095,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'what-to-bring' && (
+            {sectionId === 'what-to-bring' && (
               <div className="space-y-4">
                 <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
                   What to Bring ({activeLang.toUpperCase()})
@@ -3149,7 +3115,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'important-info' && (
+            {sectionId === 'important-info' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -3180,7 +3146,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'faqs' && (
+            {sectionId === 'faqs' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -3251,7 +3217,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'requirements' && (
+            {sectionId === 'requirements' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -3304,7 +3270,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'accessibility' && (
+            {sectionId === 'accessibility' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#070F1E] p-4">
@@ -3352,7 +3318,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'safety' && (
+            {sectionId === 'safety' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#070F1E] p-4">
@@ -3403,7 +3369,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'cancellation' && (
+            {sectionId === 'cancellation' && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -3440,7 +3406,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'booking-questions' && (
+            {sectionId === 'booking-questions' && (
               <div className="space-y-4">
                 <BookingQuestionsBuilder
                   questions={data.bookingQuestions || []}
@@ -3449,7 +3415,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'seo' && (
+            {sectionId === 'seo' && (
               <div className="space-y-6">
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -3524,7 +3490,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'publishing' && (
+            {sectionId === 'publishing' && (
               <div className="space-y-6">
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-300 mb-1">
@@ -3571,7 +3537,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'completeness' && (
+            {sectionId === 'completeness' && (
               <div className="space-y-6">
                 <div className="rounded-xl border border-white/10 bg-[#070F1E] p-6 text-center">
                   <div className="text-4xl font-black text-[#00E5FF] mb-2">{completeness.score}%</div>
@@ -3623,7 +3589,7 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
               </div>
             )}
 
-            {activeSection === 'advanced' && (
+            {sectionId === 'advanced' && (
               <div className="space-y-6">
                 <div>
                   <div className="flex items-center justify-between mb-4">
@@ -3725,6 +3691,10 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 </div>
               </div>
             )}
+                  </section>
+                );
+              })}
+            </div>
           </div>
 
           {/* ── 8-Step Bottom Wizard Navigator (Priority 2) ── */}
@@ -3734,22 +3704,13 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 <button
                   type="button"
                   onClick={() => {
-                    const prevStepNum = activeStep - 1;
-                    setActiveStep(prevStepNum);
-                    setActiveSection(PRIMARY_TOUR_STEPS[prevStepNum - 1].sectionIds[0]);
+                    setActiveStep(activeStep - 1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-300 hover:bg-white/10 hover:text-white transition"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Back: {PRIMARY_TOUR_STEPS[activeStep - 2]?.shortLabel}
-                </button>
-              ) : prevSection ? (
-                <button
-                  type="button"
-                  onClick={() => setActiveSection(prevSection.id)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white transition"
-                >
-                  ← {prevSection.shortLabel}
                 </button>
               ) : <div />}
             </div>
@@ -3773,9 +3734,8 @@ export default function UnifiedTourEditor({ zones, destinations = [], initialDat
                 <button
                   type="button"
                   onClick={() => {
-                    const nextStepNum = activeStep + 1;
-                    setActiveStep(nextStepNum);
-                    setActiveSection(PRIMARY_TOUR_STEPS[nextStepNum - 1].sectionIds[0]);
+                    setActiveStep(activeStep + 1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   className="flex items-center gap-2 rounded-xl bg-[#00E5FF] px-5 py-2.5 text-xs font-black text-[#070F1E] hover:opacity-95 shadow-md shadow-[#00E5FF]/20 transition"
                 >
