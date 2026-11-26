@@ -1,0 +1,32 @@
+-- Single-booking flow: one Booking row carries the whole journey
+-- INTERESTED -> PENDING_PAYMENT -> CONFIRMED / CANCELLED (and
+-- INTERESTED -> CONFIRMED for pay on arrival). See BookingStatus in
+-- prisma/schema.prisma.
+--
+-- This migration ONLY adds the two enum values and touches no rows.
+-- That split is deliberate: on PostgreSQL 12+ ALTER TYPE ... ADD VALUE
+-- may run inside a transaction, but the new values must not be USED in
+-- the same transaction ("unsafe use of new value"), so no backfill or
+-- default may reference them here.
+--
+-- No backfill is needed or wanted:
+--  * Existing bookings keep their current status (PENDING stays valid
+--    as a legacy value; new code never creates it).
+--  * Old unconverted BookingLead rows are NOT converted into bookings:
+--    leads usually have no usable travel date, contact or price, and
+--    fabricating those would corrupt real data. BookingLead stays as
+--    the tour-inquiry / admin-CRM archive table.
+--
+-- DEPLOY ORDER (important): `vercel-build` is only
+-- `prisma generate && next build` — it does NOT run migrations. Apply
+-- this migration to the live database BEFORE deploying the code that
+-- writes these statuses, e.g.:
+--   npx prisma migrate deploy
+-- (needs DATABASE_URL / DIRECT_URL in the deploy environment), or run
+-- the two ALTER TYPE statements in the Supabase SQL editor.
+-- Until then, booking-interest will fail on the INSERT; after the
+-- migration it works with zero downtime (ADD VALUE never rewrites
+-- the table).
+
+ALTER TYPE "BookingStatus" ADD VALUE IF NOT EXISTS 'INTERESTED';
+ALTER TYPE "BookingStatus" ADD VALUE IF NOT EXISTS 'PENDING_PAYMENT';

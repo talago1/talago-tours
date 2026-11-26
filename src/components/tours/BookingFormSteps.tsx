@@ -166,7 +166,10 @@ export default function BookingFormSteps({
     }
     return idempotencyKeyRef.current;
   };
-  const [preliminaryLeadId, setPreliminaryLeadId] = useState<string | null>(null);
+  // The single INTERESTED booking created by /api/public/booking-interest
+  // for this attempt. Its id is passed as reservationId to
+  // /api/checkout/initialize, which resumes the same row.
+  const [preliminaryBookingId, setPreliminaryBookingId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
 
@@ -290,15 +293,14 @@ export default function BookingFormSteps({
 
       const idempotencyKey = getIdempotencyKey();
 
-      // Register the interest first (awaited) so the initialize call can
-      // link this booking to the same lead instead of leaving an orphan
-      // INTERESTED lead next to a confirmed booking. A lead failure must
-      // not block the booking itself — initialize() still dedupes on the
-      // idempotency key.
-      let reservationId = preliminaryLeadId;
+      // Create the preliminary INTERESTED booking first (awaited) so the
+      // initialize call resumes that same booking instead of creating a
+      // second one. A failure here must not block the booking itself —
+      // initialize() still dedupes on the idempotency key.
+      let reservationId = preliminaryBookingId;
       if (!reservationId) {
         try {
-          const leadRes = await fetch('/api/public/booking-interest', {
+          const interestRes = await fetch('/api/public/booking-interest', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
@@ -315,11 +317,12 @@ export default function BookingFormSteps({
               customerEmail: customerEmail.trim() || undefined,
             }),
           });
-          if (leadRes.ok) {
-            const leadData = await leadRes.json();
-            if (leadData?.leadId) {
-              reservationId = leadData.leadId;
-              setPreliminaryLeadId(leadData.leadId);
+          if (interestRes.ok) {
+            const interestData = await interestRes.json();
+            const bookingId = interestData?.bookingId ?? interestData?.leadId;
+            if (bookingId) {
+              reservationId = bookingId;
+              setPreliminaryBookingId(bookingId);
             }
           }
         } catch {}

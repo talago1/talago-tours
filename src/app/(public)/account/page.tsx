@@ -205,6 +205,12 @@ export default function AccountPage() {
   // Bookings & Reservations
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [reservations, setReservations] = useState<ReservationItem[]>([]);
+  // Cursor pagination state: only the first page loads automatically;
+  // older bookings load on demand via "Show more" (loadMoreBookings).
+  const [bookingsNextCursor, setBookingsNextCursor] = useState<string | null>(null);
+  const [loadingMoreBookings, setLoadingMoreBookings] = useState(false);
+  // Guards the one-time adoption POST after sign-in (see the auth effect).
+  const adoptionRequestedRef = useRef(false);
   const [bookingFilter, setBookingFilter] = useState<'ALL' | 'UPCOMING' | 'PAST' | 'INQUIRIES'>('ALL');
   const [activeReviewTour, setActiveReviewTour] = useState<{ id: string; title: string } | null>(null);
 
@@ -231,38 +237,47 @@ export default function AccountPage() {
   const [sendingMsg, setSendingMsg] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
-  // Fetch Bookings. The API now paginates (20 per page, cursor), so walk
-  // the pages until nextCursor is null — the account view still shows
-  // the customer's full list, but no single response is huge any more.
-  // Capped at 10 pages (200 bookings) as a safety net.
+  // Fetch Bookings. The API paginates (20 per page, cursor) — load the
+  // FIRST page only. Walking every page up front (up to 10 requests) is
+  // what made this view heavy: each page re-ran the visibility lookups
+  // on the server. Older bookings load on demand via "Show more" below.
   const loadBookings = useCallback(async () => {
     try {
-      const allBookings: BookingItem[] = [];
-      let allReservations: ReservationItem[] = [];
-      let cursor: string | null = null;
-      for (let page = 0; page < 10; page++) {
-        const url: string = cursor
-          ? `/api/public/my-bookings?cursor=${encodeURIComponent(cursor)}`
-          : '/api/public/my-bookings';
-        const res = await fetch(url, {
-          credentials: 'same-origin',
-          cache: 'no-store',
-        });
-        if (!res.ok) break;
-        const data = await res.json();
-        if (Array.isArray(data.bookings)) allBookings.push(...data.bookings);
-        if (page === 0 && Array.isArray(data.reservations)) {
-          allReservations = data.reservations;
-        }
-        cursor = data.pagination?.nextCursor || null;
-        if (!cursor) break;
-      }
-      setBookings(allBookings);
-      setReservations(allReservations);
+      const res = await fetch('/api/public/my-bookings', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setBookings(Array.isArray(data.bookings) ? data.bookings : []);
+      setReservations(Array.isArray(data.reservations) ? data.reservations : []);
+      setBookingsNextCursor(data.pagination?.nextCursor || null);
     } catch (e) {
       console.warn('Failed to load bookings:', e);
     }
   }, []);
+
+  // Append the next page of bookings when the customer asks for more.
+  const loadMoreBookings = useCallback(async (cursor: string) => {
+    if (loadingMoreBookings) return;
+    setLoadingMoreBookings(true);
+    try {
+      const res = await fetch(`/api/public/my-bookings?cursor=${encodeURIComponent(cursor)}`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.bookings)) {
+        setBookings((prev) => [...prev, ...data.bookings]);
+      }
+      setBookingsNextCursor(data.pagination?.nextCursor || null);
+    } catch (e) {
+      console.warn('Failed to load more bookings:', e);
+    } finally {
+      setLoadingMoreBookings(false);
+    }
+  }, [loadingMoreBookings]);
 
   // Synchronize immediately with central useAuth state
   useEffect(() => {
@@ -273,12 +288,30 @@ export default function AccountPage() {
       setEditName(authUser.name || '');
       setEditPhone(authUser.phone || authUser.telegramPhone || '');
       setLoading(false);
-      loadBookings();
+      // Claim guest bookings once per sign-in (covers email, Google and
+      // Telegram sign-ins — only email login/register adopt server-side).
+      // A single explicit POST, awaited so the first page already
+      // includes newly adopted bookings; the GET list itself never writes.
+      const adoptAndLoad = async () => {
+        if (!adoptionRequestedRef.current) {
+          adoptionRequestedRef.current = true;
+          try {
+            await fetch('/api/public/my-bookings/adopt', {
+              method: 'POST',
+              credentials: 'same-origin',
+            });
+          } catch {}
+        }
+        await loadBookings();
+      };
+      adoptAndLoad();
     } else {
       setAuthenticated(false);
       setUserProfile(null);
       setBookings([]);
       setReservations([]);
+      setBookingsNextCursor(null);
+      adoptionRequestedRef.current = false;
       setLoading(false);
     }
   }, [authLoading, isAuthenticated, authUser, loadBookings]);
@@ -1215,6 +1248,18 @@ export default function AccountPage() {
                     </div>
                   );
                 })}
+                {bookingsNextCursor && (
+                  <div className="flex justify-center pt-2">
+                    <button
+                      type="button"
+                      disabled={loadingMoreBookings}
+                      onClick={() => loadMoreBookings(bookingsNextCursor)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-5 py-2.5 text-xs font-bold text-slate-200 transition disabled:opacity-50"
+                    >
+                      {loadingMoreBookings ? 'Loading…' : 'Show more'}
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.01] p-8 sm:p-12 text-center space-y-4">

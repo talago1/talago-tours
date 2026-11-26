@@ -8,7 +8,16 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// Single-booking state machine (one Booking row per booking attempt):
+//   INTERESTED -> PENDING_PAYMENT -> CONFIRMED -> COMPLETED
+//   INTERESTED -> CONFIRMED            (pay on arrival)
+//   INTERESTED / PENDING_PAYMENT / CONFIRMED -> CANCELLED
+// PENDING is legacy: bookings created before the single-booking flow
+// (online payment awaiting confirmation). New code never creates it,
+// but it stays a legal value so existing rows keep working.
 enum BookingStatus {
+  INTERESTED
+  PENDING_PAYMENT
   PENDING
   CONFIRMED
   COMPLETED
@@ -306,6 +315,10 @@ model Booking {
   customerName     String
   customerEmail    String
   customerPhone    String
+  // National phone key (phoneMatchKey): maintained by the DB trigger in
+  // migration 20261126010000_add_normalized_phone_columns. Indexed phone
+  // lookups use this column, never regexp_replace() on customerPhone.
+  customerPhoneNormalized String?
   language         String        @default("en")
   status           BookingStatus @default(PENDING)
   paymentStatus      String?
@@ -372,17 +385,18 @@ model Booking {
   @@index([channel])
   @@index([promoCodeId])
   // My Bookings lookups filter by these columns on every request
-  // (listVisibleBookingIds: customerProfileId, customerEmail). They had
-  // no index, so those filters scanned the table. No index on
-  // customerPhone here on purpose: phone matching is done with
-  // regexp_replace() in SQL, which a B-tree index cannot serve — that
-  // needs a normalized phone column + backfill (see
-  // src/server/customerBookings.ts), not just an index.
-  // NOTE: a migration is required after merge
-  // (npx prisma migrate dev / prisma db push) — this change alone only
-  // updates the schema file.
+  // (customerProfileId, customerEmail, customerPhoneNormalized). The
+  // customerProfileId/customerEmail indexes were added to the schema in
+  // PR #27 without a migration file; migration
+  // 20261126010000_add_normalized_phone_columns creates them on the live
+  // database too (CREATE INDEX IF NOT EXISTS). Phone matching uses the
+  // normalized column (maintained by a DB trigger + backfill), which a
+  // B-tree index CAN serve — unlike regexp_replace() on customerPhone.
+  // NOTE: vercel-build does NOT run `prisma migrate deploy`; apply the
+  // migration to the live database manually (see the migration header).
   @@index([customerProfileId])
   @@index([customerEmail])
+  @@index([customerPhoneNormalized])
 }
 
 model Review {
@@ -453,6 +467,9 @@ model CustomerProfile {
   email                 String    @unique
   name                  String
   phone                 String?
+  // Normalized phone keys (phoneMatchKey), maintained by the DB trigger
+  // in migration 20261126010000_add_normalized_phone_columns.
+  phoneNormalized       String?
   isShadow              Boolean   @default(false)
   invitedAt             DateTime?
   lastMagicLinkAt       DateTime?
@@ -464,12 +481,15 @@ model CustomerProfile {
   telegramUsername      String?
   telegramPhotoUrl      String?
   telegramPhone         String?
+  telegramPhoneNormalized String?
   telegramPhoneVerified Boolean   @default(false)
   telegramBotAccess     Boolean   @default(false)
   telegramConnectedAt   DateTime?
 
   @@index([email])
   @@index([telegramId])
+  @@index([phoneNormalized])
+  @@index([telegramPhoneNormalized])
 }
 
 model TourTimeSlot {
@@ -699,6 +719,12 @@ enum LeadStatus {
   ABANDONED
 }
 
+// BookingLead is NO LONGER written by the booking flow. One Book click
+// creates a Booking in INTERESTED status instead (see Booking.status).
+// This table is kept for genuine tour inquiries (src/app/api/public/
+// tour-inquiry) and as a read-only archive for the admin leads/CRM views;
+// leads that were already linked to a booking keep their bookingId link.
+// Do not create new leads from booking/checkout code.
 model BookingLead {
   id                  String      @id @default(cuid())
   tourId              String?
@@ -707,6 +733,8 @@ model BookingLead {
   customerName        String?
   customerEmail       String?
   customerPhone       String?
+  // Normalized national phone key, same scheme as Booking (see above).
+  customerPhoneNormalized String?
   travelDate          String?
   adults              Int         @default(1)
   children            Int         @default(0)
@@ -725,6 +753,7 @@ model BookingLead {
   @@index([status])
   @@index([customerEmail])
   @@index([customerPhone])
+  @@index([customerPhoneNormalized])
   @@index([sessionId])
   @@index([createdAt])
   @@map("booking_leads")

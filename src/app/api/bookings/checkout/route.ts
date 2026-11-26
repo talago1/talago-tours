@@ -9,9 +9,9 @@ export async function POST(request: NextRequest) {
 
     // If already in initialize format, pass through directly.
     // Preserve the booking-attempt identifiers: initialize() reads
-    // reservationId / attemptId / idempotencyKey from the body, so a
-    // caller that only sent the Idempotency-Key header would otherwise
-    // lose the attempt identity here.
+    // reservationId (the INTERESTED booking id) / attemptId /
+    // idempotencyKey from the body, so a caller that only sent the
+    // Idempotency-Key header would otherwise lose the attempt identity.
     if (body.formData) {
       const headerIdempotencyKey = request.headers.get('idempotency-key');
       const forwardedBody = {
@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
 
     // Convert legacy flat body into authoritative initialize payload.
     // Preserve the attempt identifiers — previously reservationId was
-    // dropped here, so initialize() could not link the booking to its
-    // INTERESTED lead and a second booking/conversation could appear.
+    // dropped here, so initialize() could not resume the INTERESTED
+    // booking and a second booking/conversation could appear.
     const headerIdempotencyKey = request.headers.get('idempotency-key');
     const transformed = {
       tourId: body.tourId,

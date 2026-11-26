@@ -476,6 +476,48 @@ export default function CheckoutPage() {
     }
   }, [searchParams]);
 
+  // Resume an in-flight INTERESTED booking: /booking/<accessToken> links
+  // here with ?reservation=<bookingId>&token=<accessToken>. The token —
+  // never the bare reservation id — authorises the lookup, and the
+  // returned row prefills the form so the guest continues the SAME
+  // booking instead of starting a second one. Runs once per page load.
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current) return;
+    const resumeToken = searchParams.get('token');
+    if (!reservationId || !resumeToken) return;
+    resumedRef.current = true;
+    fetch(`/api/public/bookings/resume?token=${encodeURIComponent(resumeToken)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data || data.bookingId !== reservationId) return;
+        if (data.travelDate) setDepartureDate(String(data.travelDate).slice(0, 10));
+        if (typeof data.adultsCount === 'number') setAdultsCount(Math.max(1, data.adultsCount));
+        if (typeof data.childrenCount === 'number') setChildrenCount(Math.max(0, data.childrenCount));
+        if (typeof data.infantsCount === 'number') setInfantsCount(Math.max(0, data.infantsCount));
+        setForm((prev) => ({
+          ...prev,
+          leadName: prev.leadName.trim() ? prev.leadName : (data.customerName || prev.leadName),
+          phone: prev.phone.trim() ? prev.phone : (data.customerPhone || prev.phone),
+          email: prev.email.trim() ? prev.email : (data.customerEmail || prev.email),
+          hotelName: prev.hotelName?.trim() ? prev.hotelName : (data.hotelName || prev.hotelName),
+          roomNumber: prev.roomNumber ? prev.roomNumber : (data.roomNumber || prev.roomNumber),
+          pickupType: data.pickupType || prev.pickupType,
+          pickupLocationName: data.pickupLocationName || prev.pickupLocationName,
+          pickupAddress: data.pickupAddress || prev.pickupAddress,
+          specialRequirements: prev.specialRequirements ? prev.specialRequirements : (data.specialRequirements || prev.specialRequirements),
+          paymentScheme: data.paymentScheme === 'PAY_ON_ARRIVAL' || data.paymentScheme === 'FULL_ONLINE' || data.paymentScheme === 'DEPOSIT_ONLINE'
+            ? data.paymentScheme
+            : prev.paymentScheme,
+        }));
+        if (data.paymentScheme) setScheme(data.paymentScheme);
+        // Keep the token so the pending-payment banner can jump back to
+        // /booking/<accessToken> after checkout.
+        setResumeBookingId(resumeToken);
+      })
+      .catch(() => {});
+  }, [reservationId, searchParams]);
+
   useEffect(() => {
     async function loadTour() {
       try {
