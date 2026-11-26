@@ -1,4 +1,7 @@
-export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+// Single-booking state machine: INTERESTED -> PENDING_PAYMENT -> CONFIRMED
+// (or INTERESTED -> CONFIRMED for pay on arrival); any of those can be
+// CANCELLED. PENDING is legacy (pre-unification online bookings).
+export type BookingStatus = 'INTERESTED' | 'PENDING_PAYMENT' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
 
 export interface ActiveQueueTicket {
   id: string;
@@ -83,9 +86,11 @@ export interface CheckoutError {
   field?: string;
 }
 
-export const BOOKING_STATUS_VALUES: BookingStatus[] = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
+export const BOOKING_STATUS_VALUES: BookingStatus[] = ['INTERESTED', 'PENDING_PAYMENT', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
 
 export const VALID_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
+  INTERESTED: ['PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED'],
+  PENDING_PAYMENT: ['CONFIRMED', 'CANCELLED'],
   PENDING: ['CONFIRMED', 'CANCELLED'],
   CONFIRMED: ['COMPLETED', 'CANCELLED'],
   COMPLETED: [],
