@@ -40,6 +40,13 @@ export interface CheckoutFormData {
 
 export interface InitializeRequest {
   tourId: string;
+  // The INTERESTED booking id created by /api/public/booking-interest
+  // (or, for pre-unification attempts, a legacy lead id). When present
+  // and INTERESTED, initialize resumes that booking instead of creating
+  // a second one.
+  reservationId?: string;
+  attemptId?: string;
+  idempotencyKey?: string;
   departureDate: string;
   guestCount: number;
   adultsCount?: number;
@@ -55,6 +62,9 @@ export interface InitializeResponse {
   bookingId: string;
   bookingReference?: string;
   accessToken: string;
+  status?: string;
+  isExisting?: boolean;
+  isResumed?: boolean;
   transactionId: string;
   amountPaidOnline: number;
   amountDueOnArrival: number;
