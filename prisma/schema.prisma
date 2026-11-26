@@ -8,7 +8,16 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// Single-booking state machine (one Booking row per booking attempt):
+//   INTERESTED -> PENDING_PAYMENT -> CONFIRMED -> COMPLETED
+//   INTERESTED -> CONFIRMED            (pay on arrival)
+//   INTERESTED / PENDING_PAYMENT / CONFIRMED -> CANCELLED
+// PENDING is legacy: bookings created before the single-booking flow
+// (online payment awaiting confirmation). New code never creates it,
+// but it stays a legal value so existing rows keep working.
 enum BookingStatus {
+  INTERESTED
+  PENDING_PAYMENT
   PENDING
   CONFIRMED
   COMPLETED
@@ -710,6 +719,12 @@ enum LeadStatus {
   ABANDONED
 }
 
+// BookingLead is NO LONGER written by the booking flow. One Book click
+// creates a Booking in INTERESTED status instead (see Booking.status).
+// This table is kept for genuine tour inquiries (src/app/api/public/
+// tour-inquiry) and as a read-only archive for the admin leads/CRM views;
+// leads that were already linked to a booking keep their bookingId link.
+// Do not create new leads from booking/checkout code.
 model BookingLead {
   id                  String      @id @default(cuid())
   tourId              String?
