@@ -35,6 +35,17 @@ export function collectIdentityEmails(
   return [...set];
 }
 
+// NOTE on phone lookup performance (not fixed in this PR):
+// findIdsByNationalPhone() matches phones with regexp_replace() on the
+// raw customerPhone column, which no B-tree index can serve — every call
+// is a full-table scan of Booking / booking_leads / CustomerProfile, and
+// it runs once per phone key. The proper fix is a normalized phone
+// column (e.g. Booking.customerPhoneNormalized + @@index, same for
+// BookingLead and CustomerProfile) populated at write time, plus a
+// one-off backfill of existing rows — a schema + data change that does
+// not belong in this performance PR. Until then, callers must at least
+// avoid running this lookup more than once per request (see
+// adoptOwnedBookings() below).
 async function findIdsByNationalPhone(
   db: PhoneDb,
   table: 'booking' | 'lead' | 'profile',
@@ -278,8 +289,16 @@ export async function adoptOwnedBookings(input: {
   profileId: string;
   emails: Array<string | null | undefined>;
   phones: Array<unknown>;
+  // Pass ids already computed by the caller to avoid running
+  // listVisibleBookingIds() a second time in the same request. The
+  // my-bookings route used to call adoptOwnedBookings() and then
+  // listVisibleBookingIds() again, doubling the expensive phone/email
+  // lookups (including the regexp_replace full-table phone scans).
+  // Callers that do not have the ids yet can omit this and the lookup
+  // runs once, as before.
+  bookingIds?: string[];
 }) {
-  const ids = await listVisibleBookingIds(input);
+  const ids = input.bookingIds ?? (await listVisibleBookingIds(input));
   await adoptBookingIds(
     input.profileId,
     ids,
