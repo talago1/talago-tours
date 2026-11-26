@@ -99,29 +99,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Idempotency check: if this reservation lead already has an initialized booking, return it cleanly
+    // Single-booking resume state, filled by the checks below.
+    // reservationId is now normally the INTERESTED booking id created by
+    // /api/public/booking-interest. legacyLeadId only covers in-flight
+    // pre-unification attempts whose reservationId is still a lead id.
+    let resumeBookingId: string | null = null;
+    let legacyLeadId: string | null = null;
+
+    // Idempotency check: if this reservation already has a booking past
+    // interest, return it cleanly. An INTERESTED booking is NOT returned
+    // here — it must fall through so this request completes it.
     if (requestedReservationId) {
-      const existingLeadWithBooking = await prisma.bookingLead.findUnique({
+      const existingBookingByReservation = await prisma.booking.findUnique({
         where: { id: requestedReservationId },
-        select: { bookingId: true },
+        select: {
+          id: true,
+          bookingReference: true,
+          accessToken: true,
+          status: true,
+          paymentStatus: true,
+          paymentScheme: true,
+          totalPriceUSD: true,
+          amountPaidOnline: true,
+          amountDueOnArrival: true,
+          currency: true,
+        },
       });
-      if (existingLeadWithBooking?.bookingId) {
-        const existingBooking = await prisma.booking.findUnique({
-          where: { id: existingLeadWithBooking.bookingId },
-          select: {
-            id: true,
-            bookingReference: true,
-            accessToken: true,
-            status: true,
-            paymentStatus: true,
-            paymentScheme: true,
-            totalPriceUSD: true,
-            amountPaidOnline: true,
-            amountDueOnArrival: true,
-            currency: true,
-          },
-        });
-        if (existingBooking) {
+      if (existingBookingByReservation) {
+        if (existingBookingByReservation.status === 'INTERESTED') {
+          resumeBookingId = existingBookingByReservation.id;
+        } else {
+          const existingBooking = existingBookingByReservation;
           return NextResponse.json({
             success: true,
             bookingId: existingBooking.id,
@@ -136,6 +144,48 @@ export async function POST(request: NextRequest) {
             status: existingBooking.status,
             isExisting: true,
           });
+        }
+      } else {
+        const existingLeadWithBooking = await prisma.bookingLead.findUnique({
+          where: { id: requestedReservationId },
+          select: { bookingId: true },
+        });
+        if (existingLeadWithBooking?.bookingId) {
+          const existingBooking = await prisma.booking.findUnique({
+            where: { id: existingLeadWithBooking.bookingId },
+            select: {
+              id: true,
+              bookingReference: true,
+              accessToken: true,
+              status: true,
+              paymentStatus: true,
+              paymentScheme: true,
+              totalPriceUSD: true,
+              amountPaidOnline: true,
+              amountDueOnArrival: true,
+              currency: true,
+            },
+          });
+          if (existingBooking) {
+            return NextResponse.json({
+              success: true,
+              bookingId: existingBooking.id,
+              bookingReference: existingBooking.bookingReference,
+              accessToken: existingBooking.accessToken,
+              confirmationUrl: `/booking/${existingBooking.accessToken}`,
+              paymentScheme: existingBooking.paymentScheme,
+              totalPrice: existingBooking.totalPriceUSD,
+              amountPaidOnline: existingBooking.amountPaidOnline,
+              amountDueOnArrival: existingBooking.amountDueOnArrival,
+              currency: existingBooking.currency,
+              status: existingBooking.status,
+              isExisting: true,
+            });
+          }
+        } else if (existingLeadWithBooking) {
+          // Legacy lead with no booking yet: link it after the booking
+          // is created/resumed below.
+          legacyLeadId = requestedReservationId;
         }
       }
     }
@@ -157,7 +207,11 @@ export async function POST(request: NextRequest) {
           currency: true,
         },
       });
-      if (existingByKey) {
+      if (existingByKey && existingByKey.status === 'INTERESTED') {
+        // Same attempt, still only interested: fall through and resume
+        // this booking below instead of returning it uncompleted.
+        resumeBookingId = existingByKey.id;
+      } else if (existingByKey) {
         return NextResponse.json({
           success: true,
           bookingId: existingByKey.id,
@@ -248,7 +302,9 @@ export async function POST(request: NextRequest) {
         where: {
           tourId: tour.id,
           travelDate: { gte: dayStart, lt: dayEnd },
-          status: { in: ['CONFIRMED', 'PENDING'] },
+          // INTERESTED bookings hold no inventory; PENDING_PAYMENT ones
+          // already committed to a payment path, like legacy PENDING.
+          status: { in: ['CONFIRMED', 'PENDING', 'PENDING_PAYMENT'] },
         },
         _sum: { guestCount: true },
       });
@@ -393,6 +449,17 @@ export async function POST(request: NextRequest) {
 
     const bookingReference = generateBookingReference();
 
+    // Resolve the INTERESTED booking this checkout resumes, if any.
+    // Only an INTERESTED row is resumable here: anything further along
+    // was already returned as-is by the checks above.
+    const resumeBooking = resumeBookingId
+      ? await prisma.booking.findUnique({
+          where: { id: resumeBookingId },
+          select: { id: true, bookingReference: true, accessToken: true, status: true },
+        })
+      : null;
+    const resumableBooking = resumeBooking?.status === 'INTERESTED' ? resumeBooking : null;
+
     // Authoritative session check (supports Telegram, Google, Email seamlessly)
     const authSession = await getSessionFromRequest(request);
     const auth = authSession
@@ -530,46 +597,61 @@ export async function POST(request: NextRequest) {
             });
       }
 
-      // Create Booking
-      const booking = await tx.booking.create({
-        data: {
-          bookingReference,
-          accessToken: generateAccessToken(),
-          idempotencyKey: idempotencyKey || null,
-          tourId,
-          zoneId: tour.zoneId,
-          hotelName: hotelName?.trim() || null,
-          pickupType: effectivePickupType.toUpperCase(),
-          pickupLocationName: (pickupLocationName || hotelName || '').trim() || null,
-          pickupAddress: pickupAddress?.trim() || null,
-          travelDate: new Date(departureDate + 'T00:00:00'),
-          guestCount: totalGuests,
-          adultsCount: finalAdultsCount,
-          childrenCount: finalChildrenCount,
-          infantsCount: finalInfantsCount,
-          totalPriceUSD: finalTotal,
-          customerName: leadName.trim(),
-          customerEmail: email.trim(),
-          customerPhone: phone.trim(),
-          roomNumber: roomNumber?.trim() || null,
-          selectedPickupTime: pickupTime || null,
-          pickupDirectives: pickupDirectives?.trim() || null,
-          flightNumbers: flightNumbers?.trim() || null,
-          currency: currency || 'USD',
-          bedConfiguration: bedConfiguration?.trim() || null,
-          specialRequirements: specialRequirements?.trim() || null,
-          selectedAddons: validatedSelectedAddons.length > 0 ? validatedSelectedAddons : undefined,
-          bookingAnswers: normalizedBookingAnswers && typeof normalizedBookingAnswers === 'object' && Object.keys(normalizedBookingAnswers).length > 0 ? normalizedBookingAnswers : undefined,
-          paymentScheme,
-          amountPaidOnline,
-          amountDueOnArrival,
-          promoCodeId: promoCodeId || null,
-          customerProfileId: profile.id,
-          whatsappOptIn: formData.whatsappOptIn !== undefined ? Boolean(formData.whatsappOptIn) : true,
-          status: paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
-          paymentStatus: paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? 'CASH' : 'PENDING',
-        },
-      });
+      // Single-booking resume: if this attempt already has an INTERESTED
+      // booking (created by /api/public/booking-interest), update THAT
+      // row instead of creating a second booking. Its bookingReference
+      // and accessToken stay unchanged, so the chat thread and the
+      // /booking/<accessToken> link keep working. The idempotencyKey is
+      // deliberately not overwritten on resume.
+      const bookingFields = {
+        tourId,
+        zoneId: tour.zoneId,
+        hotelName: hotelName?.trim() || null,
+        pickupType: effectivePickupType.toUpperCase(),
+        pickupLocationName: (pickupLocationName || hotelName || '').trim() || null,
+        pickupAddress: pickupAddress?.trim() || null,
+        travelDate: new Date(departureDate + 'T00:00:00'),
+        guestCount: totalGuests,
+        adultsCount: finalAdultsCount,
+        childrenCount: finalChildrenCount,
+        infantsCount: finalInfantsCount,
+        totalPriceUSD: finalTotal,
+        customerName: leadName.trim(),
+        customerEmail: email.trim(),
+        customerPhone: phone.trim(),
+        roomNumber: roomNumber?.trim() || null,
+        selectedPickupTime: pickupTime || null,
+        pickupDirectives: pickupDirectives?.trim() || null,
+        flightNumbers: flightNumbers?.trim() || null,
+        currency: currency || 'USD',
+        bedConfiguration: bedConfiguration?.trim() || null,
+        specialRequirements: specialRequirements?.trim() || null,
+        selectedAddons: validatedSelectedAddons.length > 0 ? validatedSelectedAddons : undefined,
+        bookingAnswers: normalizedBookingAnswers && typeof normalizedBookingAnswers === 'object' && Object.keys(normalizedBookingAnswers).length > 0 ? normalizedBookingAnswers : undefined,
+        paymentScheme,
+        amountPaidOnline,
+        amountDueOnArrival,
+        promoCodeId: promoCodeId || null,
+        customerProfileId: profile.id,
+        whatsappOptIn: formData.whatsappOptIn !== undefined ? Boolean(formData.whatsappOptIn) : true,
+        // Online payment no longer lands in legacy PENDING: it is
+        // explicitly awaiting payment until the webhook confirms it.
+        status: paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? BookingStatus.CONFIRMED : BookingStatus.PENDING_PAYMENT,
+        paymentStatus: paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? 'CASH' : 'PENDING',
+      };
+      const booking = resumableBooking
+        ? await tx.booking.update({
+            where: { id: resumableBooking.id },
+            data: bookingFields,
+          })
+        : await tx.booking.create({
+            data: {
+              bookingReference,
+              accessToken: generateAccessToken(),
+              idempotencyKey: idempotencyKey || null,
+              ...bookingFields,
+            },
+          });
 
       // Create Transaction
       const transaction = await tx.transaction.create({
@@ -608,62 +690,40 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // A booking is only a conversion after its payment/confirmation state says so.
-    // Online payment starts an in-progress lead; the verified webhook completes it.
+    // Single-booking link-up: the conversation belongs to the booking,
+    // not to a lead. Attach the booking's conversation (created at
+    // INTERESTED time by /api/public/booking-interest) and post a status
+    // summary into it. No new lead is created or searched for here:
+    // phone/email/attempt fallbacks used to link a stranger's lead to
+    // this booking and show a second reservation.
     try {
-      const activeLead = {
-        tourId,
-        bookingId: null,
-        status: { in: [LeadStatus.INTERESTED, LeadStatus.IN_PROGRESS, LeadStatus.CONTACTED] },
-      };
-      // A reservation from Book now carries its own preliminary ID. Link it to the new booking.
-      const matchingLead = requestedReservationId
-        ? await prisma.bookingLead.findFirst({
-            where: {
-              ...activeLead,
-              id: requestedReservationId,
-            },
-          })
-        : (attemptId
-            ? await prisma.bookingLead.findFirst({
-                where: {
-                  ...activeLead,
-                  sessionId: attemptId,
-                },
-                orderBy: { createdAt: 'desc' },
-              })
-            : await prisma.bookingLead.findFirst({
-                where: {
-                  ...activeLead,
-                  // Scope the phone/email fallback to this tour and date
-                  // (tourId is already in activeLead). Without this, a
-                  // returning guest's lead for a different tour or a
-                  // different departure date could be linked to this
-                  // booking, leaving the real lead orphaned and showing
-                  // as a second reservation.
-                  travelDate: departureDate,
-                  OR: [
-                    ...(phone.trim() ? [{ customerPhone: phone.trim() }] : []),
-                    ...(normalizedEmail ? [{ customerEmail: normalizedEmail }] : []),
-                  ],
-                },
-                orderBy: { createdAt: 'desc' },
-              }));
-      if (matchingLead) {
-        await prisma.bookingLead.update({
-          where: { id: matchingLead.id },
-          data: {
-            bookingId: result.booking.id,
-            status: (paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? 'CONVERTED' : 'IN_PROGRESS') as any,
-            customerName: leadName.trim(),
-            customerEmail: email.trim(),
-            customerPhone: phone.trim(),
-            updatedAt: new Date(),
+      // Legacy only: a pre-unification attempt whose reservationId is
+      // still a lead id gets linked to this booking so it does not stay
+      // orphaned. Leads already CONVERTED/ABANDONED are left alone.
+      if (legacyLeadId) {
+        const legacyLead = await prisma.bookingLead.findFirst({
+          where: {
+            id: legacyLeadId,
+            bookingId: null,
+            status: { in: [LeadStatus.INTERESTED, LeadStatus.IN_PROGRESS, LeadStatus.CONTACTED] },
           },
         });
+        if (legacyLead) {
+          await prisma.bookingLead.update({
+            where: { id: legacyLead.id },
+            data: {
+              bookingId: result.booking.id,
+              status: (paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? 'CONVERTED' : 'IN_PROGRESS') as any,
+              customerName: leadName.trim(),
+              customerEmail: email.trim(),
+              customerPhone: phone.trim(),
+              updatedAt: new Date(),
+            },
+          });
+        }
       }
 
-      // Ensure SINGLE authoritative conversation exists for this booking attempt
+      // Ensure SINGLE authoritative conversation exists for this booking
       const resolvedTourTitle = (() => {
         const t = tour.translations as Record<string, { title?: string }> | null;
         return t?.en?.title || 'Talago Experience';
@@ -674,11 +734,10 @@ export async function POST(request: NextRequest) {
       let bookingConv = await prisma.liveChatConversation.findFirst({
         where: {
           OR: [
-            ...(attemptToken ? [{ visitorToken: `attempt:${attemptToken}` }] : []),
-            ...(matchingLead?.id ? [{ leadId: matchingLead.id }, { visitorToken: `lead:${matchingLead.id}` }] : []),
+            ...(result.booking.id ? [{ bookingId: result.booking.id }] : []),
             { bookingReference: result.booking.bookingReference },
             { visitorToken: `booking:${result.booking.bookingReference}` },
-            ...(result.booking.id ? [{ bookingId: result.booking.id }] : []),
+            ...(attemptToken ? [{ visitorToken: `attempt:${attemptToken}` }] : []),
           ],
         },
       });
@@ -702,7 +761,7 @@ export async function POST(request: NextRequest) {
       } else {
         bookingConv = await prisma.liveChatConversation.create({
           data: {
-            visitorToken: attemptToken ? `attempt:${attemptToken}` : `booking:${result.booking.bookingReference}`,
+            visitorToken: `booking:${result.booking.bookingReference}`,
             bookingId: result.booking.id,
             bookingReference: result.booking.bookingReference,
             visitorName: leadName.trim(),
@@ -714,7 +773,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Check whether this conversation already has an initial booking confirmation message
+      // Check whether this conversation already has an initial booking summary message
       if (bookingConv) {
         const existingMsg = await prisma.liveChatMessage.findFirst({
           where: {
@@ -724,7 +783,8 @@ export async function POST(request: NextRequest) {
         });
 
         if (!existingMsg) {
-          const bookingSummary = `[BOOKING CONFIRMED] Reference: #${result.booking.bookingReference} | Guest: ${leadName.trim()} | Tour: ${resolvedTourTitle} | Date: ${departureDate} | Guests: ${totalGuests} (${finalAdultsCount} adults${finalChildrenCount > 0 ? `, ${finalChildrenCount} children` : ''}${finalInfantsCount > 0 ? `, ${finalInfantsCount} infants` : ''}) | Status: ${result.booking.status} | Total: $${finalTotal.toFixed(2)}`;
+          const summaryLabel = result.booking.status === 'CONFIRMED' ? 'BOOKING CONFIRMED' : 'BOOKING AWAITING PAYMENT';
+          const bookingSummary = `[${summaryLabel}] Reference: #${result.booking.bookingReference} | Guest: ${leadName.trim()} | Tour: ${resolvedTourTitle} | Date: ${departureDate} | Guests: ${totalGuests} (${finalAdultsCount} adults${finalChildrenCount > 0 ? `, ${finalChildrenCount} children` : ''}${finalInfantsCount > 0 ? `, ${finalInfantsCount} infants` : ''}) | Status: ${result.booking.status} | Total: $${finalTotal.toFixed(2)}`;
 
           await prisma.liveChatMessage.create({
             data: {
@@ -770,6 +830,8 @@ export async function POST(request: NextRequest) {
       bookingId: result.booking.id,
       bookingReference: result.booking.bookingReference,
       accessToken: result.booking.accessToken,
+      status: result.booking.status,
+      isResumed: Boolean(resumableBooking),
       transactionId: result.transaction.id,
       amountPaidOnline,
       amountDueOnArrival,
@@ -865,7 +927,7 @@ export async function POST(request: NextRequest) {
             currency: true,
           },
         });
-        if (existingByKey) {
+        if (existingByKey && existingByKey.status !== 'INTERESTED') {
           return NextResponse.json({
             success: true,
             bookingId: existingByKey.id,
@@ -880,6 +942,18 @@ export async function POST(request: NextRequest) {
             status: existingByKey.status,
             isExisting: true,
           });
+        }
+        if (existingByKey) {
+          // The winning row is still INTERESTED: this request's form
+          // was never applied. Ask the client to retry — the retry
+          // resumes that booking instead of duplicating it.
+          return NextResponse.json(
+            {
+              error: 'This booking is already in progress. Please try confirming again.',
+              code: 'CONCURRENCY_CONFLICT',
+            },
+            { status: 409 }
+          );
         }
       }
     }
