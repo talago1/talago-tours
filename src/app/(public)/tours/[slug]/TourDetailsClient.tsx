@@ -43,7 +43,7 @@ import { DEFAULT_TOUR_SERVICES } from '@/types/services';
 import TourCard from '@/components/public/TourCard';
 import dynamic from 'next/dynamic';
 
-const ContinuousBookingModal = dynamic(() => import('@/components/tours/ContinuousBookingModal'), {
+const DirectBookingDetailsModal = dynamic(() => import('@/components/tours/DirectBookingDetailsModal'), {
   ssr: false,
 });
 const AskQuestionModal = dynamic(() => import('@/components/modals/AskQuestionModal'), {
@@ -792,11 +792,23 @@ function InPageBookingSection({
   const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+  const [dateError, setDateError] = useState(false);
+
+  const handleBookClick = () => {
+    if (!selectedDate) {
+      setDateError(true);
+      document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    setDateError(false);
+    onBook();
+  };
+
   return (
     <section
       id="booking-section"
       aria-label="Tour Booking"
-      className="mb-12 scroll-mt-24 rounded-3xl border border-[#00E5FF]/20 bg-gradient-to-b from-[#0D1B35]/95 to-[#081224]/95 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-8"
+      className="my-12 scroll-mt-24 rounded-3xl border border-[#00E5FF]/20 bg-gradient-to-b from-[#0D1B35]/95 to-[#081224]/95 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-8"
     >
       {/* Section Header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
@@ -861,7 +873,10 @@ function InPageBookingSection({
                   data-date-tile={dateStr}
                   aria-pressed={isSelected}
                   onClick={() => {
-                    if (!isPast && !isUnavailable) setSelectedDate(dateStr);
+                    if (!isPast && !isUnavailable) {
+                      setDateError(false);
+                      setSelectedDate(dateStr);
+                    }
                   }}
                   disabled={isPast || !!isUnavailable}
                   className={`${i === 5 ? 'hidden sm:flex' : 'flex'} min-w-0 flex-col items-center justify-center rounded-xl border px-1 py-3 text-center transition-all ${
@@ -1099,10 +1114,16 @@ function InPageBookingSection({
       </div>
 
       {/* D. Book Button + Separate Ask a Question */}
+      {dateError && !selectedDate && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5 text-xs font-bold text-amber-300">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>Please select an available date above to continue.</span>
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row">
         <button
           type="button"
-          onClick={onBook}
+          onClick={handleBookClick}
           disabled={!pricePerAdult || pricePerAdult <= 0}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-6 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.01] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -1754,38 +1775,6 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
               </div>
             )}
 
-            {/* ── In-Page Booking Section (Sputnik8-style) ── */}
-            <InPageBookingSection
-              tour={tour}
-              dict={dict}
-              language={language}
-              formatPrice={formatPrice}
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
-              selectedTime={selectedTime}
-              setSelectedTime={setSelectedTime}
-              adultsCount={adultsCount}
-              setAdultsCount={setAdultsCount}
-              childrenCount={childrenCount}
-              setChildrenCount={setChildrenCount}
-              infantsCount={infantsCount}
-              setInfantsCount={setInfantsCount}
-              selectedAddons={selectedAddons}
-              toggleAddon={toggleAddon}
-              onBook={() => void startReservation('IN_PAGE_BOOKING_SECTION')}
-              onAsk={() => setQuestionModalOpen(true)}
-              pricePerAdult={pricePerAdult}
-              effectiveChildPrice={effectiveChildPrice}
-              effectiveInfantPrice={effectiveInfantPrice}
-              totalPrice={totalPrice}
-              dateAvailability={dateAvailability}
-              dateAvailLoading={dateAvailLoading}
-              monthAvailability={monthAvailability}
-              onMonthChange={loadMonthAvailability}
-              stripStartDay={stripStartDay}
-              setStripStartDay={setStripStartDay}
-            />
-
             {/* Highlights */}
             {localizedHighlights.length > 0 && (
               <div className="mb-10">
@@ -2078,6 +2067,41 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 </Accordion>
               )}
 
+            </div>
+
+            {/* ── In-Page Booking Section (Natural mid-page position after tour details & inclusions) ── */}
+            <InPageBookingSection
+              tour={tour}
+              dict={dict}
+              language={language}
+              formatPrice={formatPrice}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedTime={selectedTime}
+              setSelectedTime={setSelectedTime}
+              adultsCount={adultsCount}
+              setAdultsCount={setAdultsCount}
+              childrenCount={childrenCount}
+              setChildrenCount={setChildrenCount}
+              infantsCount={infantsCount}
+              setInfantsCount={setInfantsCount}
+              selectedAddons={selectedAddons}
+              toggleAddon={toggleAddon}
+              onBook={() => void startReservation('IN_PAGE_BOOKING_SECTION')}
+              onAsk={() => setQuestionModalOpen(true)}
+              pricePerAdult={pricePerAdult}
+              effectiveChildPrice={effectiveChildPrice}
+              effectiveInfantPrice={effectiveInfantPrice}
+              totalPrice={totalPrice}
+              dateAvailability={dateAvailability}
+              dateAvailLoading={dateAvailLoading}
+              monthAvailability={monthAvailability}
+              onMonthChange={loadMonthAvailability}
+              stripStartDay={stripStartDay}
+              setStripStartDay={setStripStartDay}
+            />
+
+            <div className="divide-y divide-white/10 border-t border-white/10">
               {/* Cancellation & Refund Policy */}
               <Accordion title={dict.tourDetails.freeCancellation ? `${dict.tourDetails.freeCancellation} & Policy` : 'Cancellation & Refund Policy'} defaultOpen>
                 <div className="space-y-4">
@@ -2261,8 +2285,34 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
         )}
       </div>
 
-      {/* In-Page Continuous Booking Experience */}
-      <ContinuousBookingModal
+      {/* Permanently Visible Floating Side Check Availability Button (Desktop & Mobile) */}
+      <div
+        data-testid="floating-check-availability"
+        className="fixed bottom-4 left-4 z-40 sm:bottom-auto sm:left-auto sm:right-5 sm:top-1/2 sm:-translate-y-1/2"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+          className="group flex items-center gap-2.5 rounded-2xl border border-[#00E5FF]/40 bg-[#0B1528]/95 px-4 py-3 text-left shadow-2xl shadow-black/60 backdrop-blur-xl transition-all hover:scale-[1.03] hover:border-[#00E5FF] sm:flex-col sm:items-stretch sm:gap-1.5 sm:px-4 sm:py-3.5"
+        >
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 shrink-0 text-[#00E5FF]" />
+            <span className="text-xs font-black uppercase tracking-wider text-[#00E5FF]">
+              {(dict.tourDetails as any)?.checkAvailability || 'Check Availability'}
+            </span>
+          </div>
+          {pricePerAdult > 0 && (
+            <span className="text-[11px] font-bold text-slate-300">
+              {dict.tourDetails.from} {formatPrice(pricePerAdult, { round: true })}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Direct Single-Form Customer Details Modal (replaces old multi-step wizard) */}
+      <DirectBookingDetailsModal
         isOpen={bookingModalOpen}
         onClose={() => setBookingModalOpen(false)}
         tour={{
@@ -2280,21 +2330,15 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
           pickupType: tour.pickupType,
           hotelPickupIncluded: tour.hotelPickupIncluded ?? false,
           meetingPointName: tour.meetingPointName,
-          meetingPointAddress: tour.meetingPointAddress,
-          meetingPointLandmark: tour.meetingPointLandmark,
-          meetingPointInstructions: tour.meetingPointInstructions,
-          cutoffHours: tour.cutoffHours ?? null,
           addons: tour.tourOptions,
           bookingQuestions: (tour as any).bookingQuestions,
         }}
-        initialDate={selectedDate}
-        initialTime={selectedTime}
-        initialAdults={adultsCount}
-        initialChildren={childrenCount}
-        initialInfants={infantsCount}
-        initialAddons={selectedAddons}
-        availablePickupTimes={tour.pickupTimes || (tour.pickupTime ? [tour.pickupTime] : [])}
-        startAtContactStep={Boolean(selectedDate)}
+        departureDate={selectedDate}
+        selectedTime={selectedTime}
+        adultsCount={adultsCount}
+        childrenCount={childrenCount}
+        infantsCount={infantsCount}
+        selectedAddons={selectedAddons}
         initialResumeData={resumeData}
       />
 
