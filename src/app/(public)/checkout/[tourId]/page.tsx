@@ -680,13 +680,43 @@ export default function CheckoutPage() {
         } catch {}
       }
 
-      if (!idempotencyKeyRef.current) {
-        idempotencyKeyRef.current = 'tlg_att_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+      // Reuse the attempt key across page reloads: URL ?attempt= first,
+      // then a localStorage entry saved for this tour / reservation /
+      // departure date. Only generate (and persist) a fresh key when
+      // none matches, so retrying after a reload or a failed payment
+      // reuses the same attempt instead of creating a second booking.
+      let idempotencyKey = idempotencyKeyRef.current;
+      if (!idempotencyKey) {
+        try {
+          const urlKey = searchParams.get('attempt') || searchParams.get('idempotencyKey');
+          if (urlKey) idempotencyKey = urlKey;
+        } catch {}
       }
+      if (!idempotencyKey) {
+        try {
+          const raw = window.localStorage.getItem(`talago_attempt:${tourId}:${reservationId || 'guest'}`);
+          if (raw) {
+            const stored = JSON.parse(raw) as { key?: string; departureDate?: string };
+            if (stored?.key && (!stored.departureDate || stored.departureDate === departureDate)) {
+              idempotencyKey = stored.key;
+            }
+          }
+        } catch {}
+      }
+      if (!idempotencyKey) {
+        idempotencyKey = 'tlg_att_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+        try {
+          window.localStorage.setItem(
+            `talago_attempt:${tourId}:${reservationId || 'guest'}`,
+            JSON.stringify({ key: idempotencyKey, departureDate }),
+          );
+        } catch {}
+      }
+      idempotencyKeyRef.current = idempotencyKey;
 
       const initHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKeyRef.current,
+        'Idempotency-Key': idempotencyKey,
       };
       if (authToken) {
         initHeaders['Authorization'] = `Bearer ${authToken}`;
@@ -699,8 +729,8 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           tourId: tour.id,
           reservationId,
-          attemptId: idempotencyKeyRef.current,
-          idempotencyKey: idempotencyKeyRef.current,
+          attemptId: idempotencyKey,
+          idempotencyKey,
           departureDate,
           guestCount: adultsCount + childrenCount + infantsCount,
           adultsCount,
@@ -747,6 +777,11 @@ export default function CheckoutPage() {
       setConfirmData(responseData);
 
       if (responseData.scheme === PaymentScheme.PAY_ON_ARRIVAL) {
+        // Confirmed: the attempt is complete, so its stored key must not
+        // be reused for a later, different booking of this tour.
+        try {
+          window.localStorage.removeItem(`talago_attempt:${tourId}:${reservationId || 'guest'}`);
+        } catch {}
         setPageState('confirm');
       } else if (responseData.gatewayIframeUrl) {
         sessionStorage.setItem('pendingBookingAccessToken', responseData.accessToken);
@@ -760,7 +795,7 @@ export default function CheckoutPage() {
   // guest totals and the active language, so all of them have to be listed
   // here — omitting them submits stale validation state when the guest
   // changes an answer, a pickup addon or the interface language.
-  }, [form, tour, departureDate, adultsCount, childrenCount, infantsCount, promoDiscount, bookingAnswers, selectedAddons, totalPayingGuests, language, dict, whatsappOptIn, currency, reservationId, availableZones, selectedZoneFee, selectedZoneId]);
+  }, [form, tour, departureDate, adultsCount, childrenCount, infantsCount, promoDiscount, bookingAnswers, selectedAddons, totalPayingGuests, language, dict, whatsappOptIn, currency, reservationId, availableZones, selectedZoneFee, selectedZoneId, searchParams]);
 
   const handleResume = useCallback(() => {
     if (resumeAccessToken) {

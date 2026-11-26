@@ -156,6 +156,17 @@ export default function BookingFormSteps({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
+  // One stable attempt key per mounted form. Reused for every submit
+  // (including retries) so /api/checkout/initialize can return the
+  // existing booking instead of creating a second one.
+  const idempotencyKeyRef = useRef<string>('');
+  const getIdempotencyKey = () => {
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = 'tlg_att_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+    }
+    return idempotencyKeyRef.current;
+  };
+  const [preliminaryLeadId, setPreliminaryLeadId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
 
@@ -277,8 +288,46 @@ export default function BookingFormSteps({
         } catch {}
       }
 
+      const idempotencyKey = getIdempotencyKey();
+
+      // Register the interest first (awaited) so the initialize call can
+      // link this booking to the same lead instead of leaving an orphan
+      // INTERESTED lead next to a confirmed booking. A lead failure must
+      // not block the booking itself — initialize() still dedupes on the
+      // idempotency key.
+      let reservationId = preliminaryLeadId;
+      if (!reservationId) {
+        try {
+          const leadRes = await fetch('/api/public/booking-interest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              tourId,
+              attemptId: idempotencyKey,
+              travelDate,
+              adults: adultsCount,
+              children: childrenCount,
+              currency: 'USD',
+              source: 'BOOKING_FORM_CONTACT',
+              customerName: customerName.trim(),
+              customerPhone: customerPhone.trim(),
+              customerEmail: customerEmail.trim() || undefined,
+            }),
+          });
+          if (leadRes.ok) {
+            const leadData = await leadRes.json();
+            if (leadData?.leadId) {
+              reservationId = leadData.leadId;
+              setPreliminaryLeadId(leadData.leadId);
+            }
+          }
+        } catch {}
+      }
+
       const initHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
+        'Idempotency-Key': idempotencyKey,
       };
       if (authToken) {
         initHeaders['Authorization'] = `Bearer ${authToken}`;
@@ -290,6 +339,9 @@ export default function BookingFormSteps({
         credentials: 'same-origin',
         body: JSON.stringify({
           tourId,
+          reservationId,
+          attemptId: idempotencyKey,
+          idempotencyKey,
           departureDate: travelDate,
           adultsCount,
           childrenCount,

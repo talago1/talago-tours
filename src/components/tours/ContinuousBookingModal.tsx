@@ -139,10 +139,19 @@ export default function ContinuousBookingModal({
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const idempotencyKeyRef = React.useRef<string>('');
 
+  // Generate the attempt key once and reuse it for the whole modal
+  // lifetime (including retries). Never regenerate it per submit.
+  const ensureIdempotencyKey = () => {
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = 'tlg_att_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+    }
+    return idempotencyKeyRef.current;
+  };
+
   // Generate stable booking attempt ID on modal open
   useEffect(() => {
-    if (isOpen && !idempotencyKeyRef.current) {
-      idempotencyKeyRef.current = 'tlg_att_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+    if (isOpen) {
+      ensureIdempotencyKey();
     }
   }, [isOpen]);
 
@@ -344,6 +353,55 @@ export default function ContinuousBookingModal({
     return { amountPaidOnline: 0, amountDueOnArrival: grandTotal };
   }, [paymentScheme, grandTotal, depositPct]);
 
+  // Await the in-flight preliminary-lead sync (or start one) and return
+  // its lead id. Dedupes concurrent callers so step-2 validation and
+  // submit never create two leads for the same attempt.
+  const preliminaryLeadSyncRef = React.useRef<Promise<string | null> | null>(null);
+  const ensurePreliminaryLead = async (): Promise<string | null> => {
+    if (preliminaryLeadId) return preliminaryLeadId;
+    if (preliminaryLeadSyncRef.current) return preliminaryLeadSyncRef.current;
+    const promise = (async (): Promise<string | null> => {
+      try {
+        const res = await fetch('/api/public/booking-interest', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(centralSessionToken ? { Authorization: `Bearer ${centralSessionToken}` } : {}),
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            tourId: tour.id,
+            tourSlug: tour.slug,
+            attemptId: ensureIdempotencyKey(),
+            travelDate: departureDate || undefined,
+            adults: adultsCount,
+            children: childrenCount,
+            totalEstimatedPrice: grandTotal,
+            currency: 'USD',
+            source: 'BOOKING_FORM_CONTACT',
+            customerName: leadName.trim(),
+            customerPhone: phone.trim(),
+            customerEmail: email.trim() || undefined,
+          }),
+        });
+        if (!res.ok) return null;
+        const resData = await res.json();
+        if (resData?.leadId) {
+          setPreliminaryLeadId(resData.leadId);
+          setPreliminaryReference(resData.reservationReference);
+          return resData.leadId as string;
+        }
+        return null;
+      } catch {
+        return null;
+      } finally {
+        preliminaryLeadSyncRef.current = null;
+      }
+    })();
+    preliminaryLeadSyncRef.current = promise;
+    return promise;
+  };
+
   // Step validation
   const validateStep = (currentStep: number): boolean => {
     const errs: Record<string, string> = {};
@@ -360,40 +418,11 @@ export default function ContinuousBookingModal({
         errs.phone = 'Valid phone number is required';
       }
       if (Object.keys(errs).length === 0) {
-        if (!idempotencyKeyRef.current) {
-          idempotencyKeyRef.current = 'tlg_att_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
-        }
-        // Sync preliminary request with completed contact details
-        fetch('/api/public/booking-interest', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(centralSessionToken ? { Authorization: `Bearer ${centralSessionToken}` } : {}),
-          },
-          credentials: 'same-origin',
-          body: JSON.stringify({
-            tourId: tour.id,
-            tourSlug: tour.slug,
-            attemptId: idempotencyKeyRef.current,
-            travelDate: departureDate || undefined,
-            adults: adultsCount,
-            children: childrenCount,
-            totalEstimatedPrice: grandTotal,
-            currency: 'USD',
-            source: 'BOOKING_FORM_CONTACT',
-            customerName: leadName.trim(),
-            customerPhone: phone.trim(),
-            customerEmail: email.trim() || undefined,
-          }),
-        })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((resData) => {
-            if (resData?.leadId) {
-              setPreliminaryLeadId(resData.leadId);
-              setPreliminaryReference(resData.reservationReference);
-            }
-          })
-          .catch(() => {});
+        // Start (but don't block step navigation on) the preliminary-lead
+        // sync with the completed contact details. Submit awaits the
+        // same in-flight promise, so the confirmation is never sent
+        // before the lead id is known.
+        void ensurePreliminaryLead();
       }
     }
 
@@ -462,16 +491,19 @@ export default function ContinuousBookingModal({
     setErrors({});
     trackFunnelEvent('submission_started', { paymentScheme, totalEstimatedPrice: grandTotal });
 
-    if (!idempotencyKeyRef.current) {
-      idempotencyKeyRef.current = 'tlg_att_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
-    }
+    const idempotencyKey = ensureIdempotencyKey();
+
+    // Do not confirm before the preliminary lead is known: await the
+    // step-2 sync (deduplicated) so reservationId is set, instead of
+    // submitting with reservationId: undefined and orphaning the lead.
+    const confirmedLeadId = await ensurePreliminaryLead();
 
     try {
       const payload = {
         tourId: tour.id,
-        reservationId: preliminaryLeadId || undefined,
-        attemptId: idempotencyKeyRef.current,
-        idempotencyKey: idempotencyKeyRef.current,
+        reservationId: confirmedLeadId ?? preliminaryLeadId ?? undefined,
+        attemptId: idempotencyKey,
+        idempotencyKey,
         departureDate,
         guestCount: adultsCount + childrenCount + infantsCount,
         adultsCount,
@@ -514,7 +546,7 @@ export default function ContinuousBookingModal({
 
       const initHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKeyRef.current,
+        'Idempotency-Key': idempotencyKey,
       };
       if (authToken) {
         initHeaders['Authorization'] = `Bearer ${authToken}`;

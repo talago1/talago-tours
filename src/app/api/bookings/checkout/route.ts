@@ -7,19 +7,37 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // If already in initialize format, pass through directly
+    // If already in initialize format, pass through directly.
+    // Preserve the booking-attempt identifiers: initialize() reads
+    // reservationId / attemptId / idempotencyKey from the body, so a
+    // caller that only sent the Idempotency-Key header would otherwise
+    // lose the attempt identity here.
     if (body.formData) {
+      const headerIdempotencyKey = request.headers.get('idempotency-key');
+      const forwardedBody = {
+        ...body,
+        reservationId: body.reservationId,
+        attemptId: body.attemptId || body.idempotencyKey || headerIdempotencyKey || undefined,
+        idempotencyKey: body.idempotencyKey || headerIdempotencyKey || undefined,
+      };
       const initReq = new NextRequest(new URL('/api/checkout/initialize', request.url), {
         method: 'POST',
         headers: request.headers,
-        body: JSON.stringify(body),
+        body: JSON.stringify(forwardedBody),
       });
       return initializePost(initReq);
     }
 
-    // Convert legacy flat body into authoritative initialize payload
+    // Convert legacy flat body into authoritative initialize payload.
+    // Preserve the attempt identifiers — previously reservationId was
+    // dropped here, so initialize() could not link the booking to its
+    // INTERESTED lead and a second booking/conversation could appear.
+    const headerIdempotencyKey = request.headers.get('idempotency-key');
     const transformed = {
       tourId: body.tourId,
+      reservationId: body.reservationId,
+      attemptId: body.attemptId || body.idempotencyKey || headerIdempotencyKey,
+      idempotencyKey: body.idempotencyKey || headerIdempotencyKey,
       departureDate: body.travelDate || body.departureDate,
       adultsCount: body.adultsCount != null ? Number(body.adultsCount) : (body.guestCount || 1),
       childrenCount: body.childrenCount != null ? Number(body.childrenCount) : 0,

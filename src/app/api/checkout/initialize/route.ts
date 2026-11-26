@@ -635,6 +635,13 @@ export async function POST(request: NextRequest) {
             : await prisma.bookingLead.findFirst({
                 where: {
                   ...activeLead,
+                  // Scope the phone/email fallback to this tour and date
+                  // (tourId is already in activeLead). Without this, a
+                  // returning guest's lead for a different tour or a
+                  // different departure date could be linked to this
+                  // booking, leaving the real lead orphaned and showing
+                  // as a second reservation.
+                  travelDate: departureDate,
                   OR: [
                     ...(phone.trim() ? [{ customerPhone: phone.trim() }] : []),
                     ...(normalizedEmail ? [{ customerEmail: normalizedEmail }] : []),
