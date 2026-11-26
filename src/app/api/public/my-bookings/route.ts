@@ -109,17 +109,11 @@ export async function GET(request: NextRequest) {
 
     const emails = [profile.email, session?.email].filter(Boolean) as string[];
 
-    // Compute the visible booking ids ONCE and reuse them for adoption and
-    // for the paged query below. Previously adoptOwnedBookings() ran
-    // listVisibleBookingIds() internally and the route called it again,
-    // so the expensive phone/email lookups ran twice per request
-    // (see src/server/customerBookings.ts).
-    const bookingIds = await listVisibleBookingIds({ profileId: profile.id, emails, phones });
-    const leadIds = await listVisibleLeadIds(emails, phones);
-
-    await adoptOwnedBookings({ profileId: profile.id, emails, phones, bookingIds }).catch((error) => {
-      console.warn('[my-bookings] booking adoption warning:', error);
-    });
+    // Read-only parallel lookup for visible bookings and leads (adoption runs once on sign-in via POST /api/public/my-bookings/adopt)
+    const [bookingIds, leadIds] = await Promise.all([
+      listVisibleBookingIds({ profileId: profile.id, emails, phones }),
+      listVisibleLeadIds(emails, phones),
+    ]);
 
     // Cursor must belong to this customer's visible bookings; otherwise
     // Prisma would return an empty page (or throw) for a foreign id.
@@ -138,6 +132,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           bookingReference: true,
+          idempotencyKey: true,
           customerName: true,
           customerEmail: true,
           customerPhone: true,
@@ -208,6 +203,7 @@ export async function GET(request: NextRequest) {
         },
         select: {
           id: true,
+          sessionId: true,
           tourId: true,
           tourTitle: true,
           tourSlug: true,
@@ -272,13 +268,21 @@ export async function GET(request: NextRequest) {
             })
         : [];
 
-    const formattedReservations = reservations.map((r) => {
+    const bookedAttemptIds = new Set(
+      bookings.map((b) => b.idempotencyKey).filter((k): k is string => Boolean(k))
+    );
+    const activeUnconvertedLeads = reservations.filter(
+      (r) => !r.sessionId || !bookedAttemptIds.has(r.sessionId)
+    );
+
+    const formattedReservations = activeUnconvertedLeads.map((r) => {
       const convo = conversations.find((c) => c.leadId === r.id);
       const unread = convo ? convo.messages.some((m) => !m.readAt) : false;
       const lastMsg = convo?.messages[0] || null;
       return {
         id: r.id,
         leadId: r.id,
+        attemptId: r.sessionId || null,
         reservationReference: `RES-${r.id.slice(-8).toUpperCase()}`,
         tourId: r.tourId,
         tourTitle: r.tourTitle,

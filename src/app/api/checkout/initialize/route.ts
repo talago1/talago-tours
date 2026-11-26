@@ -99,12 +99,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Idempotency check: if this reservation lead already has an initialized booking, return it cleanly
+    // Idempotency & withdrawn-request check: if this reservation lead already has an initialized booking, return it cleanly;
+    // if it was withdrawn (ABANDONED), block stale retries from turning it into a booking.
     if (requestedReservationId) {
       const existingLeadWithBooking = await prisma.bookingLead.findUnique({
         where: { id: requestedReservationId },
-        select: { bookingId: true },
+        select: { bookingId: true, status: true },
       });
+      if (existingLeadWithBooking?.status === LeadStatus.ABANDONED && !existingLeadWithBooking.bookingId) {
+        return NextResponse.json(
+          { error: 'This preliminary request was withdrawn. Please start a new booking request.', code: 'REQUEST_WITHDRAWN' },
+          { status: 409 }
+        );
+      }
       if (existingLeadWithBooking?.bookingId) {
         const existingBooking = await prisma.booking.findUnique({
           where: { id: existingLeadWithBooking.bookingId },
@@ -142,6 +149,16 @@ export async function POST(request: NextRequest) {
 
     // Direct idempotency key check (database unique column)
     if (idempotencyKey) {
+      const withdrawnByAttempt = await prisma.bookingLead.findFirst({
+        where: { sessionId: idempotencyKey, status: LeadStatus.ABANDONED, bookingId: null },
+        select: { id: true },
+      });
+      if (withdrawnByAttempt) {
+        return NextResponse.json(
+          { error: 'This preliminary request was withdrawn. Please start a new booking request.', code: 'REQUEST_WITHDRAWN' },
+          { status: 409 }
+        );
+      }
       const existingByKey = await prisma.booking.findUnique({
         where: { idempotencyKey },
         select: {
@@ -742,6 +759,43 @@ export async function POST(request: NextRequest) {
       }
     } catch (leadLinkErr) {
       console.warn('[initialize] Lead linking non-fatal warning:', leadLinkErr);
+    }
+
+    // Persist in-app Admin Notification for the created/confirmed booking (idempotent, independent of external email/Telegram)
+    try {
+      const notifMsgId = `booking-${result.booking.id}`;
+      const existingNotif = await prisma.notificationLog.findFirst({
+        where: { channel: 'NEW_BOOKING_ALERT', messageId: notifMsgId },
+        select: { id: true },
+      });
+      if (!existingNotif) {
+        const tMap = tour.translations as Record<string, { title?: string }> | null;
+        const notifTourTitle = tMap?.en?.title || tour.slug;
+        await prisma.notificationLog.create({
+          data: {
+            bookingId: result.booking.id,
+            channel: 'NEW_BOOKING_ALERT',
+            recipient: 'Admin Dashboard',
+            status: 'UNREAD',
+            messageId: notifMsgId,
+            errorMessage: JSON.stringify({
+              bookingId: result.booking.id,
+              bookingReference: result.booking.bookingReference,
+              customerName: result.booking.customerName,
+              customerPhone: result.booking.customerPhone,
+              tourTitle: notifTourTitle,
+              travelDate: departureDate,
+              guestCount: totalGuests,
+              totalPriceUSD: finalTotal,
+              currency: result.booking.currency,
+              bookingStatus: result.booking.status,
+              paymentScheme,
+            }),
+          },
+        });
+      }
+    } catch (adminNotifErr) {
+      console.warn('[initialize] Admin notification persistence warning:', adminNotifErr);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

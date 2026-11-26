@@ -19,6 +19,7 @@ import {
   Image as ImageIcon,
   Users,
   MessageCircle,
+  Sparkles,
 } from 'lucide-react';
 import AdminNotificationCenter from '@/components/admin/AdminNotificationCenter';
 
@@ -28,6 +29,8 @@ const NAV_ITEMS = [
   { href: '/admin/destinations', label: 'Destinations', icon: Compass },
   { href: '/admin/media', label: 'Media Library', icon: ImageIcon },
   { href: '/admin/bookings', label: 'Bookings', icon: CalendarCheck },
+  { href: '/admin/leads', label: 'Interests & Leads', icon: Sparkles },
+  { href: '/admin/inbox', label: 'Live Chat', icon: MessageCircle },
   { href: '/admin/content', label: 'Content Studio', icon: BookOpen },
   { href: '/admin/partners', label: 'Partners', icon: Users },
   { href: '/admin/blog', label: 'Blog & Articles', icon: BookOpen },
@@ -113,7 +116,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             return (
               <Link
                 key={item.href}
-                href={item.href === '/admin/bookings' && unreadChatCount > 0 ? '/admin/bookings?filter=messages' : item.href}
+                href={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-200 ${
                   active
@@ -123,7 +126,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               >
                 <Icon className="h-4 w-4" />
                 <span>{item.label}</span>
-                {item.href === '/admin/bookings' && unreadChatCount > 0 && (
+                {item.href === '/admin/inbox' && unreadChatCount > 0 && (
                   <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[10px] font-black text-[#070F1E] animate-pulse">
                     {unreadChatCount}
                   </span>

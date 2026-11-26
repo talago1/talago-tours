@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   Check,
   Plane,
+  MessageSquare,
 } from 'lucide-react';
 import CountryCodeSelector from '@/components/checkout/CountryCodeSelector';
 import BookingCalendar from './BookingCalendar';
@@ -80,6 +81,16 @@ export interface ContinuousBookingModalProps {
   initialAddons?: Record<string, boolean>;
   availablePickupTimes?: string[];
   zones?: ZoneOption[];
+  initialResumeData?: {
+    leadId: string;
+    attemptId: string;
+    departureDate?: string | null;
+    adultsCount?: number;
+    childrenCount?: number;
+    leadName?: string;
+    email?: string;
+    phone?: string;
+  } | null;
 }
 
 export default function ContinuousBookingModal({
@@ -94,6 +105,7 @@ export default function ContinuousBookingModal({
   initialAddons = {},
   availablePickupTimes = [],
   zones = [],
+  initialResumeData = null,
 }: ContinuousBookingModalProps) {
   const { dict, language } = useLanguage();
   const { formatPrice } = useCurrency();
@@ -148,12 +160,24 @@ export default function ContinuousBookingModal({
     return idempotencyKeyRef.current;
   };
 
-  // Generate stable booking attempt ID on modal open
+  // Generate stable booking attempt ID on modal open (or restore from resumed request)
   useEffect(() => {
     if (isOpen) {
-      ensureIdempotencyKey();
+      if (initialResumeData?.attemptId) {
+        idempotencyKeyRef.current = initialResumeData.attemptId;
+        setPreliminaryLeadId(initialResumeData.leadId);
+        if (initialResumeData.departureDate) setDepartureDate(initialResumeData.departureDate);
+        if (initialResumeData.adultsCount) setAdultsCount(initialResumeData.adultsCount);
+        if (initialResumeData.childrenCount !== undefined) setChildrenCount(initialResumeData.childrenCount);
+        if (initialResumeData.leadName) setLeadName(initialResumeData.leadName);
+        if (initialResumeData.email) setEmail(initialResumeData.email);
+        if (initialResumeData.phone) setPhone(initialResumeData.phone);
+        setStep(initialResumeData.departureDate ? (initialResumeData.leadName && initialResumeData.phone ? 3 : 2) : 1);
+      } else {
+        ensureIdempotencyKey();
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialResumeData]);
 
   // Auto-sync customer identity from useAuth()
   useEffect(() => {
@@ -429,7 +453,16 @@ export default function ContinuousBookingModal({
     if (currentStep === 3) {
       if (tour.bookingQuestions && tour.bookingQuestions.length > 0) {
         for (const q of tour.bookingQuestions) {
-          const isRoomQuestion = String(q.id || '').toLowerCase().includes('room') || String(q.question || '').toLowerCase().includes('room');
+          const qId = String(q.id || '').toLowerCase();
+          const qText = String(q.question || '').toLowerCase();
+          // Skip hidden questions whose values are already collected by core steps
+          if (qId.includes('name') || qText.includes('full name')) continue;
+          if (qId.includes('phone') || qText.includes('phone number')) continue;
+          if (isHotelPickupSupported && pickupType === 'HOTEL') {
+            if (qId.includes('hotel') || qText.includes('hotel name')) continue;
+            if (qId.includes('room') || qText.includes('room number')) continue;
+          }
+          const isRoomQuestion = qId.includes('room') || qText.includes('room');
           // Room number is never universally mandatory
           if (q.required && !isRoomQuestion) {
             const val = bookingAnswers[q.id];
@@ -483,10 +516,28 @@ export default function ContinuousBookingModal({
     setStep((prev) => (Math.max(1, prev - 1) as 1 | 2 | 3 | 4));
   };
 
+  const submittingRef = React.useRef(false);
+
   // Submission to authoritative backend
   const handleSubmitBooking = async () => {
-    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) return;
+    if (submittingRef.current || isSubmitting) return;
+    if (!validateStep(1)) {
+      setStep(1);
+      setErrors((prev) => ({ ...prev, submit: 'Please select a valid departure date and guest count.' }));
+      return;
+    }
+    if (!validateStep(2)) {
+      setStep(2);
+      setErrors((prev) => ({ ...prev, submit: 'Please verify your name and phone number.' }));
+      return;
+    }
+    if (!validateStep(3)) {
+      setStep(3);
+      setErrors((prev) => ({ ...prev, submit: 'Please complete the required pickup or activity details.' }));
+      return;
+    }
 
+    submittingRef.current = true;
     setIsSubmitting(true);
     setErrors({});
     trackFunnelEvent('submission_started', { paymentScheme, totalEstimatedPrice: grandTotal });
@@ -593,6 +644,7 @@ export default function ContinuousBookingModal({
     } catch {
       setErrors({ submit: 'Network connection issue. Please check your network and try again.' });
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -730,19 +782,29 @@ export default function ContinuousBookingModal({
                 </div>
               )}
 
-              <div className="grid sm:grid-cols-2 gap-3 pt-2">
+              <div className="grid sm:grid-cols-3 gap-3 pt-2">
                 <a
                   href={confirmedBooking.confirmationUrl}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-3.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 hover:scale-[1.02] active:scale-[0.98] transition"
+                  data-testid="confirmed-boarding-pass-link"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-4 py-3.5 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 hover:scale-[1.02] active:scale-[0.98] transition"
                 >
-                  <CreditCard className="h-4 w-4" />
-                  <span>{(dict as any).booking?.viewBoardingPass || 'View Boarding Pass'}</span>
+                  <CreditCard className="h-4 w-4 shrink-0" />
+                  <span>{(dict as any).booking?.viewBoardingPass || 'Boarding Pass'}</span>
+                </a>
+                <a
+                  href={`/account?tab=messages&ref=${encodeURIComponent(confirmedBooking.bookingReference)}`}
+                  data-testid="confirmed-conversation-link"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 transition"
+                >
+                  <MessageSquare className="h-4 w-4 shrink-0" />
+                  <span>Open Conversation</span>
                 </a>
                 <a
                   href="/account?tab=bookings"
-                  className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3.5 text-xs font-bold text-white hover:bg-white/10 transition"
+                  data-testid="confirmed-my-bookings-link"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-3.5 text-xs font-bold text-white hover:bg-white/10 transition"
                 >
-                  <span>{(dict as any).booking?.goToMyBookings || 'Go to My Bookings'}</span>
+                  <span>{(dict as any).booking?.goToMyBookings || 'My Bookings'}</span>
                 </a>
               </div>
             </div>

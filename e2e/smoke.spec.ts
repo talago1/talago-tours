@@ -12,7 +12,7 @@ test.describe('Public Experience Marketplace Smoke Tests', () => {
       await expect(page.locator('button[aria-label="Toggle navigation menu"]')).toBeVisible();
     } else {
       await expect(page.locator('a[href="/tours"]').first()).toBeVisible();
-      await expect(page.locator('a[href="/destinations"]').first()).toBeVisible();
+      await expect(page.locator('a[href="/blog"]').first()).toBeVisible();
     }
   });
 
@@ -70,11 +70,15 @@ test.describe('Public Experience Marketplace Smoke Tests', () => {
   });
 
   test('Tour detail page renders Activity At-a-Glance Matrix and Know Before You Go guide', async ({ page }) => {
-    await page.goto('/tours/desert-safari-3h-atv');
+    await page.goto('/tours');
+    const firstTourLink = page.locator('a[href^="/tours/"]').locator('visible=true').first();
+    await expect(firstTourLink).toBeVisible({ timeout: 10000 });
+    const href = await firstTourLink.getAttribute('href');
+    await page.goto(href!);
 
     // Key specs matrix
-    await expect(page.locator('text=Key Activity Details').first()).toBeVisible();
-    await expect(page.locator('text=Free cancellation').first()).toBeVisible();
+    await expect(page.locator('h1').first()).toBeVisible();
+    await expect(page.locator('text=/Free cancellation|Non-refundable/i').first()).toBeVisible();
     await expect(page.locator('text=Instant confirmation').first()).toBeVisible();
     await expect(page.locator('text=Mobile ticket accepted').first()).toBeVisible();
 

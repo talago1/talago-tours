@@ -720,7 +720,54 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [questionModalOpen, setQuestionModalOpen] = useState(false);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [resumeData, setResumeData] = useState<{
+    leadId: string;
+    attemptId: string;
+    departureDate?: string | null;
+    adultsCount?: number;
+    childrenCount?: number;
+    leadName?: string;
+    email?: string;
+    phone?: string;
+  } | null>(null);
   const [wishAnim, setWishAnim] = useState(false);
+
+  // Resume preliminary request / incomplete attempt if ?resumeLead= or ?attemptId= is in URL
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const resumeLead = params.get('resumeLead');
+    const attemptIdParam = params.get('attemptId');
+    if (!resumeLead && !attemptIdParam) return;
+
+    const query = resumeLead
+      ? `leadId=${encodeURIComponent(resumeLead)}`
+      : `attemptId=${encodeURIComponent(attemptIdParam!)}`;
+
+    fetch(`/api/public/bookings/resume?${query}`, { credentials: 'same-origin', cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.type === 'lead') {
+          if (data.travelDate) setSelectedDate(data.travelDate);
+          if (data.adultsCount) setAdultsCount(data.adultsCount);
+          if (typeof data.childrenCount === 'number') setChildrenCount(data.childrenCount);
+          setResumeData({
+            leadId: data.leadId,
+            attemptId: data.attemptId,
+            departureDate: data.travelDate,
+            adultsCount: data.adultsCount,
+            childrenCount: data.childrenCount,
+            leadName: data.customerName,
+            email: data.customerEmail,
+            phone: data.customerPhone,
+          });
+          setBookingModalOpen(true);
+        } else if (data && data.type === 'converted' && data.accessToken) {
+          window.location.href = `/booking/${data.accessToken}`;
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     try {
@@ -2164,6 +2211,7 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
         initialInfants={infantsCount}
         initialAddons={selectedAddons}
         availablePickupTimes={tour.pickupTimes || (tour.pickupTime ? [tour.pickupTime] : [])}
+        initialResumeData={resumeData}
       />
 
       <AskQuestionModal

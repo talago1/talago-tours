@@ -208,69 +208,85 @@ export async function listVisibleBookingIds(input: {
   profileId: string;
   emails: Array<string | null | undefined>;
   phones: Array<unknown>;
+  includeFuzzyPhoneScan?: boolean;
 }): Promise<string[]> {
   const emails = collectIdentityEmails(input.emails, input.phones);
-  const keys = collectPhoneKeys(input.phones);
+  const phoneVariants = [...new Set(input.phones.flatMap((p) => exactPhoneVariants(p)))];
   const ids = new Set<string>();
 
-  const linked = await prisma.booking.findMany({
-    where: { customerProfileId: input.profileId },
-    select: { id: true },
-  });
-  for (const row of linked) ids.add(row.id);
+  const [linked, byEmail, byExactPhone] = await Promise.all([
+    prisma.booking.findMany({
+      where: { customerProfileId: input.profileId },
+      select: { id: true },
+    }),
+    emails.length > 0
+      ? prisma.booking.findMany({
+          where: { OR: emails.map((email) => ({ customerEmail: { equals: email, mode: 'insensitive' as const } })) },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+    phoneVariants.length > 0
+      ? prisma.booking.findMany({
+          where: { customerPhone: { in: phoneVariants } },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+  ]);
 
-  if (emails.length > 0) {
-    const byEmail = await prisma.booking.findMany({
-      where: { OR: emails.map((email) => ({ customerEmail: { equals: email, mode: 'insensitive' as const } })) },
-      select: { id: true, customerEmail: true },
-    });
-    for (const row of byEmail) {
-      if (emails.includes(row.customerEmail.trim().toLowerCase())) ids.add(row.id);
-    }
+  for (const row of linked) ids.add(row.id);
+  for (const row of byEmail) ids.add(row.id);
+  for (const row of byExactPhone) ids.add(row.id);
+
+  if (input.includeFuzzyPhoneScan) {
+    const keys = collectPhoneKeys(input.phones);
+    const byPhone = await findIdsByNationalPhone(prisma, 'booking', keys);
+    for (const row of byPhone) ids.add(row.id);
   }
 
-  const byPhone = await findIdsByNationalPhone(prisma, 'booking', keys);
-  for (const row of byPhone) ids.add(row.id);
-
-  const candidateIds = [...ids];
-  if (candidateIds.length === 0) return [];
-
-  const rows = await prisma.booking.findMany({
-    where: { id: { in: candidateIds } },
-    select: { id: true, customerProfileId: true, customerEmail: true, customerPhone: true },
-  });
-  const emailSet = new Set(emails);
-
-  return rows
-    .filter((row) => {
-      if (row.customerProfileId === input.profileId) return true;
-      const emailHit = emailSet.has(row.customerEmail.trim().toLowerCase());
-      const phoneHit = keys.some((key) => phoneMatchKey(row.customerPhone) === key);
-      return emailHit || phoneHit;
-    })
-    .map((row) => row.id);
+  return [...ids];
 }
 
 export async function listVisibleLeadIds(
   emailsInput: Array<string | null | undefined>,
   phones: Array<unknown>,
+  options?: { includeFuzzyPhoneScan?: boolean },
 ): Promise<string[]> {
   const emails = collectIdentityEmails(emailsInput, phones);
-  const keys = collectPhoneKeys(phones);
+  const phoneVariants = [...new Set(phones.flatMap((p) => exactPhoneVariants(p)))];
   const ids = new Set<string>();
 
-  if (emails.length > 0) {
-    const byEmail = await prisma.bookingLead.findMany({
-      where: { OR: emails.map((email) => ({ customerEmail: { equals: email, mode: 'insensitive' as const } })) },
-      select: { id: true, customerEmail: true },
-    });
-    for (const row of byEmail) {
-      if (row.customerEmail && emails.includes(row.customerEmail.trim().toLowerCase())) ids.add(row.id);
-    }
+  const [byEmail, byExactPhone] = await Promise.all([
+    emails.length > 0
+      ? prisma.bookingLead.findMany({
+          where: {
+            bookingId: null,
+            status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
+            OR: emails.map((email) => ({ customerEmail: { equals: email, mode: 'insensitive' as const } })),
+          },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+    phoneVariants.length > 0
+      ? prisma.bookingLead.findMany({
+          where: {
+            bookingId: null,
+            status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
+            customerPhone: { in: phoneVariants },
+          },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  for (const row of byEmail) ids.add(row.id);
+  for (const row of byExactPhone) ids.add(row.id);
+
+  if (options?.includeFuzzyPhoneScan) {
+    const keys = collectPhoneKeys(phones);
+    const byPhone = await findIdsByNationalPhone(prisma, 'lead', keys);
+    for (const row of byPhone) ids.add(row.id);
   }
 
-  const byPhone = await findIdsByNationalPhone(prisma, 'lead', keys);
-  for (const row of byPhone) ids.add(row.id);
   return [...ids];
 }
 
@@ -298,7 +314,7 @@ export async function adoptOwnedBookings(input: {
   // runs once, as before.
   bookingIds?: string[];
 }) {
-  const ids = input.bookingIds ?? (await listVisibleBookingIds(input));
+  const ids = input.bookingIds ?? (await listVisibleBookingIds({ ...input, includeFuzzyPhoneScan: true }));
   await adoptBookingIds(
     input.profileId,
     ids,

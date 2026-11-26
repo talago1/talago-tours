@@ -26,3 +26,14 @@
 - **Decision:** Never execute destructive schema alters; shadow profiles are transitioned to verified profiles rather than deleted.
 - **Rationale:** Preserves historical financial audits, transaction logs, reviews, and customer lifetime value metrics.
 
+### 7. Separate BookingLead + Booking Records (FINAL — Do Not Revert)
+- **Decision (2026-11-26):** Preliminary customer interest is captured in a `BookingLead` record (with `LeadStatus`). A confirmed checkout creates a separate `Booking` record (with `BookingStatus`). They share a stable `attemptId` / `idempotencyKey` and a single `LiveChatConversation`.
+- **Rejected alternative:** PR #29 proposed setting `Booking.status = INTERESTED` to merge interests into the booking table. This was rejected because it conflates two different lifecycle stages, pollutes the booking table with unconverted leads, complicates revenue reporting, and breaks the idempotency model (a withdrawn interest must block future checkout without creating a cancelled booking).
+- **Rationale:** Clean separation of concern — leads are pre-sales data; bookings are financial commitments. Conversion is tracked via `BookingLead.bookingId` and `BookingLead.status = CONVERTED`. This model is non-destructive to customer history and allows the admin to track lead-to-booking conversion rates independently.
+- **Enforcement:** A withdrawn lead (`status = ABANDONED`) returns `409 REQUEST_WITHDRAWN` on any subsequent checkout attempt with the same `idempotencyKey`. This guard lives in `src/app/api/checkout/initialize/route.ts`.
+
+### 8. In-App Admin Notifications via NotificationLog
+- **Decision (2026-11-26):** Admin event notifications (new booking, new lead, customer message) are stored as `NotificationLog` entries with a typed `channel` field. The `errorMessage` column is repurposed to store JSON metadata (title, link, customer name) since it is the only available freeform text column.
+- **Rationale:** Avoids a schema migration while providing persistent, idempotent, in-app notifications. The `messageId` field ensures each event creates at most one notification record. The admin notification endpoint (`GET /api/admin/notifications`) reads these records and falls back to live `liveChatConversation` for pre-existing unread chats without `NotificationLog` entries.
+- **Future:** When a schema migration is approved, rename `errorMessage` to `metadata` and add a proper `NotificationLog.readAt` timestamp column to replace the `status = READ/UNREAD` pattern.
+

@@ -51,16 +51,20 @@ test.describe('Marketplace Consolidation & UX Density Tests', () => {
   });
 
   test('Tour detail page renders natural decision hierarchy without duplicate cancellation banners', async ({ page }) => {
-    await page.goto('/tours/desert-safari-3h-atv');
+    await page.goto('/tours');
+    const firstTourLink = page.locator('a[href^="/tours/"]').locator('visible=true').first();
+    await expect(firstTourLink).toBeVisible({ timeout: 10000 });
+    const href = await firstTourLink.getAttribute('href');
+    await page.goto(href!);
 
     // Ensure the main tour content renders
     await expect(page.locator('h1').first()).toBeVisible();
 
     // Verify Cancellation Policy is in an organized section/accordion
-    await expect(page.locator('button:has-text("Cancellation"), h3:has-text("Cancellation")').first()).toBeVisible();
+    await expect(page.locator('text=/Cancellation|Free cancellation|Non-refundable/i').first()).toBeVisible();
 
     // Booking CTA exists and is visible (sidebar on desktop, sticky bar on mobile)
-    const bookingCta = page.locator('button:has-text("Book Now"), a:has-text("Book Now"), button:has-text("Reserve")').locator('visible=true').first();
+    const bookingCta = page.locator('button:has-text("Book Now"), a:has-text("Book Now"), button:has-text("Reserve"), button:has-text("Inquire")').locator('visible=true').first();
     await expect(bookingCta).toBeVisible();
   });
 

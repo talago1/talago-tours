@@ -1,5 +1,14 @@
 # Talago Tours — Booking & Checkout Architecture
 
+> [!IMPORTANT]
+> **Approved Architecture (Final — Do Not Change):**
+> Talago uses **two separate records** for the booking lifecycle:
+> - `BookingLead` (preliminary interest, `status: LeadStatus`) — created when a customer expresses interest but has not yet completed checkout.
+> - `Booking` (confirmed reservation, `status: BookingStatus`) — created when checkout is completed.
+>
+> Both share a stable `attemptId` / `idempotencyKey` and a single `LiveChatConversation`.
+> PR #29's approach of merging interests into `Booking.status = INTERESTED` was **rejected** — do not reintroduce it.
+
 ## 1. Booking Entrypoints
 
 Customers can reserve tours through three distinct UI workflows depending on their device and entry point:
@@ -80,4 +89,53 @@ All three frontends submit payloads to the single authoritative endpoint `/api/c
 - **Account View:**
   - If authenticated, visible immediately under `/account?tab=bookings`.
   - If guest, retrievable via `/my-bookings` by entering `bookingReference` and `customerPhone`.
+
+---
+
+## 5. Preliminary Interest (BookingLead) Lifecycle
+
+> [!NOTE]
+> The `BookingLead` model captures customer intent before checkout is completed. It is **separate** from the `Booking` model and uses its own `LeadStatus` enum.
+
+### LeadStatus flow
+```
+INTERESTED → IN_PROGRESS → CONTACTED → CONVERTED
+                                     ↘ ABANDONED  (customer withdrew)
+```
+
+### Key invariants
+- Each preliminary interest has a stable `sessionId` (the `attemptId`) shared with the eventual `Booking.idempotencyKey`.
+- One `LiveChatConversation` per attempt — the same conversation is reused when the lead converts to a booking.
+- A lead with `status = ABANDONED` **blocks** any further checkout attempt using the same `idempotencyKey` (returns `409 REQUEST_WITHDRAWN`).
+- When a lead converts, its `bookingId` field is set and the lead `status` becomes `CONVERTED`.
+
+### API surface
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| `POST` | `/api/public/booking-interest` | Create a new preliminary interest |
+| `GET`  | `/api/public/bookings/resume?leadId=…` | Resume a lead (auth required) |
+| `GET`  | `/api/public/bookings/resume?token=…` | Resume a booking by accessToken |
+| `POST` | `/api/public/booking-interest/withdraw` | Mark a lead as ABANDONED |
+| `POST` | `/api/public/my-bookings/adopt` | Adopt guest leads into authenticated profile |
+
+### Customer-facing entry points
+- **My Account (`/account`):** "My Requests" section lists all leads — customer can Continue, Open Conversation, or Withdraw.
+- **Tour page (`/tours/[slug]?resumeLead=<leadId>`):** Deep-links open the booking modal pre-filled with lead data.
+
+---
+
+## 6. Admin Notification Pipeline
+
+Three event channels fire in-app `NotificationLog` entries that surface in the admin bell:
+
+| Channel | Trigger |
+|---------|---------|
+| `NEW_BOOKING_ALERT` | Confirmed booking created in `checkout/initialize` |
+| `LEAD_INTEREST_ALERT` | New preliminary interest created in `booking-interest` |
+| `CUSTOMER_MESSAGE_ALERT` | Customer sends a live-chat message in `live-chat/messages` |
+
+Notifications are idempotent (keyed on `messageId`). The `GET /api/admin/notifications` endpoint reads
+`NotificationLog` with a live-chat fallback for pre-existing unread conversations.
+Admin marks notifications read via `PATCH /api/admin/notifications`.
 

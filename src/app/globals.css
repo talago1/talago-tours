@@ -2,7 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --talago-bg: #070F1E;
+  --talago-surface: #0B1528;
+  --talago-surface-elevated: #111F38;
+  --talago-aqua: #00E5FF;
+  --talago-gold: #FFD700;
+  --talago-coral: #FF5B00;
+  --talago-text: #F8FAFC;
+  --talago-muted: #94A3B8;
+}
+
+html,
 body {
-  background-color: #F8F9FA;
-  color: #1F2937;
+  background-color: var(--talago-bg);
+  color: var(--talago-text);
+  overflow-x: clip;
+}
+
+:focus-visible {
+  outline: 2px solid var(--talago-aqua);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
