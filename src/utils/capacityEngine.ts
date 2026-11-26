@@ -77,7 +77,9 @@ export async function checkAvailability(
         tourId,
         timeSlotId,
         travelDate: { gte: dayStart, lt: dayEnd },
-        status: { in: ['PENDING', 'CONFIRMED'] },
+        // INTERESTED holds no inventory; PENDING_PAYMENT already
+        // committed to a payment path (like legacy PENDING).
+        status: { in: ['PENDING', 'PENDING_PAYMENT', 'CONFIRMED'] },
       },
       _sum: { guestCount: true },
     });
@@ -140,7 +142,9 @@ export async function checkAvailability(
     where: {
       tourId,
       travelDate: { gte: dayStart, lt: dayEnd },
-      status: { in: ['PENDING', 'CONFIRMED'] },
+      // INTERESTED holds no inventory; PENDING_PAYMENT already
+      // committed to a payment path (like legacy PENDING).
+      status: { in: ['PENDING', 'PENDING_PAYMENT', 'CONFIRMED'] },
     },
     _sum: { guestCount: true },
   });
