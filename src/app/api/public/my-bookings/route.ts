@@ -14,13 +14,43 @@ export const dynamic = 'force-dynamic';
 
 const NO_STORE = { 'cache-control': 'no-store, private' };
 
+// Page size for GET /api/public/my-bookings. The list used to return every
+// booking the customer ever had in one response; cursor pagination keeps
+// each response small and lets the client fetch more pages on demand.
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 50;
+
+/** Pick the tour title for one language out of the stored translations map. */
+function getLocalizedTourTitle(translations: unknown, lang: string): string {
+  if (typeof translations === 'object' && translations !== null) {
+    const t = translations as Record<string, { title?: string }>;
+    for (const key of [lang, 'en']) {
+      if (t[key]?.title) return t[key].title!;
+    }
+  }
+  return 'Tour Experience';
+}
+
 /**
  * GET /api/public/my-bookings
- * Returns all bookings and reservations for the authenticated customer.
+ * Returns bookings and reservations for the authenticated customer.
  * Reads the HTTP-only talago_session cookie or Authorization header.
+ * Bookings are cursor-paginated (?limit=20&cursor=<booking id>) and the
+ * response includes pagination { limit, nextCursor, hasMore }. Each
+ * booking carries only a single-language tourTitle and a
+ * hasPendingCancellationRequest flag — full translations, addons and
+ * booking answers are deferred to the booking detail page.
  */
 export async function GET(request: NextRequest) {
   try {
+    // Cursor pagination: ?limit=20&cursor=<last booking id of previous page>
+    const { searchParams } = new URL(request.url);
+    const requestedLimit = Number(searchParams.get('limit') || DEFAULT_PAGE_SIZE);
+    const pageSize = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(Math.floor(requestedLimit), 1), MAX_PAGE_SIZE)
+      : DEFAULT_PAGE_SIZE;
+    const cursorId = searchParams.get('cursor') || null;
+
     const session = await getSessionFromRequest(request);
     let profile = null;
 
@@ -54,7 +84,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (!profile) {
-      return NextResponse.json({ authenticated: false, bookings: [], reservations: [] }, { status: 200, headers: NO_STORE });
+      return NextResponse.json(
+        { authenticated: false, bookings: [], reservations: [], pagination: { limit: pageSize, nextCursor: null, hasMore: false } },
+        { status: 200, headers: NO_STORE }
+      );
     }
 
     let displayName = profile.name;
@@ -76,20 +109,32 @@ export async function GET(request: NextRequest) {
 
     const emails = [profile.email, session?.email].filter(Boolean) as string[];
 
-    await adoptOwnedBookings({ profileId: profile.id, emails, phones }).catch((error) => {
+    // Compute the visible booking ids ONCE and reuse them for adoption and
+    // for the paged query below. Previously adoptOwnedBookings() ran
+    // listVisibleBookingIds() internally and the route called it again,
+    // so the expensive phone/email lookups ran twice per request
+    // (see src/server/customerBookings.ts).
+    const bookingIds = await listVisibleBookingIds({ profileId: profile.id, emails, phones });
+    const leadIds = await listVisibleLeadIds(emails, phones);
+
+    await adoptOwnedBookings({ profileId: profile.id, emails, phones, bookingIds }).catch((error) => {
       console.warn('[my-bookings] booking adoption warning:', error);
     });
 
-    const [bookingIds, leadIds] = await Promise.all([
-      listVisibleBookingIds({ profileId: profile.id, emails, phones }),
-      listVisibleLeadIds(emails, phones),
-    ]);
+    // Cursor must belong to this customer's visible bookings; otherwise
+    // Prisma would return an empty page (or throw) for a foreign id.
+    const validCursor = cursorId && bookingIds.includes(cursorId) ? cursorId : null;
 
     const [bookings, reservations] = await Promise.all([
       bookingIds.length === 0
         ? Promise.resolve([])
         : prisma.booking.findMany({
         where: { id: { in: bookingIds } },
+        // Cursor pagination: `cursor` needs a unique field, so we page on
+        // the booking id while keeping the travel-date order (id as
+        // tiebreaker so the order is stable across pages).
+        ...(validCursor ? { cursor: { id: validCursor }, skip: 1 } : {}),
+        take: pageSize,
         select: {
           id: true,
           bookingReference: true,
@@ -100,6 +145,7 @@ export async function GET(request: NextRequest) {
           accessToken: true,
           tourId: true,
           status: true,
+          language: true,
           travelDate: true,
           guestCount: true,
           totalPriceUSD: true,
@@ -116,8 +162,14 @@ export async function GET(request: NextRequest) {
           adultsCount: true,
           childrenCount: true,
           infantsCount: true,
-          selectedAddons: true,
           specialRequirements: true,
+          // NOTE: selectedAddons is no longer selected — the list view
+          // never renders it; fetch it on the booking detail page.
+          // bookingAnswers is read server-side ONLY to derive
+          // hasPendingCancellationRequest below and is stripped from the
+          // response; it is never sent to the client. A follow-up
+          // (dedicated cancellation-status column) can remove even
+          // this server-side read.
           bookingAnswers: true,
           reviews: {
             select: { id: true, rating: true },
@@ -125,8 +177,12 @@ export async function GET(request: NextRequest) {
           },
           tour: {
             select: {
-                            slug: true,
+              slug: true,
               coverImage: true,
+              thumbnailUrl: true,
+              // translations is read server-side ONLY to extract the
+              // single-language tourTitle below; the full 8-language
+              // map is never sent to the client any more.
               translations: true,
               durationHours: true,
               freeCancellationHours: true,
@@ -136,7 +192,7 @@ export async function GET(request: NextRequest) {
             select: { status: true },
           },
         },
-        orderBy: { travelDate: 'asc' },
+        orderBy: [{ travelDate: 'asc' }, { id: 'asc' }],
       }).catch((err) => {
         console.error('[my-bookings] bookings query error:', err);
         return [];
@@ -171,17 +227,21 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // Only fetch conversations for the bookings on THIS page, not for
+    // every visible booking. (Previously the OR used the full bookingIds
+    // list even though only one page of bookings was returned.)
+    const pageBookingIds = bookings.map((b) => b.id);
     const bookingRefs = bookings.map((b) => b.bookingReference).filter(Boolean);
     const reservationIds = reservations.map((r) => r.id);
 
     const conversations =
-      bookingRefs.length > 0 || bookingIds.length > 0 || reservationIds.length > 0
+      bookingRefs.length > 0 || pageBookingIds.length > 0 || reservationIds.length > 0
         ? await prisma.liveChatConversation
             .findMany({
               where: {
                 OR: [
                   ...(bookingRefs.length > 0 ? [{ bookingReference: { in: bookingRefs } }] : []),
-                  ...(bookingIds.length > 0 ? [{ bookingId: { in: bookingIds } }] : []),
+                  ...(pageBookingIds.length > 0 ? [{ bookingId: { in: pageBookingIds } }] : []),
                   ...(reservationIds.length > 0 ? [{ leadId: { in: reservationIds } }] : []),
                 ],
               },
@@ -193,7 +253,10 @@ export async function GET(request: NextRequest) {
                 messages: {
                   where: { sender: 'ADMIN' },
                   orderBy: { createdAt: 'desc' },
-                  take: 5,
+                  // Only the latest admin message is rendered, so fetch
+                  // one instead of five. hasUnreadAdminReply below now
+                  // means "the latest admin message is unread".
+                  take: 1,
                   select: {
                     id: true,
                     body: true,
@@ -241,8 +304,30 @@ export async function GET(request: NextRequest) {
       );
       const unread = convo ? convo.messages.some((m) => !m.readAt) : false;
       const lastMsg = convo?.messages[0] || null;
+      // Strip the heavy JSON columns before responding: bookingAnswers
+      // and tour.translations were only needed to derive the two fields
+      // below. The client renders tourTitle + the cancellation flag and
+      // fetches full details (addons, answers) on the detail page.
+      const { bookingAnswers, tour, ...bookingFields } = b as typeof b & {
+        bookingAnswers?: { _cancellationRequest?: { status?: string } } | null;
+        tour?: { translations?: unknown } | null;
+      };
+      const pendingCancellation =
+        (bookingAnswers as { _cancellationRequest?: { status?: string } } | null)
+          ?._cancellationRequest?.status === 'PENDING_REVIEW';
       return {
-        ...b,
+        ...bookingFields,
+        tour: tour
+          ? {
+              slug: tour.slug,
+              coverImage: tour.coverImage,
+              thumbnailUrl: tour.thumbnailUrl,
+              tourTitle: getLocalizedTourTitle(tour.translations, b.language || 'en'),
+              durationHours: tour.durationHours,
+              freeCancellationHours: tour.freeCancellationHours,
+            }
+          : null,
+        hasPendingCancellationRequest: pendingCancellation,
         lastAdminMessage: lastMsg?.body || null,
         lastAdminMessageAt: lastMsg?.createdAt?.toISOString() || null,
         hasUnreadAdminReply: unread,
@@ -264,12 +349,16 @@ export async function GET(request: NextRequest) {
 
     const userPayload = formatUserProfile(effectiveUser, profile, profile.telegramId ? { id: profile.telegramId } as any : null);
 
+    const nextCursor =
+      bookings.length === pageSize ? bookings[bookings.length - 1].id : null;
+
     const response = NextResponse.json(
       {
         authenticated: true,
         user: userPayload,
         bookings: formattedBookings,
         reservations: formattedReservations,
+        pagination: { limit: pageSize, nextCursor, hasMore: nextCursor !== null },
       },
       { headers: NO_STORE }
     );

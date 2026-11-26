@@ -83,7 +83,6 @@ interface BookingItem {
   pickupLocationName?: string | null;
   selectedPickupTime?: string | null;
   pickupDirectives?: string | null;
-  selectedAddons?: any;
   specialRequirements?: string | null;
   totalPriceUSD: number;
   currency: string;
@@ -95,11 +94,19 @@ interface BookingItem {
   tour: {
     slug: string;
     coverImage: string | null;
-    translations: unknown;
+    // Prefer the small thumbnail the API now returns; coverImage is
+    // the fallback for older responses.
+    thumbnailUrl?: string | null;
+    // Single-language title from the API (no full translations map
+    // any more); translations is kept only for backward compat.
+    tourTitle?: string;
+    translations?: unknown;
     durationHours: number | null;
     freeCancellationHours?: number;
   } | null;
-  bookingAnswers?: any;
+  // Set by the API from bookingAnswers server-side; the full answers
+  // JSON is no longer sent to the list view (see /api/public/my-bookings).
+  hasPendingCancellationRequest?: boolean;
   transaction: { status: string } | null;
   lastAdminMessage?: string | null;
   lastAdminMessageAt?: string | null;
@@ -149,7 +156,12 @@ interface ChatMessage {
   readAt?: string | null;
 }
 
-function getTourTitle(translations: unknown, lang = 'en'): string {
+function getTourTitle(
+  tour: { tourTitle?: string; translations?: unknown } | null | undefined,
+  lang = 'en',
+): string {
+  if (tour?.tourTitle) return tour.tourTitle;
+  const translations = tour?.translations;
   if (typeof translations === 'object' && translations !== null) {
     const t = translations as Record<string, { title?: string }>;
     for (const key of [lang, 'en', 'de', 'ru', 'it', 'fr', 'pl', 'es', 'uk']) {
@@ -219,18 +231,34 @@ export default function AccountPage() {
   const [sendingMsg, setSendingMsg] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
-  // Fetch Bookings with single request
+  // Fetch Bookings. The API now paginates (20 per page, cursor), so walk
+  // the pages until nextCursor is null — the account view still shows
+  // the customer's full list, but no single response is huge any more.
+  // Capped at 10 pages (200 bookings) as a safety net.
   const loadBookings = useCallback(async () => {
     try {
-      const res = await fetch('/api/public/my-bookings', {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      if (res.ok) {
+      const allBookings: BookingItem[] = [];
+      let allReservations: ReservationItem[] = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < 10; page++) {
+        const url = cursor
+          ? `/api/public/my-bookings?cursor=${encodeURIComponent(cursor)}`
+          : '/api/public/my-bookings';
+        const res = await fetch(url, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        if (!res.ok) break;
         const data = await res.json();
-        setBookings(Array.isArray(data.bookings) ? data.bookings : []);
-        setReservations(Array.isArray(data.reservations) ? data.reservations : []);
+        if (Array.isArray(data.bookings)) allBookings.push(...data.bookings);
+        if (page === 0 && Array.isArray(data.reservations)) {
+          allReservations = data.reservations;
+        }
+        cursor = data.pagination?.nextCursor || null;
+        if (!cursor) break;
       }
+      setBookings(allBookings);
+      setReservations(allReservations);
     } catch (e) {
       console.warn('Failed to load bookings:', e);
     }
@@ -701,7 +729,7 @@ export default function AccountPage() {
               {upcomingBookings.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {upcomingBookings.slice(0, 2).map((booking) => {
-                    const title = getTourTitle(booking.tour?.translations, language);
+                    const title = getTourTitle(booking.tour, language);
                     return (
                       <div
                         key={booking.id}
@@ -733,7 +761,7 @@ export default function AccountPage() {
                             </span>
                           </div>
                           {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && (new Date(booking.travelDate) >= new Date()) && (
-                            booking.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW' ? (
+                            booking.hasPendingCancellationRequest ? (
                               <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs font-bold text-amber-300">
                                 <Clock className="h-3.5 w-3.5" />
                                 <span>Cancellation Pending</span>
@@ -789,7 +817,7 @@ export default function AccountPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {bookings.slice(0, 2).map((booking) => {
-                      const title = getTourTitle(booking.tour?.translations, language);
+                      const title = getTourTitle(booking.tour, language);
                       return (
                         <div
                           key={booking.id}
@@ -974,8 +1002,8 @@ export default function AccountPage() {
 
             {displayedBookings.length > 0 ? (
               <div className="space-y-4">
-                {displayedBookings.map((booking) => {
-                  const title = getTourTitle(booking.tour?.translations, language);
+                {displayedBookings.map((booking, index) => {
+                  const title = getTourTitle(booking.tour, language);
                   const isPast = new Date(booking.travelDate) < now;
                   return (
                     <div
@@ -984,12 +1012,17 @@ export default function AccountPage() {
                     >
                       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                         <div className="flex items-start gap-4 min-w-0">
-                          {booking.tour?.coverImage ? (
+                          {booking.tour?.thumbnailUrl || booking.tour?.coverImage ? (
                             <div className="relative h-20 w-24 rounded-2xl overflow-hidden shrink-0 border border-white/10 bg-slate-900">
                               <Image
-                                src={booking.tour.coverImage}
+                                src={booking.tour.thumbnailUrl || booking.tour.coverImage!}
                                 alt={title}
                                 fill
+                                // Card thumb is 96px wide: ask for that size
+                                // instead of the full original, and lazy-load
+                                // every card below the first one.
+                                sizes="96px"
+                                loading={index === 0 ? 'eager' : 'lazy'}
                                 className="object-cover"
                               />
                             </div>
@@ -1056,7 +1089,7 @@ export default function AccountPage() {
                           </button>
 
                                                     {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && !isPast && (
-                            booking.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW' ? (
+                            booking.hasPendingCancellationRequest ? (
                               <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs font-bold text-amber-300">
                                 <Clock className="h-3.5 w-3.5" />
                                 <span>Cancellation Pending</span>
@@ -1832,7 +1865,7 @@ export default function AccountPage() {
             bookingReference: cancelTargetBooking.bookingReference,
             accessToken: cancelTargetBooking.accessToken,
             travelDate: cancelTargetBooking.travelDate,
-            tourTitle: getTourTitle(cancelTargetBooking.tour?.translations, language),
+            tourTitle: getTourTitle(cancelTargetBooking.tour, language),
             freeCancellationHours: cancelTargetBooking.tour?.freeCancellationHours ?? 24,
           }}
           onSuccess={(newReq) => {
@@ -1841,10 +1874,7 @@ export default function AccountPage() {
                 b.id === cancelTargetBooking.id
                   ? {
                       ...b,
-                      bookingAnswers: {
-                        ...(b.bookingAnswers || {}),
-                        _cancellationRequest: newReq,
-                      },
+                      hasPendingCancellationRequest: true,
                     }
                   : b
               )
