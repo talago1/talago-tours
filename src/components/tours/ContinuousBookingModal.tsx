@@ -181,7 +181,10 @@ export default function ContinuousBookingModal({
     amountDueOnArrival: number;
     scheme: string;
   } | null>(null);
-  const [preliminaryLeadId, setPreliminaryLeadId] = useState<string | null>(null);
+  // The single INTERESTED booking created by /api/public/booking-interest
+  // for this attempt. Its id is passed as reservationId to
+  // /api/checkout/initialize, which resumes the same row.
+  const [preliminaryBookingId, setPreliminaryBookingId] = useState<string | null>(null);
   const [preliminaryReference, setPreliminaryReference] = useState<string | null>(null);
   const [bookingAnswers, setBookingAnswers] = useState<Record<string, any>>({});
 
@@ -268,12 +271,17 @@ export default function ContinuousBookingModal({
         setPaymentScheme(PaymentScheme.DEPOSIT_ONLINE);
       }
 
-      // Authoritative authenticated customer recognition & preliminary hold request
+      // Authoritative authenticated customer recognition & preliminary booking request
+      // One Book click = one INTERESTED booking (Stage A). A travel date is
+      // required to create it — without one (fresh modal, no date picked
+      // yet) creation waits for step 1, where a date is mandatory.
+      // The stable attempt key makes a modal reopen resume the same booking.
       (async () => {
+        if (!initialDate) return;
         const currentU = authUser;
         const tokenToUse = centralSessionToken;
 
-        // Immediately register visible preliminary booking request (Stage A: Spots held, no inventory deducted)
+        // Immediately register the preliminary booking (Stage A: no inventory deducted)
         try {
           const interestHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
           if (tokenToUse) interestHeaders['Authorization'] = `Bearer ${tokenToUse}`;
@@ -284,7 +292,8 @@ export default function ContinuousBookingModal({
             body: JSON.stringify({
               tourId: tour.id,
               tourSlug: tour.slug,
-              travelDate: initialDate || undefined,
+              attemptId: ensureIdempotencyKey(),
+              travelDate: initialDate,
               adults: initialAdults || 1,
               children: initialChildren || 0,
               totalEstimatedPrice: effectiveAdultPrice * (initialAdults || 1),
@@ -297,9 +306,10 @@ export default function ContinuousBookingModal({
           });
           if (res.ok) {
             const resData = await res.json();
-            if (resData?.leadId) {
-              setPreliminaryLeadId(resData.leadId);
-              setPreliminaryReference(resData.reservationReference);
+            const bookingId = resData?.bookingId ?? resData?.leadId;
+            if (bookingId) {
+              setPreliminaryBookingId(bookingId);
+              setPreliminaryReference(resData.reservationReference || resData.bookingReference);
             }
           }
         } catch {}
@@ -353,13 +363,13 @@ export default function ContinuousBookingModal({
     return { amountPaidOnline: 0, amountDueOnArrival: grandTotal };
   }, [paymentScheme, grandTotal, depositPct]);
 
-  // Await the in-flight preliminary-lead sync (or start one) and return
-  // its lead id. Dedupes concurrent callers so step-2 validation and
-  // submit never create two leads for the same attempt.
-  const preliminaryLeadSyncRef = React.useRef<Promise<string | null> | null>(null);
-  const ensurePreliminaryLead = async (): Promise<string | null> => {
-    if (preliminaryLeadId) return preliminaryLeadId;
-    if (preliminaryLeadSyncRef.current) return preliminaryLeadSyncRef.current;
+  // Await the in-flight preliminary-booking sync (or start one) and
+  // return its booking id. Dedupes concurrent callers so step-2
+  // validation and submit never create two bookings for the same attempt.
+  const preliminaryBookingSyncRef = React.useRef<Promise<string | null> | null>(null);
+  const ensurePreliminaryBooking = async (): Promise<string | null> => {
+    if (preliminaryBookingId) return preliminaryBookingId;
+    if (preliminaryBookingSyncRef.current) return preliminaryBookingSyncRef.current;
     const promise = (async (): Promise<string | null> => {
       try {
         const res = await fetch('/api/public/booking-interest', {
@@ -386,19 +396,20 @@ export default function ContinuousBookingModal({
         });
         if (!res.ok) return null;
         const resData = await res.json();
-        if (resData?.leadId) {
-          setPreliminaryLeadId(resData.leadId);
-          setPreliminaryReference(resData.reservationReference);
-          return resData.leadId as string;
+        const bookingId = resData?.bookingId ?? resData?.leadId;
+        if (bookingId) {
+          setPreliminaryBookingId(bookingId);
+          setPreliminaryReference(resData.reservationReference || resData.bookingReference);
+          return bookingId as string;
         }
         return null;
       } catch {
         return null;
       } finally {
-        preliminaryLeadSyncRef.current = null;
+        preliminaryBookingSyncRef.current = null;
       }
     })();
-    preliminaryLeadSyncRef.current = promise;
+    preliminaryBookingSyncRef.current = promise;
     return promise;
   };
 
@@ -418,11 +429,11 @@ export default function ContinuousBookingModal({
         errs.phone = 'Valid phone number is required';
       }
       if (Object.keys(errs).length === 0) {
-        // Start (but don't block step navigation on) the preliminary-lead
+        // Start (but don't block step navigation on) the preliminary-booking
         // sync with the completed contact details. Submit awaits the
         // same in-flight promise, so the confirmation is never sent
-        // before the lead id is known.
-        void ensurePreliminaryLead();
+        // before the booking id is known.
+        void ensurePreliminaryBooking();
       }
     }
 
@@ -493,15 +504,16 @@ export default function ContinuousBookingModal({
 
     const idempotencyKey = ensureIdempotencyKey();
 
-    // Do not confirm before the preliminary lead is known: await the
+    // Do not confirm before the preliminary booking is known: await the
     // step-2 sync (deduplicated) so reservationId is set, instead of
-    // submitting with reservationId: undefined and orphaning the lead.
-    const confirmedLeadId = await ensurePreliminaryLead();
+    // submitting with reservationId: undefined and creating a second
+    // booking next to the INTERESTED one.
+    const confirmedBookingId = await ensurePreliminaryBooking();
 
     try {
       const payload = {
         tourId: tour.id,
-        reservationId: confirmedLeadId ?? preliminaryLeadId ?? undefined,
+        reservationId: confirmedBookingId ?? preliminaryBookingId ?? undefined,
         attemptId: idempotencyKey,
         idempotencyKey,
         departureDate,
@@ -675,9 +687,9 @@ export default function ContinuousBookingModal({
               <div className="mt-2.5 flex items-center justify-center gap-2">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Hold Ref: {preliminaryReference}
+                  Booking Ref: {preliminaryReference}
                 </span>
-                <span className="text-[10px] text-slate-400">Spot held during booking</span>
+                <span className="text-[10px] text-slate-400">Your booking is started</span>
               </div>
             )}
           </div>
