@@ -16,10 +16,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { BookingStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 
-const PENDING_STATUSES = ['PENDING', 'DEPOSIT_PAID'];
-const CONFIRMED_STATUSES = ['CONFIRMED', 'PAID'];
+const ACTIVE_BOOKING_STATUSES: BookingStatus[] = [
+  BookingStatus.PENDING,
+  BookingStatus.CONFIRMED,
+];
 
 export async function GET(
   _request: NextRequest,
@@ -73,7 +76,7 @@ export async function GET(
     where: {
       tourId,
       travelDate: { gte: startDate, lt: endDate },
-      status: { in: [...PENDING_STATUSES, ...CONFIRMED_STATUSES] as any },
+      status: { in: ACTIVE_BOOKING_STATUSES },
     },
     _sum: { guestCount: true },
   });

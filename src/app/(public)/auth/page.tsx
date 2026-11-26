@@ -85,10 +85,14 @@ function AuthPageContent() {
 
   const targetReturn = safeReturnTarget(searchParams.get('returnTo'));
 
-  // Initialize mode from query param
+  // Initialize mode and prefill email from query params
   useEffect(() => {
     if (searchParams.get('mode') === 'register') {
       setMode('REGISTER');
+    }
+    const prefillEmail = searchParams.get('email');
+    if (prefillEmail) {
+      setEmail(prefillEmail);
     }
     const err = searchParams.get('error');
     if (err) {

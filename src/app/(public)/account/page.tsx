@@ -331,6 +331,15 @@ export default function AccountPage() {
     }
   };
 
+  // Kick off bookings fetch immediately on mount in parallel with /api/auth/session
+  // (avoids serial auth -> bookings waterfall)
+  const initialBookingsFetchRef = useRef(false);
+  useEffect(() => {
+    if (initialBookingsFetchRef.current) return;
+    initialBookingsFetchRef.current = true;
+    void loadBookings();
+  }, [loadBookings]);
+
   // Synchronize immediately with central useAuth state
   useEffect(() => {
     if (authLoading) return;
@@ -340,7 +349,6 @@ export default function AccountPage() {
       setEditName(authUser.name || '');
       setEditPhone(authUser.phone || authUser.telegramPhone || '');
       setLoading(false);
-      loadBookings();
     } else {
       setAuthenticated(false);
       setUserProfile(null);
@@ -348,7 +356,7 @@ export default function AccountPage() {
       setReservations([]);
       setLoading(false);
     }
-  }, [authLoading, isAuthenticated, authUser, loadBookings]);
+  }, [authLoading, isAuthenticated, authUser]);
 
   const fetchChatMessages = useCallback(async (refOverride?: string | null) => {
     const bookingRef = refOverride !== undefined ? refOverride : selectedChatBookingRef;

@@ -43,7 +43,7 @@ import { DEFAULT_TOUR_SERVICES } from '@/types/services';
 import TourCard from '@/components/public/TourCard';
 import dynamic from 'next/dynamic';
 
-const ContinuousBookingModal = dynamic(() => import('@/components/tours/ContinuousBookingModal'), {
+const DirectBookingDetailsModal = dynamic(() => import('@/components/tours/DirectBookingDetailsModal'), {
   ssr: false,
 });
 const AskQuestionModal = dynamic(() => import('@/components/modals/AskQuestionModal'), {
@@ -678,6 +678,477 @@ function SidebarStepper({
   );
 }
 
+function toLocalDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function InPageBookingSection({
+  tour,
+  dict,
+  language,
+  formatPrice,
+  selectedDate,
+  setSelectedDate,
+  selectedTime,
+  setSelectedTime,
+  adultsCount,
+  setAdultsCount,
+  childrenCount,
+  setChildrenCount,
+  infantsCount,
+  setInfantsCount,
+  selectedAddons,
+  toggleAddon,
+  onBook,
+  onAsk,
+  pricePerAdult,
+  effectiveChildPrice,
+  effectiveInfantPrice,
+  totalPrice,
+  dateAvailability,
+  dateAvailLoading,
+  monthAvailability,
+  onMonthChange,
+  stripStartDay,
+  setStripStartDay,
+}: {
+  tour: TourData;
+  dict: any;
+  language: string;
+  formatPrice: (val: number, opts?: any) => string;
+  selectedDate: string;
+  setSelectedDate: (d: string) => void;
+  selectedTime: string;
+  setSelectedTime: (t: string) => void;
+  adultsCount: number;
+  setAdultsCount: (n: number) => void;
+  childrenCount: number;
+  setChildrenCount: (n: number) => void;
+  infantsCount: number;
+  setInfantsCount: (n: number) => void;
+  selectedAddons: Record<string, boolean>;
+  toggleAddon: (id: string) => void;
+  onBook: () => void;
+  onAsk: () => void;
+  pricePerAdult: number;
+  effectiveChildPrice: number | null;
+  effectiveInfantPrice: number | null;
+  totalPrice: number;
+  dateAvailability: { status: string; remaining: number; adultPrice?: number } | null;
+  dateAvailLoading: boolean;
+  monthAvailability: Record<string, { status: string; remaining: number }>;
+  onMonthChange: (year: number, month: number) => void;
+  stripStartDay: Date;
+  setStripStartDay: (d: Date) => void;
+}) {
+  const cutoffMs = (tour.cutoffHours ?? 12) * 3_600_000;
+  const minDateObj = new Date(Date.now() + cutoffMs);
+  minDateObj.setHours(0, 0, 0, 0);
+  const minDateStr = toLocalDateStr(minDateObj);
+  const payingGuests = adultsCount + childrenCount;
+  const addonsTotal = (tour.tourOptions || []).reduce((sum, opt) => {
+    if (!selectedAddons[opt.id]) return sum;
+    return sum + (opt.priceType === 'per_person' ? opt.price * payingGuests : opt.price);
+  }, 0);
+  const totalGuests = adultsCount + childrenCount + infantsCount;
+  const avStatus = dateAvailability?.status;
+
+  // Build 6 rectangular date tiles (5 visible on narrow mobile, 6 on sm+)
+  const tiles: Date[] = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(stripStartDay);
+    d.setDate(d.getDate() + i);
+    tiles.push(d);
+  }
+
+  const canGoBack = toLocalDateStr(stripStartDay) > minDateStr;
+
+  const goBack = () => {
+    if (!canGoBack) return;
+    const prev = new Date(stripStartDay);
+    prev.setDate(prev.getDate() - 5);
+    if (prev < minDateObj) {
+      setStripStartDay(new Date(minDateObj));
+      onMonthChange(minDateObj.getFullYear(), minDateObj.getMonth() + 1);
+      return;
+    }
+    setStripStartDay(prev);
+    onMonthChange(prev.getFullYear(), prev.getMonth() + 1);
+  };
+
+  const goForward = () => {
+    const next = new Date(stripStartDay);
+    next.setDate(next.getDate() + 5);
+    setStripStartDay(next);
+    onMonthChange(next.getFullYear(), next.getMonth() + 1);
+    const last = new Date(next);
+    last.setDate(last.getDate() + 5);
+    onMonthChange(last.getFullYear(), last.getMonth() + 1);
+  };
+
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  const [dateError, setDateError] = useState(false);
+
+  const handleBookClick = () => {
+    if (!selectedDate) {
+      setDateError(true);
+      document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    setDateError(false);
+    onBook();
+  };
+
+  return (
+    <section
+      id="booking-section"
+      aria-label="Tour Booking"
+      className="my-12 scroll-mt-24 rounded-3xl border border-[#00E5FF]/20 bg-gradient-to-b from-[#0D1B35]/95 to-[#081224]/95 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-8"
+    >
+      {/* Section Header */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#00E5FF]">
+            {(dict.tourDetails as any)?.bookExperience || 'Book This Experience'}
+          </p>
+          <h2 className="mt-1 flex items-center gap-2 text-2xl font-black text-white">
+            <CalendarDays className="h-6 w-6 text-[#00E5FF]" />
+            {(dict.tourDetails as any)?.selectDate || 'Select Date & Guests'}
+          </h2>
+        </div>
+        {pricePerAdult > 0 ? (
+          <div className="text-left sm:text-right">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{dict.tourDetails.from}</span>
+            <p className="text-2xl font-black text-white">
+              {formatPrice(pricePerAdult, { round: true })}
+              <span className="ml-1.5 text-xs font-normal text-slate-400">{dict.tourDetails.perPerson}</span>
+            </p>
+          </div>
+        ) : (
+          <span className="text-base font-black text-amber-400">Price on request</span>
+        )}
+      </div>
+
+      {/* A. Horizontal Date Selector (5–6 rectangular tiles + prev/next) */}
+      <div className="mb-7">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-sm font-bold text-slate-200">
+            {dict.checkout?.departureDate || 'Choose a Date'}
+          </p>
+          {selectedDate && (
+            <span className="text-xs font-bold text-[#00E5FF]">{selectedDate}</span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={goBack}
+            disabled={!canGoBack}
+            aria-label="Previous dates"
+            className="flex h-11 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF] disabled:cursor-not-allowed disabled:opacity-30 sm:w-10"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          <div className="grid flex-1 grid-cols-5 gap-1.5 sm:grid-cols-6 sm:gap-2">
+            {tiles.map((date, i) => {
+              const dateStr = toLocalDateStr(date);
+              const isPast = dateStr < minDateStr;
+              const avData = monthAvailability[dateStr];
+              const isUnavailable = !isPast && avData && avData.status !== 'AVAILABLE';
+              const isAvailable = !isPast && avData && avData.status === 'AVAILABLE';
+              const isSelected = dateStr === selectedDate;
+              const showMonth = i === 0 || date.getDate() === 1;
+
+              return (
+                <button
+                  key={dateStr}
+                  type="button"
+                  data-date-tile={dateStr}
+                  aria-pressed={isSelected}
+                  onClick={() => {
+                    if (!isPast && !isUnavailable) {
+                      setDateError(false);
+                      setSelectedDate(dateStr);
+                    }
+                  }}
+                  disabled={isPast || !!isUnavailable}
+                  className={`${i === 5 ? 'hidden sm:flex' : 'flex'} min-w-0 flex-col items-center justify-center rounded-xl border px-1 py-3 text-center transition-all ${
+                    isSelected
+                      ? 'border-[#00E5FF] bg-[#00E5FF]/20 text-[#00E5FF] ring-2 ring-[#00E5FF]/30 shadow-lg shadow-[#00E5FF]/15'
+                      : isPast
+                      ? 'cursor-not-allowed border-white/5 bg-white/[0.01] text-slate-600 opacity-30'
+                      : isUnavailable
+                      ? 'cursor-not-allowed border-white/5 bg-white/[0.01] text-slate-500 opacity-40 line-through'
+                      : 'cursor-pointer border-white/15 bg-white/[0.04] text-slate-100 hover:border-[#00E5FF]/50 hover:bg-[#00E5FF]/10'
+                  }`}
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-wider opacity-75">
+                    {DAY_NAMES[date.getDay()]}
+                  </span>
+                  <span className="my-0.5 text-lg font-black leading-none sm:text-xl">
+                    {date.getDate()}
+                  </span>
+                  <span className="h-3.5 text-[10px] font-semibold uppercase opacity-70">
+                    {showMonth ? MONTH_NAMES[date.getMonth()] : ''}
+                  </span>
+                  {isAvailable && avData.remaining !== undefined && avData.remaining <= 5 && avData.remaining > 0 && !isSelected && (
+                    <span className="mt-0.5 text-[9px] font-bold text-amber-400">{avData.remaining} left</span>
+                  )}
+                  {isAvailable && !isSelected && (avData.remaining === undefined || avData.remaining > 5) && (
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  )}
+                  {isUnavailable && (
+                    <span className="mt-0.5 text-[9px] font-bold text-rose-400">Full</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={goForward}
+            aria-label="Next dates"
+            className="flex h-11 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF] sm:w-10"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Availability status for selected date */}
+        {selectedDate && !dateAvailLoading && dateAvailability && (
+          <div
+            className={`mt-3 flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold ${
+              avStatus === 'AVAILABLE'
+                ? dateAvailability.remaining !== null && dateAvailability.remaining <= 5
+                  ? 'border border-amber-500/30 bg-amber-900/20 text-amber-300'
+                  : 'border border-emerald-500/30 bg-emerald-900/20 text-emerald-300'
+                : 'border border-rose-500/30 bg-rose-900/20 text-rose-300'
+            }`}
+          >
+            {avStatus === 'AVAILABLE' ? (
+              dateAvailability.remaining !== null && dateAvailability.remaining <= 5 ? (
+                <><AlertCircle className="h-3.5 w-3.5 shrink-0" /> Only {dateAvailability.remaining} spot{dateAvailability.remaining === 1 ? '' : 's'} left!</>
+              ) : (
+                <><CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Available — {dateAvailability.remaining !== null ? `${dateAvailability.remaining} spots` : 'open'}</>
+              )
+            ) : avStatus === 'SOLD_OUT' ? (
+              <><AlertCircle className="h-3.5 w-3.5 shrink-0" /> Fully booked on this date</>
+            ) : (
+              <><AlertCircle className="h-3.5 w-3.5 shrink-0" /> Not available on this date</>
+            )}
+          </div>
+        )}
+        {dateAvailLoading && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-[#00E5FF]" /> Checking availability…
+          </div>
+        )}
+      </div>
+
+      {/* B. Booking Options */}
+      {/* B1. Departure Times (only if configured for this tour) */}
+      {tour.pickupTimes && tour.pickupTimes.length > 0 && (
+        <div className="mb-6">
+          <p className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-200">
+            <Clock className="h-4 w-4 text-[#00E5FF]" />
+            {dict.checkout?.pickupTime || 'Departure Time'}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {tour.pickupTimes.map((timeSlot) => (
+              <button
+                key={timeSlot}
+                type="button"
+                onClick={() => setSelectedTime(timeSlot)}
+                className={`flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
+                  selectedTime === timeSlot
+                    ? 'border-[#00E5FF] bg-[#00E5FF]/15 text-[#00E5FF] shadow-sm shadow-[#00E5FF]/20'
+                    : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-[#00E5FF]/30 hover:bg-[#00E5FF]/5'
+                }`}
+              >
+                <Clock className="h-3.5 w-3.5" />
+                {timeSlot}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* B2. Participants */}
+      <div className="mb-6">
+        <p className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-200">
+          <Users className="h-4 w-4 text-[#00E5FF]" />
+          {dict.tourDetails.guests}
+        </p>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4">
+          <SidebarStepper
+            label={dict.tourDetails.adults}
+            sublabel={dict.tourDetails.ageAdult}
+            priceLabel={`${formatPrice(pricePerAdult, { round: true })} ${dict.tourDetails.perPerson}`}
+            icon={UserRound}
+            iconBg="bg-[#00E5FF]/10 text-[#00E5FF]"
+            value={adultsCount}
+            onChange={setAdultsCount}
+            min={1}
+          />
+          <SidebarStepper
+            label={dict.tourDetails.children}
+            sublabel={dict.tourDetails.ageChild}
+            priceLabel={
+              effectiveChildPrice
+                ? `${formatPrice(effectiveChildPrice, { round: true })} ${dict.tourDetails.perChild}`
+                : dict.tourDetails.sameAsAdult
+            }
+            icon={Users}
+            iconBg="bg-blue-500/10 text-blue-400"
+            value={childrenCount}
+            onChange={setChildrenCount}
+          />
+          <SidebarStepper
+            label={dict.tourDetails.infants}
+            sublabel={dict.tourDetails.ageInfant}
+            priceLabel={
+              effectiveInfantPrice
+                ? `${formatPrice(effectiveInfantPrice, { round: true })} ${dict.tourDetails.perInfant}`
+                : dict.tourDetails.free
+            }
+            icon={Baby}
+            iconBg="bg-purple-500/10 text-purple-400"
+            value={infantsCount}
+            onChange={setInfantsCount}
+          />
+        </div>
+      </div>
+
+      {/* B3. Tour-specific Add-ons (only if configured) */}
+      {tour.tourOptions && tour.tourOptions.filter((o) => o.enabled !== false).length > 0 && (
+        <div className="mb-6">
+          <p className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-200">
+            <Sparkles className="h-4 w-4 text-[#FFD700]" />
+            Add-ons &amp; Upgrades
+          </p>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {tour.tourOptions
+              .filter((o) => o.enabled !== false)
+              .map((opt) => {
+                const isSelected = !!selectedAddons[opt.id];
+                const label = opt.labels?.[language] || opt.labels?.['en'] || opt.title || opt.name || 'Option';
+                const desc = opt.descriptions?.[language] || opt.descriptions?.['en'] || opt.description || '';
+                const addonPrice = opt.priceType === 'per_person' ? opt.price * payingGuests : opt.price;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => toggleAddon(opt.id)}
+                    className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-all ${
+                      isSelected ? 'border-[#00E5FF]/50 bg-[#00E5FF]/10' : 'border-white/10 bg-white/[0.03] hover:border-white/20'
+                    }`}
+                  >
+                    <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${isSelected ? 'border-[#00E5FF] bg-[#00E5FF]' : 'border-white/20 bg-white/5'}`}>
+                      {isSelected && <Check className="h-3 w-3 text-[#070F1E]" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-bold ${isSelected ? 'text-[#00E5FF]' : 'text-slate-200'}`}>{label}</p>
+                      {desc && <p className="mt-0.5 line-clamp-2 text-xs text-slate-400">{desc}</p>}
+                      <p className="mt-1 text-[10px] text-slate-500">
+                        {opt.priceType === 'per_person' ? `Per guest × ${payingGuests}` : 'Per booking'}
+                      </p>
+                    </div>
+                    <p className={`shrink-0 text-sm font-bold ${isSelected ? 'text-[#00E5FF]' : 'text-white'}`}>
+                      {addonPrice > 0 ? `+${formatPrice(addonPrice, { round: true })}` : 'Included'}
+                    </p>
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* C. Live Price Calculation */}
+      <div className="mb-6 space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-300">
+            {formatPrice(pricePerAdult, { round: true })} × {adultsCount} {dict.tourDetails.adults?.toLowerCase()}
+          </span>
+          <span className="font-bold text-white">{formatPrice(pricePerAdult * adultsCount, { round: true })}</span>
+        </div>
+        {childrenCount > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-300">
+              {formatPrice(effectiveChildPrice ?? pricePerAdult, { round: true })} × {childrenCount} {dict.tourDetails.children?.toLowerCase()}
+            </span>
+            <span className="font-bold text-white">{formatPrice((effectiveChildPrice ?? pricePerAdult) * childrenCount, { round: true })}</span>
+          </div>
+        )}
+        {infantsCount > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-300">
+              {infantsCount} {dict.tourDetails.infants?.toLowerCase()} · {effectiveInfantPrice ? formatPrice(effectiveInfantPrice, { round: true }) : dict.tourDetails.free}
+            </span>
+            <span className="font-bold text-white">
+              {effectiveInfantPrice ? formatPrice(effectiveInfantPrice * infantsCount, { round: true }) : formatPrice(0, { round: true })}
+            </span>
+          </div>
+        )}
+        {addonsTotal > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-300">Add-ons</span>
+            <span className="font-bold text-white">+{formatPrice(addonsTotal, { round: true })}</span>
+          </div>
+        )}
+        <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-3">
+          <span className="text-base font-black text-white">
+            {dict.tourDetails.total} · {totalGuests} {dict.tourDetails.guests?.toLowerCase()}
+          </span>
+          <span data-testid="booking-total-price" className="text-2xl font-black text-[#00E5FF]">
+            {formatPrice(totalPrice, { round: true })}
+          </span>
+        </div>
+      </div>
+
+      {/* D. Book Button + Separate Ask a Question */}
+      {dateError && !selectedDate && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5 text-xs font-bold text-amber-300">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>Please select an available date above to continue.</span>
+        </div>
+      )}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <button
+          type="button"
+          onClick={handleBookClick}
+          disabled={!pricePerAdult || pricePerAdult <= 0}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-6 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.01] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {pricePerAdult > 0
+            ? dict.tourDetails.bookNow || 'Book Now'
+            : 'Pricing Confirmation Required'} <span aria-hidden="true">→</span>
+        </button>
+        <button
+          type="button"
+          onClick={onAsk}
+          className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-5 py-4 text-xs font-bold text-slate-200 transition hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/10 hover:text-[#00E5FF] sm:w-auto"
+        >
+          <MessageSquare className="h-4 w-4 text-[#00E5FF]" />
+          <span>Ask a Question</span>
+        </button>
+      </div>
+
+      <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-400">
+        <ShieldCheck className="h-4 w-4 text-emerald-400" />
+        {dict.tourDetails.secureBooking}
+      </div>
+    </section>
+  );
+}
+
 export default function TourDetailsClient({ tour, reviews, relatedTours = [], modules }: Props) {
   const router = useRouter();
   const { dict, language } = useLanguage();
@@ -696,6 +1167,35 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
     adultPrice?: number;
   } | null>(null);
   const [dateAvailLoading, setDateAvailLoading] = useState(false);
+  const [monthAvailability, setMonthAvailability] = useState<Record<string, { status: string; remaining: number }>>({});
+  const loadedMonthsRef = useRef<Set<string>>(new Set());
+  const [stripStartDay, setStripStartDay] = useState<Date>(() => {
+    const cutoffMs = (tour.cutoffHours ?? 12) * 3_600_000;
+    const minDate = new Date(Date.now() + cutoffMs);
+    minDate.setHours(0, 0, 0, 0);
+    return minDate;
+  });
+
+  const loadMonthAvailability = useCallback((year: number, month: number) => {
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    if (loadedMonthsRef.current.has(key) || !tour.id) return;
+    loadedMonthsRef.current.add(key);
+    fetch(`/api/public/tours/${tour.id}/availability?month=${key}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && typeof data === 'object') {
+          setMonthAvailability((prev) => ({ ...prev, ...data }));
+        }
+      })
+      .catch(() => {});
+  }, [tour.id]);
+
+  useEffect(() => {
+    const now = new Date();
+    loadMonthAvailability(now.getFullYear(), now.getMonth() + 1);
+    const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    loadMonthAvailability(next.getFullYear(), next.getMonth() + 1);
+  }, [loadMonthAvailability]);
 
   useEffect(() => {
     if (!selectedDate || !tour.id) {
@@ -984,11 +1484,11 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
         category={tour.category}
       />
 
-      {/* Main Content Grid */}
-      <div className="mx-auto max-w-7xl px-5 pb-24 lg:px-10">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_420px] mt-6 lg:-mt-32 relative z-10">
-          {/* ----- LEFT: Main Content ----- */}
-          <div>
+      {/* Main Content Container (Centered so floating side card never overlaps content) */}
+      <div className="mx-auto max-w-4xl px-5 pb-20 lg:px-10">
+        <div className="relative z-10 mt-6 lg:-mt-28">
+          {/* ----- Main Content ----- */}
+          <div className="min-w-0">
             {/* Title & Meta */}
             <div className="mb-8">
               <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -1540,6 +2040,41 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
                 </Accordion>
               )}
 
+            </div>
+
+            {/* ── In-Page Booking Section (Natural mid-page position after tour details & inclusions) ── */}
+            <InPageBookingSection
+              tour={tour}
+              dict={dict}
+              language={language}
+              formatPrice={formatPrice}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedTime={selectedTime}
+              setSelectedTime={setSelectedTime}
+              adultsCount={adultsCount}
+              setAdultsCount={setAdultsCount}
+              childrenCount={childrenCount}
+              setChildrenCount={setChildrenCount}
+              infantsCount={infantsCount}
+              setInfantsCount={setInfantsCount}
+              selectedAddons={selectedAddons}
+              toggleAddon={toggleAddon}
+              onBook={() => void startReservation('IN_PAGE_BOOKING_SECTION')}
+              onAsk={() => setQuestionModalOpen(true)}
+              pricePerAdult={pricePerAdult}
+              effectiveChildPrice={effectiveChildPrice}
+              effectiveInfantPrice={effectiveInfantPrice}
+              totalPrice={totalPrice}
+              dateAvailability={dateAvailability}
+              dateAvailLoading={dateAvailLoading}
+              monthAvailability={monthAvailability}
+              onMonthChange={loadMonthAvailability}
+              stripStartDay={stripStartDay}
+              setStripStartDay={setStripStartDay}
+            />
+
+            <div className="divide-y divide-white/10 border-t border-white/10">
               {/* Cancellation & Refund Policy */}
               <Accordion title={dict.tourDetails.freeCancellation ? `${dict.tourDetails.freeCancellation} & Policy` : 'Cancellation & Refund Policy'} defaultOpen>
                 <div className="space-y-4">
@@ -1700,395 +2235,6 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
             </Accordion>
           </div>
         </div>
-
-          {/* ----- RIGHT: Desktop Booking Widget + Payment Action Drawer ----- */}
-          <aside className="hidden lg:block">
-            <div className="sticky top-44 rounded-[2rem] border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] p-6 shadow-2xl shadow-black/20 backdrop-blur-xl">
-              {/* Price */}
-              <div className="mb-6">
-                <p className="text-sm font-black uppercase tracking-[0.22em] text-slate-500">{dict.tourDetails.from}</p>
-                <div className="mt-1 flex flex-wrap items-baseline gap-2">
-                  {pricePerAdult > 0 ? (
-                    <span className="text-4xl font-black text-white">{formatPrice(pricePerAdult, { round: true })}</span>
-                  ) : (
-                    <span className="text-2xl font-black text-amber-400">Price on request</span>
-                  )}
-                  {tour.originalPrice && pricePerAdult > 0 && tour.originalPrice > pricePerAdult && (
-                    <>
-                      <span className="text-base font-bold text-slate-500 line-through">
-                        {formatPrice(tour.originalPrice, { round: true })}
-                      </span>
-                      <span className="rounded-full bg-gradient-to-r from-[#FF5B00] to-[#EAB308] px-2.5 py-0.5 text-xs font-black text-white shadow-md shadow-[#FF5B00]/30">
-                        -{Math.round((1 - pricePerAdult / tour.originalPrice) * 100)}% OFF
-                      </span>
-                    </>
-                  )}
-                  {pricePerAdult > 0 && (
-                    <span className="text-sm text-slate-400">{dict.tourDetails.perPerson}</span>
-                  )}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => void startReservation('DESKTOP_PRIMARY_BOOK_NOW')}
-                disabled={!pricePerAdult || pricePerAdult <= 0}
-                className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-4 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {pricePerAdult > 0
-                  ? dict.tourDetails.bookNow || 'Book Now'
-                  : 'Pricing Confirmation Required'} <span aria-hidden="true">→</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setQuestionModalOpen(true)}
-                className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs font-bold text-slate-300 transition hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/[0.06] hover:text-[#00E5FF]"
-              >
-                <MessageSquare className="h-4 w-4 text-[#00E5FF]" />
-                <span>Ask a Question</span>
-              </button>
-              <p className="mb-6 text-center text-xs text-slate-400">Your reservation is saved pending confirmation. Complete guest, pickup, and payment details next.</p>
-
-              <details className="group border-t border-white/10 pt-4">
-                <summary className="cursor-pointer list-none text-center text-xs font-bold text-slate-400 transition hover:text-[#00E5FF]">
-                  <span className="group-open:hidden">Customize guests, pickup, or add-ons</span>
-                  <span className="hidden group-open:inline">Hide booking preferences</span>
-                </summary>
-                <div className="pt-5">
-                  {/* Departure Date Selector */}
-                  <div className="mb-6">
-                    {(() => {
-                      const cutoff = tour.cutoffHours ?? 12;
-                      const minDate = new Date(Date.now() + cutoff * 3_600_000);
-                      const minDateStr = minDate.toISOString().slice(0, 10);
-                      const avStatus = dateAvailability?.status;
-                      const isUnavailable = avStatus && !['AVAILABLE'].includes(avStatus);
-                      const remaining = dateAvailability?.remaining ?? null;
-
-                      return (
-                        <div>
-                          <p className="mb-2.5 flex items-center gap-2 text-sm font-bold text-slate-300">
-                            <CalendarDays className="h-4 w-4 text-[#00E5FF]" />
-                            {dict.checkout?.departureDate || 'Select Date'}
-                          </p>
-                          <div
-                            className={`flex items-center gap-3 rounded-xl border px-3.5 py-2.5 transition-all focus-within:bg-white/[0.06] ${
-                              isUnavailable
-                                ? 'border-rose-500/40 bg-rose-900/10'
-                                : 'border-white/10 bg-white/[0.03] hover:border-white/20 focus-within:border-[#00E5FF]/40'
-                            }`}
-                          >
-                            <CalendarDays className={`h-4 w-4 shrink-0 ${isUnavailable ? 'text-rose-400' : 'text-slate-400'}`} />
-                            <input
-                              type="date"
-                              value={selectedDate}
-                              min={minDateStr}
-                              onChange={(e) => setSelectedDate(e.target.value)}
-                              className="flex-1 bg-transparent text-xs font-semibold text-white outline-none [color-scheme:dark]"
-                            />
-                            {dateAvailLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#00E5FF]" />}
-                          </div>
-                          {selectedDate && !dateAvailLoading && dateAvailability && (
-                            <div
-                              className={`mt-2 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-bold ${
-                                avStatus === 'AVAILABLE'
-                                  ? remaining !== null && remaining <= 5
-                                    ? 'border border-amber-500/30 bg-amber-900/20 text-amber-300'
-                                    : 'border border-emerald-500/30 bg-emerald-900/20 text-emerald-300'
-                                  : 'border border-rose-500/30 bg-rose-900/20 text-rose-300'
-                              }`}
-                            >
-                              {avStatus === 'AVAILABLE' ? (
-                                remaining !== null && remaining <= 5 ? (
-                                  <>
-                                    <AlertCircle className="h-3 w-3 shrink-0" /> Only {remaining} spot{remaining === 1 ? '' : 's'} left!
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle2 className="h-3 w-3 shrink-0" /> Available ({remaining !== null ? `${remaining} spots` : 'open'})
-                                  </>
-                                )
-                              ) : avStatus === 'SOLD_OUT' ? (
-                                <>
-                                  <AlertCircle className="h-3 w-3 shrink-0" /> Fully booked
-                                </>
-                              ) : (
-                                <>
-                                  <AlertCircle className="h-3 w-3 shrink-0" /> Not available on this date
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Pickup Time Slot Selector */}
-              {tour.pickupTimes && tour.pickupTimes.length > 0 && (
-                <div className="mb-6">
-                  <p className="mb-2.5 flex items-center gap-2 text-sm font-bold text-slate-300">
-                    <Clock className="h-4 w-4 text-[#00E5FF]" />
-                    {dict.checkout?.pickupTime || 'Select Pickup Time'}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {tour.pickupTimes.map((timeSlot) => (
-                      <button
-                        key={timeSlot}
-                        type="button"
-                        onClick={() => setSelectedTime(timeSlot)}
-                        className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 px-3 text-xs font-bold transition-all ${
-                          selectedTime === timeSlot
-                            ? 'border-[#00E5FF] bg-[#00E5FF]/15 text-[#00E5FF] shadow-sm shadow-[#00E5FF]/20'
-                            : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/20'
-                        }`}
-                      >
-                        <Clock className="h-3.5 w-3.5" />
-                        {timeSlot}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Guest Selector */}
-              <div className="mb-6">
-                <p className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-300">
-                  <Users className="h-4 w-4 text-[#00E5FF]" />
-                  {dict.tourDetails.guests}
-                </p>
-                <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4">
-                  <SidebarStepper
-                    label={dict.tourDetails.adults}
-                    sublabel={dict.tourDetails.ageAdult}
-                    priceLabel={`${formatPrice(pricePerAdult, { round: true })} ${dict.tourDetails.perPerson}`}
-                    icon={UserRound}
-                    iconBg="bg-[#00E5FF]/10 text-[#00E5FF]"
-                    value={adultsCount}
-                    onChange={setAdultsCount}
-                    min={1}
-                  />
-                  <SidebarStepper
-                    label={dict.tourDetails.children}
-                    sublabel={dict.tourDetails.ageChild}
-                    priceLabel={
-                      effectiveChildPrice
-                        ? `${formatPrice(effectiveChildPrice, { round: true })} ${dict.tourDetails.perChild}`
-                        : dict.tourDetails.sameAsAdult
-                    }
-                    icon={Users}
-                    iconBg="bg-blue-500/10 text-blue-400"
-                    value={childrenCount}
-                    onChange={setChildrenCount}
-                  />
-                  <SidebarStepper
-                    label={dict.tourDetails.infants}
-                    sublabel={dict.tourDetails.ageInfant}
-                    priceLabel={
-                      effectiveInfantPrice
-                        ? `${formatPrice(effectiveInfantPrice, { round: true })} ${dict.tourDetails.perInfant}`
-                        : dict.tourDetails.free
-                    }
-                    icon={Baby}
-                    iconBg="bg-purple-500/10 text-purple-400"
-                    value={infantsCount}
-                    onChange={setInfantsCount}
-                  />
-                </div>
-              </div>
-
-              {/* Add-ons & Upgrades Panel */}
-              {tour.tourOptions && tour.tourOptions.filter((o) => o.enabled !== false).length > 0 && (
-                <div className="mb-6">
-                  <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-                    Add-ons &amp; Upgrades
-                  </p>
-                  <div className="space-y-2">
-                    {tour.tourOptions
-                      .filter((o) => o.enabled !== false)
-                      .map((opt) => {
-                        const isSelected = !!selectedAddons[opt.id];
-                        const label =
-                          opt.labels?.en || opt.title || opt.name || 'Option';
-                        const desc =
-                          opt.descriptions?.en || opt.description || '';
-                        const addonPrice =
-                          opt.priceType === 'per_person'
-                            ? opt.price * payingGuests
-                            : opt.price;
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => toggleAddon(opt.id)}
-                            className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-all ${
-                              isSelected
-                                ? 'border-[#00E5FF]/40 bg-[#00E5FF]/[0.07]'
-                                : 'border-white/10 bg-white/[0.03] hover:border-white/20'
-                            }`}
-                          >
-                            {/* Checkbox indicator */}
-                            <div
-                              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
-                                isSelected
-                                  ? 'border-[#00E5FF] bg-[#00E5FF]'
-                                  : 'border-white/20 bg-white/5'
-                              }`}
-                            >
-                              {isSelected && (
-                                <Check className="h-3 w-3 text-[#070F1E]" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p
-                                className={`text-sm font-bold ${
-                                  isSelected ? 'text-[#00E5FF]' : 'text-slate-200'
-                                }`}
-                              >
-                                {label}
-                              </p>
-                              {desc && (
-                                <p className="mt-0.5 text-xs text-slate-500 line-clamp-2">
-                                  {desc}
-                                </p>
-                              )}
-                              <p className="mt-1 text-[10px] text-slate-500 capitalize">
-                                {opt.priceType === 'per_person'
-                                  ? `Per guest × ${payingGuests}`
-                                  : 'Per booking'}
-                              </p>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <p
-                                className={`text-sm font-bold ${
-                                  isSelected ? 'text-[#00E5FF]' : 'text-white'
-                                }`}
-                              >
-                                {addonPrice > 0
-                                  ? `+${formatPrice(addonPrice, { round: true })}`
-                                  : 'Included'}
-                              </p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                  </div>
-                </div>
-              )}
-
-              {/* Payment is selected in checkout so the selected method is always applied to the booking. */}
-              {false && <div className="mb-6 space-y-3">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{dict.tourDetails.paymentMethod}</p>
-
-                {/* Full Online */}
-                {tour.allowFullOnline !== false && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPayment('full')}
-                    className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-all ${
-                      selectedPayment === 'full' ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-white/10 bg-white/[0.03] hover:border-white/20'
-                    }`}
-                  >
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${selectedPayment === 'full' ? 'bg-emerald-500/20' : 'bg-white/5'}`}>
-                      <CreditCard className={`h-5 w-5 ${selectedPayment === 'full' ? 'text-emerald-400' : 'text-slate-500'}`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className={`text-sm font-bold ${selectedPayment === 'full' ? 'text-emerald-300' : 'text-slate-300'}`}>{dict.tourDetails.fullOnlinePayment}</p>
-                      <p className="text-xs text-slate-500">{dict.tourDetails.fullOnlineDesc}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-white">{formatPrice(totalPrice, { round: true })}</p>
-                    </div>
-                  </button>
-                )}
-
-                {/* Deposit */}
-                {tour.allowDeposit && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPayment('deposit')}
-                    className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-all ${
-                      selectedPayment === 'deposit' ? 'border-purple-500/40 bg-purple-500/10' : 'border-white/10 bg-white/[0.03] hover:border-white/20'
-                    }`}
-                  >
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${selectedPayment === 'deposit' ? 'bg-purple-500/20' : 'bg-white/5'}`}>
-                      <Wallet className={`h-5 w-5 ${selectedPayment === 'deposit' ? 'text-purple-400' : 'text-slate-500'}`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className={`text-sm font-bold ${selectedPayment === 'deposit' ? 'text-purple-300' : 'text-slate-300'}`}>
-                        {dict.tourDetails.depositOnline} ({tour.depositPercentage}%)
-                      </p>
-                      <p className="text-xs text-slate-500">{dict.tourDetails.depositDesc}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-white">{formatPrice(depositAmount, { round: true })}</p>
-                    </div>
-                  </button>
-                )}
-
-                {/* Cash on Arrival */}
-                {tour.allowPayAtLocation && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPayment('arrival')}
-                    className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-all ${
-                      selectedPayment === 'arrival' ? 'border-amber-500/40 bg-amber-500/10' : 'border-white/10 bg-white/[0.03] hover:border-white/20'
-                    }`}
-                  >
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${selectedPayment === 'arrival' ? 'bg-amber-500/20' : 'bg-white/5'}`}>
-                      <Building2 className={`h-5 w-5 ${selectedPayment === 'arrival' ? 'text-amber-400' : 'text-slate-500'}`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className={`text-sm font-bold ${selectedPayment === 'arrival' ? 'text-amber-300' : 'text-slate-300'}`}>{dict.tourDetails.payArrival}</p>
-                      <p className="text-xs text-slate-500">{dict.tourDetails.payArrivalDesc}</p>
-                    </div>
-                    <div className="text-right">
-                      {selectedPayment === 'arrival' && <p className="text-sm font-bold text-amber-400">$0</p>}
-                    </div>
-                  </button>
-                )}
-              </div>}
-
-              {/* Price breakdown */}
-              <div className="mb-6 space-y-2 border-t border-white/10 pt-5">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">{formatPrice(pricePerAdult, { round: true })} × {adultsCount} {dict.tourDetails.adults?.toLowerCase()}</span>
-                  <span className="font-bold text-white">{formatPrice(pricePerAdult * adultsCount, { round: true })}</span>
-                </div>
-                {childrenCount > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">{formatPrice(effectiveChildPrice ?? pricePerAdult, { round: true })} × {childrenCount} {dict.tourDetails.children?.toLowerCase()}</span>
-                    <span className="font-bold text-white">{formatPrice((effectiveChildPrice ?? pricePerAdult) * childrenCount, { round: true })}</span>
-                  </div>
-                )}
-                {infantsCount > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">{effectiveInfantPrice ? `${formatPrice(effectiveInfantPrice, { round: true })} × ${infantsCount} ${dict.tourDetails.infants?.toLowerCase()}` : `${infantsCount} ${dict.tourDetails.infants?.toLowerCase()} · ${dict.tourDetails.free}`}</span>
-                    <span className="font-bold text-white">{effectiveInfantPrice ? formatPrice(effectiveInfantPrice * infantsCount, { round: true }) : formatPrice(0, { round: true })}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between border-t border-white/5 pt-2 text-sm">
-                  <span className="text-slate-300 font-semibold">{dict.tourDetails.total} · {totalGuests} {dict.tourDetails.guests?.toLowerCase()}</span>
-                  <span className="text-lg font-black text-white">{formatPrice(totalPrice, { round: true })}</span>
-                </div>
-                {selectedPayment === 'deposit' && tour.allowDeposit && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">{dict.tourDetails.dueOnArrival}</span>
-                    <span className="font-bold text-amber-400">{formatPrice(dueOnArrival, { round: true })}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Trust footer */}
-              <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500">
-                <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                {dict.tourDetails.secureBooking}
-              </div>
-                </div>
-              </details>
-            </div>
-          </aside>
         </div>
 
         {/* Related Tours Section (Phase 10) */}
@@ -2112,74 +2258,96 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
         )}
       </div>
 
-      {/* Booking must remain reachable throughout a trip page. */}
-      {modules?.stickyMobileBookingBar !== false && (
-        <>
-          <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#0B1528]/95 px-5 pt-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] backdrop-blur-2xl shadow-2xl shadow-black lg:hidden">
-            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#00E5FF]">{dict.tourDetails.from}</span>
-                  {tour.ratingAverage > 0 && (
-                    <span className="flex items-center gap-1 text-[11px] font-bold text-slate-300">
-                      <span className="text-[#FFD700]">★</span>
-                      <span>{tour.ratingAverage.toFixed(1)}</span>
-                      <span className="text-slate-500">({tour.ratingCount})</span>
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                  {pricePerAdult > 0 ? (
-                    <span className="text-xl font-black text-white">
-                      {formatPrice(pricePerAdult, { round: true })}
-                    </span>
-                  ) : (
-                    <span className="text-sm font-black text-amber-400">
-                      Price on request
-                    </span>
-                  )}
-                  {tour.originalPrice && pricePerAdult > 0 && tour.originalPrice > pricePerAdult && (
-                    <span className="text-xs font-bold text-slate-500 line-through">
-                      {formatPrice(tour.originalPrice, { round: true })}
-                    </span>
-                  )}
-                  {pricePerAdult > 0 && (
-                    <span className="text-[11px] text-slate-400">{dict.tourDetails.perPerson}</span>
-                  )}
-                </div>
-                {selectedTime && <p className="mt-0.5 truncate text-[11px] font-medium text-cyan-200">{selectedTime}</p>}
+      {/* Desktop Floating Side Card (Sputnik8-style, One Button Only, always visible on scroll) */}
+      <aside className="hidden lg:block">
+        <div
+          data-testid="side-availability-card"
+          className="fixed right-6 top-1/2 z-40 w-64 -translate-y-1/2 rounded-3xl border border-[#00E5FF]/25 bg-[#0B1528]/95 p-5 shadow-2xl shadow-black/60 backdrop-blur-xl"
+        >
+          <div className="mb-3">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
+              {dict.tourDetails.from}
+            </p>
+            {pricePerAdult > 0 ? (
+              <div className="mt-1 flex flex-wrap items-baseline gap-1.5">
+                <span className="text-3xl font-black text-white">
+                  {formatPrice(pricePerAdult, { round: true })}
+                </span>
+                {tour.originalPrice && tour.originalPrice > pricePerAdult && (
+                  <span className="text-xs font-bold text-slate-500 line-through">
+                    {formatPrice(tour.originalPrice, { round: true })}
+                  </span>
+                )}
+                <span className="text-xs text-slate-400">{dict.tourDetails.perPerson}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setQuestionModalOpen(true)}
-                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-[#00E5FF]"
-                  title="Ask a Question"
-                  aria-label="Ask a Question"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void startReservation('MOBILE_STICKY_BAR')}
-                  disabled={!pricePerAdult || pricePerAdult <= 0}
-                  className="relative inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] via-[#00C2E0] to-[#00A3BF] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <span>{pricePerAdult > 0 ? dict.tourDetails.bookNow || 'Book Now' : 'Inquire'}</span>
-                  <span className="text-base leading-none">→</span>
-                </button>
-              </div>
-            </div>
+            ) : (
+              <span className="mt-1 block text-lg font-black text-amber-400">Price on request</span>
+            )}
           </div>
 
-          {/* Spacer for mobile sticky bar */}
-          <div className="h-28 lg:hidden" />
-        </>
-      )}
+          {tour.ratingCount > 0 && (
+            <div className="mb-4 flex items-center gap-1.5 text-xs text-slate-300">
+              <StarRating rating={tour.ratingAverage} />
+              <span className="font-bold text-white">{tour.ratingAverage.toFixed(1)}</span>
+              <span className="text-slate-500">({tour.ratingCount})</span>
+            </div>
+          )}
 
-      {/* Ask a Question Modal */}
-      {/* In-Page Continuous Booking Experience */}
-      <ContinuousBookingModal
+          <button
+            type="button"
+            onClick={() => {
+              document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-4 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <CalendarDays className="h-4 w-4" />
+            <span>{(dict.tourDetails as any)?.checkAvailability || 'Check Availability'}</span>
+          </button>
+
+          <div className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+            <span>{dict.tourDetails.secureBooking}</span>
+          </div>
+        </div>
+      </aside>
+
+      {/* Mobile Sticky Bottom Bar (One Button: Check Availability -> scrolls to #booking-section) */}
+      <div
+        data-testid="mobile-availability-bar"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0B1528]/95 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-2xl shadow-2xl shadow-black lg:hidden"
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <div className="min-w-0">
+            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#00E5FF]">
+              {dict.tourDetails.from}
+            </span>
+            {pricePerAdult > 0 ? (
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-white">
+                  {formatPrice(pricePerAdult, { round: true })}
+                </span>
+                <span className="text-[11px] text-slate-400">{dict.tourDetails.perPerson}</span>
+              </div>
+            ) : (
+              <span className="text-sm font-black text-amber-400">Price on request</span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition active:scale-95"
+          >
+            <CalendarDays className="h-3.5 w-3.5" />
+            <span>{(dict.tourDetails as any)?.checkAvailability || 'Check Availability'}</span>
+          </button>
+        </div>
+      </div>
+      <div className="h-20 lg:hidden" />
+
+      {/* Direct Single-Form Customer Details Modal (replaces old multi-step wizard) */}
+      <DirectBookingDetailsModal
         isOpen={bookingModalOpen}
         onClose={() => setBookingModalOpen(false)}
         tour={{
@@ -2197,20 +2365,15 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
           pickupType: tour.pickupType,
           hotelPickupIncluded: tour.hotelPickupIncluded ?? false,
           meetingPointName: tour.meetingPointName,
-          meetingPointAddress: tour.meetingPointAddress,
-          meetingPointLandmark: tour.meetingPointLandmark,
-          meetingPointInstructions: tour.meetingPointInstructions,
-          cutoffHours: tour.cutoffHours ?? null,
           addons: tour.tourOptions,
           bookingQuestions: (tour as any).bookingQuestions,
         }}
-        initialDate={selectedDate}
-        initialTime={selectedTime}
-        initialAdults={adultsCount}
-        initialChildren={childrenCount}
-        initialInfants={infantsCount}
-        initialAddons={selectedAddons}
-        availablePickupTimes={tour.pickupTimes || (tour.pickupTime ? [tour.pickupTime] : [])}
+        departureDate={selectedDate}
+        selectedTime={selectedTime}
+        adultsCount={adultsCount}
+        childrenCount={childrenCount}
+        infantsCount={infantsCount}
+        selectedAddons={selectedAddons}
         initialResumeData={resumeData}
       />
 
