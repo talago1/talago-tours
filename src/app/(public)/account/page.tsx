@@ -241,7 +241,7 @@ export default function AccountPage() {
       let allReservations: ReservationItem[] = [];
       let cursor: string | null = null;
       for (let page = 0; page < 10; page++) {
-        const url = cursor
+        const url: string = cursor
           ? `/api/public/my-bookings?cursor=${encodeURIComponent(cursor)}`
           : '/api/public/my-bookings';
         const res = await fetch(url, {
