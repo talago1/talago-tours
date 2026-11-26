@@ -1248,19 +1248,19 @@ export default function AccountPage() {
                     </div>
                   );
                 })}
+                {bookingsNextCursor && (
+                  <div className="flex justify-center pt-2">
+                    <button
+                      type="button"
+                      disabled={loadingMoreBookings}
+                      onClick={() => loadMoreBookings(bookingsNextCursor)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-5 py-2.5 text-xs font-bold text-slate-200 transition disabled:opacity-50"
+                    >
+                      {loadingMoreBookings ? 'Loading…' : 'Show more'}
+                    </button>
+                  </div>
+                )}
               </div>
-              {bookingsNextCursor && (
-                <div className="flex justify-center pt-2">
-                  <button
-                    type="button"
-                    disabled={loadingMoreBookings}
-                    onClick={() => loadMoreBookings(bookingsNextCursor)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-5 py-2.5 text-xs font-bold text-slate-200 transition disabled:opacity-50"
-                  >
-                    {loadingMoreBookings ? 'Loading…' : 'Show more'}
-                  </button>
-                </div>
-              )}
             ) : (
               <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.01] p-8 sm:p-12 text-center space-y-4">
                 <Ticket className="h-10 w-10 text-slate-600 mx-auto" />
