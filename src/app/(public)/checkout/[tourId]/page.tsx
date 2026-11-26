@@ -331,6 +331,7 @@ export default function CheckoutPage() {
 
   const draftLoadedRef = useRef(false);
   const idempotencyKeyRef = useRef<string>('');
+  const submittingRef = useRef<boolean>(false);
 
   const totalPayingGuests = adultsCount + childrenCount;
 
@@ -631,6 +632,7 @@ export default function CheckoutPage() {
   }, []);
 
   const handleSubmit = useCallback(async () => {
+    if (submittingRef.current) return;
     const formWithAnswers: CheckoutFormData = {
       ...form,
       bookingAnswers,
@@ -653,6 +655,7 @@ export default function CheckoutPage() {
       return;
     }
 
+    submittingRef.current = true;
     setPageState('submitting');
     setErrorMessage('');
 
@@ -790,6 +793,8 @@ export default function CheckoutPage() {
     } catch {
       setErrorMessage(dict.checkout.errorMessage);
       setPageState('error');
+    } finally {
+      submittingRef.current = false;
     }
   // `validateRequiredFields` closes over the answer map, selected addons, the
   // guest totals and the active language, so all of them have to be listed

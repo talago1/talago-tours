@@ -1367,7 +1367,7 @@ export default function AccountPage() {
                             {res.adults ? ` · ${res.adults + (res.children || 0)} guests` : ''}
                           </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
                           {resumeHref && (
                             <Link
                               href={resumeHref}

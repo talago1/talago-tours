@@ -49,9 +49,12 @@ export default function AdminNotificationCenter() {
   const updatePosition = useCallback(() => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      const panelWidth = Math.min(window.innerWidth - 24, 384);
+      const desiredRight = Math.max(12, window.innerWidth - rect.right);
+      const maxRight = Math.max(12, window.innerWidth - panelWidth - 12);
       setDropdownPos({
         top: rect.bottom + 8,
-        right: Math.max(16, window.innerWidth - rect.right),
+        right: Math.min(desiredRight, maxRight),
       });
     }
   }, []);
@@ -201,7 +204,7 @@ export default function AdminNotificationCenter() {
           ref={panelRef}
           data-testid="admin-notification-panel"
           style={{ top: `${dropdownPos.top}px`, right: `${dropdownPos.right}px` }}
-          className="fixed z-[9999] w-80 sm:w-96 rounded-2xl border border-white/10 bg-[#0B1528] shadow-2xl shadow-black/90 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150"
+          className="fixed z-[9999] w-[min(calc(100vw-24px),24rem)] rounded-2xl border border-white/10 bg-[#0B1528] shadow-2xl shadow-black/90 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
