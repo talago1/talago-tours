@@ -371,6 +371,18 @@ model Booking {
   @@index([status, createdAt])
   @@index([channel])
   @@index([promoCodeId])
+  // My Bookings lookups filter by these columns on every request
+  // (listVisibleBookingIds: customerProfileId, customerEmail). They had
+  // no index, so those filters scanned the table. No index on
+  // customerPhone here on purpose: phone matching is done with
+  // regexp_replace() in SQL, which a B-tree index cannot serve — that
+  // needs a normalized phone column + backfill (see
+  // src/server/customerBookings.ts), not just an index.
+  // NOTE: a migration is required after merge
+  // (npx prisma migrate dev / prisma db push) — this change alone only
+  // updates the schema file.
+  @@index([customerProfileId])
+  @@index([customerEmail])
 }
 
 model Review {
