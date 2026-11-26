@@ -1484,11 +1484,11 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
         category={tour.category}
       />
 
-      {/* Main Content Container (Single integrated flow, no permanently sticky sidebar) */}
-      <div className="mx-auto max-w-5xl px-5 pb-20 lg:px-10">
-        <div className="relative z-10 mt-6 lg:-mt-28">
-          {/* ----- Main Content ----- */}
-          <div>
+      {/* Main Content Grid (Content + Single Sticky Side Availability Card) */}
+      <div className="mx-auto max-w-7xl px-5 pb-20 lg:px-10">
+        <div className="relative z-10 mt-6 grid grid-cols-1 gap-10 lg:-mt-28 lg:grid-cols-[1fr_340px]">
+          {/* ----- LEFT: Main Content ----- */}
+          <div className="min-w-0">
             {/* Title & Meta */}
             <div className="mb-8">
               <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -1525,69 +1525,42 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
               {localizedDesc && (
                 <p className="mt-4 max-w-3xl text-base leading-8 text-slate-300">{localizedDesc}</p>
               )}
-              {/* ── Top Action Row: Check Availability + Wishlist + Ask ── */}
-              <div className="mt-6 flex flex-wrap items-center gap-3">
+              {/* ── Wishlist Save Button ── */}
+              {modules?.wishlist !== false && (
                 <button
                   type="button"
                   onClick={() => {
-                    document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    toggleWishlist({
+                      id: tour.id,
+                      slug: tour.slug,
+                      title: localizedTitle,
+                      coverImage: tour.images?.[0] || '',
+                      priceUSD: tour.adultPrice ?? tour.basePrice,
+                      ratingAverage: tour.ratingAverage,
+                      ratingCount: tour.ratingCount,
+                      duration: tour.duration,
+                      durationHours: null,
+                      destinationName: tour.destination.name,
+                      category: tour.category,
+                      addedAt: Date.now(),
+                    });
+                    setWishAnim(true);
+                    setTimeout(() => setWishAnim(false), 400);
                   }}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-6 py-3 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98]"
+                  className={`mt-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-all duration-200 ${
+                    isWishlisted(tour.id)
+                      ? 'border-rose-500/60 bg-rose-500/15 text-rose-400 hover:bg-rose-500/25'
+                      : 'border-white/15 bg-white/[0.04] text-slate-300 hover:border-rose-400/40 hover:text-rose-300'
+                  } ${wishAnim ? 'scale-110' : 'scale-100'}`}
                 >
-                  <CalendarDays className="h-4 w-4" />
-                  <span>{(dict.tourDetails as any)?.checkAvailability || 'Check Availability'}</span>
-                  {pricePerAdult > 0 && (
-                    <span className="ml-1 rounded-full bg-[#070F1E]/20 px-2 py-0.5 text-xs font-extrabold">
-                      {dict.tourDetails.from} {formatPrice(pricePerAdult, { round: true })}
-                    </span>
-                  )}
+                  <Heart
+                    className={`h-4 w-4 transition-all ${
+                      isWishlisted(tour.id) ? 'fill-rose-400 text-rose-400' : ''
+                    }`}
+                  />
+                  {isWishlisted(tour.id) ? 'Saved to Wishlist' : 'Save Experience'}
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => setQuestionModalOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-slate-200 transition hover:border-[#00E5FF]/40 hover:text-[#00E5FF]"
-                >
-                  <MessageSquare className="h-4 w-4 text-[#00E5FF]" />
-                  <span>Ask a Question</span>
-                </button>
-
-                {modules?.wishlist !== false && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toggleWishlist({
-                        id: tour.id,
-                        slug: tour.slug,
-                        title: localizedTitle,
-                        coverImage: tour.images?.[0] || '',
-                        priceUSD: tour.adultPrice ?? tour.basePrice,
-                        ratingAverage: tour.ratingAverage,
-                        ratingCount: tour.ratingCount,
-                        duration: tour.duration,
-                        durationHours: null,
-                        destinationName: tour.destination.name,
-                        category: tour.category,
-                        addedAt: Date.now(),
-                      });
-                      setWishAnim(true);
-                      setTimeout(() => setWishAnim(false), 400);
-                    }}
-                    className={`inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition-all duration-200 ${
-                      isWishlisted(tour.id)
-                        ? 'border-rose-500/60 bg-rose-500/15 text-rose-400 hover:bg-rose-500/25'
-                        : 'border-white/15 bg-white/[0.04] text-slate-300 hover:border-rose-400/40 hover:text-rose-300'
-                    } ${wishAnim ? 'scale-110' : 'scale-100'}`}
-                  >
-                    <Heart
-                      className={`h-4 w-4 transition-all ${
-                        isWishlisted(tour.id) ? 'fill-rose-400 text-rose-400' : ''
-                      }`}
-                    />
-                    {isWishlisted(tour.id) ? 'Saved' : 'Save'}
-                  </button>
-                )}
-              </div>
+              )}
             </div>
 
             {/* ── Tier-1 OTA: Activity At-a-Glance Matrix (GetYourGuide / Viator Standard) ── */}
@@ -2262,6 +2235,59 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
             </Accordion>
           </div>
         </div>
+
+          {/* ----- RIGHT: Single Sputnik8-style Sticky Side Card (Desktop, One Button Only) ----- */}
+          <aside className="hidden lg:block">
+            <div
+              data-testid="side-availability-card"
+              className="lg:sticky lg:top-28 rounded-3xl border border-white/10 bg-gradient-to-b from-[#0D1B35]/95 to-[#081224]/95 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl"
+            >
+              <div className="mb-4">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
+                  {dict.tourDetails.from}
+                </p>
+                {pricePerAdult > 0 ? (
+                  <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                    <span className="text-3xl font-black text-white">
+                      {formatPrice(pricePerAdult, { round: true })}
+                    </span>
+                    {tour.originalPrice && tour.originalPrice > pricePerAdult && (
+                      <span className="text-sm font-bold text-slate-500 line-through">
+                        {formatPrice(tour.originalPrice, { round: true })}
+                      </span>
+                    )}
+                    <span className="text-xs text-slate-400">{dict.tourDetails.perPerson}</span>
+                  </div>
+                ) : (
+                  <span className="mt-1 block text-xl font-black text-amber-400">Price on request</span>
+                )}
+              </div>
+
+              {tour.ratingCount > 0 && (
+                <div className="mb-5 flex items-center gap-2 text-xs text-slate-300">
+                  <StarRating rating={tour.ratingAverage} />
+                  <span className="font-bold text-white">{tour.ratingAverage.toFixed(1)}</span>
+                  <span className="text-slate-500">({tour.ratingCount})</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-3.5 text-sm font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <CalendarDays className="h-4 w-4" />
+                <span>{(dict.tourDetails as any)?.checkAvailability || 'Check Availability'}</span>
+              </button>
+
+              <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-slate-400">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                <span>{dict.tourDetails.secureBooking}</span>
+              </div>
+            </div>
+          </aside>
         </div>
 
         {/* Related Tours Section (Phase 10) */}
@@ -2285,31 +2311,40 @@ export default function TourDetailsClient({ tour, reviews, relatedTours = [], mo
         )}
       </div>
 
-      {/* Permanently Visible Floating Side Check Availability Button (Desktop & Mobile) */}
+      {/* Mobile Sticky Bottom Bar (One Button: Check Availability -> scrolls to #booking-section) */}
       <div
-        data-testid="floating-check-availability"
-        className="fixed bottom-4 left-4 z-40 sm:bottom-auto sm:left-auto sm:right-5 sm:top-1/2 sm:-translate-y-1/2"
+        data-testid="mobile-availability-bar"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0B1528]/95 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-2xl shadow-2xl shadow-black lg:hidden"
       >
-        <button
-          type="button"
-          onClick={() => {
-            document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }}
-          className="group flex items-center gap-2.5 rounded-2xl border border-[#00E5FF]/40 bg-[#0B1528]/95 px-4 py-3 text-left shadow-2xl shadow-black/60 backdrop-blur-xl transition-all hover:scale-[1.03] hover:border-[#00E5FF] sm:flex-col sm:items-stretch sm:gap-1.5 sm:px-4 sm:py-3.5"
-        >
-          <div className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 shrink-0 text-[#00E5FF]" />
-            <span className="text-xs font-black uppercase tracking-wider text-[#00E5FF]">
-              {(dict.tourDetails as any)?.checkAvailability || 'Check Availability'}
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <div className="min-w-0">
+            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#00E5FF]">
+              {dict.tourDetails.from}
             </span>
+            {pricePerAdult > 0 ? (
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-white">
+                  {formatPrice(pricePerAdult, { round: true })}
+                </span>
+                <span className="text-[11px] text-slate-400">{dict.tourDetails.perPerson}</span>
+              </div>
+            ) : (
+              <span className="text-sm font-black text-amber-400">Price on request</span>
+            )}
           </div>
-          {pricePerAdult > 0 && (
-            <span className="text-[11px] font-bold text-slate-300">
-              {dict.tourDetails.from} {formatPrice(pricePerAdult, { round: true })}
-            </span>
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#0284C7] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#070F1E] shadow-lg shadow-[#00E5FF]/25 transition active:scale-95"
+          >
+            <CalendarDays className="h-3.5 w-3.5" />
+            <span>{(dict.tourDetails as any)?.checkAvailability || 'Check Availability'}</span>
+          </button>
+        </div>
       </div>
+      <div className="h-20 lg:hidden" />
 
       {/* Direct Single-Form Customer Details Modal (replaces old multi-step wizard) */}
       <DirectBookingDetailsModal

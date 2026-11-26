@@ -24,25 +24,25 @@ test.describe('Sputnik8-style Continuous Booking & Registration UX', () => {
     const isMobile = (page.viewportSize()?.width ?? 1280) < 1024;
     const tag = isMobile ? 'mobile' : 'desktop';
 
-    // Verify no permanently sticky desktop booking sidebar or full-width sticky mobile bottom bar
-    await expect(page.locator('aside')).toHaveCount(0);
-    await expect(page.locator('.fixed.bottom-0.left-0.right-0')).toHaveCount(0);
+    // 1. Desktop: single sticky side card with ONE button; Mobile: sticky bottom bar with ONE button
+    const availabilityCard = isMobile
+      ? page.locator('[data-testid="mobile-availability-bar"]')
+      : page.locator('[data-testid="side-availability-card"]');
+    await expect(availabilityCard).toBeVisible({ timeout: 8000 });
+    await expect(availabilityCard.locator('button')).toHaveCount(1);
 
-    // 1. Scroll down and verify floating side Check Availability button stays visible
+    const checkAvailBtn = availabilityCard.locator('button:has-text("Check Availability")');
+    await expect(checkAvailBtn).toBeVisible();
+
+    // Scrolling down keeps the side card (desktop) or bottom bar (mobile) visible
     await page.evaluate(() => window.scrollBy(0, 700));
     await page.waitForTimeout(300);
+    await expect(checkAvailBtn).toBeVisible();
 
-    const floatingBtn = page.locator('[data-testid="floating-check-availability"] button');
-    await expect(floatingBtn).toBeVisible({ timeout: 8000 });
-    const btnBox = await floatingBtn.boundingBox();
-    expect(btnBox).not.toBeNull();
-    expect(btnBox!.y).toBeGreaterThanOrEqual(0);
-    expect(btnBox!.y + btnBox!.height).toBeLessThanOrEqual((page.viewportSize()?.height ?? 800) + 5);
+    await page.screenshot({ path: `e2e/screenshots/sputnik8-1-side-card-${tag}.png` });
 
-    await page.screenshot({ path: `e2e/screenshots/sputnik8-1-floating-check-availability-${tag}.png` });
-
-    // 2. Click floating Check Availability -> scrolls smoothly to #booking-section without opening a modal
-    await floatingBtn.click();
+    // 2. Click Check Availability -> scrolls smoothly to #booking-section without opening a modal
+    await checkAvailBtn.click();
     await expect(page.locator('[role="dialog"]')).toHaveCount(0);
 
     const bookingSection = page.locator('#booking-section');
