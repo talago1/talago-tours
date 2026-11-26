@@ -13,6 +13,10 @@ interface BookingDetail {
   id: string;
   bookingReference: string;
   status: string;
+  tour: {
+    id: string;
+    slug: string;
+  } | null;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -141,7 +145,8 @@ export default function BookingConfirmationPage() {
   }
 
   const isConfirmed = booking.status === 'CONFIRMED';
-  const isPending = booking.status === 'PENDING';
+  const isPending = booking.status === 'PENDING' || booking.status === 'PENDING_PAYMENT';
+  const isInterested = booking.status === 'INTERESTED';
   const isFailed = booking.status === 'CANCELLED';
 
   const currencySymbol = booking.currency === 'EGP' ? 'EGP ' : booking.currency === 'EUR' ? '€' : booking.currency === 'GBP' ? '£' : '$';
@@ -158,7 +163,7 @@ export default function BookingConfirmationPage() {
                 </svg>
               </div>
             )}
-            {isPending && (
+            {(isPending || isInterested) && (
               <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-yellow-500/20">
                 <svg className="h-7 w-7 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -176,6 +181,7 @@ export default function BookingConfirmationPage() {
               <h1 className="text-2xl font-bold text-white">
                 {isConfirmed && dict.bookingPage.bookingConfirmed}
                 {isPending && dict.bookingPage.paymentPending}
+                {isInterested && 'Your booking is started'}
                 {isFailed && dict.bookingPage.paymentFailed}
               </h1>
               <p className="text-sm text-slate-400">
@@ -227,7 +233,7 @@ export default function BookingConfirmationPage() {
                 </div>
                 <div>
                   <p className="text-slate-500">{dict.bookingPage.status}</p>
-                  <p className={`font-medium ${isConfirmed ? 'text-emerald-400' : isPending ? 'text-yellow-400' : 'text-red-400'}`}>
+                  <p className={`font-medium ${isConfirmed ? 'text-emerald-400' : (isPending || isInterested) ? 'text-yellow-400' : 'text-red-400'}`}>
                     {booking.status}
                   </p>
                 </div>
@@ -250,6 +256,21 @@ export default function BookingConfirmationPage() {
           {booking.transaction?.gatewayReference && (
             <div className="mt-4 text-xs text-slate-500">
               {dict.bookingPage.gatewayRef} {booking.transaction.gatewayReference}
+            </div>
+          )}
+
+          {isInterested && booking.tour?.id && (
+            <div className="mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
+              <p className="text-sm text-yellow-300">
+                Your booking is saved. Complete your details and payment to confirm it — this is the same booking, not a new one.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push(`/tours/checkout/${booking.tour!.id}?reservation=${booking.id}&token=${encodeURIComponent(token)}`)}
+                className="mt-3 rounded-lg bg-[#00E5FF] px-4 py-2 text-sm font-medium text-[#070F1E] hover:bg-[#00D4F0]"
+              >
+                Continue booking
+              </button>
             </div>
           )}
 
