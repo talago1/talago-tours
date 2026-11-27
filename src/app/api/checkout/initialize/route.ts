@@ -466,6 +466,7 @@ export async function POST(request: NextRequest) {
           };
           if ((!existingProfile.phone || existingProfile.phone.trim() === '') && phone.trim()) {
             updateData.phone = phone.trim();
+            updateData.phoneNormalized = phoneMatchKey(phone.trim()) ?? undefined;
           }
           if (
             (!existingProfile.name || existingProfile.name === 'User' || existingProfile.name.startsWith('Traveler #')) &&
@@ -498,6 +499,7 @@ export async function POST(request: NextRequest) {
           };
           if ((!existingProfile.phone || existingProfile.phone.trim() === '') && phone.trim()) {
             updateData.phone = phone.trim();
+            updateData.phoneNormalized = phoneMatchKey(phone.trim()) ?? undefined;
           }
           if (
             (!existingProfile.name || existingProfile.name === 'User' || existingProfile.name.startsWith('Traveler #')) &&

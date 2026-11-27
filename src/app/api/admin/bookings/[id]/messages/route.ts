@@ -50,15 +50,25 @@ export async function GET(
       },
     });
 
-    // Mark unread visitor messages as read by admin
-    await prisma.bookingMessage.updateMany({
-      where: {
-        conversationId: conv.id,
-        sender: BookingMessageSender.VISITOR,
-        readAt: null,
-      },
-      data: { readAt: new Date() },
-    }).catch(() => {});
+    // Mark unread visitor messages and booking-scoped admin notifications as read
+    await Promise.all([
+      prisma.bookingMessage.updateMany({
+        where: {
+          conversationId: conv.id,
+          sender: BookingMessageSender.VISITOR,
+          readAt: null,
+        },
+        data: { readAt: new Date() },
+      }),
+      prisma.notificationLog.updateMany({
+        where: {
+          bookingId: { in: [booking.id, conv.id] },
+          channel: { in: ['CUSTOMER_MESSAGE_ALERT', 'NEW_BOOKING_ALERT', 'LEAD_INTEREST_ALERT'] },
+          status: { in: ['UNREAD', 'LOGGED'] },
+        },
+        data: { status: 'READ' },
+      }),
+    ]).catch(() => {});
 
     const messages = conv.messages.map((m) => ({
       id: m.id,

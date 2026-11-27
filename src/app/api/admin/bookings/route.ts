@@ -1,48 +1,216 @@
-export const dynamic = 'force-dynamic';
-
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { BookingMessageSender, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { phoneMatchKey } from '@/utils/phoneMatch';
 import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+
+const DEFAULT_PAGE_SIZE = 25;
+const MAX_PAGE_SIZE = 100;
+
+export async function GET(request: NextRequest) {
   try {
-    const bookings = await prisma.booking.findMany({
-      include: {
-        tour: {
-          select: { translations: true, itinerary: true },
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
+    const pageSize = Math.min(
+      MAX_PAGE_SIZE,
+      Math.max(1, Number(searchParams.get('pageSize') || DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE)
+    );
+    const search = (searchParams.get('search') || '').trim();
+    const status = (searchParams.get('status') || 'ALL').trim();
+    const tourId = (searchParams.get('tourId') || 'ALL').trim();
+    const dateFrom = (searchParams.get('dateFrom') || '').trim();
+    const dateTo = (searchParams.get('dateTo') || '').trim();
+    const dateBasis = searchParams.get('dateBasis') === 'createdAt' ? 'createdAt' : 'travelDate';
+    const unreadOnly = searchParams.get('unreadOnly') === 'true';
+
+    const filters: Prisma.BookingWhereInput[] = [];
+
+    if (status && status !== 'ALL') {
+      filters.push({ status: status as any });
+    }
+    if (tourId && tourId !== 'ALL') {
+      filters.push({ tourId });
+    }
+    if (dateFrom || dateTo) {
+      const dateFilter: Prisma.DateTimeFilter = {};
+      if (dateFrom) dateFilter.gte = new Date(`${dateFrom}T00:00:00Z`);
+      if (dateTo) dateFilter.lte = new Date(`${dateTo}T23:59:59Z`);
+      filters.push({ [dateBasis]: dateFilter });
+    }
+    if (unreadOnly) {
+      filters.push({
+        conversation: {
+          messages: {
+            some: { sender: BookingMessageSender.VISITOR, readAt: null },
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+      });
+    }
+    if (search) {
+      const phoneKey = phoneMatchKey(search);
+      const searchOr: Prisma.BookingWhereInput[] = [
+        { bookingReference: { contains: search, mode: 'insensitive' } },
+        { customerName: { contains: search, mode: 'insensitive' } },
+        { customerEmail: { contains: search, mode: 'insensitive' } },
+        { customerPhone: { contains: search, mode: 'insensitive' } },
+        { tourTitleSnapshot: { contains: search, mode: 'insensitive' } },
+        { hotelName: { contains: search, mode: 'insensitive' } },
+      ];
+      if (phoneKey) {
+        searchOr.push({ customerPhoneNormalized: phoneKey });
+      }
+      filters.push({ OR: searchOr });
+    }
+
+    const whereClause: Prisma.BookingWhereInput = filters.length > 0 ? { AND: filters } : {};
+
+    const [total, bookings, totalUnread] = await Promise.all([
+      prisma.booking.count({ where: whereClause }),
+      prisma.booking.findMany({
+        where: whereClause,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          bookingReference: true,
+          tourId: true,
+          tourTitleSnapshot: true,
+          destinationNameSnapshot: true,
+          customerName: true,
+          customerPhone: true,
+          customerEmail: true,
+          travelDate: true,
+          createdAt: true,
+          updatedAt: true,
+          guestCount: true,
+          adultsCount: true,
+          childrenCount: true,
+          infantsCount: true,
+          totalPriceUSD: true,
+          hotelName: true,
+          roomNumber: true,
+          selectedPickupTime: true,
+          pickupDirectives: true,
+          pickupType: true,
+          pickupLocationName: true,
+          pickupAddress: true,
+          flightNumbers: true,
+          bedConfiguration: true,
+          bedConfig: true,
+          specialRequirements: true,
+          status: true,
+          language: true,
+          paymentScheme: true,
+          amountPaidOnline: true,
+          amountDueOnArrival: true,
+          source: true,
+          notes: true,
+          bookingAnswers: true,
+          selectedAddons: true,
+          tour: {
+            select: {
+              id: true,
+              category: true,
+              translations: true,
+              destination: { select: { name: true } },
+              zone: { select: { name: true } },
+            },
+          },
+          conversation: {
+            select: {
+              id: true,
+              lastMessageAt: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.bookingMessage.count({
+        where: { sender: BookingMessageSender.VISITOR, readAt: null },
+      }),
+    ]);
+
+    const convIds = bookings
+      .map((b) => b.conversation?.id)
+      .filter((id): id is string => Boolean(id));
+
+    const unreadCountMap = new Map<string, number>();
+    if (convIds.length > 0) {
+      const grouped = await prisma.bookingMessage.groupBy({
+        by: ['conversationId'],
+        where: {
+          conversationId: { in: convIds },
+          sender: BookingMessageSender.VISITOR,
+          readAt: null,
+        },
+        _count: { _all: true },
+      });
+      for (const row of grouped) {
+        unreadCountMap.set(row.conversationId, row._count._all);
+      }
+    }
 
     const tickets: ActiveQueueTicket[] = bookings.map((b) => {
       const translations = b.tour?.translations as Record<string, { title?: string }> | null;
-      const itinerary = b.tour?.itinerary as { time?: string }[] | null;
-      const tourTitle = b.tourTitleSnapshot || translations?.en?.title || 'Historical Tour';
+      const tourTitle = b.tourTitleSnapshot || translations?.en?.title || 'Tour Experience';
+      const convId = b.conversation?.id ?? null;
       return {
         id: b.id,
         bookingReference: b.bookingReference,
         tourTitle,
+        tourId: b.tourId ?? undefined,
         customerName: b.customerName,
         customerPhone: b.customerPhone,
+        customerEmail: b.customerEmail,
         travelDate: b.travelDate.toISOString().split('T')[0],
+        createdAt: b.createdAt.toISOString(),
+        updatedAt: b.updatedAt.toISOString(),
+        category: b.tour?.category || 'Tour',
         guestCount: b.guestCount,
+        adultsCount: b.adultsCount,
+        childrenCount: b.childrenCount,
+        infantsCount: b.infantsCount,
         totalPriceUSD: b.totalPriceUSD,
         hotelName: b.hotelName,
         roomNumber: b.roomNumber,
-        pickupTime: itinerary?.[0]?.time ?? null,
+        pickupTime: b.selectedPickupTime || null,
         pickupDirectives: b.pickupDirectives,
+        pickupType: b.pickupType,
+        pickupLocationName: b.pickupLocationName,
+        pickupAddress: b.pickupAddress,
         flightNumbers: b.flightNumbers,
         bedConfiguration: b.bedConfiguration ?? b.bedConfig,
         bedConfig: b.bedConfig ?? b.bedConfiguration,
         specialRequirements: b.specialRequirements,
         status: b.status as BookingStatus,
         language: b.language,
+        paymentScheme: b.paymentScheme ?? undefined,
+        amountPaidOnline: b.amountPaidOnline ? Number(b.amountPaidOnline) : undefined,
+        amountDueOnArrival: b.amountDueOnArrival ? Number(b.amountDueOnArrival) : undefined,
+        zoneName: b.tour?.zone?.name ?? undefined,
+        destinationName: b.destinationNameSnapshot || b.tour?.destination?.name || undefined,
+        selectedAddons: b.selectedAddons,
         bookingAnswers: b.bookingAnswers,
+        source: b.source,
+        notes: b.notes,
+        conversationId: convId,
+        unreadMessageCount: convId ? (unreadCountMap.get(convId) ?? 0) : 0,
+        lastMessageAt: b.conversation?.lastMessageAt?.toISOString() ?? null,
       };
     });
 
-    return NextResponse.json({ bookings: tickets });
+    return NextResponse.json({
+      bookings: tickets,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+      summary: { totalUnread },
+    });
   } catch (error) {
     console.error('GET /api/admin/bookings error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

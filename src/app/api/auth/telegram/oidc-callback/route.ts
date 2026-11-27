@@ -254,25 +254,40 @@ export async function GET(request: NextRequest) {
   const telegramPhone = rawPhone && rawPhone.trim().length > 0 ? rawPhone.trim() : null;
   const telegramPhoneVerified = Boolean(claims.phone_number_verified === true);
 
-  // 5. Upsert CustomerProfile in database
+  // 5. Upsert CustomerProfile in database (preserve custom Talago display name & phone)
+  const { phoneMatchKey } = await import('@/utils/phoneMatch');
+  const { normalizePhoneNumber } = await import('@/utils/sanitize');
+  const normalizedTgPhone = telegramPhone ? normalizePhoneNumber(telegramPhone) : null;
+
   let profile = await prisma.customerProfile.findUnique({
     where: { telegramId },
   });
 
   if (profile) {
+    const shouldBackfillName =
+      !profile.name ||
+      profile.name === 'User' ||
+      profile.name.startsWith('Traveler #');
+    const shouldBackfillPhone = !profile.phone && telegramPhoneVerified && normalizedTgPhone;
+
     profile = await prisma.customerProfile.update({
       where: { id: profile.id },
       data: {
-        name: fullName,
+        ...(shouldBackfillName ? { name: fullName } : {}),
         telegramUsername,
         telegramPhotoUrl,
         telegramBotAccess,
         telegramConnectedAt: new Date(),
         isShadow: false,
-        ...(telegramPhone
+        ...(normalizedTgPhone
           ? {
-              phone: profile.phone || (telegramPhoneVerified ? telegramPhone : undefined),
-              telegramPhone,
+              ...(shouldBackfillPhone
+                ? {
+                    phone: normalizedTgPhone,
+                    phoneNormalized: phoneMatchKey(normalizedTgPhone) ?? undefined,
+                  }
+                : {}),
+              telegramPhone: normalizedTgPhone,
               telegramPhoneVerified,
             }
           : {}),
@@ -281,10 +296,15 @@ export async function GET(request: NextRequest) {
   } else {
     // Check if a profile with verified phone already exists to merge
     let existingByPhone = null;
-    if (telegramPhone && telegramPhoneVerified) {
+    if (normalizedTgPhone && telegramPhoneVerified) {
+      const tgPhoneKey = phoneMatchKey(normalizedTgPhone);
       existingByPhone = await prisma.customerProfile.findFirst({
         where: {
-          OR: [{ phone: telegramPhone }, { telegramPhone: telegramPhone }],
+          OR: [
+            ...(tgPhoneKey ? [{ phoneNormalized: tgPhoneKey }] : []),
+            { phone: normalizedTgPhone },
+            { telegramPhone: normalizedTgPhone },
+          ],
         },
       });
     }
@@ -298,8 +318,14 @@ export async function GET(request: NextRequest) {
           telegramPhotoUrl,
           telegramBotAccess,
           telegramConnectedAt: new Date(),
-          telegramPhone,
+          telegramPhone: normalizedTgPhone,
           telegramPhoneVerified,
+          ...(!existingByPhone.phone && normalizedTgPhone
+            ? {
+                phone: normalizedTgPhone,
+                phoneNormalized: phoneMatchKey(normalizedTgPhone) ?? undefined,
+              }
+            : {}),
           isShadow: false,
         },
       });
@@ -314,8 +340,9 @@ export async function GET(request: NextRequest) {
           telegramPhotoUrl,
           telegramBotAccess,
           telegramConnectedAt: new Date(),
-          phone: telegramPhoneVerified ? telegramPhone : null,
-          telegramPhone: telegramPhone || null,
+          phone: telegramPhoneVerified ? normalizedTgPhone : null,
+          phoneNormalized: telegramPhoneVerified && normalizedTgPhone ? phoneMatchKey(normalizedTgPhone) ?? undefined : null,
+          telegramPhone: normalizedTgPhone || null,
           telegramPhoneVerified,
           isShadow: false,
         },

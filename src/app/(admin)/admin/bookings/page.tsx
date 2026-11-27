@@ -1,12 +1,17 @@
+import { BookingMessageSender } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import BookingQueue from '@/components/admin/BookingQueue';
 import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 
 export const dynamic = 'force-dynamic';
 
+const INITIAL_PAGE_SIZE = 25;
+
 export default async function AdminBookingsPage() {
-  const [bookings, toursList] = await Promise.all([
+  const [totalBookings, bookings, toursList] = await Promise.all([
+    prisma.booking.count(),
     prisma.booking.findMany({
+      take: INITIAL_PAGE_SIZE,
       include: {
         tour: {
           select: {
@@ -21,10 +26,6 @@ export default async function AdminBookingsPage() {
           select: {
             id: true,
             lastMessageAt: true,
-            messages: {
-              where: { sender: 'VISITOR', readAt: null },
-              select: { id: true },
-            },
           },
         },
       },
@@ -40,6 +41,26 @@ export default async function AdminBookingsPage() {
       orderBy: { createdAt: 'desc' },
     }),
   ]);
+
+  const convIds = bookings
+    .map((b) => b.conversation?.id)
+    .filter((id): id is string => Boolean(id));
+
+  const unreadCountMap = new Map<string, number>();
+  if (convIds.length > 0) {
+    const grouped = await prisma.bookingMessage.groupBy({
+      by: ['conversationId'],
+      where: {
+        conversationId: { in: convIds },
+        sender: BookingMessageSender.VISITOR,
+        readAt: null,
+      },
+      _count: { _all: true },
+    });
+    for (const row of grouped) {
+      unreadCountMap.set(row.conversationId, row._count._all);
+    }
+  }
 
   const availableTours = toursList.map((t) => {
     const translations = t.translations as Record<string, { title?: string }> | null;
@@ -92,7 +113,7 @@ export default async function AdminBookingsPage() {
       source: b.source,
       notes: b.notes,
       conversationId: b.conversation?.id ?? null,
-      unreadMessageCount: b.conversation?.messages?.length ?? 0,
+      unreadMessageCount: b.conversation?.id ? (unreadCountMap.get(b.conversation.id) ?? 0) : 0,
       lastMessageAt: b.conversation?.lastMessageAt?.toISOString() ?? null,
       updatedAt: b.updatedAt.toISOString(),
     };
@@ -101,7 +122,7 @@ export default async function AdminBookingsPage() {
   return (
     <main className="min-h-screen bg-[#070F1E] px-4 py-5 sm:px-6 sm:py-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8">
+        <div className="mb-6">
           <p className="text-xs font-black uppercase tracking-[0.28em] text-[#06B6D4]">
             Operations
           </p>
@@ -110,7 +131,16 @@ export default async function AdminBookingsPage() {
             Manage every customer request from initial interest through confirmation, messages, and completion in one place.
           </p>
         </div>
-        <BookingQueue initialBookings={tickets} availableTours={availableTours} />
+        <BookingQueue
+          initialBookings={tickets}
+          availableTours={availableTours}
+          initialPagination={{
+            page: 1,
+            pageSize: INITIAL_PAGE_SIZE,
+            total: totalBookings,
+            totalPages: Math.max(1, Math.ceil(totalBookings / INITIAL_PAGE_SIZE)),
+          }}
+        />
       </div>
     </main>
   );

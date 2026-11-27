@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
 
     const cleanEmail = email.toLowerCase().trim();
     const cleanName = (name && typeof name === 'string' ? name.trim() : '') || cleanEmail.split('@')[0];
-    const cleanPhone = phone && typeof phone === 'string' ? phone.trim() : null;
+    const { normalizePhoneNumber } = await import('@/utils/sanitize');
+    const { phoneMatchKey } = await import('@/utils/phoneMatch');
+    const cleanPhone = phone && typeof phone === 'string' && phone.trim() ? normalizePhoneNumber(phone.trim()) : null;
+    const cleanPhoneNormalized = cleanPhone ? phoneMatchKey(cleanPhone) ?? null : null;
 
     // Create user in Supabase Auth with pre-confirmed email so customer can sign in instantly
     const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -47,21 +50,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upsert CustomerProfile in database
-    const profile = await prisma.customerProfile.upsert({
-      where: { email: cleanEmail },
-      create: {
-        email: cleanEmail,
-        name: cleanName,
-        phone: cleanPhone,
-        isShadow: false,
-      },
-      update: {
-        name: cleanName || undefined,
-        phone: cleanPhone || undefined,
-        isShadow: false,
-      },
-    });
+    // Upsert CustomerProfile in database (preserve existing custom name/phone if already set)
+    const existingProfile = await prisma.customerProfile.findUnique({ where: { email: cleanEmail } });
+    const profile = existingProfile
+      ? await prisma.customerProfile.update({
+          where: { id: existingProfile.id },
+          data: {
+            ...(!existingProfile.name || existingProfile.name === 'User' ? { name: cleanName } : {}),
+            ...(!existingProfile.phone && cleanPhone
+              ? { phone: cleanPhone, phoneNormalized: cleanPhoneNormalized ?? undefined }
+              : {}),
+            isShadow: false,
+          },
+        })
+      : await prisma.customerProfile.create({
+          data: {
+            email: cleanEmail,
+            name: cleanName,
+            phone: cleanPhone,
+            phoneNormalized: cleanPhoneNormalized,
+            isShadow: false,
+          },
+        });
 
     // Adopt any bookings matching this customer's email or phone
     adoptOwnedBookings({

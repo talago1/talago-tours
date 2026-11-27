@@ -203,12 +203,33 @@ export async function GET(request: NextRequest) {
     const hasMore = rawBookings.length > pageSize;
     const allFetched = hasMore ? rawBookings.slice(0, pageSize) : rawBookings;
 
+    const convIds = allFetched
+      .map((b) => b.conversation?.id)
+      .filter((id): id is string => Boolean(id));
+
+    const unreadCountMap = new Map<string, number>();
+    if (convIds.length > 0) {
+      const grouped = await prisma.bookingMessage.groupBy({
+        by: ['conversationId'],
+        where: {
+          conversationId: { in: convIds },
+          sender: 'ADMIN',
+          readAt: null,
+        },
+        _count: { _all: true },
+      }).catch(() => []);
+      for (const row of grouped) {
+        unreadCountMap.set(row.conversationId, row._count._all);
+      }
+    }
+
     const interestedBookings = allFetched.filter((b) => b.status === 'INTERESTED');
     const bookings = allFetched.filter((b) => b.status !== 'INTERESTED');
 
     const formattedReservations = interestedBookings.map((r) => {
       const lastMsg = r.conversation?.messages?.[0] || null;
-      const unread = lastMsg ? !lastMsg.readAt : false;
+      const unreadAdminCount = r.conversation?.id ? (unreadCountMap.get(r.conversation.id) ?? 0) : 0;
+      const unread = unreadAdminCount > 0;
       const tourTitle = r.tour
         ? getLocalizedTourTitle(r.tour.translations, r.language || 'en')
         : r.tourTitleSnapshot || 'Tour Experience';
@@ -227,19 +248,22 @@ export async function GET(request: NextRequest) {
         status: r.status,
         createdAt: r.createdAt.toISOString(),
         travelDate: r.travelDate ? r.travelDate.toISOString().split('T')[0] : null,
+        conversationId: r.conversation?.id || null,
         lastAdminMessage: lastMsg?.body || null,
         lastAdminMessageAt: lastMsg?.createdAt?.toISOString() || null,
         hasUnreadAdminReply: unread,
+        unreadAdminCount,
       };
     });
 
     const formattedBookings = bookings.map((b) => {
       const lastMsg = b.conversation?.messages?.[0] || null;
-      const unread = lastMsg ? !lastMsg.readAt : false;
+      const unreadAdminCount = b.conversation?.id ? (unreadCountMap.get(b.conversation.id) ?? 0) : 0;
+      const unread = unreadAdminCount > 0;
       const { bookingAnswers, tour, conversation, ...bookingFields } = b as typeof b & {
         bookingAnswers?: { _cancellationRequest?: { status?: string } } | null;
         tour?: { translations?: unknown } | null;
-        conversation?: unknown;
+        conversation?: { id?: string } | null;
       };
       const pendingCancellation =
         (bookingAnswers as { _cancellationRequest?: { status?: string } } | null)
@@ -257,9 +281,11 @@ export async function GET(request: NextRequest) {
             }
           : null,
         hasPendingCancellationRequest: pendingCancellation,
+        conversationId: conversation?.id || null,
         lastAdminMessage: lastMsg?.body || null,
         lastAdminMessageAt: lastMsg?.createdAt?.toISOString() || null,
         hasUnreadAdminReply: unread,
+        unreadAdminCount,
       };
     });
 

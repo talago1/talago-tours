@@ -8,6 +8,7 @@ import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 import BookingRowActions from './BookingRowActions';
 import BookingInvoiceModal from './BookingInvoiceModal';
 import BulkBookingManagementModal from './BulkBookingManagementModal';
+import BookingDetailDrawer from './BookingDetailDrawer';
 import {
   ChevronDown,
   ChevronRight,
@@ -44,9 +45,17 @@ interface AvailableTour {
   category: string | null;
 }
 
+interface PaginationMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
 interface BookingQueueProps {
   initialBookings: ActiveQueueTicket[];
   availableTours?: AvailableTour[];
+  initialPagination?: PaginationMeta;
 }
 
 function SkeletonRow() {
@@ -455,10 +464,19 @@ function BookingChatPanel({ bookingId, bookingReference, onClose, onMessagesRead
   );
 }
 
-export default function BookingQueue({ initialBookings, availableTours = [] }: BookingQueueProps) {
+export default function BookingQueue({ initialBookings, availableTours = [], initialPagination }: BookingQueueProps) {
   const [bookings, setBookings] = useState<ActiveQueueTicket[]>(initialBookings);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [chatBookingRef, setChatBookingRef] = useState<string | null>(null);
+  const [pagination, setPagination] = useState<PaginationMeta>(
+    initialPagination || {
+      page: 1,
+      pageSize: 25,
+      total: initialBookings.length,
+      totalPages: 1,
+    }
+  );
+  const [loadingPage, setLoadingPage] = useState(false);
+  const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
+  const [drawerInitialTab, setDrawerInitialTab] = useState<'overview' | 'customer' | 'payment' | 'conversation' | 'activity'>('overview');
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -473,6 +491,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
   const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
 
   const handledDeepLinkRef = useRef<string | null>(null);
+  const isFirstRenderRef = useRef(true);
 
   useEffect(() => {
     const filterParam = searchParams.get('filter');
@@ -494,15 +513,55 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
           b.conversationId === refParam
       );
       if (match) {
-        setExpandedId(match.id);
-        if (chatParam === '1' || searchParams.get('chatRef') || searchParams.get('conversationId')) {
-          setChatBookingRef(match.bookingReference);
-        }
-      } else if (chatParam === '1') {
-        setChatBookingRef(refParam);
+        setDrawerBookingId(match.id);
+        setDrawerInitialTab(
+          chatParam === '1' || searchParams.get('chatRef') || searchParams.get('conversationId')
+            ? 'conversation'
+            : 'overview'
+        );
       }
     }
   }, [searchParams, bookings]);
+
+  const fetchServerBookings = useCallback(
+    async (targetPage: number) => {
+      setLoadingPage(true);
+      try {
+        const params = new URLSearchParams();
+        params.set('page', String(targetPage));
+        params.set('pageSize', String(pagination.pageSize));
+        if (searchQuery.trim()) params.set('search', searchQuery.trim());
+        if (selectedStatus !== 'ALL') params.set('status', selectedStatus);
+        if (selectedTourId !== 'ALL') params.set('tourId', selectedTourId);
+        if (startDate) params.set('dateFrom', startDate);
+        if (endDate) params.set('dateTo', endDate);
+        if (filterUnreadOnly) params.set('unreadOnly', 'true');
+
+        const res = await fetch(`/api/admin/bookings?${params.toString()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.bookings)) setBookings(data.bookings);
+          if (data.pagination) setPagination(data.pagination);
+        }
+      } catch {
+        // non-fatal
+      } finally {
+        setLoadingPage(false);
+      }
+    },
+    [pagination.pageSize, searchQuery, selectedStatus, selectedTourId, startDate, endDate, filterUnreadOnly]
+  );
+
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      fetchServerBookings(1);
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedStatus, selectedTourId, startDate, endDate, filterUnreadOnly, fetchServerBookings]);
 
   const markBookingMessagesRead = useCallback((bookingId: string) => {
     setBookings((prev) =>
@@ -739,8 +798,12 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
     });
   };
 
-  const toggleExpand = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id));
+  const openBookingDrawer = (
+    id: string,
+    tab: 'overview' | 'customer' | 'payment' | 'conversation' | 'activity' = 'overview'
+  ) => {
+    setDrawerInitialTab(tab);
+    setDrawerBookingId(id);
   };
 
   // Bulk Delete Selected Bookings
@@ -1286,7 +1349,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                             ? 'bg-[#00E5FF]/5'
                             : 'hover:bg-white/[0.02]'
                       }`}
-                      onClick={() => toggleExpand(b.id)}
+                      onClick={() => openBookingDrawer(b.id, 'overview')}
                     >
                       {/* Checkbox Column */}
                       <td className="px-4 py-3" onClick={(e) => toggleSelect(b.id, e)}>
@@ -1300,13 +1363,9 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                         </button>
                       </td>
 
-                      {/* Expand Arrow Column */}
+                      {/* Open Drawer Arrow Column */}
                       <td className="px-2 py-3">
-                        {expandedId === b.id ? (
-                          <ChevronDown className="h-4 w-4 text-[#00E5FF]" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-slate-500" />
-                        )}
+                        <ChevronRight className={`h-4 w-4 ${drawerBookingId === b.id ? 'text-[#00E5FF]' : 'text-slate-500'}`} />
                       </td>
 
                       {/* Booking Reference */}
@@ -1404,6 +1463,21 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                       {/* Actions */}
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openBookingDrawer(b.id, 'conversation')}
+                            className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${
+                              unreadMap[b.bookingReference]?.count > 0
+                                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                                : 'bg-white/5 border-white/10 text-slate-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/30'
+                            }`}
+                            title="Open Conversation"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            {unreadMap[b.bookingReference]?.count > 0 && (
+                              <span>{unreadMap[b.bookingReference].count}</span>
+                            )}
+                          </button>
                           {isCancelPending && (
                             <div className="flex items-center gap-1.5 mr-1">
                               <button
@@ -1433,15 +1507,6 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                         </div>
                       </td>
                     </tr>
-
-                    {/* Expandable Logistics Details */}
-                    {expandedId === b.id && (
-                      <tr key={`${b.id}-expanded`}>
-                        <td colSpan={12} className="bg-white/[0.01] p-0">
-                          <ExpandedDetails booking={b} onOpenChat={(ref) => setChatBookingRef(ref)} onReviewCancellation={handleReviewCancellation} />
-                        </td>
-                      </tr>
-                    )}
                   </React.Fragment>
                 );
               })}
@@ -1539,7 +1604,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setChatBookingRef(b.bookingReference)}
+                    onClick={() => openBookingDrawer(b.id, 'conversation')}
                     className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold transition-all ${
                       unreadMap[b.bookingReference]?.count > 0
                         ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 animate-pulse'
@@ -1598,49 +1663,62 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                 </div>
               </div>
 
-              {/* Full Details, Conversation & Logistics Accordion */}
+              {/* Open Details Drawer (Mobile) */}
               <div className="border-t border-white/5 pt-3">
                 <button
                   type="button"
-                  onClick={() => toggleExpand(b.id)}
+                  onClick={() => openBookingDrawer(b.id, 'overview')}
                   className="flex w-full items-center justify-between text-xs font-bold text-slate-300 hover:text-[#00E5FF] transition-colors bg-white/[0.02] hover:bg-white/[0.05] p-2.5 rounded-xl border border-white/5"
                 >
-                  <span className="flex items-center gap-1.5">
-                    {expandedId === b.id ? 'Hide Full Details & Logistics' : 'View Full Details, Chat & WhatsApp'}
-                  </span>
-                  {expandedId === b.id ? (
-                    <ChevronDown className="h-4 w-4 text-[#00E5FF]" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
+                  <span>View Details, Chat & WhatsApp</span>
+                  <ChevronRight className="h-4 w-4" />
                 </button>
-                {expandedId === b.id && (
-                  <div className="mt-3 pt-3 border-t border-white/10 animate-in fade-in duration-200">
-                    <ExpandedDetails booking={b} onOpenChat={setChatBookingRef} onReviewCancellation={handleReviewCancellation} />
-                  </div>
-                )}
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* 5. Inline Booking Chat Panel */}
-      {chatBookingRef && (() => {
-        const activeChatBooking = bookings.find((b) => b.bookingReference === chatBookingRef);
-        if (!activeChatBooking) return null;
-        return (
-          <BookingChatPanel
-            bookingId={activeChatBooking.id}
-            bookingReference={activeChatBooking.bookingReference}
-            onClose={() => {
-              setChatBookingRef(null);
-              markBookingMessagesRead(activeChatBooking.id);
-            }}
-            onMessagesRead={markBookingMessagesRead}
-          />
-        );
-      })()}
+      {/* Server-side Pagination Bar */}
+      {pagination.totalPages > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0B1528] px-4 py-3 text-xs text-slate-300">
+          <span>
+            Page <strong className="text-white">{pagination.page}</strong> of{' '}
+            <strong className="text-white">{pagination.totalPages}</strong> ·{' '}
+            <strong className="text-white">{pagination.total}</strong> total bookings
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={pagination.page <= 1 || loadingPage}
+              onClick={() => fetchServerBookings(pagination.page - 1)}
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 font-bold text-white hover:bg-white/10 disabled:opacity-40 transition"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={pagination.page >= pagination.totalPages || loadingPage}
+              onClick={() => fetchServerBookings(pagination.page + 1)}
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 font-bold text-white hover:bg-white/10 disabled:opacity-40 transition"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Right-side Booking Details & Conversation Drawer */}
+      <BookingDetailDrawer
+        booking={bookings.find((b) => b.id === drawerBookingId) || null}
+        initialTab={drawerInitialTab}
+        onClose={() => setDrawerBookingId(null)}
+        onStatusChange={handleStatusChange}
+        onUpdateBooking={handleUpdateBooking}
+        onDeleteBooking={handleDeleteBooking}
+        onMessagesRead={markBookingMessagesRead}
+        onReviewCancellation={handleReviewCancellation}
+      />
 
       {/* 6. Invoice & Statement Modal */}
       <BookingInvoiceModal

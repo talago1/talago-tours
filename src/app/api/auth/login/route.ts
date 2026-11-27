@@ -48,23 +48,39 @@ export async function POST(request: NextRequest) {
       sbUser.user_metadata?.full_name ||
       sbUser.user_metadata?.name ||
       cleanEmail.split('@')[0];
-    const phone = sbUser.phone || sbUser.user_metadata?.phone || null;
+    const rawPhone = sbUser.phone || sbUser.user_metadata?.phone || null;
+    const { normalizePhoneNumber } = await import('@/utils/sanitize');
+    const { phoneMatchKey } = await import('@/utils/phoneMatch');
+    const phone = rawPhone ? normalizePhoneNumber(rawPhone) : null;
 
-    // Upsert CustomerProfile in database
-    const profile = await prisma.customerProfile.upsert({
+    // Preserve customer's edited Talago display name and existing phone number
+    const existing = await prisma.customerProfile.findUnique({
       where: { email: cleanEmail },
-      create: {
-        email: cleanEmail,
-        name,
-        phone,
-        isShadow: false,
-      },
-      update: {
-        name: name || undefined,
-        phone: phone || undefined,
-        isShadow: false,
-      },
     });
+
+    const shouldSetName =
+      !existing?.name || existing.name === 'User' || existing.name.startsWith('Traveler #');
+
+    const profile = existing
+      ? await prisma.customerProfile.update({
+          where: { id: existing.id },
+          data: {
+            ...(shouldSetName ? { name } : {}),
+            ...(!existing.phone && phone
+              ? { phone, phoneNormalized: phoneMatchKey(phone) ?? undefined }
+              : {}),
+            isShadow: false,
+          },
+        })
+      : await prisma.customerProfile.create({
+          data: {
+            email: cleanEmail,
+            name,
+            phone,
+            phoneNormalized: phone ? phoneMatchKey(phone) ?? undefined : undefined,
+            isShadow: false,
+          },
+        });
 
     // Adopt any bookings matching this customer's email or phone
     adoptOwnedBookings({

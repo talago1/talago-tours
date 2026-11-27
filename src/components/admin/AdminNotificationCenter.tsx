@@ -107,7 +107,11 @@ export default function AdminNotificationCenter() {
   useEffect(() => {
     fetchAdminNotifications();
     const interval = setInterval(fetchAdminNotifications, 20000);
-    return () => clearInterval(interval);
+    window.addEventListener('talago:admin-notifications-updated', fetchAdminNotifications);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('talago:admin-notifications-updated', fetchAdminNotifications);
+    };
   }, [fetchAdminNotifications]);
 
   const unreadCount = useMemo(() => {

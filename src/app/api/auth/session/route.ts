@@ -94,21 +94,41 @@ export async function POST(request: NextRequest) {
             sbUser.user_metadata?.name ||
             email.split('@')[0];
 
-          // Upsert CustomerProfile
-          const profile = await prisma.customerProfile.upsert({
+          // Look up existing profile so we never overwrite a customer's custom name or phone
+          const existingProfile = await prisma.customerProfile.findUnique({
             where: { email },
-            create: {
-              email,
-              name,
-              phone: sbUser.phone || null,
-              isShadow: false,
-            },
-            update: {
-              name: name || undefined,
-              phone: sbUser.phone || undefined,
-              isShadow: false,
-            },
           });
+          const shouldSetName =
+            !existingProfile?.name ||
+            existingProfile.name === 'User' ||
+            existingProfile.name.startsWith('Traveler #');
+          const { phoneMatchKey } = await import('@/utils/phoneMatch');
+          const { normalizePhoneNumber } = await import('@/utils/sanitize');
+          const normalizedSbPhone = sbUser.phone ? normalizePhoneNumber(sbUser.phone) : null;
+
+          const profile = existingProfile
+            ? await prisma.customerProfile.update({
+                where: { id: existingProfile.id },
+                data: {
+                  ...(shouldSetName ? { name } : {}),
+                  ...(!existingProfile.phone && normalizedSbPhone
+                    ? {
+                        phone: normalizedSbPhone,
+                        phoneNormalized: phoneMatchKey(normalizedSbPhone) ?? undefined,
+                      }
+                    : {}),
+                  isShadow: false,
+                },
+              })
+            : await prisma.customerProfile.create({
+                data: {
+                  email,
+                  name,
+                  phone: normalizedSbPhone,
+                  phoneNormalized: normalizedSbPhone ? phoneMatchKey(normalizedSbPhone) ?? undefined : undefined,
+                  isShadow: false,
+                },
+              });
 
           // Issue authoritative Talago session token
           const talagoToken = await createSessionToken({
@@ -162,6 +182,118 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { authenticated: false, user: null },
       { headers: NO_CACHE_HEADERS }
+    );
+  }
+}
+
+/**
+ * PATCH /api/auth/session
+ * Updates the authenticated customer's editable Talago profile (display name & phone).
+ * Never mutates historical Booking records.
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getSessionFromRequest(request);
+    let profileId = session?.id || null;
+    let sessionEmail = session?.email || null;
+
+    if (!profileId && !sessionEmail) {
+      const { resolveRequestUser } = await import('@/server/customerSession');
+      const auth = await resolveRequestUser(request);
+      if (auth?.user?.email) {
+        sessionEmail = auth.user.email.toLowerCase().trim();
+      }
+    }
+
+    if (!profileId && !sessionEmail) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401, headers: NO_CACHE_HEADERS }
+      );
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const { sanitizePlain, normalizePhoneNumber } = await import('@/utils/sanitize');
+    const { phoneMatchKey } = await import('@/utils/phoneMatch');
+
+    const rawName = typeof body.name === 'string' ? sanitizePlain(body.name, 100) : undefined;
+    const rawPhone = typeof body.phone === 'string' ? body.phone.trim() : undefined;
+
+    if (rawName !== undefined && rawName.length < 2) {
+      return NextResponse.json(
+        { error: 'Display name must be at least 2 characters' },
+        { status: 400, headers: NO_CACHE_HEADERS }
+      );
+    }
+
+    let normalizedPhone: string | null | undefined = undefined;
+    let phoneNormalizedKey: string | null | undefined = undefined;
+
+    if (rawPhone !== undefined) {
+      if (rawPhone === '') {
+        normalizedPhone = null;
+        phoneNormalizedKey = null;
+      } else {
+        const e164 = normalizePhoneNumber(rawPhone);
+        const key = phoneMatchKey(e164);
+        if (!e164.startsWith('+') || !key) {
+          return NextResponse.json(
+            { error: 'Please enter a valid international phone number' },
+            { status: 400, headers: NO_CACHE_HEADERS }
+          );
+        }
+        normalizedPhone = e164;
+        phoneNormalizedKey = key;
+      }
+    }
+
+    const existing = profileId
+      ? await prisma.customerProfile.findUnique({ where: { id: profileId } })
+      : await prisma.customerProfile.findFirst({
+          where: { email: { equals: sessionEmail!, mode: 'insensitive' } },
+        });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Customer profile not found' },
+        { status: 404, headers: NO_CACHE_HEADERS }
+      );
+    }
+
+    const updated = await prisma.customerProfile.update({
+      where: { id: existing.id },
+      data: {
+        ...(rawName !== undefined ? { name: rawName } : {}),
+        ...(normalizedPhone !== undefined ? { phone: normalizedPhone } : {}),
+        ...(phoneNormalizedKey !== undefined ? { phoneNormalized: phoneNormalizedKey } : {}),
+        isShadow: false,
+      },
+    });
+
+    const refreshedUser: TalagoSessionUser = {
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
+      phone: updated.phone,
+      telegramId: updated.telegramId,
+      telegramUsername: updated.telegramUsername,
+      telegramPhone: updated.telegramPhone,
+      role: 'CUSTOMER',
+      authProvider: session?.authProvider || (updated.telegramId ? 'telegram' : 'email'),
+    };
+
+    const newToken = await createSessionToken(refreshedUser);
+    const res = NextResponse.json(
+      { success: true, user: refreshedUser },
+      { headers: NO_CACHE_HEADERS }
+    );
+    setSessionCookie(res, newToken);
+    return res;
+  } catch (error) {
+    console.error('[PATCH /api/auth/session] Error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update profile' },
+      { status: 500, headers: NO_CACHE_HEADERS }
     );
   }
 }

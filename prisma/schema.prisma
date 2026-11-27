@@ -376,11 +376,14 @@ model Booking {
   @@index([tourId])
   @@index([bookingReference])
   @@index([tourId, travelDate, status])
+  @@index([tourId, createdAt])
   @@index([travelDate, status])
   @@index([status, createdAt])
+  @@index([createdAt])
   @@index([channel])
   @@index([promoCodeId])
   @@index([customerProfileId])
+  @@index([customerProfileId, travelDate])
   @@index([customerEmail])
   @@index([customerPhoneNormalized])
 }
@@ -498,6 +501,8 @@ model NotificationLog {
   createdAt    DateTime @default(now())
 
   @@index([bookingId])
+  @@index([bookingId, channel, status])
+  @@index([recipient, channel, status, createdAt])
 }
 
 model SystemSetting {
@@ -741,6 +746,7 @@ model BookingMessage {
 
   @@index([conversationId, createdAt])
   @@index([conversationId, sender, readAt])
+  @@index([sender, readAt])
   @@map("booking_messages")
 }
 

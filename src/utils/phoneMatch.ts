@@ -59,3 +59,26 @@ export function exactPhoneVariants(raw: unknown): string[] {
   }
   return [...variants];
 }
+
+/**
+ * Validates an international E.164 phone number with country-aware length rules.
+ * Returns null if valid, or a short validation key/message if invalid.
+ */
+export function validateInternationalPhone(raw: unknown, countryCode?: string): string | null {
+  const str = String(raw ?? '').trim();
+  if (!str) return 'Phone number is required';
+  const digits = phoneDigits(str);
+  if (digits.length < 8 || digits.length > 15) {
+    return 'Please enter a valid international phone number (8–15 digits)';
+  }
+  if (!str.startsWith('+') && !str.startsWith('00')) {
+    return 'Phone number must include a valid country calling code';
+  }
+  if (countryCode === 'EG' || str.startsWith('+20')) {
+    const national = digits.startsWith('20') ? digits.slice(2).replace(/^0+/, '') : digits;
+    if (!/^1[0125]\d{8}$/.test(national)) {
+      return 'Egyptian mobile numbers must be 10 digits (e.g. 010 1234 5678)';
+    }
+  }
+  return null;
+}

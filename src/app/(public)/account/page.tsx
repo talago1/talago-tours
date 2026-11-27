@@ -17,6 +17,7 @@ const WriteReviewModal = dynamic(() => import('@/components/modals/WriteReviewMo
 const CancellationModal = dynamic(() => import('@/components/modals/CancellationModal'), { ssr: false });
 import CountryCodeSelector from '@/components/checkout/CountryCodeSelector';
 import { normalizePhoneNumber } from '@/utils/sanitize';
+import { validateInternationalPhone } from '@/utils/phoneMatch';
 import { useContactSettings } from '@/hooks/useContactSettings';
 import {
   CalendarDays,
@@ -111,6 +112,7 @@ interface BookingItem {
   lastAdminMessage?: string | null;
   lastAdminMessageAt?: string | null;
   hasUnreadAdminReply?: boolean;
+  unreadAdminCount?: number;
 }
 
 interface ReservationItem {
@@ -131,6 +133,7 @@ interface ReservationItem {
   lastAdminMessage?: string | null;
   lastAdminMessageAt?: string | null;
   hasUnreadAdminReply?: boolean;
+  unreadAdminCount?: number;
 }
 
 interface UserProfile {
@@ -208,7 +211,7 @@ export default function AccountPage() {
   const [reservations, setReservations] = useState<ReservationItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [bookingFilter, setBookingFilter] = useState<'ALL' | 'UPCOMING' | 'PAST' | 'INQUIRIES'>('ALL');
+  const [bookingFilter, setBookingFilter] = useState<'ALL' | 'UPCOMING' | 'PENDING' | 'PAST' | 'CANCELLED'>('ALL');
   const [activeReviewTour, setActiveReviewTour] = useState<{ id: string; title: string } | null>(null);
   const [withdrawTarget, setWithdrawTarget] = useState<ReservationItem | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
@@ -376,14 +379,14 @@ export default function AccountPage() {
         // Mark active conversation read in local state
         setBookings((prev) =>
           prev.map((b) =>
-            b.bookingReference === bookingRef ? { ...b, hasUnreadAdminReply: false } : b
+            b.bookingReference === bookingRef ? { ...b, hasUnreadAdminReply: false, unreadAdminCount: 0 } : b
           )
         );
         setReservations((prev) =>
           prev.map((r) => {
             const refKey = r.leadId ? `lead:${r.leadId}` : (r.reservationReference || r.id);
             return refKey === bookingRef || r.id === bookingRef || r.leadId === bookingRef
-              ? { ...r, hasUnreadAdminReply: false }
+              ? { ...r, hasUnreadAdminReply: false, unreadAdminCount: 0 }
               : r;
           })
         );
@@ -423,17 +426,34 @@ export default function AccountPage() {
   // Profile save handler
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProfileSaving(true);
     setProfileError(null);
     setProfileSuccess(false);
+
+    const trimmedName = editName.trim();
+    if (trimmedName.length < 2) {
+      setProfileError('Display name must be at least 2 characters');
+      return;
+    }
+
+    const trimmedPhone = editPhone.trim();
+    const normalizedPhone = trimmedPhone ? normalizePhoneNumber(trimmedPhone) : '';
+    if (normalizedPhone) {
+      const phoneErr = validateInternationalPhone(normalizedPhone);
+      if (phoneErr) {
+        setProfileError(phoneErr);
+        return;
+      }
+    }
+
+    setProfileSaving(true);
 
     try {
       const res = await fetch('/api/auth/session', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: editName.trim(),
-          phone: normalizePhoneNumber(editPhone.trim()),
+          name: trimmedName,
+          phone: normalizedPhone,
         }),
       });
 
@@ -562,6 +582,8 @@ export default function AccountPage() {
 
   const displayedBookings = useMemo(() => {
     if (bookingFilter === 'UPCOMING') return upcomingBookings;
+    if (bookingFilter === 'PENDING') return bookings.filter((b) => b.status === 'PENDING');
+    if (bookingFilter === 'CANCELLED') return bookings.filter((b) => b.status === 'CANCELLED');
     if (bookingFilter === 'PAST') return pastBookings;
     return bookings;
   }, [bookingFilter, bookings, upcomingBookings, pastBookings]);
@@ -569,10 +591,10 @@ export default function AccountPage() {
   const unreadMessagesCount = useMemo(() => {
     let count = 0;
     for (const b of bookings) {
-      if (b.hasUnreadAdminReply) count++;
+      count += b.unreadAdminCount ?? (b.hasUnreadAdminReply ? 1 : 0);
     }
     for (const r of reservations) {
-      if (r.hasUnreadAdminReply) count++;
+      count += r.unreadAdminCount ?? (r.hasUnreadAdminReply ? 1 : 0);
     }
     return count;
   }, [bookings, reservations]);
@@ -1052,8 +1074,8 @@ export default function AccountPage() {
                 </button>
 
                 {/* Filter Pills */}
-                <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
-                  {(['ALL', 'UPCOMING', 'PAST'] as const).map((f) => (
+                <div className="flex flex-wrap items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10">
+                  {(['ALL', 'UPCOMING', 'PENDING', 'PAST', 'CANCELLED'] as const).map((f) => (
                     <button
                       key={f}
                       type="button"
@@ -1068,6 +1090,10 @@ export default function AccountPage() {
                         ? dict.account.bookings.filterAll
                         : f === 'UPCOMING'
                         ? dict.account.bookings.filterUpcoming
+                        : f === 'PENDING'
+                        ? dict.account.bookings.statusPending
+                        : f === 'CANCELLED'
+                        ? dict.account.bookings.statusCancelled
                         : dict.account.bookings.filterPast}
                     </button>
                   ))}

@@ -7,25 +7,46 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: params.id },
-      include: {
-        tour: {
-          select: {
-            translations: true,
-            destination: { select: { name: true } },
-            zone: { select: { name: true } },
+    const [booking, activityLogs] = await Promise.all([
+      prisma.booking.findUnique({
+        where: { id: params.id },
+        include: {
+          tour: {
+            select: {
+              translations: true,
+              destination: { select: { name: true } },
+              zone: { select: { name: true } },
+            },
+          },
+          transaction: true,
+          conversation: {
+            select: {
+              id: true,
+              status: true,
+              lastMessageAt: true,
+            },
           },
         },
-        transaction: true,
-      },
-    });
+      }),
+      prisma.notificationLog.findMany({
+        where: { bookingId: params.id },
+        orderBy: { createdAt: 'desc' },
+        take: 25,
+        select: {
+          id: true,
+          channel: true,
+          recipient: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+    ]);
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ booking });
+    return NextResponse.json({ booking, activityLogs });
   } catch (error) {
     console.error('GET /api/admin/bookings/[id] error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

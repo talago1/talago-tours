@@ -18,6 +18,7 @@ import {
 import { supabaseClient } from '@/lib/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
+import CountryCodeSelector from '@/components/checkout/CountryCodeSelector';
 
 function safeReturnTarget(raw: string | null | undefined): string {
   if (!raw) return '/account';
@@ -337,16 +338,10 @@ function AuthPageContent() {
                 <label className="block text-xs font-bold text-slate-300 mb-1.5">
                   Phone / WhatsApp <span className="text-slate-500 font-normal">(optional)</span>
                 </label>
-                <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 focus-within:border-[#00E5FF] focus-within:bg-white/[0.08] transition">
-                  <Phone className="h-4 w-4 text-slate-400 shrink-0" />
-                  <input
-                    type="tel"
-                    placeholder="+20 123 456 7890"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full bg-transparent text-xs font-bold text-white placeholder-slate-500 outline-none"
-                  />
-                </div>
+                <CountryCodeSelector
+                  value={phone}
+                  onChange={(val) => setPhone(val)}
+                />
               </div>
             )}
 
