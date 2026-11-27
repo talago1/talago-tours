@@ -51,11 +51,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ authenticated: false, adopted: false }, { status: 200, headers: NO_STORE });
     }
 
+    // Only adopt guest bookings using verified phone numbers (Telegram-verified phone)
+    // Never adopt or reveal private bookings based on an unverified profile phone number.
     const phones = [
-      profile.phone,
-      profile.telegramPhone,
-      session?.phone,
-      session?.telegramPhone,
+      profile.telegramPhoneVerified && profile.telegramPhone ? profile.telegramPhone : null,
+      session?.telegramPhone ?? null,
     ].filter(Boolean);
 
     const emails = [profile.email, session?.email].filter(Boolean) as string[];

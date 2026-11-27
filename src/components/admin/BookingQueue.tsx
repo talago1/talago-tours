@@ -8,22 +8,19 @@ import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 import BookingRowActions from './BookingRowActions';
 import BookingInvoiceModal from './BookingInvoiceModal';
 import BulkBookingManagementModal from './BulkBookingManagementModal';
-import BookingDetailDrawer from './BookingDetailDrawer';
+import StatusBadge from './StatusBadge';
 import {
   ChevronDown,
   ChevronRight,
   Hotel,
   MapPin,
   Users,
-  Hash,
   Clock,
   DollarSign,
   MessageCircle,
   MessageSquare,
-  CreditCard,
   AlertCircle,
   Search,
-  Filter,
   Trash2,
   FileText,
   CheckSquare,
@@ -31,12 +28,19 @@ import {
   RefreshCw,
   Calendar,
   X,
-  ArrowUpDown,
   Sparkles,
   HelpCircle,
   Send,
   Inbox,
   AlertTriangle,
+  User,
+  Globe,
+  ShieldCheck,
+  Check,
+  Ban,
+  Compass,
+  Plane,
+  BedDouble,
 } from 'lucide-react';
 
 interface AvailableTour {
@@ -56,6 +60,7 @@ interface BookingQueueProps {
   initialBookings: ActiveQueueTicket[];
   availableTours?: AvailableTour[];
   initialPagination?: PaginationMeta;
+  initialTotalUnread?: number;
 }
 
 function SkeletonRow() {
@@ -76,165 +81,63 @@ function SkeletonRow() {
   );
 }
 
-function ExpandedDetails({ booking, onOpenChat, onReviewCancellation }: { booking: ActiveQueueTicket; onOpenChat: (ref: string) => void; onReviewCancellation?: (id: string, action: 'APPROVE' | 'DECLINE') => void }) {
+function ExpandedDetails({
+  booking,
+  onOpenChat,
+  onReviewCancellation,
+}: {
+  booking: ActiveQueueTicket;
+  onOpenChat: (id: string) => void;
+  onReviewCancellation?: (id: string, action: 'APPROVE' | 'DECLINE') => void;
+}) {
+  const [showFullTourSpecs, setShowFullTourSpecs] = useState(false);
   const cleanPhone = normalizePhoneForWhatsApp(booking.customerPhone);
-  const cashDue = booking.amountDueOnArrival ?? (booking.paymentScheme === 'FULL' ? 0 : Math.max(0, booking.totalPriceUSD - (booking.amountPaidOnline ?? 0)));
-  const paidOnline = booking.amountPaidOnline ?? (booking.paymentScheme === 'FULL' ? booking.totalPriceUSD : 0);
+  const cashDue =
+    booking.amountDueOnArrival ??
+    (booking.paymentScheme === 'FULL'
+      ? 0
+      : Math.max(0, booking.totalPriceUSD - (booking.amountPaidOnline ?? 0)));
+  const paidOnline =
+    booking.amountPaidOnline ??
+    (booking.paymentScheme === 'FULL' ? booking.totalPriceUSD : 0);
+  const td = booking.tourDetails;
+  const countryCodeMatch = booking.customerPhone?.trim().match(/^(\+\d{1,4})/);
+  const dialCode = countryCodeMatch ? countryCodeMatch[1] : null;
+  const createdLabel = booking.createdAt
+    ? new Date(booking.createdAt).toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—';
+
+  const answerEntries =
+    booking.bookingAnswers && typeof booking.bookingAnswers === 'object'
+      ? Object.entries(booking.bookingAnswers).filter(([k]) => !k.startsWith('_'))
+      : [];
 
   return (
-    <div className="border-t border-white/5 bg-[#070F1E] px-6 py-5">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Hotel & Room Logistics */}
-        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="flex items-center gap-1.5 font-medium">
-                <Hotel className="h-3.5 w-3.5 text-[#00E5FF]" />
-                Hotel & Room
-              </span>
-              {booking.roomNumber ? (
-                <span className="rounded bg-cyan-500/10 px-2 py-0.5 text-[11px] font-semibold text-[#00E5FF] border border-[#00E5FF]/20">
-                  Room {booking.roomNumber}
-                </span>
-              ) : (
-                <span className="text-[11px] text-slate-500">No room #</span>
-              )}
-            </div>
-            <p className="mt-2 text-sm font-semibold text-white truncate" title={booking.hotelName || booking.pickupLocationName || 'No hotel specified'}>
-              {booking.hotelName || booking.pickupLocationName || 'Direct / No hotel specified'}
-            </p>
-            {booking.pickupType && booking.pickupType !== 'HOTEL' && (
-              <span className="mt-1 inline-block rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-300 border border-amber-500/20">
-                Mode: {booking.pickupType.replace('_', ' ')}
-              </span>
-            )}
-            {booking.zoneName && (
-              <p className="mt-1 text-xs text-slate-400 flex items-center gap-1">
-                <MapPin className="h-3 w-3 text-slate-500" />
-                Zone: <span className="text-slate-300 font-medium">{booking.zoneName}</span>
-              </p>
-            )}
-          </div>
-          {booking.pickupDirectives && (
-            <p className="mt-2 text-[11px] text-slate-400 border-t border-white/5 pt-2">
-              Note: {booking.pickupDirectives}
-            </p>
-          )}
-        </div>
-
-        {/* Excursion Pickup Time & Party */}
-        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="flex items-center gap-1.5 font-medium">
-                <Clock className="h-3.5 w-3.5 text-amber-400" />
-                Pickup Schedule
-              </span>
-              <span className="flex items-center gap-1 text-[11px] text-slate-400">
-                <Users className="h-3 w-3" />
-                {booking.guestCount} {booking.guestCount === 1 ? 'Guest' : 'Guests'}
-              </span>
-            </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-lg font-bold text-amber-400">
-                {booking.pickupTime || 'TBD'}
-              </span>
-              <span className="text-xs text-slate-400">
-                ({booking.travelDate ? new Date(booking.travelDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : 'Date TBD'})
-              </span>
-            </div>
-          </div>
-          <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-400 border-t border-white/5 pt-2">
-            <span>Adults: <strong className="text-white">{booking.adultsCount ?? booking.guestCount}</strong></span>
-            <span>Children: <strong className="text-white">{booking.childrenCount ?? 0}</strong></span>
-            {!!booking.infantsCount && <span>Infants: <strong className="text-white">{booking.infantsCount}</strong></span>}
-          </div>
-        </div>
-
-        {/* Financials & Cash to Collect on Arrival */}
-        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="flex items-center gap-1.5 font-medium">
-                <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
-                Payment Breakdown
-              </span>
-              <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-white/5 text-slate-300 border border-white/10">
-                {booking.paymentScheme || 'ARRIVAL'}
-              </span>
-            </div>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-xs text-slate-400">Total Price:</span>
-              <span className="text-sm font-semibold text-white">${booking.totalPriceUSD}</span>
-            </div>
-            <div className="mt-1 flex items-baseline justify-between text-xs">
-              <span className="text-slate-400">Paid Online:</span>
-              <span className="text-slate-300 font-medium">${paidOnline}</span>
-            </div>
-          </div>
-          <div className="mt-2 rounded-lg bg-amber-500/10 border border-amber-500/30 p-2 flex items-center justify-between">
-            <span className="text-xs font-semibold text-amber-400">Cash Due at Pickup:</span>
-            <span className="text-base font-bold text-amber-300">${cashDue}</span>
-          </div>
-        </div>
-
-        {/* Guest Contact & WhatsApp Quick Action */}
-        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="flex items-center gap-1.5 font-medium">
-                <MessageCircle className="h-3.5 w-3.5 text-emerald-400" />
-                Guest Direct Contact
-              </span>
-            </div>
-            <p className="mt-2 text-sm font-semibold text-white truncate">{booking.customerName}</p>
-            <p className="text-xs text-slate-400 font-mono mt-0.5">{booking.customerPhone}</p>
-            {booking.customerEmail && (
-              <p className="text-xs text-slate-500 truncate mt-0.5">{booking.customerEmail}</p>
-            )}
-          </div>
-          <div className="mt-3 space-y-2">
-            {cleanPhone ? (
-              <a
-                href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-                  `Hello ${booking.customerName}, regarding your booking ${booking.bookingReference} for ${booking.tourTitle} on ${booking.travelDate || ''}: Your pickup is scheduled for ${booking.pickupTime || 'lobby'}. Cash balance due: ${cashDue}.`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/30 transition-all shadow-sm"
-              >
-                <MessageCircle className="h-3.5 w-3.5 text-emerald-400" />
-                Chat on WhatsApp
-              </a>
-            ) : (
-              <span className="text-xs text-slate-500 italic block text-center mb-1">No phone provided</span>
-            )}
-            <button
-              type="button"
-              onClick={() => onOpenChat(booking.bookingReference)}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 px-3 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition-all shadow-sm"
-            >
-              <MessageSquare className="h-3.5 w-3.5 text-cyan-400" />
-              Open Booking Chat
-            </button>
-          </div>
-        </div>
-      </div>
-
+    <div
+      className="border-t border-white/10 bg-[#070F1E]/95 px-4 py-5 sm:px-6 space-y-5"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Pending Cancellation Alert */}
       {booking.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW' && (
-        <div className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs">
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-xs">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2 text-rose-300 font-bold">
+              <div className="flex flex-wrap items-center gap-2 text-rose-300 font-bold">
                 <AlertCircle className="h-4 w-4 text-rose-400" />
                 <span>Traveler Requested Cancellation</span>
                 {booking.bookingAnswers._cancellationRequest.isWithinPolicy ? (
                   <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300 font-semibold border border-emerald-500/30">
-                    Within Policy Window ({booking.bookingAnswers._cancellationRequest.hoursRemaining}h remaining)
+                    Within Policy ({booking.bookingAnswers._cancellationRequest.hoursRemaining}h left)
                   </span>
                 ) : (
                   <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-300 font-semibold border border-amber-500/30">
-                    Late Cutoff ({booking.bookingAnswers._cancellationRequest.hoursRemaining}h remaining)
+                    Late Cutoff ({booking.bookingAnswers._cancellationRequest.hoursRemaining}h left)
                   </span>
                 )}
               </div>
@@ -246,18 +149,18 @@ function ExpandedDetails({ booking, onOpenChat, onReviewCancellation }: { bookin
               </p>
             </div>
             {onReviewCancellation && (
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => onReviewCancellation(booking.id, 'APPROVE')}
-                  className="rounded-lg bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 text-xs font-bold transition shadow-sm"
+                  className="flex-1 sm:flex-initial rounded-lg bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 text-xs font-bold transition shadow-sm"
                 >
                   Approve (Cancel)
                 </button>
                 <button
                   type="button"
                   onClick={() => onReviewCancellation(booking.id, 'DECLINE')}
-                  className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 px-3 py-1.5 text-xs font-semibold transition"
+                  className="flex-1 sm:flex-initial rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 px-3 py-1.5 text-xs font-semibold transition"
                 >
                   Decline
                 </button>
@@ -267,22 +170,323 @@ function ExpandedDetails({ booking, onOpenChat, onReviewCancellation }: { bookin
         </div>
       )}
 
-      {booking.specialRequirements && (
-        <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.01] px-4 py-2 text-xs flex items-center gap-2 text-slate-300">
-          <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-          <span><strong className="text-white">Special Requirements:</strong> {booking.specialRequirements}</span>
+      {/* 3 Structured Sections: Customer | Complete Tour & Trip Details | Booking Details */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Section 1: Customer */}
+        <div className="rounded-2xl border border-white/10 bg-[#0B1528]/80 p-4 flex flex-col justify-between space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+              <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#00E5FF]">
+                <User className="h-3.5 w-3.5" />
+                Customer
+              </span>
+              <span className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-mono text-slate-400">
+                {booking.language?.toUpperCase() || 'EN'}
+              </span>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-slate-500 block">Name</span>
+                <p className="text-sm font-bold text-white">{booking.customerName || 'Guest'}</p>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-[10px] uppercase tracking-wider text-slate-500 block">Phone &amp; Country Code</span>
+                  <p className="font-mono text-slate-200 font-semibold">{booking.customerPhone || 'Not provided'}</p>
+                </div>
+                {dialCode && (
+                  <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-[#00E5FF]">
+                    {dialCode}
+                  </span>
+                )}
+              </div>
+              {booking.customerEmail && (
+                <div>
+                  <span className="text-[10px] uppercase tracking-wider text-slate-500 block">Email</span>
+                  <p className="text-slate-300 break-all">{booking.customerEmail}</p>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {booking.customerProfileId ? (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                    Account Linked
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">
+                    Guest Checkout
+                  </span>
+                )}
+                {booking.whatsappOptIn !== false && (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300">
+                    WhatsApp Opt-in
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
+            {cleanPhone ? (
+              <a
+                href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+                  `Hello ${booking.customerName}, regarding your booking ${booking.bookingReference} for ${booking.tourTitle} on ${booking.travelDate || ''}: Your pickup is scheduled for ${booking.pickupTime || 'lobby'}. Cash balance due: $${cashDue}.`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25 transition"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                WhatsApp
+              </a>
+            ) : (
+              <span className="inline-flex items-center justify-center rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] text-slate-500">
+                No Phone
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => onOpenChat(booking.id)}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#00E5FF]/15 border border-[#00E5FF]/30 px-3 py-2 text-xs font-bold text-[#00E5FF] hover:bg-[#00E5FF]/25 transition"
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Open Chat
+              {(booking.unreadMessageCount ?? 0) > 0 && (
+                <span className="rounded-full bg-emerald-400 px-1.5 py-0.2 text-[10px] font-black text-[#070F1E]">
+                  {booking.unreadMessageCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Section 2: Complete Tour & Trip Details */}
+        <div className="rounded-2xl border border-white/10 bg-[#0B1528]/80 p-4 space-y-3">
+          <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-400">
+              <Compass className="h-3.5 w-3.5" />
+              Tour &amp; Trip Details
+            </span>
+            {(td?.durationDisplay || td?.durationHours) && (
+              <span className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
+                {td.durationDisplay || `${td.durationHours}h`}
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-2.5 text-xs">
+            <div>
+              <p className="text-sm font-bold text-white">{booking.tourTitle}</p>
+              {booking.destinationName && (
+                <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                  <MapPin className="h-3 w-3 text-[#00E5FF]" />
+                  {booking.destinationName}
+                  {booking.zoneName ? ` · Zone: ${booking.zoneName}` : ''}
+                </p>
+              )}
+              {td?.description && (
+                <p className="mt-1.5 text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                  {td.description}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-2.5">
+              <div>
+                <span className="text-[10px] uppercase text-slate-500 block">Tour Date &amp; Time</span>
+                <p className="font-bold text-white">{booking.travelDate}</p>
+                <p className="text-[11px] font-semibold text-amber-400">{booking.pickupTime || 'Time TBD'}</p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase text-slate-500 block">Guests ({booking.guestCount})</span>
+                <p className="font-semibold text-slate-200">
+                  {booking.adultsCount ?? booking.guestCount} Ad · {booking.childrenCount ?? 0} Ch
+                  {!!booking.infantsCount && ` · ${booking.infantsCount} Inf`}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/5 bg-white/[0.02] p-2.5 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-semibold text-slate-300">
+                  <Hotel className="h-3.5 w-3.5 text-[#00E5FF]" />
+                  {booking.hotelName || booking.pickupLocationName || 'Direct / Meeting Point'}
+                </span>
+                {booking.roomNumber && (
+                  <span className="rounded bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-bold text-[#00E5FF] border border-[#00E5FF]/20">
+                    Rm {booking.roomNumber}
+                  </span>
+                )}
+              </div>
+              {(booking.pickupAddress || td?.meetingPoint) && (
+                <p className="text-[11px] text-slate-400">
+                  Meeting/Address: {booking.pickupAddress || td?.meetingPoint}
+                </p>
+              )}
+              {booking.pickupDirectives && (
+                <p className="text-[11px] text-amber-300/90">Note: {booking.pickupDirectives}</p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
+              {td?.guideLanguages && td.guideLanguages.length > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-white/5 px-2 py-0.5">
+                  <Globe className="h-3 w-3 text-[#00E5FF]" />
+                  Guide: {td.guideLanguages.join(', ')}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1 rounded-md bg-white/5 px-2 py-0.5">
+                <ShieldCheck className="h-3 w-3 text-emerald-400" />
+                Free cancel: {td?.freeCancellationHours ?? 24}h prior
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowFullTourSpecs((v) => !v)}
+              className="text-[11px] font-bold text-[#00E5FF] hover:underline flex items-center gap-1"
+            >
+              {showFullTourSpecs ? 'Hide' : 'Show'} inclusions, itinerary &amp; requirements
+              <ChevronDown className={`h-3 w-3 transition-transform ${showFullTourSpecs ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Section 3: Booking Details & Financials */}
+        <div className="rounded-2xl border border-white/10 bg-[#0B1528]/80 p-4 space-y-3">
+          <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-emerald-400">
+              <DollarSign className="h-3.5 w-3.5" />
+              Booking &amp; Payment
+            </span>
+            <span className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-mono text-slate-400">
+              {booking.source || 'WEBSITE'}
+            </span>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Reference &amp; Status</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-bold text-white">{booking.bookingReference}</span>
+                <StatusBadge status={booking.status} />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Created</span>
+              <span className="text-slate-200">{createdLabel}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Total ({booking.currency || 'USD'})</span>
+              <span className="text-sm font-black text-white">${booking.totalPriceUSD.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Paid Online ({booking.paymentScheme || 'ARRIVAL'})</span>
+              <span className="font-semibold text-emerald-400">${paidOnline.toFixed(2)}</span>
+            </div>
+            <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2 flex items-center justify-between">
+              <span className="font-bold text-amber-300">Cash Due at Pickup</span>
+              <span className="text-sm font-black text-amber-300">${cashDue.toFixed(2)}</span>
+            </div>
+
+            {(booking.flightNumbers || booking.bedConfiguration) && (
+              <div className="flex flex-wrap gap-2 pt-1 text-[11px] text-slate-300">
+                {booking.flightNumbers && (
+                  <span className="inline-flex items-center gap-1 rounded bg-white/5 px-2 py-0.5">
+                    <Plane className="h-3 w-3 text-[#00E5FF]" /> Flight: {booking.flightNumbers}
+                  </span>
+                )}
+                {booking.bedConfiguration && (
+                  <span className="inline-flex items-center gap-1 rounded bg-white/5 px-2 py-0.5">
+                    <BedDouble className="h-3 w-3 text-[#00E5FF]" /> {booking.bedConfiguration}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {booking.specialRequirements && (
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-2.5 py-1.5 text-[11px] text-amber-200">
+                <strong>Special Req:</strong> {booking.specialRequirements}
+              </div>
+            )}
+
+            {booking.notes && (
+              <div className="rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-[11px] text-slate-300">
+                <strong className="text-white">Notes:</strong> {booking.notes}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Collapsible Full Tour Specs (Inclusions, Exclusions, Itinerary, Requirements) */}
+      {showFullTourSpecs && td && (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 rounded-2xl border border-white/10 bg-[#0B1528]/60 p-4 text-xs">
+          {td.inclusions && td.inclusions.length > 0 && (
+            <div>
+              <p className="font-bold text-emerald-400 mb-1.5 flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5" /> Included
+              </p>
+              <ul className="space-y-1 text-slate-300">
+                {td.inclusions.map((item, i) => (
+                  <li key={i} className="flex items-start gap-1.5">
+                    <span className="text-emerald-400">•</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {td.exclusions && td.exclusions.length > 0 && (
+            <div>
+              <p className="font-bold text-rose-400 mb-1.5 flex items-center gap-1.5">
+                <Ban className="h-3.5 w-3.5" /> Excluded
+              </p>
+              <ul className="space-y-1 text-slate-400">
+                {td.exclusions.map((item, i) => (
+                  <li key={i} className="flex items-start gap-1.5">
+                    <span className="text-rose-400">•</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="space-y-2">
+            {td.requirements && (
+              <div>
+                <p className="font-bold text-amber-400 mb-1">Requirements</p>
+                <p className="text-slate-300">{td.requirements}</p>
+              </div>
+            )}
+            {(td.fitnessLevel || td.accessibilityNotes || td.wheelchairAccessible) && (
+              <div>
+                <p className="font-bold text-slate-200 mb-1">Accessibility &amp; Fitness</p>
+                <p className="text-slate-400">
+                  {td.fitnessLevel ? `Fitness: ${td.fitnessLevel}. ` : ''}
+                  {td.wheelchairAccessible ? 'Wheelchair accessible. ' : ''}
+                  {td.accessibilityNotes || ''}
+                </p>
+              </div>
+            )}
+            {Array.isArray(td.safetyGuidelines) && td.safetyGuidelines.length > 0 && (
+              <div>
+                <p className="font-bold text-slate-200 mb-1">Safety</p>
+                <p className="text-slate-400">{td.safetyGuidelines.join(' · ')}</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Dynamic Add-ons & Custom Booking Answers */}
-      {((Array.isArray(booking.selectedAddons) && booking.selectedAddons.length > 0) ||
-        (booking.bookingAnswers && typeof booking.bookingAnswers === 'object' && Object.keys(booking.bookingAnswers).length > 0)) && (
-        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-white/5 pt-3">
+      {((Array.isArray(booking.selectedAddons) && booking.selectedAddons.length > 0) || answerEntries.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {Array.isArray(booking.selectedAddons) && booking.selectedAddons.length > 0 && (
-            <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+            <div className="rounded-xl border border-white/10 bg-[#0B1528]/60 p-3">
               <span className="text-xs font-bold text-white flex items-center gap-1.5 mb-2">
                 <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                Selected Add-ons & Upgrades
+                Selected Add-ons &amp; Upgrades
               </span>
               <div className="space-y-1.5">
                 {booking.selectedAddons.map((addon: any, idx: number) => (
@@ -297,17 +501,17 @@ function ExpandedDetails({ booking, onOpenChat, onReviewCancellation }: { bookin
             </div>
           )}
 
-          {booking.bookingAnswers && typeof booking.bookingAnswers === 'object' && Object.keys(booking.bookingAnswers).length > 0 && (
-            <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+          {answerEntries.length > 0 && (
+            <div className="rounded-xl border border-white/10 bg-[#0B1528]/60 p-3">
               <span className="text-xs font-bold text-white flex items-center gap-1.5 mb-2">
                 <HelpCircle className="h-3.5 w-3.5 text-[#00E5FF]" />
-                Customer Question Answers
+                Booking Question Answers
               </span>
               <div className="space-y-1.5">
-                {Object.entries(booking.bookingAnswers).map(([k, v]) => (
-                  <div key={k} className="flex items-center justify-between text-xs text-slate-300 bg-white/[0.02] px-2.5 py-1.5 rounded-lg border border-white/5">
+                {answerEntries.map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between gap-3 text-xs text-slate-300 bg-white/[0.02] px-2.5 py-1.5 rounded-lg border border-white/5">
                     <span className="text-slate-400 capitalize">{k.replace(/^question_/, '').replace(/_/g, ' ')}:</span>
-                    <span className="font-semibold text-white">{typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v)}</span>
+                    <span className="font-semibold text-white text-right">{typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v)}</span>
                   </div>
                 ))}
               </div>
@@ -464,7 +668,12 @@ function BookingChatPanel({ bookingId, bookingReference, onClose, onMessagesRead
   );
 }
 
-export default function BookingQueue({ initialBookings, availableTours = [], initialPagination }: BookingQueueProps) {
+export default function BookingQueue({
+  initialBookings,
+  availableTours = [],
+  initialPagination,
+  initialTotalUnread,
+}: BookingQueueProps) {
   const [bookings, setBookings] = useState<ActiveQueueTicket[]>(initialBookings);
   const [pagination, setPagination] = useState<PaginationMeta>(
     initialPagination || {
@@ -475,8 +684,9 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
     }
   );
   const [loadingPage, setLoadingPage] = useState(false);
-  const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
-  const [drawerInitialTab, setDrawerInitialTab] = useState<'overview' | 'customer' | 'payment' | 'conversation' | 'activity'>('overview');
+  const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
+  const [activeChatBooking, setActiveChatBooking] = useState<{ id: string; ref: string } | null>(null);
+  const [totalUnreadCount, setTotalUnreadCount] = useState<number>(initialTotalUnread ?? 0);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -513,12 +723,11 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
           b.conversationId === refParam
       );
       if (match) {
-        setDrawerBookingId(match.id);
-        setDrawerInitialTab(
-          chatParam === '1' || searchParams.get('chatRef') || searchParams.get('conversationId')
-            ? 'conversation'
-            : 'overview'
-        );
+        if (chatParam === '1' || searchParams.get('chatRef') || searchParams.get('conversationId')) {
+          setActiveChatBooking({ id: match.id, ref: match.bookingReference });
+        } else {
+          setExpandedBookingId(match.id);
+        }
       }
     }
   }, [searchParams, bookings]);
@@ -542,6 +751,9 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
           const data = await res.json();
           if (Array.isArray(data.bookings)) setBookings(data.bookings);
           if (data.pagination) setPagination(data.pagination);
+          if (typeof data.summary?.totalUnread === 'number') {
+            setTotalUnreadCount(data.summary.totalUnread);
+          }
         }
       } catch {
         // non-fatal
@@ -567,13 +779,16 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
     setBookings((prev) =>
       prev.map((b) => (b.id === bookingId ? { ...b, unreadMessageCount: 0 } : b))
     );
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('talago:admin-notifications-updated'));
+    }
   }, []);
 
   const unreadMap = useMemo(() => {
     const map: Record<string, { count: number; lastMessage?: string; lastMessageAt?: string }> = {};
     for (const b of bookings) {
       const count = b.unreadMessageCount ?? 0;
-      if (count > 0 || b.lastMessageAt) {
+      if (count > 0 || b.lastMessageAt || b.lastMessagePreview) {
         map[b.bookingReference] = {
           count,
           lastMessage: b.lastMessagePreview ?? undefined,
@@ -584,9 +799,11 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
     return map;
   }, [bookings]);
 
-  const totalUnreadCount = useMemo(() => {
-    return Object.values(unreadMap).reduce((sum, item) => sum + item.count, 0);
-  }, [unreadMap]);
+  // Keep totalUnreadCount in sync if unreadMap updates
+  const activeUnreadTotal = useMemo(() => {
+    const sum = Object.values(unreadMap).reduce((acc, item) => acc + item.count, 0);
+    return Math.max(sum, totalUnreadCount);
+  }, [unreadMap, totalUnreadCount]);
 
   const pendingCancellationBookings = useMemo(() => {
     return bookings.filter(
@@ -798,12 +1015,12 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
     });
   };
 
-  const openBookingDrawer = (
-    id: string,
-    tab: 'overview' | 'customer' | 'payment' | 'conversation' | 'activity' = 'overview'
-  ) => {
-    setDrawerInitialTab(tab);
-    setDrawerBookingId(id);
+  const toggleExpand = (id: string) => {
+    setExpandedBookingId((prev) => (prev === id ? null : id));
+  };
+
+  const openChat = (id: string, ref: string) => {
+    setActiveChatBooking({ id, ref });
   };
 
   // Bulk Delete Selected Bookings
@@ -953,9 +1170,9 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
         >
           <MessageSquare className="h-3.5 w-3.5" />
           <span>Unread Messages</span>
-          {totalUnreadCount > 0 ? (
+          {activeUnreadTotal > 0 ? (
             <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-[#070F1E] text-[10px] font-black animate-pulse">
-              {totalUnreadCount}
+              {activeUnreadTotal}
             </span>
           ) : (
             <span className="px-1.5 py-0.2 rounded-full bg-white/10 text-[10px]">0</span>
@@ -1347,9 +1564,11 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
                           ? 'bg-rose-950/40 hover:bg-rose-900/50 border-l-4 border-l-rose-500 ring-1 ring-rose-500/30'
                           : isSelected
                             ? 'bg-[#00E5FF]/5'
-                            : 'hover:bg-white/[0.02]'
+                            : expandedBookingId === b.id
+                              ? 'bg-white/[0.04]'
+                              : 'hover:bg-white/[0.02]'
                       }`}
-                      onClick={() => openBookingDrawer(b.id, 'overview')}
+                      onClick={() => toggleExpand(b.id)}
                     >
                       {/* Checkbox Column */}
                       <td className="px-4 py-3" onClick={(e) => toggleSelect(b.id, e)}>
@@ -1363,15 +1582,19 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
                         </button>
                       </td>
 
-                      {/* Open Drawer Arrow Column */}
+                      {/* Expand / Collapse Indicator */}
                       <td className="px-2 py-3">
-                        <ChevronRight className={`h-4 w-4 ${drawerBookingId === b.id ? 'text-[#00E5FF]' : 'text-slate-500'}`} />
+                        {expandedBookingId === b.id ? (
+                          <ChevronDown className="h-4 w-4 text-[#00E5FF]" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-slate-500" />
+                        )}
                       </td>
 
                       {/* Booking Reference */}
                       <td className="px-4 py-3 text-sm font-mono font-bold text-white whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
-                          <span>{b.bookingReference}</span>
+                          <span className="text-[#00E5FF] hover:underline">{b.bookingReference}</span>
                           {b.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW' && (
                             <span className="rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 px-1.5 py-0.5 text-[9px] font-sans font-black uppercase tracking-wider animate-pulse">
                               Cancel Req
@@ -1399,7 +1622,7 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-slate-400">{b.customerPhone}</div>
+                        <div className="text-xs text-slate-400 font-mono">{b.customerPhone}</div>
                         {unreadMap[b.bookingReference]?.lastMessage && (
                           <div className="text-[11px] text-emerald-400/90 truncate max-w-[200px] mt-0.5" title={unreadMap[b.bookingReference].lastMessage}>
                             💬 {unreadMap[b.bookingReference].lastMessage}
@@ -1444,19 +1667,7 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
                             </span>
                           </div>
                         ) : (
-                          <span
-                            className={`inline-block rounded-lg px-2.5 py-1 font-bold uppercase tracking-wider text-[10px] ${
-                              b.status === 'CONFIRMED'
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                : b.status === 'COMPLETED'
-                                  ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                                  : b.status === 'CANCELLED'
-                                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                    : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                            }`}
-                          >
-                            {b.status}
-                          </span>
+                          <StatusBadge status={b.status} />
                         )}
                       </td>
 
@@ -1465,17 +1676,23 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
                         <div className="flex items-center justify-end gap-2">
                           <button
                             type="button"
-                            onClick={() => openBookingDrawer(b.id, 'conversation')}
-                            className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openChat(b.id, b.bookingReference);
+                            }}
+                            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${
                               unreadMap[b.bookingReference]?.count > 0
-                                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                                : 'bg-white/5 border-white/10 text-slate-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/30'
+                                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 animate-pulse'
+                                : 'bg-white/5 border-white/10 text-slate-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/40'
                             }`}
                             title="Open Conversation"
                           >
                             <MessageSquare className="h-3.5 w-3.5" />
+                            <span>Chat</span>
                             {unreadMap[b.bookingReference]?.count > 0 && (
-                              <span>{unreadMap[b.bookingReference].count}</span>
+                              <span className="rounded-full bg-emerald-400 px-1.5 py-0.2 text-[9px] font-black text-[#070F1E]">
+                                {unreadMap[b.bookingReference].count}
+                              </span>
                             )}
                           </button>
                           {isCancelPending && (
@@ -1498,15 +1715,27 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
                               </button>
                             </div>
                           )}
-                        <BookingRowActions
-                          ticket={b}
-                          onStatusChange={handleStatusChange}
-                          onUpdateBooking={handleUpdateBooking}
-                          onDeleteBooking={handleDeleteBooking}
-                        />
+                          <BookingRowActions
+                            ticket={b}
+                            onStatusChange={handleStatusChange}
+                            onUpdateBooking={handleUpdateBooking}
+                            onDeleteBooking={handleDeleteBooking}
+                          />
                         </div>
                       </td>
                     </tr>
+                    {/* Inline Expanded Booking Details */}
+                    {expandedBookingId === b.id && (
+                      <tr>
+                        <td colSpan={12} className="p-0 border-b border-white/10">
+                          <ExpandedDetails
+                            booking={b}
+                            onOpenChat={(id) => openChat(id, b.bookingReference)}
+                            onReviewCancellation={handleReviewCancellation}
+                          />
+                        </td>
+                      </tr>
+                    )}
                   </React.Fragment>
                 );
               })}
@@ -1580,32 +1809,17 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
                     {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
                   </button>
                   <span className="font-mono text-sm font-bold text-[#00E5FF]">{b.bookingReference}</span>
-                  {isCancelPending ? (
-                    <span className="inline-block rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-rose-600 text-white animate-pulse">
-                      Cancel Req
-                    </span>
-                  ) : (
-                    <span
-                      className={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                        b.status === 'CONFIRMED'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : b.status === 'COMPLETED'
-                          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                          : b.status === 'CANCELLED'
-                          ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                      }`}
-                    >
-                      {b.status}
-                    </span>
-                  )}
+                  <StatusBadge status={b.status} />
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => openBookingDrawer(b.id, 'conversation')}
-                    className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold transition-all ${
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openChat(b.id, b.bookingReference);
+                    }}
+                    className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition-all ${
                       unreadMap[b.bookingReference]?.count > 0
                         ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 animate-pulse'
                         : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20'
@@ -1613,7 +1827,12 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
                     title="Open Conversation"
                   >
                     <MessageSquare className="h-3.5 w-3.5" />
-                    <span>Chat {unreadMap[b.bookingReference]?.count > 0 ? `(${unreadMap[b.bookingReference].count})` : ''}</span>
+                    <span>Chat</span>
+                    {unreadMap[b.bookingReference]?.count > 0 && (
+                      <span className="rounded-full bg-emerald-400 px-1.5 py-0.2 text-[9px] font-black text-[#070F1E]">
+                        {unreadMap[b.bookingReference].count}
+                      </span>
+                    )}
                   </button>
                   <BookingRowActions
                     ticket={b}
@@ -1624,12 +1843,15 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
                 </div>
               </div>
 
-              {/* Booking Overview Grid */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
+              {/* Booking Overview Grid (tappable to expand) */}
+              <div
+                className="grid grid-cols-2 gap-2 text-xs cursor-pointer rounded-xl hover:bg-white/[0.02] p-1 transition"
+                onClick={() => toggleExpand(b.id)}
+              >
                 <div>
                   <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Tour</span>
                   <p className="truncate font-semibold text-white">{b.tourTitle}</p>
-                  {b.category && <p className="text-[10px] text-slate-400 capitalize">{b.category.toLowerCase()}</p>}
+                  {b.category && <p className="text-[10px] text-[#00E5FF] capitalize font-medium">{b.category.toLowerCase()}</p>}
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Customer</span>
@@ -1663,17 +1885,46 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
                 </div>
               </div>
 
-              {/* Open Details Drawer (Mobile) */}
-              <div className="border-t border-white/5 pt-3">
+              {/* Latest message preview if available */}
+              {unreadMap[b.bookingReference]?.lastMessage && (
+                <div
+                  className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-300 cursor-pointer flex items-center justify-between gap-2"
+                  onClick={() => openChat(b.id, b.bookingReference)}
+                >
+                  <div className="truncate">
+                    <span className="font-bold">Latest message: </span>
+                    <span className="opacity-90">{unreadMap[b.bookingReference].lastMessage}</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-400 shrink-0 font-bold underline">Reply</span>
+                </div>
+              )}
+
+              {/* Inline Expand Toggle Button (Mobile) */}
+              <div className="border-t border-white/5 pt-2">
                 <button
                   type="button"
-                  onClick={() => openBookingDrawer(b.id, 'overview')}
+                  onClick={() => toggleExpand(b.id)}
                   className="flex w-full items-center justify-between text-xs font-bold text-slate-300 hover:text-[#00E5FF] transition-colors bg-white/[0.02] hover:bg-white/[0.05] p-2.5 rounded-xl border border-white/5"
                 >
-                  <span>View Details, Chat & WhatsApp</span>
-                  <ChevronRight className="h-4 w-4" />
+                  <span>{expandedBookingId === b.id ? 'Collapse Booking Details' : 'View Full Details & Logistics'}</span>
+                  {expandedBookingId === b.id ? (
+                    <ChevronDown className="h-4 w-4 text-[#00E5FF]" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                  )}
                 </button>
               </div>
+
+              {/* Inline Expanded Details (Mobile) */}
+              {expandedBookingId === b.id && (
+                <div className="pt-2">
+                  <ExpandedDetails
+                    booking={b}
+                    onOpenChat={(id) => openChat(id, b.bookingReference)}
+                    onReviewCancellation={handleReviewCancellation}
+                  />
+                </div>
+              )}
             </div>
           );
         })}
@@ -1708,17 +1959,15 @@ export default function BookingQueue({ initialBookings, availableTours = [], ini
         </div>
       )}
 
-      {/* 5. Right-side Booking Details & Conversation Drawer */}
-      <BookingDetailDrawer
-        booking={bookings.find((b) => b.id === drawerBookingId) || null}
-        initialTab={drawerInitialTab}
-        onClose={() => setDrawerBookingId(null)}
-        onStatusChange={handleStatusChange}
-        onUpdateBooking={handleUpdateBooking}
-        onDeleteBooking={handleDeleteBooking}
-        onMessagesRead={markBookingMessagesRead}
-        onReviewCancellation={handleReviewCancellation}
-      />
+      {/* Floating Chat Modal */}
+      {activeChatBooking && (
+        <BookingChatPanel
+          bookingId={activeChatBooking.id}
+          bookingReference={activeChatBooking.ref}
+          onClose={() => setActiveChatBooking(null)}
+          onMessagesRead={markBookingMessagesRead}
+        />
+      )}
 
       {/* 6. Invoice & Statement Modal */}
       <BookingInvoiceModal

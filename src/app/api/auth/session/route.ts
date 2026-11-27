@@ -218,12 +218,22 @@ export async function PATCH(request: NextRequest) {
 
     const rawName = typeof body.name === 'string' ? sanitizePlain(body.name, 100) : undefined;
     const rawPhone = typeof body.phone === 'string' ? body.phone.trim() : undefined;
+    const rawEmail = typeof body.email === 'string' ? body.email.trim().toLowerCase() : undefined;
 
     if (rawName !== undefined && rawName.length < 2) {
       return NextResponse.json(
         { error: 'Display name must be at least 2 characters' },
         { status: 400, headers: NO_CACHE_HEADERS }
       );
+    }
+
+    if (rawEmail !== undefined && rawEmail !== '') {
+      if (rawEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
+        return NextResponse.json(
+          { error: 'Please enter a valid email address' },
+          { status: 400, headers: NO_CACHE_HEADERS }
+        );
+      }
     }
 
     let normalizedPhone: string | null | undefined = undefined;
@@ -260,10 +270,29 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    let emailChanged = false;
+    if (rawEmail && rawEmail !== existing.email.toLowerCase()) {
+      const conflict = await prisma.customerProfile.findFirst({
+        where: {
+          email: { equals: rawEmail, mode: 'insensitive' },
+          id: { not: existing.id },
+        },
+        select: { id: true },
+      });
+      if (conflict) {
+        return NextResponse.json(
+          { error: 'This email address is already linked to another account' },
+          { status: 409, headers: NO_CACHE_HEADERS }
+        );
+      }
+      emailChanged = true;
+    }
+
     const updated = await prisma.customerProfile.update({
       where: { id: existing.id },
       data: {
         ...(rawName !== undefined ? { name: rawName } : {}),
+        ...(emailChanged && rawEmail ? { email: rawEmail } : {}),
         ...(normalizedPhone !== undefined ? { phone: normalizedPhone } : {}),
         ...(phoneNormalizedKey !== undefined ? { phoneNormalized: phoneNormalizedKey } : {}),
         isShadow: false,
@@ -284,7 +313,7 @@ export async function PATCH(request: NextRequest) {
 
     const newToken = await createSessionToken(refreshedUser);
     const res = NextResponse.json(
-      { success: true, user: refreshedUser },
+      { success: true, user: refreshedUser, emailPendingVerification: emailChanged },
       { headers: NO_CACHE_HEADERS }
     );
     setSessionCookie(res, newToken);

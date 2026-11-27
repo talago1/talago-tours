@@ -220,10 +220,12 @@ export default function AccountPage() {
   // Profile Edit form
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [emailVerificationNotice, setEmailVerificationNotice] = useState(false);
 
   // Link Booking Modal & Form state
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -350,6 +352,11 @@ export default function AccountPage() {
       setAuthenticated(true);
       setUserProfile(authUser as any);
       setEditName(authUser.name || '');
+      setEditEmail(
+        authUser.email && !authUser.email.endsWith('@noreply.talago.com')
+          ? authUser.email
+          : ''
+      );
       setEditPhone(authUser.phone || authUser.telegramPhone || '');
       setLoading(false);
     } else {
@@ -435,6 +442,12 @@ export default function AccountPage() {
       return;
     }
 
+    const trimmedEmail = editEmail.trim().toLowerCase();
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setProfileError('Please enter a valid email address');
+      return;
+    }
+
     const trimmedPhone = editPhone.trim();
     const normalizedPhone = trimmedPhone ? normalizePhoneNumber(trimmedPhone) : '';
     if (normalizedPhone) {
@@ -446,6 +459,7 @@ export default function AccountPage() {
     }
 
     setProfileSaving(true);
+    setEmailVerificationNotice(false);
 
     try {
       const res = await fetch('/api/auth/session', {
@@ -453,6 +467,7 @@ export default function AccountPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: trimmedName,
+          ...(trimmedEmail ? { email: trimmedEmail } : {}),
           phone: normalizedPhone,
         }),
       });
@@ -464,9 +479,20 @@ export default function AccountPage() {
 
       setProfileSuccess(true);
       setIsEditingProfile(false);
+      if (data.emailPendingVerification) {
+        setEmailVerificationNotice(true);
+      }
       if (data.user) {
-        setUserProfile((prev) => (prev ? { ...prev, name: data.user.name, phone: data.user.phone } : prev));
-        updateUserLocally({ name: data.user.name, phone: data.user.phone });
+        setUserProfile((prev) =>
+          prev
+            ? { ...prev, name: data.user.name, phone: data.user.phone, email: data.user.email }
+            : prev
+        );
+        updateUserLocally({
+          name: data.user.name,
+          phone: data.user.phone,
+          email: data.user.email,
+        });
       }
       setTimeout(() => setProfileSuccess(false), 4000);
     } catch (err: any) {
@@ -1723,6 +1749,13 @@ export default function AccountPage() {
               </div>
             )}
 
+            {emailVerificationNotice && (
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs font-semibold text-amber-300 flex items-center gap-2">
+                <Info className="h-4 w-4 shrink-0 text-amber-400" />
+                <span>Your email address has been saved to your profile. Please verify it before using email sign-in or account recovery.</span>
+              </div>
+            )}
+
             {profileError && (
               <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs font-bold text-rose-400 flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 shrink-0" />
@@ -1748,12 +1781,23 @@ export default function AccountPage() {
                     </button>
                   </div>
 
-                  {displayEmail && (
-                    <div className="pb-4 border-b border-white/5">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">{dict.account.profile.emailAddress}</span>
+                  <div className="pb-4 border-b border-white/5">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">{dict.account.profile.emailAddress}</span>
+                    {displayEmail ? (
                       <p className="text-sm font-semibold text-slate-200 mt-0.5">{displayEmail}</p>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingProfile(true)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#00E5FF]/10 border border-[#00E5FF]/20 text-[#00E5FF] text-xs font-semibold hover:bg-[#00E5FF]/20 transition"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add email address
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="pb-4 border-b border-white/5">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">{dict.account.profile.phoneNumber}</span>
@@ -1816,6 +1860,20 @@ export default function AccountPage() {
                       placeholder={dict.account.profile.namePlaceholder}
                       className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-white focus:border-[#00E5FF] focus:outline-none"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">{dict.account.profile.emailAddress}</label>
+                    <input
+                      type="email"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-white focus:border-[#00E5FF] focus:outline-none"
+                    />
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Used for booking confirmations &amp; future bookings. New or changed emails require verification for login.
+                    </p>
                   </div>
 
                   <div>

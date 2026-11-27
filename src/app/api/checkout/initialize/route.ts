@@ -469,6 +469,21 @@ export async function POST(request: NextRequest) {
             updateData.phoneNormalized = phoneMatchKey(phone.trim()) ?? undefined;
           }
           if (
+            rawEmail &&
+            (existingProfile.email.endsWith('@noreply.talago.com') || !existingProfile.email)
+          ) {
+            const emailConflict = await tx.customerProfile.findFirst({
+              where: {
+                email: { equals: rawEmail.toLowerCase().trim(), mode: 'insensitive' },
+                id: { not: existingProfile.id },
+              },
+              select: { id: true },
+            });
+            if (!emailConflict) {
+              updateData.email = rawEmail.toLowerCase().trim();
+            }
+          }
+          if (
             (!existingProfile.name || existingProfile.name === 'User' || existingProfile.name.startsWith('Traveler #')) &&
             leadName.trim()
           ) {
@@ -500,6 +515,21 @@ export async function POST(request: NextRequest) {
           if ((!existingProfile.phone || existingProfile.phone.trim() === '') && phone.trim()) {
             updateData.phone = phone.trim();
             updateData.phoneNormalized = phoneMatchKey(phone.trim()) ?? undefined;
+          }
+          if (
+            rawEmail &&
+            (existingProfile.email.endsWith('@noreply.talago.com') || !existingProfile.email)
+          ) {
+            const emailConflict = await tx.customerProfile.findFirst({
+              where: {
+                email: { equals: rawEmail.toLowerCase().trim(), mode: 'insensitive' },
+                id: { not: existingProfile.id },
+              },
+              select: { id: true },
+            });
+            if (!emailConflict) {
+              updateData.email = rawEmail.toLowerCase().trim();
+            }
           }
           if (
             (!existingProfile.name || existingProfile.name === 'User' || existingProfile.name.startsWith('Traveler #')) &&

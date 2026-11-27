@@ -98,11 +98,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Only use verified phone numbers (e.g. Telegram-verified phone or verified magic-link phone)
+    // to match bookings by phone. Never reveal bookings based on an unverified form-entered phone.
     const phones = [
-      profile.phone,
-      profile.telegramPhone,
-      session?.phone,
-      session?.telegramPhone,
+      profile.telegramPhoneVerified && profile.telegramPhone ? profile.telegramPhone : null,
+      session?.telegramPhone ?? null,
       guestMatch ? guestMatch[1] : null,
     ].filter(Boolean);
 

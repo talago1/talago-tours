@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
           customerName: true,
           customerPhone: true,
           customerEmail: true,
+          customerProfileId: true,
           travelDate: true,
           createdAt: true,
           updatedAt: true,
@@ -89,6 +90,10 @@ export async function GET(request: NextRequest) {
           childrenCount: true,
           infantsCount: true,
           totalPriceUSD: true,
+          currency: true,
+          paymentStatus: true,
+          whatsappOptIn: true,
+          historicalTourSnapshot: true,
           hotelName: true,
           roomNumber: true,
           selectedPickupTime: true,
@@ -114,14 +119,37 @@ export async function GET(request: NextRequest) {
               id: true,
               category: true,
               translations: true,
+              durationHours: true,
+              durationDisplay: true,
+              inclusions: true,
+              exclusions: true,
+              highlights: true,
+              hasGuide: true,
+              guideLanguages: true,
+              freeCancellationHours: true,
+              instantConfirmation: true,
+              fitnessLevel: true,
+              wheelchairAccessible: true,
+              strollerAccessible: true,
+              accessibilityNotes: true,
+              safetyGuidelines: true,
+              routeStops: true,
+              operatorName: true,
+              operatorPhone: true,
               destination: { select: { name: true } },
-              zone: { select: { name: true } },
+              zone: { select: { name: true, location: true } },
             },
           },
           conversation: {
             select: {
               id: true,
               lastMessageAt: true,
+              messages: {
+                where: { sender: 'VISITOR' },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: { body: true },
+              },
             },
           },
         },
@@ -153,8 +181,10 @@ export async function GET(request: NextRequest) {
     }
 
     const tickets: ActiveQueueTicket[] = bookings.map((b) => {
-      const translations = b.tour?.translations as Record<string, { title?: string }> | null;
-      const tourTitle = b.tourTitleSnapshot || translations?.en?.title || 'Tour Experience';
+      const translations = b.tour?.translations as Record<string, any> | null;
+      const enTrans = translations?.en || {};
+      const historicalSnapshot = b.historicalTourSnapshot as any;
+      const tourTitle = b.tourTitleSnapshot || enTrans?.title || historicalSnapshot?.title || 'Tour Experience';
       const convId = b.conversation?.id ?? null;
       return {
         id: b.id,
@@ -164,15 +194,19 @@ export async function GET(request: NextRequest) {
         customerName: b.customerName,
         customerPhone: b.customerPhone,
         customerEmail: b.customerEmail,
+        customerProfileId: b.customerProfileId ?? null,
         travelDate: b.travelDate.toISOString().split('T')[0],
         createdAt: b.createdAt.toISOString(),
         updatedAt: b.updatedAt.toISOString(),
-        category: b.tour?.category || 'Tour',
+        category: b.tour?.category || historicalSnapshot?.category || 'Tour',
         guestCount: b.guestCount,
         adultsCount: b.adultsCount,
         childrenCount: b.childrenCount,
         infantsCount: b.infantsCount,
         totalPriceUSD: b.totalPriceUSD,
+        currency: b.currency,
+        paymentStatus: b.paymentStatus,
+        whatsappOptIn: b.whatsappOptIn,
         hotelName: b.hotelName,
         roomNumber: b.roomNumber,
         pickupTime: b.selectedPickupTime || null,
@@ -197,7 +231,31 @@ export async function GET(request: NextRequest) {
         notes: b.notes,
         conversationId: convId,
         unreadMessageCount: convId ? (unreadCountMap.get(convId) ?? 0) : 0,
+        lastMessagePreview: b.conversation?.messages?.[0]?.body ?? null,
         lastMessageAt: b.conversation?.lastMessageAt?.toISOString() ?? null,
+        tourDetails: {
+          description: enTrans?.shortDescription || enTrans?.description || historicalSnapshot?.description || null,
+          durationHours: b.tour?.durationHours ?? historicalSnapshot?.durationHours ?? null,
+          durationDisplay: b.tour?.durationDisplay ?? historicalSnapshot?.durationDisplay ?? null,
+          inclusions: (b.tour?.inclusions?.length ? b.tour.inclusions : enTrans?.inclusions || historicalSnapshot?.inclusions) ?? [],
+          exclusions: (b.tour?.exclusions?.length ? b.tour.exclusions : enTrans?.exclusions || historicalSnapshot?.exclusions) ?? [],
+          highlights: (b.tour?.highlights?.length ? b.tour.highlights : enTrans?.highlights || historicalSnapshot?.highlights) ?? [],
+          hasGuide: b.tour?.hasGuide ?? false,
+          guideLanguages: b.tour?.guideLanguages ?? [],
+          freeCancellationHours: b.tour?.freeCancellationHours ?? historicalSnapshot?.freeCancellationHours ?? 24,
+          instantConfirmation: b.tour?.instantConfirmation ?? true,
+          fitnessLevel: b.tour?.fitnessLevel ?? null,
+          wheelchairAccessible: b.tour?.wheelchairAccessible ?? false,
+          strollerAccessible: b.tour?.strollerAccessible ?? false,
+          accessibilityNotes: b.tour?.accessibilityNotes ?? null,
+          safetyGuidelines: b.tour?.safetyGuidelines ?? [],
+          routeStops: b.tour?.routeStops ?? enTrans?.itinerary ?? null,
+          itinerary: enTrans?.itinerary ?? null,
+          meetingPoint: enTrans?.meetingPoint || b.tour?.zone?.location || null,
+          requirements: enTrans?.requirements ?? null,
+          operatorName: b.tour?.operatorName ?? null,
+          operatorPhone: b.tour?.operatorPhone ?? null,
+        },
       };
     });
 

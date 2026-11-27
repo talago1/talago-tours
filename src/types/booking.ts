@@ -1,5 +1,29 @@
 export type BookingStatus = 'INTERESTED' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
 
+export interface BookingTourDetails {
+  description?: string | null;
+  durationHours?: number | null;
+  durationDisplay?: string | null;
+  inclusions?: string[];
+  exclusions?: string[];
+  highlights?: string[];
+  hasGuide?: boolean;
+  guideLanguages?: string[];
+  freeCancellationHours?: number | null;
+  instantConfirmation?: boolean;
+  fitnessLevel?: string | null;
+  wheelchairAccessible?: boolean;
+  strollerAccessible?: boolean;
+  accessibilityNotes?: string | null;
+  safetyGuidelines?: string[];
+  routeStops?: any;
+  itinerary?: any;
+  meetingPoint?: string | null;
+  requirements?: string | null;
+  operatorName?: string | null;
+  operatorPhone?: string | null;
+}
+
 export interface ActiveQueueTicket {
   id: string;
   bookingReference: string;
@@ -7,12 +31,16 @@ export interface ActiveQueueTicket {
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
+  customerProfileId?: string | null;
   travelDate: string;
   guestCount: number;
   adultsCount?: number;
   childrenCount?: number;
   infantsCount?: number;
   totalPriceUSD: number;
+  currency?: string;
+  paymentStatus?: string | null;
+  whatsappOptIn?: boolean;
   hotelName: string | null;
   pickupTime: string | null;
   status: BookingStatus;
@@ -44,6 +72,7 @@ export interface ActiveQueueTicket {
   lastMessagePreview?: string | null;
   lastMessageAt?: string | null;
   updatedAt?: string;
+  tourDetails?: BookingTourDetails | null;
 }
 
 export interface CheckoutFormData {

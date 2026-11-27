@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 const INITIAL_PAGE_SIZE = 25;
 
 export default async function AdminBookingsPage() {
-  const [totalBookings, bookings, toursList] = await Promise.all([
+  const [totalBookings, bookings, toursList, totalUnread] = await Promise.all([
     prisma.booking.count(),
     prisma.booking.findMany({
       take: INITIAL_PAGE_SIZE,
@@ -18,14 +18,37 @@ export default async function AdminBookingsPage() {
             id: true,
             category: true,
             translations: true,
+            durationHours: true,
+            durationDisplay: true,
+            inclusions: true,
+            exclusions: true,
+            highlights: true,
+            hasGuide: true,
+            guideLanguages: true,
+            freeCancellationHours: true,
+            instantConfirmation: true,
+            fitnessLevel: true,
+            wheelchairAccessible: true,
+            strollerAccessible: true,
+            accessibilityNotes: true,
+            safetyGuidelines: true,
+            routeStops: true,
+            operatorName: true,
+            operatorPhone: true,
             destination: { select: { name: true } },
-            zone: { select: { name: true } },
+            zone: { select: { name: true, location: true } },
           },
         },
         conversation: {
           select: {
             id: true,
             lastMessageAt: true,
+            messages: {
+              where: { sender: 'VISITOR' },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: { body: true },
+            },
           },
         },
       },
@@ -39,6 +62,9 @@ export default async function AdminBookingsPage() {
         translations: true,
       },
       orderBy: { createdAt: 'desc' },
+    }),
+    prisma.bookingMessage.count({
+      where: { sender: BookingMessageSender.VISITOR, readAt: null },
     }),
   ]);
 
@@ -72,16 +98,18 @@ export default async function AdminBookingsPage() {
   });
 
   const tickets: ActiveQueueTicket[] = bookings.map((b) => {
-    const tourTranslations = b.tour?.translations as Record<string, { title?: string }> | null;
+    const tourTranslations = b.tour?.translations as Record<string, any> | null;
+    const enTrans = tourTranslations?.en || {};
     const historicalSnapshot = b.historicalTourSnapshot as any;
     return {
       id: b.id,
       bookingReference: b.bookingReference,
-      tourTitle: b.tourTitleSnapshot || tourTranslations?.en?.title || historicalSnapshot?.title || 'Historical Tour',
+      tourTitle: b.tourTitleSnapshot || enTrans?.title || historicalSnapshot?.title || 'Historical Tour',
       tourId: b.tourId ?? undefined,
       customerName: b.customerName,
       customerPhone: b.customerPhone,
       customerEmail: b.customerEmail,
+      customerProfileId: b.customerProfileId ?? null,
       travelDate: b.travelDate.toISOString().split('T')[0],
       createdAt: b.createdAt.toISOString(),
       category: b.tour?.category || historicalSnapshot?.category || 'Tour',
@@ -90,6 +118,9 @@ export default async function AdminBookingsPage() {
       childrenCount: b.childrenCount,
       infantsCount: b.infantsCount,
       totalPriceUSD: b.totalPriceUSD,
+      currency: b.currency,
+      paymentStatus: b.paymentStatus,
+      whatsappOptIn: b.whatsappOptIn,
       hotelName: b.hotelName,
       roomNumber: b.roomNumber,
       pickupTime: b.selectedPickupTime || null,
@@ -114,8 +145,32 @@ export default async function AdminBookingsPage() {
       notes: b.notes,
       conversationId: b.conversation?.id ?? null,
       unreadMessageCount: b.conversation?.id ? (unreadCountMap.get(b.conversation.id) ?? 0) : 0,
+      lastMessagePreview: (b.conversation as any)?.messages?.[0]?.body ?? null,
       lastMessageAt: b.conversation?.lastMessageAt?.toISOString() ?? null,
       updatedAt: b.updatedAt.toISOString(),
+      tourDetails: {
+        description: enTrans?.shortDescription || enTrans?.description || historicalSnapshot?.description || null,
+        durationHours: b.tour?.durationHours ?? historicalSnapshot?.durationHours ?? null,
+        durationDisplay: b.tour?.durationDisplay ?? historicalSnapshot?.durationDisplay ?? null,
+        inclusions: (b.tour?.inclusions?.length ? b.tour.inclusions : enTrans?.inclusions || historicalSnapshot?.inclusions) ?? [],
+        exclusions: (b.tour?.exclusions?.length ? b.tour.exclusions : enTrans?.exclusions || historicalSnapshot?.exclusions) ?? [],
+        highlights: (b.tour?.highlights?.length ? b.tour.highlights : enTrans?.highlights || historicalSnapshot?.highlights) ?? [],
+        hasGuide: b.tour?.hasGuide ?? false,
+        guideLanguages: b.tour?.guideLanguages ?? [],
+        freeCancellationHours: b.tour?.freeCancellationHours ?? historicalSnapshot?.freeCancellationHours ?? 24,
+        instantConfirmation: b.tour?.instantConfirmation ?? true,
+        fitnessLevel: b.tour?.fitnessLevel ?? null,
+        wheelchairAccessible: b.tour?.wheelchairAccessible ?? false,
+        strollerAccessible: b.tour?.strollerAccessible ?? false,
+        accessibilityNotes: b.tour?.accessibilityNotes ?? null,
+        safetyGuidelines: b.tour?.safetyGuidelines ?? [],
+        routeStops: b.tour?.routeStops ?? enTrans?.itinerary ?? null,
+        itinerary: enTrans?.itinerary ?? null,
+        meetingPoint: enTrans?.meetingPoint || b.tour?.zone?.location || null,
+        requirements: enTrans?.requirements ?? null,
+        operatorName: b.tour?.operatorName ?? null,
+        operatorPhone: b.tour?.operatorPhone ?? null,
+      },
     };
   });
 
@@ -134,6 +189,7 @@ export default async function AdminBookingsPage() {
         <BookingQueue
           initialBookings={tickets}
           availableTours={availableTours}
+          initialTotalUnread={totalUnread}
           initialPagination={{
             page: 1,
             pageSize: INITIAL_PAGE_SIZE,
