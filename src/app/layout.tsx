@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
+import { unstable_cache } from 'next/cache';
 import './globals.css';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
@@ -98,24 +99,28 @@ const jsonLd = {
 // --------------------------------------------------------------------------
 export const revalidate = 60;
 
-async function getSeoSettings() {
-  try {
-    const record = await prisma.systemSetting.findUnique({ where: { key: 'seo' } });
-    if (record?.value) {
-      return parseSettingValue<{
-        ogImage?: string;
-        ogImageAlt?: string;
-        faviconUrl?: string;
-        siteTitle?: string;
-        siteDescription?: string;
-        twitterHandle?: string;
-      }>(record.value, {});
+const getSeoSettings = unstable_cache(
+  async () => {
+    try {
+      const record = await prisma.systemSetting.findUnique({ where: { key: 'seo' } });
+      if (record?.value) {
+        return parseSettingValue<{
+          ogImage?: string;
+          ogImageAlt?: string;
+          faviconUrl?: string;
+          siteTitle?: string;
+          siteDescription?: string;
+          twitterHandle?: string;
+        }>(record.value, {});
+      }
+    } catch {
+      // DB unavailable — fall back to static defaults silently
     }
-  } catch {
-    // DB unavailable — fall back to static defaults silently
-  }
-  return {};
-}
+    return {};
+  },
+  ['root-seo-settings-v1'],
+  { revalidate: 300, tags: ['settings'] }
+);
 
 export async function generateMetadata(): Promise<Metadata> {
   const seo = await getSeoSettings();

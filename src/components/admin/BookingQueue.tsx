@@ -170,63 +170,58 @@ function ExpandedDetails({
         </div>
       )}
 
-      {/* 3 Structured Sections: Customer | Complete Tour & Trip Details | Booking Details */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {/* 3 Clean Structured Sections: Customer | Trip & Logistics | Booking & Payment */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-white/10">
         {/* Section 1: Customer */}
-        <div className="rounded-2xl border border-white/10 bg-[#0B1528]/80 p-4 flex flex-col justify-between space-y-4">
+        <div className="min-w-0 flex flex-col justify-between space-y-4 lg:pr-5">
           <div className="space-y-3">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-              <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#00E5FF]">
-                <User className="h-3.5 w-3.5" />
+            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+              <span className="flex items-center gap-2 text-xs font-bold text-[#00E5FF]">
+                <User className="h-3.5 w-3.5 shrink-0" />
                 Customer
               </span>
-              <span className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-mono text-slate-400">
+              <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-mono text-slate-400">
                 {booking.language?.toUpperCase() || 'EN'}
               </span>
             </div>
 
             <div className="space-y-2 text-xs">
-              <div>
-                <span className="text-[10px] uppercase tracking-wider text-slate-500 block">Name</span>
-                <p className="text-sm font-bold text-white">{booking.customerName || 'Guest'}</p>
+              <div className="min-w-0">
+                <span className="text-[11px] text-slate-400 block">Name</span>
+                <p className="text-sm font-semibold text-white break-words">{booking.customerName || 'Guest'}</p>
               </div>
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider text-slate-500 block">Phone &amp; Country Code</span>
-                  <p className="font-mono text-slate-200 font-semibold">{booking.customerPhone || 'Not provided'}</p>
+              <div className="flex items-center justify-between gap-2 min-w-0">
+                <div className="min-w-0">
+                  <span className="text-[11px] text-slate-400 block">Phone &amp; Country Code</span>
+                  <p className="font-mono text-slate-200 font-medium break-all">{booking.customerPhone || 'Not provided'}</p>
                 </div>
                 {dialCode && (
-                  <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-[#00E5FF]">
+                  <span className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-[#00E5FF]">
                     {dialCode}
                   </span>
                 )}
               </div>
               {booking.customerEmail && (
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider text-slate-500 block">Email</span>
+                <div className="min-w-0">
+                  <span className="text-[11px] text-slate-400 block">Email</span>
                   <p className="text-slate-300 break-all">{booking.customerEmail}</p>
                 </div>
               )}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {booking.customerProfileId ? (
-                  <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
-                    Account Linked
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">
-                    Guest Checkout
-                  </span>
-                )}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px] text-slate-400">
+                <span className={booking.customerProfileId ? 'text-emerald-300 font-medium' : 'text-slate-400'}>
+                  {booking.customerProfileId ? 'Account linked' : 'Guest checkout'}
+                </span>
                 {booking.whatsappOptIn !== false && (
-                  <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300">
-                    WhatsApp Opt-in
-                  </span>
+                  <>
+                    <span>·</span>
+                    <span className="text-emerald-300/90">WhatsApp opt-in</span>
+                  </>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-white/5">
             {cleanPhone ? (
               <a
                 href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
@@ -234,22 +229,22 @@ function ExpandedDetails({
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25 transition"
+                className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/25 transition"
               >
-                <MessageCircle className="h-3.5 w-3.5" />
+                <MessageCircle className="h-3.5 w-3.5 shrink-0" />
                 WhatsApp
               </a>
             ) : (
-              <span className="inline-flex items-center justify-center rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] text-slate-500">
+              <span className="flex-1 min-w-[120px] inline-flex items-center justify-center rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] text-slate-500">
                 No Phone
               </span>
             )}
             <button
               type="button"
               onClick={() => onOpenChat(booking.id)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#00E5FF]/15 border border-[#00E5FF]/30 px-3 py-2 text-xs font-bold text-[#00E5FF] hover:bg-[#00E5FF]/25 transition"
+              className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#00E5FF]/15 border border-[#00E5FF]/30 px-3 py-2 text-xs font-semibold text-[#00E5FF] hover:bg-[#00E5FF]/25 transition"
             >
-              <MessageSquare className="h-3.5 w-3.5" />
+              <MessageSquare className="h-3.5 w-3.5 shrink-0" />
               Open Chat
               {(booking.unreadMessageCount ?? 0) > 0 && (
                 <span className="rounded-full bg-emerald-400 px-1.5 py-0.2 text-[10px] font-black text-[#070F1E]">
@@ -261,27 +256,29 @@ function ExpandedDetails({
         </div>
 
         {/* Section 2: Complete Tour & Trip Details */}
-        <div className="rounded-2xl border border-white/10 bg-[#0B1528]/80 p-4 space-y-3">
-          <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-400">
-              <Compass className="h-3.5 w-3.5" />
-              Tour &amp; Trip Details
+        <div className="min-w-0 space-y-3 lg:px-5 pt-4 lg:pt-0 border-t border-white/10 lg:border-t-0">
+          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <span className="flex items-center gap-2 text-xs font-bold text-amber-400">
+              <Compass className="h-3.5 w-3.5 shrink-0" />
+              Trip &amp; Logistics
             </span>
             {(td?.durationDisplay || td?.durationHours) && (
-              <span className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
+              <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-medium text-slate-300">
                 {td.durationDisplay || `${td.durationHours}h`}
               </span>
             )}
           </div>
 
           <div className="space-y-2.5 text-xs">
-            <div>
-              <p className="text-sm font-bold text-white">{booking.tourTitle}</p>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white break-words">{booking.tourTitle}</p>
               {booking.destinationName && (
                 <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                  <MapPin className="h-3 w-3 text-[#00E5FF]" />
-                  {booking.destinationName}
-                  {booking.zoneName ? ` · Zone: ${booking.zoneName}` : ''}
+                  <MapPin className="h-3 w-3 text-[#00E5FF] shrink-0" />
+                  <span className="truncate">
+                    {booking.destinationName}
+                    {booking.zoneName ? ` · Zone: ${booking.zoneName}` : ''}
+                  </span>
                 </p>
               )}
               {td?.description && (
@@ -291,51 +288,51 @@ function ExpandedDetails({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-2.5">
-              <div>
-                <span className="text-[10px] uppercase text-slate-500 block">Tour Date &amp; Time</span>
-                <p className="font-bold text-white">{booking.travelDate}</p>
-                <p className="text-[11px] font-semibold text-amber-400">{booking.pickupTime || 'Time TBD'}</p>
+            <div className="grid grid-cols-2 gap-3 rounded-lg bg-white/[0.02] p-2.5">
+              <div className="min-w-0">
+                <span className="text-[11px] text-slate-400 block">Date &amp; Time</span>
+                <p className="font-semibold text-white">{booking.travelDate}</p>
+                <p className="text-[11px] font-medium text-amber-400">{booking.pickupTime || 'Time TBD'}</p>
               </div>
-              <div>
-                <span className="text-[10px] uppercase text-slate-500 block">Guests ({booking.guestCount})</span>
-                <p className="font-semibold text-slate-200">
+              <div className="min-w-0">
+                <span className="text-[11px] text-slate-400 block">Guests ({booking.guestCount})</span>
+                <p className="font-medium text-slate-200">
                   {booking.adultsCount ?? booking.guestCount} Ad · {booking.childrenCount ?? 0} Ch
                   {!!booking.infantsCount && ` · ${booking.infantsCount} Inf`}
                 </p>
               </div>
             </div>
 
-            <div className="rounded-xl border border-white/5 bg-white/[0.02] p-2.5 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-semibold text-slate-300">
-                  <Hotel className="h-3.5 w-3.5 text-[#00E5FF]" />
-                  {booking.hotelName || booking.pickupLocationName || 'Direct / Meeting Point'}
+            <div className="rounded-lg bg-white/[0.02] p-2.5 space-y-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 font-medium text-slate-200 min-w-0 truncate">
+                  <Hotel className="h-3.5 w-3.5 text-[#00E5FF] shrink-0" />
+                  <span className="truncate">{booking.hotelName || booking.pickupLocationName || 'Direct / Meeting Point'}</span>
                 </span>
                 {booking.roomNumber && (
-                  <span className="rounded bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-bold text-[#00E5FF] border border-[#00E5FF]/20">
+                  <span className="shrink-0 rounded bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-bold text-[#00E5FF]">
                     Rm {booking.roomNumber}
                   </span>
                 )}
               </div>
               {(booking.pickupAddress || td?.meetingPoint) && (
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-slate-400 break-words">
                   Meeting/Address: {booking.pickupAddress || td?.meetingPoint}
                 </p>
               )}
               {booking.pickupDirectives && (
-                <p className="text-[11px] text-amber-300/90">Note: {booking.pickupDirectives}</p>
+                <p className="text-[11px] text-amber-300/90 break-words">Note: {booking.pickupDirectives}</p>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-300">
               {td?.guideLanguages && td.guideLanguages.length > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-white/5 px-2 py-0.5">
+                <span className="inline-flex items-center gap-1">
                   <Globe className="h-3 w-3 text-[#00E5FF]" />
                   Guide: {td.guideLanguages.join(', ')}
                 </span>
               )}
-              <span className="inline-flex items-center gap-1 rounded-md bg-white/5 px-2 py-0.5">
+              <span className="inline-flex items-center gap-1">
                 <ShieldCheck className="h-3 w-3 text-emerald-400" />
                 Free cancel: {td?.freeCancellationHours ?? 24}h prior
               </span>
@@ -344,7 +341,7 @@ function ExpandedDetails({
             <button
               type="button"
               onClick={() => setShowFullTourSpecs((v) => !v)}
-              className="text-[11px] font-bold text-[#00E5FF] hover:underline flex items-center gap-1"
+              className="text-[11px] font-semibold text-[#00E5FF] hover:underline flex items-center gap-1"
             >
               {showFullTourSpecs ? 'Hide' : 'Show'} inclusions, itinerary &amp; requirements
               <ChevronDown className={`h-3 w-3 transition-transform ${showFullTourSpecs ? 'rotate-180' : ''}`} />
@@ -353,40 +350,40 @@ function ExpandedDetails({
         </div>
 
         {/* Section 3: Booking Details & Financials */}
-        <div className="rounded-2xl border border-white/10 bg-[#0B1528]/80 p-4 space-y-3">
-          <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-emerald-400">
-              <DollarSign className="h-3.5 w-3.5" />
+        <div className="min-w-0 space-y-3 lg:pl-5 pt-4 lg:pt-0 border-t border-white/10 lg:border-t-0">
+          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <span className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+              <DollarSign className="h-3.5 w-3.5 shrink-0" />
               Booking &amp; Payment
             </span>
-            <span className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-mono text-slate-400">
+            <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-mono text-slate-400">
               {booking.source || 'WEBSITE'}
             </span>
           </div>
 
           <div className="space-y-2 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">Reference &amp; Status</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-slate-400">Reference</span>
               <div className="flex items-center gap-2">
                 <span className="font-mono font-bold text-white">{booking.bookingReference}</span>
                 <StatusBadge status={booking.status} />
               </div>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-slate-400">Created</span>
               <span className="text-slate-200">{createdLabel}</span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-slate-400">Total ({booking.currency || 'USD'})</span>
-              <span className="text-sm font-black text-white">${booking.totalPriceUSD.toFixed(2)}</span>
+              <span className="text-sm font-bold text-white">${booking.totalPriceUSD.toFixed(2)}</span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-slate-400">Paid Online ({booking.paymentScheme || 'ARRIVAL'})</span>
               <span className="font-semibold text-emerald-400">${paidOnline.toFixed(2)}</span>
             </div>
-            <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2 flex items-center justify-between">
-              <span className="font-bold text-amber-300">Cash Due at Pickup</span>
-              <span className="text-sm font-black text-amber-300">${cashDue.toFixed(2)}</span>
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/25 px-3 py-2 flex items-center justify-between gap-2">
+              <span className="font-semibold text-amber-300">Cash Due at Pickup</span>
+              <span className="text-sm font-bold text-amber-300">${cashDue.toFixed(2)}</span>
             </div>
 
             {(booking.flightNumbers || booking.bedConfiguration) && (
@@ -405,13 +402,13 @@ function ExpandedDetails({
             )}
 
             {booking.specialRequirements && (
-              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-2.5 py-1.5 text-[11px] text-amber-200">
+              <div className="rounded-lg bg-amber-500/5 px-2.5 py-1.5 text-[11px] text-amber-200 break-words">
                 <strong>Special Req:</strong> {booking.specialRequirements}
               </div>
             )}
 
             {booking.notes && (
-              <div className="rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-[11px] text-slate-300">
+              <div className="rounded-lg bg-white/[0.02] px-2.5 py-1.5 text-[11px] text-slate-300 break-words">
                 <strong className="text-white">Notes:</strong> {booking.notes}
               </div>
             )}
@@ -1745,17 +1742,18 @@ export default function BookingQueue({
       )}
 
       {/* 4. Mobile Cards View (<lg) */}
-      <div className="space-y-4 lg:hidden">
+      <div className="space-y-3 lg:hidden">
         {filteredBookings.map((b) => {
           const isSelected = selectedIds.has(b.id);
           const isCancelPending = b.bookingAnswers?._cancellationRequest?.status === 'PENDING_REVIEW';
           const cancelReq = b.bookingAnswers?._cancellationRequest;
+          const unreadCount = unreadMap[b.bookingReference]?.count || 0;
           return (
             <div
               key={b.id}
-              className={`space-y-3 rounded-2xl border p-4 transition-colors ${
+              className={`space-y-3 rounded-xl border p-3.5 transition-colors overflow-hidden ${
                 isCancelPending
-                  ? 'border-2 border-rose-500/80 bg-gradient-to-b from-rose-950/50 to-[#0B1528] shadow-lg shadow-rose-950/40 ring-1 ring-rose-500/30'
+                  ? 'border-rose-500/70 bg-rose-950/20'
                   : isSelected
                     ? 'border-[#00E5FF] bg-[#00E5FF]/5'
                     : 'border-white/10 bg-[#0B1528]'
@@ -1763,18 +1761,18 @@ export default function BookingQueue({
             >
               {/* Outside Prominent Cancellation Alert (Mobile) */}
               {isCancelPending && (
-                <div className="rounded-xl border border-rose-500/40 bg-rose-500/20 p-3 space-y-2">
+                <div className="rounded-lg border border-rose-500/40 bg-rose-500/15 p-2.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-xs font-black text-rose-300">
-                      <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0 animate-pulse" />
-                      <span>Cancellation Requested</span>
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-rose-300 min-w-0">
+                      <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+                      <span className="truncate">Cancellation Requested</span>
                     </div>
-                    <span className="rounded-full bg-rose-950/80 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-200">
+                    <span className="shrink-0 rounded-full bg-rose-950/80 border border-rose-500/40 px-2 py-0.5 text-[10px] font-semibold text-rose-200">
                       ~{cancelReq?.hoursRemaining ?? '?'}h left
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-slate-300">
+                  <p className="text-[11px] text-slate-300 break-words">
                     <strong className="text-white">Reason:</strong> {cancelReq?.reason || 'No reason provided'}
                     {cancelReq?.notes && <span> ({cancelReq.notes})</span>}
                   </p>
@@ -1783,9 +1781,9 @@ export default function BookingQueue({
                     <button
                       type="button"
                       onClick={() => handleReviewCancellation(b.id, 'APPROVE')}
-                      className="flex-1 rounded-lg bg-red-600 hover:bg-red-500 text-white py-1.5 text-xs font-bold transition shadow-sm text-center"
+                      className="flex-1 rounded-lg bg-red-600 hover:bg-red-500 text-white py-1.5 text-xs font-bold transition text-center"
                     >
-                      Approve (Cancel)
+                      Approve
                     </button>
                     <button
                       type="button"
@@ -1797,45 +1795,47 @@ export default function BookingQueue({
                   </div>
                 </div>
               )}
-              {/* Header: Select, Reference, Status Badge & Actions */}
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2">
+
+              {/* Header: Select, Reference, Status Badge & Compact Actions */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <button
                     type="button"
                     onClick={(e) => toggleSelect(b.id, e)}
-                    className={isSelected ? 'text-[#00E5FF]' : 'text-slate-500'}
+                    className={`shrink-0 ${isSelected ? 'text-[#00E5FF]' : 'text-slate-500'}`}
                     aria-label="Select booking"
                   >
                     {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
                   </button>
-                  <span className="font-mono text-sm font-bold text-[#00E5FF]">{b.bookingReference}</span>
+                  <span className="font-mono text-xs sm:text-sm font-bold text-[#00E5FF] truncate">{b.bookingReference}</span>
                   <StatusBadge status={b.status} />
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       openChat(b.id, b.bookingReference);
                     }}
-                    className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition-all ${
-                      unreadMap[b.bookingReference]?.count > 0
-                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 animate-pulse'
-                        : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20'
+                    className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2 text-xs font-semibold transition ${
+                      unreadCount > 0
+                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                        : 'bg-white/5 border-white/10 text-slate-300 hover:border-[#00E5FF]/40 hover:text-[#00E5FF]'
                     }`}
                     title="Open Conversation"
                   >
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    <span>Chat</span>
-                    {unreadMap[b.bookingReference]?.count > 0 && (
-                      <span className="rounded-full bg-emerald-400 px-1.5 py-0.2 text-[9px] font-black text-[#070F1E]">
-                        {unreadMap[b.bookingReference].count}
+                    <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                    {unreadCount > 0 && (
+                      <span className="rounded-full bg-emerald-400 px-1.5 text-[10px] font-black text-[#070F1E]">
+                        {unreadCount}
                       </span>
                     )}
                   </button>
                   <BookingRowActions
                     ticket={b}
+                    compact
+                    hideStatusBadge
                     onStatusChange={handleStatusChange}
                     onUpdateBooking={handleUpdateBooking}
                     onDeleteBooking={handleDeleteBooking}
@@ -1843,81 +1843,76 @@ export default function BookingQueue({
                 </div>
               </div>
 
-              {/* Booking Overview Grid (tappable to expand) */}
+              {/* Clean Tappable Overview */}
               <div
-                className="grid grid-cols-2 gap-2 text-xs cursor-pointer rounded-xl hover:bg-white/[0.02] p-1 transition"
+                className="space-y-2.5 text-xs cursor-pointer"
                 onClick={() => toggleExpand(b.id)}
               >
-                <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Tour</span>
-                  <p className="truncate font-semibold text-white">{b.tourTitle}</p>
-                  {b.category && <p className="text-[10px] text-[#00E5FF] capitalize font-medium">{b.category.toLowerCase()}</p>}
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white line-clamp-1">{b.tourTitle}</p>
+                  {b.category && (
+                    <p className="text-[11px] text-[#00E5FF]/80 capitalize">{b.category.toLowerCase()}</p>
+                  )}
                 </div>
-                <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Customer</span>
-                  <div className="flex items-center gap-1.5">
-                    <p className="font-semibold text-white truncate">{b.customerName}</p>
-                    {unreadMap[b.bookingReference]?.count > 0 && (
-                      <span className="rounded-full bg-emerald-500 px-1.5 py-0.2 text-[9px] font-black text-[#070F1E] animate-pulse">
-                        {unreadMap[b.bookingReference].count} new
-                      </span>
-                    )}
+
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                  <div className="min-w-0">
+                    <span className="text-[11px] text-slate-400 block">Customer</span>
+                    <p className="font-medium text-white truncate">{b.customerName}</p>
+                    {b.customerPhone && <p className="text-[11px] text-slate-400 font-mono truncate">{b.customerPhone}</p>}
                   </div>
-                  {b.customerPhone && <p className="text-[10px] text-slate-400 font-mono truncate">{b.customerPhone}</p>}
-                </div>
-                <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Date & Time</span>
-                  <p className="text-slate-300 font-medium">{b.travelDate}</p>
-                  {b.pickupTime && <p className="text-[10px] text-amber-400 font-medium">Pickup: {b.pickupTime}</p>}
-                </div>
-                <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Guests</span>
-                  <p className="text-slate-300 font-medium">{b.guestCount} Pax</p>
-                  <p className="text-[10px] text-slate-400">{b.adultsCount ?? b.guestCount} Ad · {b.childrenCount ?? 0} Ch</p>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Total Price</span>
-                  <p className="font-bold text-white">${b.totalPriceUSD.toFixed(2)}</p>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Due Cash</span>
-                  <p className="font-bold text-amber-400">${(b.amountDueOnArrival || 0).toFixed(2)}</p>
+                  <div className="min-w-0">
+                    <span className="text-[11px] text-slate-400 block">Date &amp; Time</span>
+                    <p className="text-slate-200 font-medium truncate">{b.travelDate}</p>
+                    {b.pickupTime && <p className="text-[11px] text-amber-400 truncate">{b.pickupTime}</p>}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[11px] text-slate-400 block">Guests</span>
+                    <p className="text-slate-200 font-medium">
+                      {b.guestCount} Pax ({b.adultsCount ?? b.guestCount} Ad · {b.childrenCount ?? 0} Ch)
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[11px] text-slate-400 block">Total / Due Cash</span>
+                    <p className="font-semibold text-white">
+                      ${b.totalPriceUSD.toFixed(2)}{' '}
+                      <span className="text-amber-400 font-normal">(${(b.amountDueOnArrival || 0).toFixed(2)} cash)</span>
+                    </p>
+                  </div>
                 </div>
               </div>
 
               {/* Latest message preview if available */}
               {unreadMap[b.bookingReference]?.lastMessage && (
                 <div
-                  className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-300 cursor-pointer flex items-center justify-between gap-2"
+                  className="border-l-2 border-emerald-400 bg-emerald-500/5 px-3 py-1.5 rounded-r-lg text-xs text-emerald-300 cursor-pointer flex items-center justify-between gap-2"
                   onClick={() => openChat(b.id, b.bookingReference)}
                 >
-                  <div className="truncate">
-                    <span className="font-bold">Latest message: </span>
+                  <div className="min-w-0 truncate">
+                    <span className="font-semibold">Message: </span>
                     <span className="opacity-90">{unreadMap[b.bookingReference].lastMessage}</span>
                   </div>
-                  <span className="text-[10px] text-emerald-400 shrink-0 font-bold underline">Reply</span>
+                  <span className="text-[11px] text-emerald-400 shrink-0 font-semibold underline">Reply</span>
                 </div>
               )}
 
               {/* Inline Expand Toggle Button (Mobile) */}
-              <div className="border-t border-white/5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => toggleExpand(b.id)}
-                  className="flex w-full items-center justify-between text-xs font-bold text-slate-300 hover:text-[#00E5FF] transition-colors bg-white/[0.02] hover:bg-white/[0.05] p-2.5 rounded-xl border border-white/5"
-                >
-                  <span>{expandedBookingId === b.id ? 'Collapse Booking Details' : 'View Full Details & Logistics'}</span>
-                  {expandedBookingId === b.id ? (
-                    <ChevronDown className="h-4 w-4 text-[#00E5FF]" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-slate-400" />
-                  )}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => toggleExpand(b.id)}
+                className="flex w-full items-center justify-between text-xs font-semibold text-slate-300 hover:text-[#00E5FF] transition-colors bg-white/[0.03] hover:bg-white/[0.06] px-3 py-2 rounded-lg"
+              >
+                <span>{expandedBookingId === b.id ? 'Hide details' : 'View details & logistics'}</span>
+                {expandedBookingId === b.id ? (
+                  <ChevronDown className="h-4 w-4 text-[#00E5FF]" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-slate-400" />
+                )}
+              </button>
 
               {/* Inline Expanded Details (Mobile) */}
               {expandedBookingId === b.id && (
-                <div className="pt-2">
+                <div className="pt-1">
                   <ExpandedDetails
                     booking={b}
                     onOpenChat={(id) => openChat(id, b.bookingReference)}

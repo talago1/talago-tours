@@ -2,7 +2,24 @@ export const dynamic = 'force-dynamic';
 
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/prisma';
+
+const getCachedCatalogMeta = unstable_cache(
+  async () => {
+    const [totalCount, destinations] = await Promise.all([
+      prisma.tour.count({ where: { status: 'ACTIVE' } }),
+      prisma.destination.findMany({
+        where: { isVisible: true, tours: { some: { status: 'ACTIVE' } } },
+        orderBy: { name: 'asc' },
+        select: { name: true, slug: true },
+      }),
+    ]);
+    return { totalCount, destinations };
+  },
+  ['tours-catalog-meta-v1'],
+  { revalidate: 120, tags: ['tours', 'destinations'] }
+);
 import { parseSettingValue } from '@/lib/systemSettings';
 import { SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
 import { resolveServerLanguage } from '@/lib/i18n.server';
@@ -97,8 +114,8 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
     where.hotelPickupIncluded = true;
   }
 
-  const [totalCount, allTours, destinations] = await Promise.all([
-    prisma.tour.count({ where: { status: 'ACTIVE' } }),
+  const [{ totalCount, destinations }, allTours] = await Promise.all([
+    getCachedCatalogMeta(),
     prisma.tour.findMany({
       where,
       orderBy: [
@@ -138,11 +155,6 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
           select: { name: true, slug: true },
         },
       },
-    }),
-    prisma.destination.findMany({
-      where: { isVisible: true, tours: { some: { status: 'ACTIVE' } } },
-      orderBy: { name: 'asc' },
-      select: { name: true, slug: true },
     }),
   ]);
 

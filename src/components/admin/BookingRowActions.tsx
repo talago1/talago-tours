@@ -22,6 +22,8 @@ interface BookingRowActionsProps {
   onStatusChange: (id: string, newStatus: BookingStatus) => void;
   onUpdateBooking?: (updated: ActiveQueueTicket) => void;
   onDeleteBooking?: (id: string) => void;
+  compact?: boolean;
+  hideStatusBadge?: boolean;
 }
 
 const ALL_STATUSES: { label: string; status: BookingStatus; icon: typeof CheckCircle2; color: string }[] = [
@@ -37,6 +39,8 @@ export default function BookingRowActions({
   onStatusChange,
   onUpdateBooking,
   onDeleteBooking,
+  compact = false,
+  hideStatusBadge = false,
 }: BookingRowActionsProps) {
   const [localStatus, setLocalStatus] = useState(ticket.status);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -139,8 +143,8 @@ export default function BookingRowActions({
 
   return (
     <>
-      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-        <StatusBadge status={localStatus} />
+      <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+        {!hideStatusBadge && <StatusBadge status={localStatus} />}
 
         {/* Edit Button */}
         <button
@@ -152,22 +156,22 @@ export default function BookingRowActions({
           <Edit2 className="h-3.5 w-3.5" />
         </button>
 
-        {/* Status Dropdown Menu */}
+        {/* Status & Actions Dropdown Menu */}
         <div className="relative" ref={menuRef}>
           <button
             type="button"
             onClick={() => setMenuOpen(!menuOpen)}
             disabled={submitting !== null}
-            title="Change status"
+            title="Actions & status"
             className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-[#121E36] text-slate-400 transition-all hover:border-[#00E5FF]/30 hover:text-[#00E5FF] disabled:opacity-40"
           >
             <EllipsisVertical className="h-4 w-4" />
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-xl border border-white/10 bg-[#121E36] shadow-2xl backdrop-blur-md">
+            <div className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-xl border border-white/10 bg-[#121E36] shadow-2xl backdrop-blur-md">
               <div className="border-b border-white/5 px-3 py-2">
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Set Status
                 </span>
               </div>
@@ -199,41 +203,76 @@ export default function BookingRowActions({
                   );
                 })}
               </div>
+
+              {compact && (
+                <div className="border-t border-white/5 p-1 space-y-0.5">
+                  {(localStatus === 'CONFIRMED' || localStatus === 'COMPLETED') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        handleSendReview();
+                      }}
+                      disabled={sendingReview}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-semibold text-amber-300 hover:bg-white/[0.04] disabled:opacity-40"
+                    >
+                      <Star className="h-3.5 w-3.5" />
+                      <span>{sendingReview ? 'Sending...' : 'Send Review Invite'}</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      handleDelete();
+                    }}
+                    disabled={deleting}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-semibold text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>{deleting ? 'Deleting...' : 'Delete Booking'}</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Delete Button */}
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          title="Delete booking permanently"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 text-red-400 transition-all hover:border-red-500/40 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-40"
-        >
-          {deleting ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Trash2 className="h-3.5 w-3.5" />
-          )}
-        </button>
+        {!compact && (
+          <>
+            {/* Delete Button */}
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              title="Delete booking permanently"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 text-red-400 transition-all hover:border-red-500/40 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-40"
+            >
+              {deleting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+            </button>
 
-        <WhatsAppButton ticket={{ ...ticket, status: localStatus }} />
+            <WhatsAppButton ticket={{ ...ticket, status: localStatus }} />
 
-        {(localStatus === 'CONFIRMED' || localStatus === 'COMPLETED') && (
-          <button
-            type="button"
-            onClick={handleSendReview}
-            disabled={sendingReview}
-            title="Send post-tour review invitation (WhatsApp / Email)"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 transition-all hover:border-amber-500/50 hover:bg-amber-500/20 disabled:opacity-40"
-          >
-            {sendingReview ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Star className="h-3.5 w-3.5" />
+            {(localStatus === 'CONFIRMED' || localStatus === 'COMPLETED') && (
+              <button
+                type="button"
+                onClick={handleSendReview}
+                disabled={sendingReview}
+                title="Send post-tour review invitation (WhatsApp / Email)"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 transition-all hover:border-amber-500/50 hover:bg-amber-500/20 disabled:opacity-40"
+              >
+                {sendingReview ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Star className="h-3.5 w-3.5" />
+                )}
+              </button>
             )}
-          </button>
+          </>
         )}
 
         {error && (

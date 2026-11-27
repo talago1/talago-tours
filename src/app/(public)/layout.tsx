@@ -1,13 +1,33 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { AuthProvider } from '@/context/AuthContext';
+import Navbar from '@/components/layout/Navbar';
+import FooterContent, { FooterBrandColumn } from '@/components/layout/FooterContent';
 
-const Navbar = dynamic(() => import('@/components/layout/Navbar'), { ssr: false });
-const FooterContent = dynamic(() => import('@/components/layout/FooterContent'), { ssr: false });
-const FooterBrandColumn = dynamic(() => import('@/components/layout/FooterContent').then(m => m.FooterBrandColumn), { ssr: false });
 const LiveChatWidget = dynamic(() => import('@/components/layout/LiveChatWidget'), { ssr: false });
+
+const getCachedSocialLinks = unstable_cache(
+  async () => {
+    let socialLinks: { instagram?: string; facebook?: string; tiktok?: string; telegram?: string; twitter?: string } = {};
+    try {
+      const contactSetting = await prisma.systemSetting.findUnique({ where: { key: 'contact' } });
+      if (contactSetting?.value) {
+        const parsed = JSON.parse(contactSetting.value);
+        if (parsed?.socialLinks) {
+          socialLinks = parsed.socialLinks;
+        }
+      }
+    } catch {
+      // fallback to empty
+    }
+    return socialLinks;
+  },
+  ['public-contact-social-links-v1'],
+  { revalidate: 300, tags: ['settings'] }
+);
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
 
@@ -39,18 +59,7 @@ export const metadata: Metadata = {
 };
 
 export default async function PublicRouteLayout({ children }: { children: React.ReactNode }) {
-  let socialLinks: { instagram?: string; facebook?: string; tiktok?: string; telegram?: string; twitter?: string } = {};
-  try {
-    const contactSetting = await prisma.systemSetting.findUnique({ where: { key: 'contact' } });
-    if (contactSetting?.value) {
-      const parsed = JSON.parse(contactSetting.value);
-      if (parsed?.socialLinks) {
-        socialLinks = parsed.socialLinks;
-      }
-    }
-  } catch {
-    // fallback to empty
-  }
+  const socialLinks = await getCachedSocialLinks();
 
   const validLinks = [
     { label: 'Instagram', href: socialLinks.instagram },

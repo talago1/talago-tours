@@ -1,6 +1,7 @@
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
+import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import TourDetailsClient from './TourDetailsClient';
@@ -11,6 +12,155 @@ import { resolveServerLanguage } from '@/lib/i18n.server';
 
 import { buildTourDetailSEO } from '@/lib/seoMetadata';
 
+const tourDetailSelect = {
+  id: true,
+  slug: true,
+  basePrice: true,
+  basePriceUSD: true,
+  duration: true,
+  durationHours: true,
+  maxCapacity: true,
+  thumbnailUrl: true,
+  coverImage: true,
+  galleryImages: true,
+  category: true,
+  status: true,
+  translations: true,
+  highlights: true,
+  inclusions: true,
+  exclusions: true,
+  itinerary: true,
+  routeStops: true,
+  whatToBring: true,
+  safetyGuidelines: true,
+  fitnessLevel: true,
+  accessibilityNotes: true,
+  mobilityNotes: true,
+  instantConfirmation: true,
+  pickupDescription: true,
+  hotelPickupIncluded: true,
+  ratingAverage: true,
+  ratingCount: true,
+  isNew: true,
+  adultPrice: true,
+  priceAdult: true,
+  originalPrice: true,
+  childPrice: true,
+  priceChild: true,
+  infantPrice: true,
+  pickupTime: true,
+  pickupTimes: true,
+  pickupType: true,
+  meetingPointName: true,
+  meetingPointAddress: true,
+  meetingPointLat: true,
+  meetingPointLng: true,
+  meetingPointLandmark: true,
+  meetingPointInstructions: true,
+  meetingPointMapUrl: true,
+  meetingPointImageUrl: true,
+  cancellationPolicy: true,
+  freeCancellationHours: true,
+  cutoffHours: true,
+  bookingQuestions: true,
+  allowDeposit: true,
+  depositPercentage: true,
+  allowPayAtLocation: true,
+  images: true,
+  reviews: true,
+  metaTitle: true,
+  metaDescription: true,
+  keywords: true,
+  reviewEntries: {
+    where: {
+      status: 'APPROVED' as const,
+      isVisible: true,
+      isSeeded: false,
+    },
+    select: {
+      id: true,
+      customerName: true,
+      reviewerName: true,
+      country: true,
+      rating: true,
+      comment: true,
+      originalText: true,
+      originalLanguage: true,
+      translatedText: true,
+      source: true,
+      sourceUrl: true,
+      reviewDate: true,
+      status: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' as const },
+  },
+  ageRestrictionsNotes: true,
+  destinationId: true,
+  tourOptions: true,
+  hasGuide: true,
+  guideLanguages: true,
+  destination: {
+    select: { name: true, slug: true },
+  },
+} as const;
+
+const getCachedTourBundle = cache(async (slugOrId: string) => {
+  return unstable_cache(
+    async () => {
+      let tour = await prisma.tour.findUnique({
+        where: { slug: slugOrId },
+        select: tourDetailSelect,
+      });
+
+      if (!tour) {
+        tour = await prisma.tour.findUnique({
+          where: { id: slugOrId },
+          select: tourDetailSelect,
+        });
+      }
+
+      if (!tour || (tour.status && tour.status.toUpperCase() !== 'ACTIVE')) {
+        const redirectRecord = await prisma.tourRedirect.findUnique({
+          where: { sourceSlug: slugOrId },
+          select: { targetSlug: true },
+        });
+        return { tour: null, redirectTarget: redirectRecord?.targetSlug ?? null, rawRelated: [] };
+      }
+
+      const rawRelated = await prisma.tour.findMany({
+        where: {
+          status: 'ACTIVE',
+          id: { not: tour.id },
+          ...(tour.destinationId ? { destinationId: tour.destinationId } : {}),
+        },
+        take: 4,
+        orderBy: { ratingAverage: 'desc' },
+        select: {
+          id: true,
+          slug: true,
+          coverImage: true,
+          thumbnailUrl: true,
+          basePrice: true,
+          basePriceUSD: true,
+          adultPrice: true,
+          priceAdult: true,
+          duration: true,
+          durationHours: true,
+          ratingAverage: true,
+          category: true,
+          translations: true,
+          destination: { select: { name: true, slug: true } },
+        },
+      });
+
+      return { tour, redirectTarget: null, rawRelated };
+    },
+    [`tour-detail-v1-${slugOrId}`],
+    { revalidate: 60, tags: ['tours', `tour-${slugOrId}`] }
+  )();
+});
+
 interface Props {
   params: { slug: string };
   searchParams?: Record<string, string | string[] | undefined>;
@@ -18,45 +168,10 @@ interface Props {
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const lang = resolveServerLanguage(searchParams);
-  let tour = await prisma.tour.findUnique({
-    where: { slug: params.slug },
-    select: {
-      translations: true,
-      coverImage: true,
-      priceAdult: true,
-      adultPrice: true,
-      basePrice: true,
-      metaTitle: true,
-      metaDescription: true,
-      keywords: true,
-      destination: { select: { name: true } },
-    },
-  });
+  const { tour, redirectTarget } = await getCachedTourBundle(params.slug);
 
-  if (!tour) {
-    tour = await prisma.tour.findUnique({
-      where: { id: params.slug },
-      select: {
-        translations: true,
-        coverImage: true,
-        priceAdult: true,
-        adultPrice: true,
-        basePrice: true,
-        metaTitle: true,
-        metaDescription: true,
-        keywords: true,
-        destination: { select: { name: true } },
-      },
-    });
-  }
-
-  if (!tour) {
-    const redirectRecord = await prisma.tourRedirect.findUnique({
-      where: { sourceSlug: params.slug },
-    });
-    if (redirectRecord) {
-      redirect(`/tours/${redirectRecord.targetSlug}`);
-    }
+  if (!tour && redirectTarget) {
+    redirect(`/tours/${redirectTarget}`);
   }
 
   const t = tour?.translations as Record<string, { title?: string; description?: string; seoTitle?: string; seoDescription?: string }> | undefined;
@@ -91,228 +206,14 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 }
 
 export default async function TourDetailPage({ params }: Props) {
-  let tour = await prisma.tour.findUnique({
-    where: { slug: params.slug },
-    select: {
-      id: true,
-      slug: true,
-      basePrice: true,
-      basePriceUSD: true,
-      duration: true,
-      durationHours: true,
-      maxCapacity: true,
-      thumbnailUrl: true,
-      coverImage: true,
-      galleryImages: true,
-      category: true,
-      status: true,
-      translations: true,
-      highlights: true,
-      inclusions: true,
-      exclusions: true,
-      itinerary: true,
-      routeStops: true,
-      whatToBring: true,
-      safetyGuidelines: true,
-      fitnessLevel: true,
-      accessibilityNotes: true,
-      mobilityNotes: true,
-      instantConfirmation: true,
-      pickupDescription: true,
-      hotelPickupIncluded: true,
-      ratingAverage: true,
-      ratingCount: true,
-      isNew: true,
-      adultPrice: true,
-      priceAdult: true,
-      originalPrice: true,
-      childPrice: true,
-      priceChild: true,
-      infantPrice: true,
-      pickupTime: true,
-      pickupTimes: true,
-      pickupType: true,
-      meetingPointName: true,
-      meetingPointAddress: true,
-      meetingPointLat: true,
-      meetingPointLng: true,
-      meetingPointLandmark: true,
-      meetingPointInstructions: true,
-      meetingPointMapUrl: true,
-      meetingPointImageUrl: true,
-      cancellationPolicy: true,
-      freeCancellationHours: true,
-      cutoffHours: true,
-      bookingQuestions: true,
-      hasGuide: true,
-      guideLanguages: true,
-      allowDeposit: true,
-      depositPercentage: true,
-      allowPayAtLocation: true,
-      images: true,
-      reviews: true,
-      reviewEntries: {
-        where: {
-          status: 'APPROVED',
-          isVisible: true,
-          isSeeded: false,
-        },
-        select: {
-          id: true,
-          customerName: true,
-          reviewerName: true,
-          country: true,
-          rating: true,
-          comment: true,
-          source: true,
-          reviewDate: true,
-          status: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      },
-      ageRestrictionsNotes: true,
-      destinationId: true,
-      tourOptions: true,
-      destination: {
-        select: { name: true, slug: true },
-      },
-    },
-  });
+  const { tour, redirectTarget, rawRelated } = await getCachedTourBundle(params.slug);
 
   if (!tour) {
-    tour = await prisma.tour.findUnique({
-      where: { id: params.slug },
-      select: {
-        id: true,
-        slug: true,
-        basePrice: true,
-        basePriceUSD: true,
-        duration: true,
-        durationHours: true,
-        maxCapacity: true,
-        thumbnailUrl: true,
-        coverImage: true,
-        galleryImages: true,
-        category: true,
-        status: true,
-        translations: true,
-        highlights: true,
-        inclusions: true,
-        exclusions: true,
-        itinerary: true,
-        routeStops: true,
-        whatToBring: true,
-        safetyGuidelines: true,
-        fitnessLevel: true,
-        accessibilityNotes: true,
-        mobilityNotes: true,
-        instantConfirmation: true,
-        pickupDescription: true,
-        hotelPickupIncluded: true,
-        ratingAverage: true,
-        ratingCount: true,
-        isNew: true,
-        adultPrice: true,
-        priceAdult: true,
-        originalPrice: true,
-        childPrice: true,
-        priceChild: true,
-        infantPrice: true,
-        pickupTime: true,
-        pickupTimes: true,
-        pickupType: true,
-        meetingPointName: true,
-        meetingPointAddress: true,
-        meetingPointLat: true,
-        meetingPointLng: true,
-        meetingPointLandmark: true,
-        meetingPointInstructions: true,
-        meetingPointMapUrl: true,
-        meetingPointImageUrl: true,
-        cancellationPolicy: true,
-        freeCancellationHours: true,
-        cutoffHours: true,
-        bookingQuestions: true,
-        allowDeposit: true,
-        depositPercentage: true,
-        allowPayAtLocation: true,
-        images: true,
-        reviews: true,
-        reviewEntries: {
-          where: {
-            status: 'APPROVED',
-            isVisible: true,
-            isSeeded: false,
-          },
-          select: {
-            id: true,
-            customerName: true,
-            reviewerName: true,
-            country: true,
-            rating: true,
-            comment: true,
-            originalText: true,
-            originalLanguage: true,
-            translatedText: true,
-            source: true,
-            sourceUrl: true,
-            reviewDate: true,
-            status: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'desc' },
-        },
-        ageRestrictionsNotes: true,
-        destinationId: true,
-        tourOptions: true,
-        hasGuide: true,
-        guideLanguages: true,
-        destination: {
-          select: { name: true, slug: true },
-        },
-      },
-    });
-  }
-
-  if (!tour || (tour.status && tour.status.toUpperCase() !== 'ACTIVE')) {
-    const redirectRecord = await prisma.tourRedirect.findUnique({
-      where: { sourceSlug: params.slug },
-    });
-    if (redirectRecord) {
-      redirect(`/tours/${redirectRecord.targetSlug}`);
+    if (redirectTarget) {
+      redirect(`/tours/${redirectTarget}`);
     }
     notFound();
   }
-
-  // Fetch related active tours from the same destination (or general active tours)
-  const rawRelated = await prisma.tour.findMany({
-    where: {
-      status: 'ACTIVE',
-      id: { not: tour.id },
-      ...(tour.destinationId ? { destinationId: tour.destinationId } : {}),
-    },
-    take: 4,
-    orderBy: { ratingAverage: 'desc' },
-    select: {
-      id: true,
-      slug: true,
-      coverImage: true,
-      thumbnailUrl: true,
-      basePrice: true,
-      basePriceUSD: true,
-      adultPrice: true,
-      priceAdult: true,
-      duration: true,
-      durationHours: true,
-      ratingAverage: true,
-      category: true,
-      translations: true,
-      destination: {
-        select: { name: true, slug: true },
-      },
-    },
-  });
 
   const relatedTours = rawRelated.map((rt) => {
     const rTrans = rt.translations as Record<string, { title?: string }> | null;

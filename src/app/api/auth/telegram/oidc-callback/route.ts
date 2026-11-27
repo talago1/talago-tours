@@ -350,12 +350,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 6. Adopt historical bookings linked to phone
-  if (profile?.id && telegramPhone) {
+  // 6. Adopt historical bookings linked to verified phone
+  if (profile?.id && telegramPhone && telegramPhoneVerified) {
     adoptOwnedBookings({
       profileId: profile.id,
       phones: [telegramPhone],
-      emails: profile.email ? [profile.email] : [],
+      emails: profile.email && !profile.email.endsWith('@noreply.talago.com') ? [profile.email] : [],
     }).catch((e) => console.warn('[tg-oidc] booking adoption warning:', e));
   }
 
