@@ -127,51 +127,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Check pending Reservation Leads
-    const cleanLeadSuffix = cleanRef.replace(/^RES-/, '');
-    const lead = await prisma.bookingLead.findFirst({
-      where: {
-        OR: [
-          { id: { endsWith: cleanLeadSuffix } },
-          { id: reference },
-        ],
-      },
-    });
-
-    if (lead) {
-      if (!matchesPhone(lead.customerPhone)) {
-        return NextResponse.json(
-          { error: GENERIC_NOT_FOUND },
-          { status: 404, headers: NO_STORE }
-        );
-      }
-
-      const reservationReference = `RES-${lead.id.slice(-8).toUpperCase()}`;
-
-      return NextResponse.json(
-        {
-          success: true,
-          type: 'RESERVATION',
-          reservation: {
-            id: lead.id,
-            reservationReference,
-            tourId: lead.tourId,
-            tourTitle: lead.tourTitle,
-            tourSlug: lead.tourSlug,
-            adults: lead.adults,
-            children: lead.children,
-            totalEstimatedPrice: lead.totalEstimatedPrice,
-            currency: lead.currency,
-            status: lead.status,
-            travelDate: lead.travelDate,
-            createdAt: lead.createdAt,
-          },
-        },
-        { status: 200, headers: NO_STORE }
-      );
-    }
-
-    // 4. Neither matched
+    // Not found in canonical Booking table
     return NextResponse.json(
       { error: GENERIC_NOT_FOUND },
       { status: 404, headers: NO_STORE }

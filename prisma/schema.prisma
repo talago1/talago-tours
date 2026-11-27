@@ -9,6 +9,7 @@ datasource db {
 }
 
 enum BookingStatus {
+  INTERESTED
   PENDING
   CONFIRMED
   COMPLETED
@@ -308,10 +309,13 @@ model Booking {
   childrenCount    Int     @default(0)
   infantsCount     Int     @default(0)
   totalPriceUSD    Float
-  customerName     String
-  customerEmail    String
-  customerPhone    String
-  language         String        @default("en")
+  customerName            String  @default("")
+  customerEmail           String  @default("")
+  customerPhone           String  @default("")
+  customerPhoneNormalized String?
+  source                  String  @default("WEBSITE")
+  notes                   String?
+  language                String  @default("en")
   status           BookingStatus @default(PENDING)
   paymentStatus      String?
   paymentGatewayLogs Json     @default("[]")
@@ -365,9 +369,9 @@ model Booking {
   tour Tour? @relation(fields: [tourId], references: [id], onDelete: SetNull)
   zone Zone? @relation(fields: [zoneId], references: [id], onDelete: SetNull)
 
-  transaction Transaction?
-  reviews Review[]
-  lead BookingLead?
+  transaction  Transaction?
+  reviews      Review[]
+  conversation BookingConversation?
 
   @@index([tourId])
   @@index([bookingReference])
@@ -376,18 +380,9 @@ model Booking {
   @@index([status, createdAt])
   @@index([channel])
   @@index([promoCodeId])
-  // My Bookings lookups filter by these columns on every request
-  // (listVisibleBookingIds: customerProfileId, customerEmail). They had
-  // no index, so those filters scanned the table. No index on
-  // customerPhone here on purpose: phone matching is done with
-  // regexp_replace() in SQL, which a B-tree index cannot serve — that
-  // needs a normalized phone column + backfill (see
-  // src/server/customerBookings.ts), not just an index.
-  // NOTE: a migration is required after merge
-  // (npx prisma migrate dev / prisma db push) — this change alone only
-  // updates the schema file.
   @@index([customerProfileId])
   @@index([customerEmail])
+  @@index([customerPhoneNormalized])
 }
 
 model Review {
@@ -458,6 +453,7 @@ model CustomerProfile {
   email                 String    @unique
   name                  String
   phone                 String?
+  phoneNormalized       String?
   isShadow              Boolean   @default(false)
   invitedAt             DateTime?
   lastMagicLinkAt       DateTime?
@@ -475,6 +471,7 @@ model CustomerProfile {
 
   @@index([email])
   @@index([telegramId])
+  @@index([phoneNormalized])
 }
 
 model TourTimeSlot {
@@ -696,92 +693,55 @@ model TourRedirect {
   @@map("tour_redirects")
 }
 
-enum LeadStatus {
-  INTERESTED
-  IN_PROGRESS
-  CONTACTED
-  CONVERTED
-  ABANDONED
-}
+// ─── Unified Booking Conversation (1:1 per Booking) ───────────────────────────
 
-model BookingLead {
-  id                  String      @id @default(cuid())
-  tourId              String?
-  tourSlug            String?
-  tourTitle           String?
-  customerName        String?
-  customerEmail       String?
-  customerPhone       String?
-  travelDate          String?
-  adults              Int         @default(1)
-  children            Int         @default(0)
-  totalEstimatedPrice Float?
-  currency            String      @default("USD")
-  status              LeadStatus  @default(INTERESTED)
-  source              String      @default("BOOK_BUTTON") // "BOOK_BUTTON", "CHECKOUT_FORM", "INQUIRY", "STICKY_BAR"
-  sessionId           String?
-  notes               String?
-  bookingId           String?     @unique
-  booking             Booking?    @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
-
-  @@index([tourId])
-  @@index([status])
-  @@index([customerEmail])
-  @@index([customerPhone])
-  @@index([sessionId])
-  @@index([createdAt])
-  @@map("booking_leads")
-}
-
-enum LiveChatStatus {
+enum BookingConversationStatus {
   OPEN
   CLOSED
 }
 
-enum LiveChatSender {
+enum BookingMessageSender {
   VISITOR
   ADMIN
   SYSTEM
 }
 
-model LiveChatConversation {
-  id               String         @id @default(cuid())
-  visitorToken     String         @unique
-  visitorName      String?
-  visitorEmail     String?
-  visitorPhone     String?
-  bookingId        String?
-  bookingReference String?
-  leadId           String?
-  tourTitle        String?
-  lastPagePath     String?
-  status           LiveChatStatus @default(OPEN)
-  lastMessageAt    DateTime       @default(now())
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  messages         LiveChatMessage[]
+model BookingConversation {
+  id            String                    @id @default(cuid())
+  bookingId     String?                   @unique
+  visitorToken  String?                   @unique
+  visitorName   String?
+  visitorEmail  String?
+  visitorPhone  String?
+  tourTitle     String?
+  lastPagePath  String?
+  status        BookingConversationStatus @default(OPEN)
+  lastMessageAt DateTime                  @default(now())
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  booking  Booking?         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  messages BookingMessage[]
 
   @@index([status, lastMessageAt])
   @@index([visitorEmail])
-  @@index([bookingReference])
-  @@index([bookingId])
-  @@index([leadId])
-  @@map("live_chat_conversations")
+  @@map("booking_conversations")
 }
 
-model LiveChatMessage {
-  id             String             @id @default(cuid())
+model BookingMessage {
+  id             String               @id @default(cuid())
   conversationId String
-  sender         LiveChatSender
-  body           String             @db.Text
+  sender         BookingMessageSender
+  body           String               @db.Text
+  attachmentUrl  String?
   readAt         DateTime?
-  createdAt      DateTime           @default(now())
-  conversation   LiveChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime             @default(now())
+
+  conversation BookingConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
-  @@map("live_chat_messages")
+  @@index([conversationId, sender, readAt])
+  @@map("booking_messages")
 }
 
 // ─── Phase 6: Structured Tour Availability ────────────────────────────────────

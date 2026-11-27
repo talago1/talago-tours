@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LeadStatus } from '@prisma/client';
+import { BookingStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getSessionFromRequest } from '@/server/auth';
 import { resolveRequestUser } from '@/server/customerSession';
@@ -12,18 +12,17 @@ const NO_STORE = { 'cache-control': 'no-store, private' };
 
 /**
  * POST /api/public/booking-interest/withdraw
- * Marks an unconfirmed preliminary Interest (BookingLead) as withdrawn (ABANDONED),
- * preserves the record and conversation history, and blocks stale retries from
- * converting this withdrawn attempt into a confirmed booking.
+ * Marks an INTERESTED canonical Booking as CANCELLED, preserving the record
+ * and conversation history while blocking stale retries.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const leadId = sanitizePlain(body.leadId, 60);
+    const bookingId = sanitizePlain(body.bookingId || body.leadId, 60);
     const attemptId = sanitizePlain(body.attemptId, 100);
     const reason = sanitizePlain(body.reason, 300);
 
-    if (!leadId && !attemptId) {
+    if (!bookingId && !attemptId) {
       return NextResponse.json({ error: 'leadId or attemptId is required' }, { status: 400, headers: NO_STORE });
     }
 
@@ -39,30 +38,23 @@ export async function POST(request: NextRequest) {
 
     const chatCookie = request.cookies.get('talago_live_chat')?.value || null;
 
-    const lead = leadId
-      ? await prisma.bookingLead.findUnique({ where: { id: leadId } })
-      : await prisma.bookingLead.findFirst({
-          where: { sessionId: attemptId },
+    const booking = bookingId
+      ? await prisma.booking.findUnique({ where: { id: bookingId } })
+      : await prisma.booking.findFirst({
+          where: { idempotencyKey: attemptId },
           orderBy: { createdAt: 'desc' },
         });
 
-    if (!lead) {
+    if (!booking) {
       return NextResponse.json({ error: 'Request not found' }, { status: 404, headers: NO_STORE });
     }
 
-    // Verify ownership: authenticated email/phone match OR matching guest chat cookie
-    const emailMatches = Boolean(authEmail && lead.customerEmail && authEmail === lead.customerEmail.toLowerCase());
-    const phoneMatches = Boolean(authPhone && lead.customerPhone && phonesEquivalent(authPhone, lead.customerPhone));
+    const emailMatches = Boolean(authEmail && booking.customerEmail && authEmail === booking.customerEmail.toLowerCase());
+    const phoneMatches = Boolean(authPhone && booking.customerPhone && phonesEquivalent(authPhone, booking.customerPhone));
     let cookieMatches = false;
     if (!emailMatches && !phoneMatches && chatCookie) {
-      const conv = await prisma.liveChatConversation.findFirst({
-        where: {
-          OR: [
-            { leadId: lead.id },
-            ...(lead.sessionId ? [{ visitorToken: `attempt:${lead.sessionId}` }] : []),
-          ],
-          visitorToken: chatCookie,
-        },
+      const conv = await prisma.bookingConversation.findFirst({
+        where: { bookingId: booking.id, visitorToken: chatCookie },
         select: { id: true },
       });
       cookieMatches = Boolean(conv);
@@ -72,49 +64,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized to withdraw this request' }, { status: 403, headers: NO_STORE });
     }
 
-    if (lead.bookingId) {
+    if (booking.status !== BookingStatus.INTERESTED && booking.status !== BookingStatus.CANCELLED) {
       return NextResponse.json(
         { error: 'This request has already progressed to a booking. Please use booking cancellation instead.' },
         { status: 409, headers: NO_STORE }
       );
     }
 
-    if (lead.status === LeadStatus.ABANDONED) {
-      return NextResponse.json({ success: true, leadId: lead.id, status: lead.status }, { headers: NO_STORE });
+    if (booking.status === BookingStatus.CANCELLED) {
+      return NextResponse.json({ success: true, bookingId: booking.id, leadId: booking.id, status: booking.status }, { headers: NO_STORE });
     }
 
     const updatedNote = [
-      lead.notes,
+      booking.notes,
       `Withdrawn by customer on ${new Date().toISOString()}${reason ? `: ${reason}` : ''}`,
     ]
       .filter(Boolean)
       .join(' | ');
 
-    const updated = await prisma.bookingLead.update({
-      where: { id: lead.id },
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
       data: {
-        status: LeadStatus.ABANDONED,
+        status: BookingStatus.CANCELLED,
         notes: updatedNote.slice(0, 1000),
-        updatedAt: new Date(),
       },
     });
 
-    const ref = `RES-${lead.id.slice(-8).toUpperCase()}`;
+    const ref = updated.bookingReference;
 
-    // Append system message to the shared conversation (preserve history)
-    const conversation = await prisma.liveChatConversation.findFirst({
-      where: {
-        OR: [
-          ...(lead.sessionId ? [{ visitorToken: `attempt:${lead.sessionId}` }] : []),
-          { leadId: lead.id },
-          { visitorToken: `lead:${lead.id}` },
-        ],
-      },
+    // Append system message to the shared BookingConversation (preserve history)
+    const conversation = await prisma.bookingConversation.findUnique({
+      where: { bookingId: updated.id },
       select: { id: true },
     });
 
     if (conversation) {
-      await prisma.liveChatMessage.create({
+      await prisma.bookingMessage.create({
         data: {
           conversationId: conversation.id,
           sender: 'SYSTEM',
@@ -122,7 +107,7 @@ export async function POST(request: NextRequest) {
         },
       }).catch(() => {});
 
-      await prisma.liveChatConversation.update({
+      await prisma.bookingConversation.update({
         where: { id: conversation.id },
         data: { lastMessageAt: new Date() },
       }).catch(() => {});
@@ -131,6 +116,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
+        bookingId: updated.id,
         leadId: updated.id,
         status: updated.status,
         reference: ref,

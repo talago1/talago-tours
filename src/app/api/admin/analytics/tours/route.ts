@@ -84,8 +84,9 @@ export async function GET(request: NextRequest) {
       travelDate: { gte: startDate, lte: endDate },
     };
 
-    const leadWhere = {
+    const interestWhere = {
       createdAt: { gte: startDate, lte: endDate },
+      status: 'INTERESTED' as const,
       source: { not: 'INQUIRY' },
     };
 
@@ -96,10 +97,10 @@ export async function GET(request: NextRequest) {
         _sum: { totalPriceUSD: true, guestCount: true },
         _count: true,
       }),
-      prisma.bookingLead.groupBy({
+      prisma.booking.groupBy({
         by: ['tourId'],
         where: {
-          ...leadWhere,
+          ...interestWhere,
           tourId: { not: null },
         },
         _count: true,

@@ -25,6 +25,7 @@ interface BookingRowActionsProps {
 }
 
 const ALL_STATUSES: { label: string; status: BookingStatus; icon: typeof CheckCircle2; color: string }[] = [
+  { label: 'Interested', status: 'INTERESTED', icon: Clock, color: 'text-cyan-300' },
   { label: 'Pending', status: 'PENDING', icon: Clock, color: 'text-amber-400' },
   { label: 'Confirm', status: 'CONFIRMED', icon: CheckCircle2, color: 'text-emerald-400' },
   { label: 'Completed', status: 'COMPLETED', icon: CalendarClock, color: 'text-blue-400' },

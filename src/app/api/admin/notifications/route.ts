@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { LiveChatSender } from '@prisma/client';
+import { BookingMessageSender } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,16 +28,17 @@ export async function GET() {
         orderBy: { createdAt: 'desc' },
         take: 50,
       }),
-      prisma.liveChatConversation.findMany({
+      prisma.bookingConversation.findMany({
         where: {
           status: 'OPEN',
-          messages: { some: { sender: LiveChatSender.VISITOR, readAt: null } },
+          messages: { some: { sender: BookingMessageSender.VISITOR, readAt: null } },
         },
         orderBy: { lastMessageAt: 'desc' },
         take: 25,
         include: {
+          booking: { select: { id: true, bookingReference: true } },
           messages: {
-            where: { sender: LiveChatSender.VISITOR },
+            where: { sender: BookingMessageSender.VISITOR },
             orderBy: { createdAt: 'desc' },
             take: 1,
             select: { id: true, body: true, createdAt: true },
@@ -91,30 +92,30 @@ export async function GET() {
           reference: ref,
         });
       } else if (log.channel === 'LEAD_INTEREST_ALERT') {
-        const leadId = meta.leadId || log.bookingId;
-        const ref = meta.reference || `RES-${leadId.slice(-8).toUpperCase()}`;
+        const bookingId = meta.bookingId || meta.leadId || log.bookingId;
+        const ref = meta.bookingReference || meta.reference || `RES-${String(bookingId).slice(-8).toUpperCase()}`;
         const guestText = meta.guests ? `${meta.guests} guest${meta.guests === 1 ? '' : 's'}` : '';
         const dateText = meta.travelDate || 'Date TBD';
         notifications.push({
           id: `log-${log.id}`,
           logId: log.id,
-          leadId,
+          leadId: bookingId,
           type: 'new_lead',
-          title: 'New Preliminary Interest',
+          title: 'New Booking Interest',
           customerName: meta.customerName || 'Interested Visitor',
           tourTitle: meta.tourTitle || undefined,
           detail: `${dateText}${guestText ? ` · ${guestText}` : ''}${meta.customerPhone ? ` · ${meta.customerPhone}` : ''}`,
           timestamp: log.createdAt.toISOString(),
           isRead,
           actionRequired: !isRead,
-          linkUrl: `/admin/leads?id=${encodeURIComponent(leadId)}`,
+          linkUrl: `/admin/bookings?ref=${encodeURIComponent(ref)}`,
           reference: ref,
         });
       } else if (log.channel === 'CUSTOMER_MESSAGE_ALERT') {
         const convId = meta.conversationId || log.bookingId;
         if (convId) coveredConvIds.add(convId);
         if (log.messageId) coveredMessageIds.add(log.messageId);
-        const ref = meta.bookingReference || (meta.leadId ? `RES-${String(meta.leadId).slice(-8).toUpperCase()}` : undefined);
+        const ref = meta.bookingReference || (meta.bookingId ? `RES-${String(meta.bookingId).slice(-8).toUpperCase()}` : undefined);
         notifications.push({
           id: `log-${log.id}`,
           logId: log.id,
@@ -127,7 +128,9 @@ export async function GET() {
           timestamp: log.createdAt.toISOString(),
           isRead,
           actionRequired: !isRead,
-          linkUrl: `/admin/inbox?id=${encodeURIComponent(convId)}`,
+          linkUrl: ref
+            ? `/admin/bookings?ref=${encodeURIComponent(ref)}&chat=1`
+            : `/admin/bookings?chat=1`,
           reference: ref,
         });
       }
@@ -139,6 +142,7 @@ export async function GET() {
       if (!lastMsg) continue;
       if (coveredMessageIds.has(`msg-${lastMsg.id}`) || coveredConvIds.has(conv.id)) continue;
 
+      const ref = conv.booking?.bookingReference || undefined;
       notifications.push({
         id: `chat-${conv.id}`,
         convId: conv.id,
@@ -150,8 +154,10 @@ export async function GET() {
         timestamp: lastMsg.createdAt.toISOString(),
         isRead: false,
         actionRequired: true,
-        linkUrl: `/admin/inbox?id=${encodeURIComponent(conv.id)}`,
-        reference: conv.bookingReference || undefined,
+        linkUrl: ref
+          ? `/admin/bookings?ref=${encodeURIComponent(ref)}&chat=1`
+          : `/admin/bookings?chat=1`,
+        reference: ref,
       });
     }
 
@@ -187,8 +193,8 @@ export async function PATCH(request: NextRequest) {
           },
           data: { status: 'READ' },
         }),
-        prisma.liveChatMessage.updateMany({
-          where: { sender: LiveChatSender.VISITOR, readAt: null },
+        prisma.bookingMessage.updateMany({
+          where: { sender: BookingMessageSender.VISITOR, readAt: null },
           data: { readAt: new Date() },
         }),
       ]);
@@ -203,8 +209,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (convId) {
-      await prisma.liveChatMessage.updateMany({
-        where: { conversationId: convId, sender: LiveChatSender.VISITOR, readAt: null },
+      await prisma.bookingMessage.updateMany({
+        where: { conversationId: convId, sender: BookingMessageSender.VISITOR, readAt: null },
         data: { readAt: new Date() },
       }).catch(() => {});
     }

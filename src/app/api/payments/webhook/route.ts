@@ -140,11 +140,6 @@ export async function POST(request: NextRequest) {
         } satisfies WebhookResponse);
       }
 
-      await prisma.bookingLead.updateMany({
-        where: { bookingId: booking.id, status: { not: 'CONVERTED' } },
-        data: { status: 'CONVERTED' },
-      });
-
       // Send branded booking confirmation email (non-fatal)
       if (booking.customerEmail && (process.env.RESEND_API_KEY || process.env.BREVO_API_KEY)) {
         try {

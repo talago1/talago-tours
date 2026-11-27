@@ -47,7 +47,6 @@ interface AvailableTour {
 interface BookingQueueProps {
   initialBookings: ActiveQueueTicket[];
   availableTours?: AvailableTour[];
-  initialLeads?: unknown[];
 }
 
 function SkeletonRow() {
@@ -321,9 +320,7 @@ interface ChatMessage {
   createdAt: string;
 }
 
-function BookingChatPanel({ bookingReference, onClose, onMessagesRead }: { bookingReference: string; onClose: () => void; onMessagesRead?: () => void }) {
-  const isLead = bookingReference.startsWith('lead:');
-  const isConv = bookingReference.startsWith('conv:');
+function BookingChatPanel({ bookingId, bookingReference, onClose, onMessagesRead }: { bookingId: string; bookingReference: string; onClose: () => void; onMessagesRead?: (bookingId: string) => void }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
@@ -332,26 +329,18 @@ function BookingChatPanel({ bookingReference, onClose, onMessagesRead }: { booki
 
   const fetchMessages = useCallback(async () => {
     try {
-      let qp = '';
-      if (bookingReference.startsWith('lead:')) {
-        qp = `leadId=${encodeURIComponent(bookingReference.slice(5))}`;
-      } else if (bookingReference.startsWith('conv:')) {
-        qp = `conversationId=${encodeURIComponent(bookingReference.slice(5))}`;
-      } else {
-        qp = `bookingReference=${encodeURIComponent(bookingReference)}`;
-      }
-      const res = await fetch(`/api/admin/live-chat?${qp}`);
+      const res = await fetch(`/api/admin/bookings/${encodeURIComponent(bookingId)}/messages`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
-        if (onMessagesRead) onMessagesRead();
+        if (onMessagesRead) onMessagesRead(bookingId);
       }
     } catch {
       // non-fatal
     } finally {
       setLoading(false);
     }
-  }, [bookingReference, onMessagesRead]);
+  }, [bookingId, onMessagesRead]);
 
   useEffect(() => {
     fetchMessages();
@@ -368,18 +357,10 @@ function BookingChatPanel({ bookingReference, onClose, onMessagesRead }: { booki
     if (!text || sending) return;
     setSending(true);
     try {
-      const payload: Record<string, any> = { text, message: text, senderRole: 'ADMIN' };
-      if (isLead) {
-        payload.leadId = bookingReference.slice(5);
-      } else if (isConv) {
-        payload.conversationId = bookingReference.slice(5);
-      } else {
-        payload.bookingReference = bookingReference;
-      }
-      await fetch('/api/admin/live-chat', {
+      await fetch(`/api/admin/bookings/${encodeURIComponent(bookingId)}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ text }),
       });
       setReply('');
       await fetchMessages();
@@ -490,7 +471,6 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
   const searchParams = useSearchParams();
   const [filterCancellationsOnly, setFilterCancellationsOnly] = useState(false);
   const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
-  const [conversations, setConversations] = useState<any[]>([]);
 
   const handledDeepLinkRef = useRef<string | null>(null);
 
@@ -503,54 +483,47 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
     }
 
     const refParam = searchParams.get('ref') || searchParams.get('chatRef') || searchParams.get('conversationId');
+    const chatParam = searchParams.get('chat');
     if (refParam && handledDeepLinkRef.current !== refParam) {
       handledDeepLinkRef.current = refParam;
-      setChatBookingRef(refParam);
-
-      // If deep linking to a specific booking, filter or expand that booking
-      if (!refParam.startsWith('lead:')) {
-        setSearchQuery(refParam);
-        const match = bookings.find((b) => b.bookingReference.toLowerCase() === refParam.toLowerCase());
-        if (match) {
-          setExpandedId(match.id);
+      setSearchQuery(refParam);
+      const match = bookings.find(
+        (b) =>
+          b.bookingReference.toLowerCase() === refParam.toLowerCase() ||
+          b.id === refParam ||
+          b.conversationId === refParam
+      );
+      if (match) {
+        setExpandedId(match.id);
+        if (chatParam === '1' || searchParams.get('chatRef') || searchParams.get('conversationId')) {
+          setChatBookingRef(match.bookingReference);
         }
+      } else if (chatParam === '1') {
+        setChatBookingRef(refParam);
       }
     }
   }, [searchParams, bookings]);
 
-  const fetchConversations = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/live-chat');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data?.conversations)) {
-          setConversations(data.conversations);
-        }
-      }
-    } catch {}
+  const markBookingMessagesRead = useCallback((bookingId: string) => {
+    setBookings((prev) =>
+      prev.map((b) => (b.id === bookingId ? { ...b, unreadMessageCount: 0 } : b))
+    );
   }, []);
-
-  useEffect(() => {
-    fetchConversations();
-    const interval = setInterval(fetchConversations, 25000);
-    return () => clearInterval(interval);
-  }, [fetchConversations]);
 
   const unreadMap = useMemo(() => {
     const map: Record<string, { count: number; lastMessage?: string; lastMessageAt?: string }> = {};
-    for (const c of conversations) {
-      const unreadCount = c._count?.messages || 0;
-      const lastMsg = c.messages?.[0]?.body;
-      const lastMsgAt = c.messages?.[0]?.createdAt;
-      if (c.bookingReference) {
-        map[c.bookingReference] = { count: unreadCount, lastMessage: lastMsg, lastMessageAt: lastMsgAt };
-      }
-      if (c.leadId) {
-        map[`lead:${c.leadId}`] = { count: unreadCount, lastMessage: lastMsg, lastMessageAt: lastMsgAt };
+    for (const b of bookings) {
+      const count = b.unreadMessageCount ?? 0;
+      if (count > 0 || b.lastMessageAt) {
+        map[b.bookingReference] = {
+          count,
+          lastMessage: b.lastMessagePreview ?? undefined,
+          lastMessageAt: b.lastMessageAt ?? undefined,
+        };
       }
     }
     return map;
-  }, [conversations]);
+  }, [bookings]);
 
   const totalUnreadCount = useMemo(() => {
     return Object.values(unreadMap).reduce((sum, item) => sum + item.count, 0);
@@ -1098,6 +1071,7 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
                   ⚠️ Cancellation Requests ({pendingCancellationCount})
                 </option>
               )}
+              <option value="INTERESTED">Interested</option>
               <option value="CONFIRMED">Confirmed</option>
               <option value="PENDING">Pending</option>
               <option value="COMPLETED">Completed</option>
@@ -1652,16 +1626,21 @@ export default function BookingQueue({ initialBookings, availableTours = [] }: B
       </div>
 
       {/* 5. Inline Booking Chat Panel */}
-      {chatBookingRef && (
-        <BookingChatPanel
-          bookingReference={chatBookingRef}
-          onClose={() => {
-            setChatBookingRef(null);
-            fetchConversations();
-          }}
-          onMessagesRead={fetchConversations}
-        />
-      )}
+      {chatBookingRef && (() => {
+        const activeChatBooking = bookings.find((b) => b.bookingReference === chatBookingRef);
+        if (!activeChatBooking) return null;
+        return (
+          <BookingChatPanel
+            bookingId={activeChatBooking.id}
+            bookingReference={activeChatBooking.bookingReference}
+            onClose={() => {
+              setChatBookingRef(null);
+              markBookingMessagesRead(activeChatBooking.id);
+            }}
+            onMessagesRead={markBookingMessagesRead}
+          />
+        );
+      })()}
 
       {/* 6. Invoice & Statement Modal */}
       <BookingInvoiceModal

@@ -112,14 +112,14 @@ function LogEvent({ log }: { log: LogEntry }) {
               {log.recipient}
             </div>
 
-            {/* TAL-C5: Direct link to lead drawer or conversation */}
+            {/* Direct link to canonical Booking & conversation */}
             {isLeadAlert && log.bookingId && (
               <div className="mt-1.5">
                 <Link
-                  href={`/admin/leads?id=${log.bookingId}`}
+                  href={`/admin/bookings?ref=${encodeURIComponent(log.bookingId)}`}
                   className="inline-flex items-center gap-1 text-xs font-semibold text-[#00E5FF] transition-colors hover:underline"
                 >
-                  Open Lead Drawer
+                  Open Booking
                   <ExternalLink className="h-3 w-3" />
                 </Link>
               </div>
@@ -127,10 +127,10 @@ function LogEvent({ log }: { log: LogEntry }) {
             {isAdminReply && (
               <div className="mt-1.5">
                 <Link
-                  href="/admin/inbox"
+                  href={log.bookingId ? `/admin/bookings?ref=${encodeURIComponent(log.bookingId)}&chat=1` : '/admin/bookings?filter=messages'}
                   className="inline-flex items-center gap-1 text-xs font-semibold text-purple-400 transition-colors hover:underline"
                 >
-                  View in Live Inbox
+                  Open Booking Chat
                   <ExternalLink className="h-3 w-3" />
                 </Link>
               </div>

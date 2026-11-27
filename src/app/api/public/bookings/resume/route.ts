@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Path 2: Resume preliminary BookingLead by leadId or attemptId
+    // Path 2: Resume an INTERESTED/PENDING canonical Booking by id (leadId) or idempotencyKey (attemptId)
     if (!leadId && !attemptId) {
       return NextResponse.json({ error: 'Missing token, leadId, or attemptId' }, { status: 400, headers: NO_STORE });
     }
@@ -141,68 +141,70 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required to resume request' }, { status: 401, headers: NO_STORE });
     }
 
-    const lead = leadId
-      ? await prisma.bookingLead.findUnique({ where: { id: leadId } })
-      : await prisma.bookingLead.findFirst({
-          where: { sessionId: attemptId },
+    const booking = leadId
+      ? await prisma.booking.findUnique({
+          where: { id: leadId },
+          include: { tour: { select: { id: true, slug: true, translations: true } } },
+        })
+      : await prisma.booking.findFirst({
+          where: { idempotencyKey: attemptId },
           orderBy: { createdAt: 'desc' },
+          include: { tour: { select: { id: true, slug: true, translations: true } } },
         });
 
-    if (!lead) {
+    if (!booking) {
       return NextResponse.json({ error: 'Request not found' }, { status: 404, headers: NO_STORE });
     }
 
-    const emailMatches = Boolean(authEmail && lead.customerEmail && authEmail === lead.customerEmail.toLowerCase());
-    const phoneMatches = Boolean(authPhone && lead.customerPhone && phonesEquivalent(authPhone, lead.customerPhone));
+    const emailMatches = Boolean(authEmail && booking.customerEmail && authEmail === booking.customerEmail.toLowerCase());
+    const phoneMatches = Boolean(authPhone && booking.customerPhone && phonesEquivalent(authPhone, booking.customerPhone));
 
     if (!emailMatches && !phoneMatches) {
       return NextResponse.json({ error: 'Unauthorized to resume this request' }, { status: 403, headers: NO_STORE });
     }
 
-    if (lead.status === 'ABANDONED') {
+    if (booking.status === 'CANCELLED') {
       return NextResponse.json(
         { error: 'This request was withdrawn and cannot be resumed.', code: 'REQUEST_WITHDRAWN' },
         { status: 409, headers: NO_STORE }
       );
     }
 
-    if (lead.bookingId) {
-      const existingBooking = await prisma.booking.findUnique({
-        where: { id: lead.bookingId },
-        select: { accessToken: true, bookingReference: true, status: true },
-      });
+    if (booking.status !== 'INTERESTED' && booking.status !== 'PENDING') {
       return NextResponse.json(
         {
           type: 'converted',
-          leadId: lead.id,
-          bookingId: lead.bookingId,
-          bookingReference: existingBooking?.bookingReference ?? null,
-          accessToken: existingBooking?.accessToken ?? null,
-          status: existingBooking?.status ?? 'CONFIRMED',
+          leadId: booking.id,
+          bookingId: booking.id,
+          bookingReference: booking.bookingReference,
+          accessToken: booking.accessToken,
+          status: booking.status,
         },
         { headers: NO_STORE }
       );
     }
 
+    const tMap = booking.tour?.translations as Record<string, { title?: string }> | null;
     return NextResponse.json(
       {
         type: 'lead',
-        leadId: lead.id,
-        attemptId: lead.sessionId || `lead_${lead.id}`,
-        reservationReference: `RES-${lead.id.slice(-8).toUpperCase()}`,
-        status: lead.status,
-        tourId: lead.tourId,
-        tourSlug: lead.tourSlug,
-        tourTitle: lead.tourTitle,
-        travelDate: lead.travelDate,
-        adultsCount: lead.adults,
-        childrenCount: lead.children,
-        infantsCount: 0,
-        customerName: lead.customerName || '',
-        customerEmail: lead.customerEmail && !lead.customerEmail.endsWith('@noreply.talago.com') ? lead.customerEmail : '',
-        customerPhone: lead.customerPhone || '',
-        notes: lead.notes || '',
-        currency: lead.currency || 'USD',
+        leadId: booking.id,
+        bookingId: booking.id,
+        attemptId: booking.idempotencyKey || `lead_${booking.id}`,
+        reservationReference: booking.bookingReference,
+        status: booking.status,
+        tourId: booking.tourId,
+        tourSlug: booking.tour?.slug ?? booking.tourSlugSnapshot,
+        tourTitle: booking.tourTitleSnapshot || tMap?.en?.title || booking.tour?.slug || 'Tour',
+        travelDate: booking.travelDate.toISOString().split('T')[0],
+        adultsCount: booking.adultsCount || 1,
+        childrenCount: booking.childrenCount || 0,
+        infantsCount: booking.infantsCount || 0,
+        customerName: booking.customerName || '',
+        customerEmail: booking.customerEmail && !booking.customerEmail.endsWith('@noreply.talago.com') ? booking.customerEmail : '',
+        customerPhone: booking.customerPhone || '',
+        notes: booking.notes || '',
+        currency: booking.currency || 'USD',
       },
       { headers: NO_STORE }
     );

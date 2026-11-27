@@ -5,7 +5,7 @@ import type { ActiveQueueTicket, BookingStatus } from '@/types/booking';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminBookingsPage() {
-  const [bookings, toursList, leads] = await Promise.all([
+  const [bookings, toursList] = await Promise.all([
     prisma.booking.findMany({
       include: {
         tour: {
@@ -15,6 +15,16 @@ export default async function AdminBookingsPage() {
             translations: true,
             destination: { select: { name: true } },
             zone: { select: { name: true } },
+          },
+        },
+        conversation: {
+          select: {
+            id: true,
+            lastMessageAt: true,
+            messages: {
+              where: { sender: 'VISITOR', readAt: null },
+              select: { id: true },
+            },
           },
         },
       },
@@ -28,11 +38,6 @@ export default async function AdminBookingsPage() {
         translations: true,
       },
       orderBy: { createdAt: 'desc' },
-    }),
-    prisma.bookingLead.findMany({
-      where: { bookingId: null }, // only leads not yet converted to bookings
-      orderBy: { createdAt: 'desc' },
-      take: 200,
     }),
   ]);
 
@@ -84,6 +89,12 @@ export default async function AdminBookingsPage() {
       pickupAddress: b.pickupAddress,
       selectedAddons: b.selectedAddons,
       bookingAnswers: b.bookingAnswers,
+      source: b.source,
+      notes: b.notes,
+      conversationId: b.conversation?.id ?? null,
+      unreadMessageCount: b.conversation?.messages?.length ?? 0,
+      lastMessageAt: b.conversation?.lastMessageAt?.toISOString() ?? null,
+      updatedAt: b.updatedAt.toISOString(),
     };
   });
 
@@ -94,12 +105,12 @@ export default async function AdminBookingsPage() {
           <p className="text-xs font-black uppercase tracking-[0.28em] text-[#06B6D4]">
             Operations
           </p>
-          <h1 className="mt-2 text-2xl font-black text-white">Booking Management & Reports</h1>
+          <h1 className="mt-2 text-2xl font-black text-white">Booking Management & Conversations</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Monitor, filter, export reports, and bulk-manage bookings.
+            Manage every customer request from initial interest through confirmation, messages, and completion in one place.
           </p>
         </div>
-        <BookingQueue initialBookings={tickets} availableTours={availableTours} initialLeads={leads} />
+        <BookingQueue initialBookings={tickets} availableTours={availableTours} />
       </div>
     </main>
   );

@@ -1,6 +1,7 @@
 import type { BookingStatus } from '@/types/booking';
 
 const STYLES: Record<BookingStatus, string> = {
+  INTERESTED: 'border-cyan-500/20 bg-cyan-500/10 text-cyan-300',
   PENDING: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
   CONFIRMED: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
   COMPLETED: 'border-blue-500/20 bg-blue-500/10 text-blue-400',
@@ -20,6 +21,7 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
     >
       <span
         className={`h-1.5 w-1.5 rounded-full ${
+          status === 'INTERESTED' ? 'bg-cyan-400' :
           status === 'PENDING' ? 'bg-amber-400' :
           status === 'CONFIRMED' ? 'bg-emerald-400' :
           status === 'COMPLETED' ? 'bg-blue-400' :

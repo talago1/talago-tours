@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { LeadStatus } from '@prisma/client';
+import { BookingStatus } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,42 +12,35 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
     const customerId = searchParams.get('customerId')?.trim() || '';
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // 1. OVERVIEW: High-level CRM Pipeline & Action Queue Metrics
-    // ─────────────────────────────────────────────────────────────────────────
     if (view === 'overview') {
       const [
-        totalLeads,
-        interestedLeads,
-        inProgressLeads,
-        contactedLeads,
-        convertedLeads,
-        totalCustomers,
         totalBookings,
+        interestedBookings,
+        pendingBookings,
+        confirmedBookings,
+        totalCustomers,
         openConversations,
         unansweredInquiries,
       ] = await Promise.all([
-        prisma.bookingLead.count(),
-        prisma.bookingLead.count({ where: { status: LeadStatus.INTERESTED } }),
-        prisma.bookingLead.count({ where: { status: LeadStatus.IN_PROGRESS } }),
-        prisma.bookingLead.count({ where: { status: LeadStatus.CONTACTED } }),
-        prisma.bookingLead.count({ where: { status: LeadStatus.CONVERTED } }),
-        prisma.customerProfile.count(),
         prisma.booking.count(),
-        prisma.liveChatConversation.count({ where: { status: 'OPEN' } }),
-        prisma.bookingLead.count({ where: { source: 'INQUIRY', status: LeadStatus.INTERESTED } }),
+        prisma.booking.count({ where: { status: BookingStatus.INTERESTED } }),
+        prisma.booking.count({ where: { status: BookingStatus.PENDING } }),
+        prisma.booking.count({ where: { status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] } } }),
+        prisma.customerProfile.count(),
+        prisma.bookingConversation.count({ where: { status: 'OPEN' } }),
+        prisma.booking.count({ where: { source: 'INQUIRY', status: BookingStatus.INTERESTED } }),
       ]);
 
-      const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 1000) / 10 : 0;
-      const needsActionCount = interestedLeads + unansweredInquiries;
+      const conversionRate = totalBookings > 0 ? Math.round((confirmedBookings / totalBookings) * 1000) / 10 : 0;
+      const needsActionCount = interestedBookings + unansweredInquiries;
 
       return NextResponse.json({
         metrics: {
-          totalLeads,
-          interestedLeads,
-          inProgressLeads,
-          contactedLeads,
-          convertedLeads,
+          totalLeads: totalBookings,
+          interestedLeads: interestedBookings,
+          inProgressLeads: pendingBookings,
+          contactedLeads: pendingBookings,
+          convertedLeads: confirmedBookings,
           totalCustomers,
           totalBookings,
           openConversations,
@@ -58,16 +51,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // 2. FOLLOW-UP QUEUE: Only records genuinely needing action
-    // ─────────────────────────────────────────────────────────────────────────
     if (view === 'follow-ups') {
-      // Find leads that need action:
-      // - New booking interests (INTERESTED)
-      // - Inquiries waiting for an answer (source: INQUIRY, status: INTERESTED or IN_PROGRESS)
-      // - Leads where notes explicitly mention follow-up
       const followUpWhere: any = {
-        status: { in: [LeadStatus.INTERESTED, LeadStatus.IN_PROGRESS] },
+        status: { in: [BookingStatus.INTERESTED, BookingStatus.PENDING] },
       };
 
       if (search) {
@@ -75,57 +61,58 @@ export async function GET(request: NextRequest) {
           { customerName: { contains: search, mode: 'insensitive' } },
           { customerPhone: { contains: search, mode: 'insensitive' } },
           { customerEmail: { contains: search, mode: 'insensitive' } },
-          { tourTitle: { contains: search, mode: 'insensitive' } },
-          { id: { contains: search, mode: 'insensitive' } },
+          { tourTitleSnapshot: { contains: search, mode: 'insensitive' } },
+          { bookingReference: { contains: search, mode: 'insensitive' } },
         ];
       }
 
-      const items = await prisma.bookingLead.findMany({
+      const items = await prisma.booking.findMany({
         where: followUpWhere,
         orderBy: { createdAt: 'desc' },
         take: limit,
-        include: {
-          booking: {
-            select: { id: true, bookingReference: true, status: true, paymentStatus: true },
-          },
+        select: {
+          id: true,
+          bookingReference: true,
+          source: true,
+          customerName: true,
+          customerEmail: true,
+          customerPhone: true,
+          tourTitleSnapshot: true,
+          tourSlugSnapshot: true,
+          travelDate: true,
+          totalPriceUSD: true,
+          currency: true,
+          status: true,
+          paymentStatus: true,
+          notes: true,
+          createdAt: true,
         },
       });
 
-      // Classify items
-      const queue = items.map((item) => {
-        let queueStatus: 'Needs Action' | 'Follow-up Scheduled' = 'Needs Action';
-        if (item.notes && item.notes.toLowerCase().includes('follow-up')) {
-          queueStatus = 'Follow-up Scheduled';
-        }
-        return {
-          id: item.id,
-          type: item.source === 'INQUIRY' ? 'INQUIRY' : 'BOOKING_INTEREST',
-          reference: item.id.startsWith('INQ-') || item.id.startsWith('RES-') ? item.id : `RES-${item.id.slice(-6).toUpperCase()}`,
-          customerName: item.customerName || 'Anonymous Traveler',
-          customerEmail: item.customerEmail,
-          customerPhone: item.customerPhone,
-          tourTitle: item.tourTitle || 'General Egyptian Tour',
-          tourSlug: item.tourSlug,
-          travelDate: item.travelDate,
-          estimatedPrice: item.totalEstimatedPrice,
-          currency: item.currency,
-          status: item.status,
-          queueStatus,
-          notes: item.notes,
-          createdAt: item.createdAt,
-          booking: item.booking,
-        };
-      });
+      const queue = items.map((item) => ({
+        id: item.id,
+        type: item.source === 'INQUIRY' ? 'INQUIRY' : 'BOOKING_INTEREST',
+        reference: item.bookingReference,
+        customerName: item.customerName || 'Anonymous Traveler',
+        customerEmail: item.customerEmail,
+        customerPhone: item.customerPhone,
+        tourTitle: item.tourTitleSnapshot || 'General Tour',
+        tourSlug: item.tourSlugSnapshot,
+        travelDate: item.travelDate.toISOString().split('T')[0],
+        estimatedPrice: item.totalPriceUSD,
+        currency: item.currency,
+        status: item.status,
+        queueStatus: item.notes?.toLowerCase().includes('follow-up') ? 'Follow-up Scheduled' : 'Needs Action',
+        notes: item.notes,
+        createdAt: item.createdAt,
+        booking: { id: item.id, bookingReference: item.bookingReference, status: item.status, paymentStatus: item.paymentStatus },
+      }));
 
       return NextResponse.json({ queue });
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // 3. CUSTOMER JOURNEY DETAIL: Unified Timeline of an Individual Customer
-    // ─────────────────────────────────────────────────────────────────────────
     if (view === 'customer-detail' && customerId) {
-      // Find customer profile, leads, bookings, and chat
-      const [profile, leads, bookings, chat] = await Promise.all([
+      const [profile, bookings, chat] = await Promise.all([
         prisma.customerProfile.findFirst({
           where: {
             OR: [
@@ -134,15 +121,6 @@ export async function GET(request: NextRequest) {
               { phone: { equals: customerId } },
             ],
           },
-        }),
-        prisma.bookingLead.findMany({
-          where: {
-            OR: [
-              { customerEmail: { equals: customerId, mode: 'insensitive' } },
-              { customerPhone: { equals: customerId } },
-            ],
-          },
-          orderBy: { createdAt: 'desc' },
         }),
         prisma.booking.findMany({
           where: {
@@ -154,7 +132,7 @@ export async function GET(request: NextRequest) {
           orderBy: { createdAt: 'desc' },
           include: { tour: { select: { id: true, slug: true, translations: true, coverImage: true } } },
         }),
-        prisma.liveChatConversation.findFirst({
+        prisma.bookingConversation.findFirst({
           where: {
             OR: [
               { visitorEmail: { equals: customerId, mode: 'insensitive' } },
@@ -162,9 +140,7 @@ export async function GET(request: NextRequest) {
             ],
           },
           include: {
-            messages: {
-              orderBy: { createdAt: 'asc' },
-            },
+            messages: { orderBy: { createdAt: 'asc' } },
           },
         }),
       ]);
@@ -172,7 +148,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         customer: {
           profile,
-          leads,
+          leads: bookings.filter((b) => b.status === BookingStatus.INTERESTED),
           bookings: bookings.map((b) => ({
             id: b.id,
             bookingReference: b.bookingReference,
@@ -184,7 +160,7 @@ export async function GET(request: NextRequest) {
             paymentScheme: b.paymentScheme,
             amountPaidOnline: b.amountPaidOnline,
             amountDueOnArrival: b.amountDueOnArrival,
-            tourTitle: (b.tour?.translations as any)?.en?.title || b.tour?.slug || 'Tour Experience',
+            tourTitle: (b.tour?.translations as any)?.en?.title || b.tourTitleSnapshot || b.tour?.slug || 'Tour Experience',
           })),
           chatConversation: chat,
         },
@@ -230,7 +206,7 @@ export async function GET(request: NextRequest) {
         ];
       }
 
-      const inquiries = await prisma.bookingLead.findMany({
+      const inquiries = await prisma.booking.findMany({
         where: inquiryWhere,
         orderBy: { createdAt: 'desc' },
         take: limit,
@@ -308,11 +284,11 @@ export async function PATCH(request: NextRequest) {
     if (notes !== undefined) {
       data.notes = scheduledFollowUp ? `[Follow-up: ${scheduledFollowUp}] ${notes}` : notes;
     }
-    if (status && Object.values(LeadStatus).includes(status)) {
+    if (status && Object.values(BookingStatus).includes(status)) {
       data.status = status;
     }
 
-    const updated = await prisma.bookingLead.update({
+    const updated = await prisma.booking.update({
       where: { id: leadId },
       data,
     });
