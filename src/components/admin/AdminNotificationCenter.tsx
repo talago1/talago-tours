@@ -323,23 +323,15 @@ export default function AdminNotificationCenter() {
               onClick={() => setIsOpen(false)}
               className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00E5FF] hover:underline"
             >
-              <span>Bookings</span>
+              <span>All Bookings</span>
               <ChevronRight className="h-3 w-3" />
             </Link>
             <Link
-              href="/admin/leads"
-              onClick={() => setIsOpen(false)}
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 hover:underline"
-            >
-              <span>Interests</span>
-              <ChevronRight className="h-3 w-3" />
-            </Link>
-            <Link
-              href="/admin/inbox"
+              href="/admin/bookings?filter=messages"
               onClick={() => setIsOpen(false)}
               className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 hover:underline"
             >
-              <span>Live Chat</span>
+              <span>Unread Messages</span>
               <ChevronRight className="h-3 w-3" />
             </Link>
           </div>

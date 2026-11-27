@@ -92,7 +92,7 @@ async function main() {
   console.log(`✓ Booking interest saved: leadId=${interestData.leadId}, reference=${interestData.reservationReference}`);
 
   // Verify conversation for preliminary interest
-  const interestConv = await prisma.liveChatConversation.findFirst({
+  const interestConv = await prisma.bookingConversation.findFirst({
     where: { visitorToken: `attempt:${tgAttemptId}` },
     include: { messages: true },
   });
@@ -150,11 +150,10 @@ async function main() {
   console.log(`✓ Customer profile account identity preserved: name="${freshProfile?.name}"`);
 
   // 1.3 Verify SINGLE conversation shared between interest and confirmation
-  const allConvsForTg = await prisma.liveChatConversation.findMany({
+  const allConvsForTg = await prisma.bookingConversation.findMany({
     where: {
       OR: [
         { visitorToken: `attempt:${tgAttemptId}` },
-        { bookingReference: checkoutData.bookingReference },
         { bookingId: savedBooking.id },
       ],
     },
@@ -163,7 +162,6 @@ async function main() {
   assert.strictEqual(allConvsForTg.length, 1, `Must have EXACTLY ONE conversation for this booking attempt, found ${allConvsForTg.length}`);
   const tgSingleConv = allConvsForTg[0];
   assert.strictEqual(tgSingleConv.bookingId, savedBooking.id, 'Conversation bookingId must match confirmed booking');
-  assert.strictEqual(tgSingleConv.bookingReference, savedBooking.bookingReference, 'Conversation bookingReference must match');
   assert.strictEqual(tgSingleConv.messages.length, 2, `Conversation must contain both interest and confirmation messages, found ${tgSingleConv.messages.length}`);
   console.log(`✓ EXACTLY ONE conversation shared: convId=${tgSingleConv.id}, messages=${tgSingleConv.messages.length}`);
   console.log(`    Msg 1: ${tgSingleConv.messages[0].body.slice(0, 60)}...`);
@@ -260,12 +258,17 @@ async function main() {
   assert.strictEqual(gCheckoutRes.status, 200, 'Google checkout must succeed');
   console.log(`✓ Google booking confirmed: ref=${gCheckoutData.bookingReference}`);
 
+  // Look up saved Google booking for conversation join
+  const gSavedBooking = gCheckoutData.bookingId
+    ? await prisma.booking.findUnique({ where: { id: gCheckoutData.bookingId } })
+    : await prisma.booking.findUnique({ where: { bookingReference: gCheckoutData.bookingReference } });
+
   // Verify Google SINGLE conversation
-  const allConvsForGoogle = await prisma.liveChatConversation.findMany({
+  const allConvsForGoogle = await prisma.bookingConversation.findMany({
     where: {
       OR: [
         { visitorToken: `attempt:${googleAttemptId}` },
-        { bookingReference: gCheckoutData.bookingReference },
+        { bookingId: gSavedBooking?.id },
       ],
     },
     include: { messages: true },
@@ -286,7 +289,7 @@ async function main() {
   assert.strictEqual(retryData.isExisting, true, 'Retry must indicate isExisting: true');
 
   // Verify no extra conversations or messages were created
-  const freshGoogleConvs = await prisma.liveChatConversation.findMany({
+  const freshGoogleConvs = await prisma.bookingConversation.findMany({
     where: { visitorToken: `attempt:${googleAttemptId}` },
     include: { messages: true },
   });
@@ -321,7 +324,7 @@ async function main() {
   const newInterestRes = await bookingInterestPOST(newInterestReq);
   assert.strictEqual(newInterestRes.status, 200);
 
-  const separateConv = await prisma.liveChatConversation.findFirst({
+  const separateConv = await prisma.bookingConversation.findFirst({
     where: { visitorToken: `attempt:${newAttemptId}` },
   });
   assert.ok(separateConv, 'New attempt must have its own conversation');

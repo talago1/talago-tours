@@ -123,38 +123,32 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 6. Record event in dedicated LiveChatConversation for transparency
+    // 6. Record event in canonical BookingConversation for transparency
     try {
-      const conv = await prisma.liveChatConversation.findFirst({
-        where: {
-          OR: [
-            { bookingReference: booking.bookingReference },
-            { visitorToken: `booking:${booking.bookingReference}` },
-            { bookingId: booking.id },
-          ],
+      const conv = await prisma.bookingConversation.upsert({
+        where: { bookingId: booking.id },
+        create: { bookingId: booking.id },
+        update: {},
+      });
+
+      const policyNote = isWithinPolicy
+        ? `Eligible for Free Cancellation (${Math.round(hoursRemaining)}h remaining vs ${freeCancellationHours}h policy)`
+        : `Late Cancellation Notice (${Math.round(hoursRemaining)}h remaining vs ${freeCancellationHours}h policy)`;
+
+      await prisma.bookingMessage.create({
+        data: {
+          conversationId: conv.id,
+          sender: 'SYSTEM',
+          body: `[CANCELLATION REQUEST] Traveler requested booking cancellation.\n• Reason: ${reason.trim()}${
+            notes?.trim() ? `\n• Notes: ${notes.trim()}` : ''
+          }\n• Window: ${policyNote}\n• Status: Pending Operator Review`,
         },
       });
 
-      if (conv) {
-        const policyNote = isWithinPolicy
-          ? `Eligible for Free Cancellation (${Math.round(hoursRemaining)}h remaining vs ${freeCancellationHours}h policy)`
-          : `Late Cancellation Notice (${Math.round(hoursRemaining)}h remaining vs ${freeCancellationHours}h policy)`;
-
-        await prisma.liveChatMessage.create({
-          data: {
-            conversationId: conv.id,
-            sender: 'SYSTEM',
-            body: `[CANCELLATION REQUEST] Traveler requested booking cancellation.\n• Reason: ${reason.trim()}${
-              notes?.trim() ? `\n• Notes: ${notes.trim()}` : ''
-            }\n• Window: ${policyNote}\n• Status: Pending Operator Review`,
-          },
-        });
-
-        await prisma.liveChatConversation.update({
-          where: { id: conv.id },
-          data: { lastMessageAt: new Date() },
-        });
-      }
+      await prisma.bookingConversation.update({
+        where: { id: conv.id },
+        data: { lastMessageAt: new Date() },
+      });
     } catch (chatErr) {
       console.warn('[cancel-request] chat message log failed:', chatErr);
     }

@@ -35,75 +35,6 @@ export function collectIdentityEmails(
   return [...set];
 }
 
-// NOTE on phone lookup performance (not fixed in this PR):
-// findIdsByNationalPhone() matches phones with regexp_replace() on the
-// raw customerPhone column, which no B-tree index can serve — every call
-// is a full-table scan of Booking / booking_leads / CustomerProfile, and
-// it runs once per phone key. The proper fix is a normalized phone
-// column (e.g. Booking.customerPhoneNormalized + @@index, same for
-// BookingLead and CustomerProfile) populated at write time, plus a
-// one-off backfill of existing rows — a schema + data change that does
-// not belong in this performance PR. Until then, callers must at least
-// avoid running this lookup more than once per request (see
-// adoptOwnedBookings() below).
-async function findIdsByNationalPhone(
-  db: PhoneDb,
-  table: 'booking' | 'lead' | 'profile',
-  keys: string[],
-): Promise<Array<{ id: string; phone: string; telegramPhone?: string | null }>> {
-  const safe = [...new Set(keys.filter((key) => /^\d{8,12}$/.test(key)))];
-  const found: Array<{ id: string; phone: string; telegramPhone?: string | null }> = [];
-
-  for (const key of safe) {
-    const minLen = key.length;
-    const maxLen = key.length + 4;
-    try {
-      if (table === 'booking') {
-        const rows = await db.$queryRaw<Array<{ id: string; phone: string }>>`
-          SELECT id, "customerPhone" AS phone
-          FROM "Booking"
-          WHERE char_length(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen}::int AND ${maxLen}::int
-            AND right(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g'), ${key.length}::int) = ${key}
-        `;
-        for (const row of rows) {
-          if (phoneMatchKey(row.phone) === key) found.push(row);
-        }
-      } else if (table === 'lead') {
-        const rows = await db.$queryRaw<Array<{ id: string; phone: string }>>`
-          SELECT id, "customerPhone" AS phone
-          FROM "booking_leads"
-          WHERE char_length(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen}::int AND ${maxLen}::int
-            AND right(regexp_replace(coalesce("customerPhone", ''), '[^0-9]', '', 'g'), ${key.length}::int) = ${key}
-        `;
-        for (const row of rows) {
-          if (phoneMatchKey(row.phone) === key) found.push(row);
-        }
-      } else {
-        const rows = await db.$queryRaw<Array<{ id: string; phone: string; telegramPhone: string | null }>>`
-          SELECT id, "phone" AS phone, "telegramPhone"
-          FROM "CustomerProfile"
-          WHERE (
-            char_length(regexp_replace(coalesce("phone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen}::int AND ${maxLen}::int
-            AND right(regexp_replace(coalesce("phone", ''), '[^0-9]', '', 'g'), ${key.length}::int) = ${key}
-          ) OR (
-            char_length(regexp_replace(coalesce("telegramPhone", ''), '[^0-9]', '', 'g')) BETWEEN ${minLen}::int AND ${maxLen}::int
-            AND right(regexp_replace(coalesce("telegramPhone", ''), '[^0-9]', '', 'g'), ${key.length}::int) = ${key}
-          )
-        `;
-        for (const row of rows) {
-          if (phoneMatchKey(row.phone) === key || phoneMatchKey(row.telegramPhone) === key) {
-            found.push(row);
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('[customer-bookings] normalized phone lookup failed:', error);
-    }
-  }
-
-  return found;
-}
-
 export async function findProfileByContact(
   db: PhoneDb,
   email: string,
@@ -120,28 +51,18 @@ export async function findProfileByContact(
   const keys = collectPhoneKeys([phone]);
   if (keys.length === 0) return null;
 
-  const matches = await findIdsByNationalPhone(db, 'profile', keys);
-  const ids = [...new Set(matches.map((row) => row.id))];
-  if (ids.length === 0) {
-    const variants = exactPhoneVariants(phone);
-    if (variants.length === 0) return null;
-    const fallback = await db.customerProfile.findFirst({
-      where: {
-        OR: variants.flatMap((variant) => [
+  const variants = exactPhoneVariants(phone);
+  return db.customerProfile.findFirst({
+    where: {
+      OR: [
+        { phoneNormalized: { in: keys } },
+        ...variants.flatMap((variant) => [
           { phone: variant },
           { telegramPhone: variant },
         ]),
-      },
-    });
-    return fallback;
-  }
-
-  const profiles = await db.customerProfile.findMany({ where: { id: { in: ids } } });
-  return (
-    profiles.find((profile) =>
-      keys.some((key) => phoneMatchKey(profile.phone) === key || phoneMatchKey(profile.telegramPhone) === key),
-    ) ?? null
-  );
+      ],
+    },
+  });
 }
 
 function profileName(user: SessionUser, telegramId?: string): string {
@@ -173,12 +94,14 @@ export async function resolveCustomerProfileForUser(user: SessionUser) {
 
   if (!profile) {
     try {
+      const initialPhone = guestMatch ? `+${guestMatch[1]}` : typeof metaPhone === 'string' ? metaPhone : undefined;
       profile = await prisma.customerProfile.create({
         data: {
           email,
           name: profileName(user, telegramMatch?.[1]),
           telegramId: telegramMatch?.[1],
-          phone: guestMatch ? `+${guestMatch[1]}` : typeof metaPhone === 'string' ? metaPhone : undefined,
+          phone: initialPhone,
+          phoneNormalized: phoneMatchKey(initialPhone) ?? undefined,
           isShadow: false,
         },
       });
@@ -192,6 +115,11 @@ export async function resolveCustomerProfileForUser(user: SessionUser) {
     if (profile.isShadow) data.isShadow = false;
     if (!profile.phone && profile.telegramPhone) data.phone = profile.telegramPhone;
     if (!profile.phone && typeof metaPhone === 'string' && phoneMatchKey(metaPhone)) data.phone = metaPhone;
+    const resolvedPhone = (typeof data.phone === 'string' ? data.phone : profile.phone) || profile.telegramPhone;
+    const normalized = phoneMatchKey(resolvedPhone);
+    if (normalized && profile.phoneNormalized !== normalized) {
+      data.phoneNormalized = normalized;
+    }
     if (telegramMatch && !profile.telegramId) {
       const taken = await prisma.customerProfile.findUnique({ where: { telegramId: telegramMatch[1] } });
       if (!taken) data.telegramId = telegramMatch[1];
@@ -211,83 +139,22 @@ export async function listVisibleBookingIds(input: {
   includeFuzzyPhoneScan?: boolean;
 }): Promise<string[]> {
   const emails = collectIdentityEmails(input.emails, input.phones);
+  const phoneKeys = collectPhoneKeys(input.phones);
   const phoneVariants = [...new Set(input.phones.flatMap((p) => exactPhoneVariants(p)))];
-  const ids = new Set<string>();
 
-  const [linked, byEmail, byExactPhone] = await Promise.all([
-    prisma.booking.findMany({
-      where: { customerProfileId: input.profileId },
-      select: { id: true },
-    }),
-    emails.length > 0
-      ? prisma.booking.findMany({
-          where: { OR: emails.map((email) => ({ customerEmail: { equals: email, mode: 'insensitive' as const } })) },
-          select: { id: true },
-        })
-      : Promise.resolve([]),
-    phoneVariants.length > 0
-      ? prisma.booking.findMany({
-          where: { customerPhone: { in: phoneVariants } },
-          select: { id: true },
-        })
-      : Promise.resolve([]),
-  ]);
+  const orConditions: Prisma.BookingWhereInput[] = [
+    { customerProfileId: input.profileId },
+    ...emails.map((email) => ({ customerEmail: { equals: email, mode: 'insensitive' as const } })),
+    ...(phoneKeys.length > 0 ? [{ customerPhoneNormalized: { in: phoneKeys } }] : []),
+    ...(phoneVariants.length > 0 ? [{ customerPhone: { in: phoneVariants } }] : []),
+  ];
 
-  for (const row of linked) ids.add(row.id);
-  for (const row of byEmail) ids.add(row.id);
-  for (const row of byExactPhone) ids.add(row.id);
+  const rows = await prisma.booking.findMany({
+    where: { OR: orConditions },
+    select: { id: true },
+  });
 
-  if (input.includeFuzzyPhoneScan) {
-    const keys = collectPhoneKeys(input.phones);
-    const byPhone = await findIdsByNationalPhone(prisma, 'booking', keys);
-    for (const row of byPhone) ids.add(row.id);
-  }
-
-  return [...ids];
-}
-
-export async function listVisibleLeadIds(
-  emailsInput: Array<string | null | undefined>,
-  phones: Array<unknown>,
-  options?: { includeFuzzyPhoneScan?: boolean },
-): Promise<string[]> {
-  const emails = collectIdentityEmails(emailsInput, phones);
-  const phoneVariants = [...new Set(phones.flatMap((p) => exactPhoneVariants(p)))];
-  const ids = new Set<string>();
-
-  const [byEmail, byExactPhone] = await Promise.all([
-    emails.length > 0
-      ? prisma.bookingLead.findMany({
-          where: {
-            bookingId: null,
-            status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
-            OR: emails.map((email) => ({ customerEmail: { equals: email, mode: 'insensitive' as const } })),
-          },
-          select: { id: true },
-        })
-      : Promise.resolve([]),
-    phoneVariants.length > 0
-      ? prisma.bookingLead.findMany({
-          where: {
-            bookingId: null,
-            status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
-            customerPhone: { in: phoneVariants },
-          },
-          select: { id: true },
-        })
-      : Promise.resolve([]),
-  ]);
-
-  for (const row of byEmail) ids.add(row.id);
-  for (const row of byExactPhone) ids.add(row.id);
-
-  if (options?.includeFuzzyPhoneScan) {
-    const keys = collectPhoneKeys(phones);
-    const byPhone = await findIdsByNationalPhone(prisma, 'lead', keys);
-    for (const row of byPhone) ids.add(row.id);
-  }
-
-  return [...ids];
+  return rows.map((r) => r.id);
 }
 
 function profileOwnsBookingContact(

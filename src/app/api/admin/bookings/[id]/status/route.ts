@@ -42,32 +42,32 @@ export async function PATCH(
       },
     });
 
-    // If status actually changed, record in live chat thread and dispatch notifications
+    // Record status transition in the booking's 1:1 BookingConversation and dispatch notifications
     if (oldStatus !== status) {
       try {
-        const conv = await prisma.liveChatConversation.findFirst({
-          where: {
-            OR: [
-              { bookingReference: booking.bookingReference },
-              { visitorToken: `booking:${booking.bookingReference}` },
-              { bookingId: booking.id },
-            ],
+        const conv = await prisma.bookingConversation.upsert({
+          where: { bookingId: booking.id },
+          create: {
+            bookingId: booking.id,
+            visitorName: booking.customerName || undefined,
+            visitorEmail: booking.customerEmail || undefined,
+            visitorPhone: booking.customerPhone || undefined,
+            tourTitle: booking.tourTitleSnapshot || undefined,
+            lastMessageAt: new Date(),
           },
+          update: {
+            lastMessageAt: new Date(),
+          },
+          select: { id: true },
         });
 
-        if (conv) {
-          await prisma.liveChatMessage.create({
-            data: {
-              conversationId: conv.id,
-              sender: 'SYSTEM',
-              body: `[STATUS UPDATE] Booking status changed from ${oldStatus} to ${status}.`,
-            },
-          });
-          await prisma.liveChatConversation.update({
-            where: { id: conv.id },
-            data: { lastMessageAt: new Date() },
-          });
-        }
+        await prisma.bookingMessage.create({
+          data: {
+            conversationId: conv.id,
+            sender: 'SYSTEM',
+            body: `[STATUS UPDATE] Booking status changed from ${oldStatus} to ${status}.`,
+          },
+        });
       } catch (convErr) {
         console.warn('Failed to post status update message to chat:', convErr);
       }

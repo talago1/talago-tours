@@ -69,45 +69,31 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Also sync to BookingLead table for unified admin lead management
+    // Also sync to canonical Booking (INTERESTED) if no active booking exists for this phone + tour
     try {
-      const existingLead = await prisma.bookingLead.findFirst({
+      const existingBooking = await prisma.booking.findFirst({
         where: {
           tourId,
           customerPhone: phone.trim(),
-          status: { in: ['INTERESTED', 'CONTACTED'] },
+          status: 'INTERESTED',
         },
         orderBy: { createdAt: 'desc' },
       });
 
-      if (existingLead) {
-        await prisma.bookingLead.update({
-          where: { id: existingLead.id },
+      if (existingBooking) {
+        await prisma.booking.update({
+          where: { id: existingBooking.id },
           data: {
             customerName: name.trim(),
-            customerEmail: email?.trim() ?? existingLead.customerEmail,
-            travelDate: travelDate ?? existingLead.travelDate,
-            adults: guestCount,
-            source: 'CHECKOUT_FORM',
-            updatedAt: new Date(),
-          },
-        });
-      } else {
-        await prisma.bookingLead.create({
-          data: {
-            tourId,
-            customerName: name.trim(),
-            customerPhone: phone.trim(),
-            customerEmail: email?.trim() ?? null,
-            adults: guestCount,
-            travelDate: travelDate ?? null,
-            status: 'INTERESTED',
+            customerEmail: email?.trim() ?? existingBooking.customerEmail,
+            adultsCount: guestCount,
+            guestCount,
             source: 'CHECKOUT_FORM',
           },
         });
       }
     } catch (leadErr) {
-      console.warn('[abandoned-checkout] BookingLead sync non-fatal:', leadErr);
+      console.warn('[abandoned-checkout] Booking sync non-fatal:', leadErr);
     }
 
     return NextResponse.json({ ok: true }, { status: 200 });

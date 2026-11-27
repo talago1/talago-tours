@@ -13,7 +13,8 @@ import { initiatePaymobSession } from '@/utils/paymob';
 import { validatePromoCode } from '@/utils/promo';
 import { computePriceBreakdown } from '@/utils/priceCalculator';
 import { PaymentScheme, type InitializeResponse } from '@/types/checkout';
-import { BookingStatus, LeadStatus, Prisma } from '@prisma/client';
+import { BookingStatus, Prisma } from '@prisma/client';
+import { phoneMatchKey } from '@/utils/phoneMatch';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 import { sanitizePlain, sanitizeEmail, sanitizePhone, sanitizeText } from '@/utils/sanitize';
 import { normalizeCurrency, convertCurrency } from '@/utils/currency';
@@ -99,66 +100,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Idempotency & withdrawn-request check: if this reservation lead already has an initialized booking, return it cleanly;
-    // if it was withdrawn (ABANDONED), block stale retries from turning it into a booking.
+    // Idempotency & existing-request check on the canonical Booking record:
+    // - If CANCELLED, block stale retries.
+    // - If already PENDING/CONFIRMED/COMPLETED, return existing booking (idempotent).
+    // - If INTERESTED, we will transition this exact Booking record in-place inside the transaction!
+    let existingInterestedBookingId: string | null = null;
+
     if (requestedReservationId) {
-      const existingLeadWithBooking = await prisma.bookingLead.findUnique({
+      const existingByReservationId = await prisma.booking.findUnique({
         where: { id: requestedReservationId },
-        select: { bookingId: true, status: true },
+        select: {
+          id: true,
+          bookingReference: true,
+          accessToken: true,
+          status: true,
+          paymentStatus: true,
+          paymentScheme: true,
+          totalPriceUSD: true,
+          amountPaidOnline: true,
+          amountDueOnArrival: true,
+          currency: true,
+        },
       });
-      if (existingLeadWithBooking?.status === LeadStatus.ABANDONED && !existingLeadWithBooking.bookingId) {
+      if (existingByReservationId?.status === BookingStatus.CANCELLED) {
         return NextResponse.json(
           { error: 'This preliminary request was withdrawn. Please start a new booking request.', code: 'REQUEST_WITHDRAWN' },
           { status: 409 }
         );
       }
-      if (existingLeadWithBooking?.bookingId) {
-        const existingBooking = await prisma.booking.findUnique({
-          where: { id: existingLeadWithBooking.bookingId },
-          select: {
-            id: true,
-            bookingReference: true,
-            accessToken: true,
-            status: true,
-            paymentStatus: true,
-            paymentScheme: true,
-            totalPriceUSD: true,
-            amountPaidOnline: true,
-            amountDueOnArrival: true,
-            currency: true,
-          },
+      if (existingByReservationId?.status === BookingStatus.INTERESTED) {
+        existingInterestedBookingId = existingByReservationId.id;
+      } else if (existingByReservationId) {
+        return NextResponse.json({
+          success: true,
+          bookingId: existingByReservationId.id,
+          bookingReference: existingByReservationId.bookingReference,
+          accessToken: existingByReservationId.accessToken,
+          confirmationUrl: `/booking/${existingByReservationId.accessToken}`,
+          paymentScheme: existingByReservationId.paymentScheme,
+          totalPrice: existingByReservationId.totalPriceUSD,
+          amountPaidOnline: existingByReservationId.amountPaidOnline,
+          amountDueOnArrival: existingByReservationId.amountDueOnArrival,
+          currency: existingByReservationId.currency,
+          status: existingByReservationId.status,
+          isExisting: true,
         });
-        if (existingBooking) {
-          return NextResponse.json({
-            success: true,
-            bookingId: existingBooking.id,
-            bookingReference: existingBooking.bookingReference,
-            accessToken: existingBooking.accessToken,
-            confirmationUrl: `/booking/${existingBooking.accessToken}`,
-            paymentScheme: existingBooking.paymentScheme,
-            totalPrice: existingBooking.totalPriceUSD,
-            amountPaidOnline: existingBooking.amountPaidOnline,
-            amountDueOnArrival: existingBooking.amountDueOnArrival,
-            currency: existingBooking.currency,
-            status: existingBooking.status,
-            isExisting: true,
-          });
-        }
       }
     }
 
     // Direct idempotency key check (database unique column)
     if (idempotencyKey) {
-      const withdrawnByAttempt = await prisma.bookingLead.findFirst({
-        where: { sessionId: idempotencyKey, status: LeadStatus.ABANDONED, bookingId: null },
-        select: { id: true },
-      });
-      if (withdrawnByAttempt) {
-        return NextResponse.json(
-          { error: 'This preliminary request was withdrawn. Please start a new booking request.', code: 'REQUEST_WITHDRAWN' },
-          { status: 409 }
-        );
-      }
       const existingByKey = await prisma.booking.findUnique({
         where: { idempotencyKey },
         select: {
@@ -174,7 +165,15 @@ export async function POST(request: NextRequest) {
           currency: true,
         },
       });
-      if (existingByKey) {
+      if (existingByKey?.status === BookingStatus.CANCELLED) {
+        return NextResponse.json(
+          { error: 'This preliminary request was withdrawn. Please start a new booking request.', code: 'REQUEST_WITHDRAWN' },
+          { status: 409 }
+        );
+      }
+      if (existingByKey?.status === BookingStatus.INTERESTED) {
+        existingInterestedBookingId = existingByKey.id;
+      } else if (existingByKey) {
         return NextResponse.json({
           success: true,
           bookingId: existingByKey.id,
@@ -542,6 +541,7 @@ export async function POST(request: NextRequest) {
                 email: guestEmail || `guest-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@noreply.talago.com`,
                 name: leadName.trim() || 'Traveler',
                 phone: phone.trim() || undefined,
+                phoneNormalized: phoneMatchKey(phone.trim()) || undefined,
                 isShadow: !hasRealEmail,
                 invitedAt: now,
                 lastMagicLinkAt: now,
@@ -549,46 +549,56 @@ export async function POST(request: NextRequest) {
             });
       }
 
-      // Create Booking
-      const booking = await tx.booking.create({
-        data: {
-          bookingReference,
-          accessToken: generateAccessToken(),
-          idempotencyKey: idempotencyKey || null,
-          tourId,
-          zoneId: tour.zoneId,
-          hotelName: hotelName?.trim() || null,
-          pickupType: effectivePickupType.toUpperCase(),
-          pickupLocationName: (pickupLocationName || hotelName || '').trim() || null,
-          pickupAddress: pickupAddress?.trim() || null,
-          travelDate: new Date(departureDate + 'T00:00:00'),
-          guestCount: totalGuests,
-          adultsCount: finalAdultsCount,
-          childrenCount: finalChildrenCount,
-          infantsCount: finalInfantsCount,
-          totalPriceUSD: finalTotal,
-          customerName: leadName.trim(),
-          customerEmail: email.trim(),
-          customerPhone: phone.trim(),
-          roomNumber: roomNumber?.trim() || null,
-          selectedPickupTime: pickupTime || null,
-          pickupDirectives: pickupDirectives?.trim() || null,
-          flightNumbers: flightNumbers?.trim() || null,
-          currency: currency || 'USD',
-          bedConfiguration: bedConfiguration?.trim() || null,
-          specialRequirements: specialRequirements?.trim() || null,
-          selectedAddons: validatedSelectedAddons.length > 0 ? validatedSelectedAddons : undefined,
-          bookingAnswers: normalizedBookingAnswers && typeof normalizedBookingAnswers === 'object' && Object.keys(normalizedBookingAnswers).length > 0 ? normalizedBookingAnswers : undefined,
-          paymentScheme,
-          amountPaidOnline,
-          amountDueOnArrival,
-          promoCodeId: promoCodeId || null,
-          customerProfileId: profile.id,
-          whatsappOptIn: formData.whatsappOptIn !== undefined ? Boolean(formData.whatsappOptIn) : true,
-          status: paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
-          paymentStatus: paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? 'CASH' : 'PENDING',
-        },
-      });
+      const bookingPayload = {
+        tourId,
+        zoneId: tour.zoneId,
+        hotelName: hotelName?.trim() || null,
+        pickupType: effectivePickupType.toUpperCase(),
+        pickupLocationName: (pickupLocationName || hotelName || '').trim() || null,
+        pickupAddress: pickupAddress?.trim() || null,
+        travelDate: new Date(departureDate + 'T00:00:00'),
+        guestCount: totalGuests,
+        adultsCount: finalAdultsCount,
+        childrenCount: finalChildrenCount,
+        infantsCount: finalInfantsCount,
+        totalPriceUSD: finalTotal,
+        customerName: leadName.trim(),
+        customerEmail: email.trim(),
+        customerPhone: phone.trim(),
+        customerPhoneNormalized: phoneMatchKey(phone.trim()),
+        roomNumber: roomNumber?.trim() || null,
+        selectedPickupTime: pickupTime || null,
+        pickupDirectives: pickupDirectives?.trim() || null,
+        flightNumbers: flightNumbers?.trim() || null,
+        currency: currency || 'USD',
+        bedConfiguration: bedConfiguration?.trim() || null,
+        specialRequirements: specialRequirements?.trim() || null,
+        selectedAddons: validatedSelectedAddons.length > 0 ? validatedSelectedAddons : undefined,
+        bookingAnswers: normalizedBookingAnswers && typeof normalizedBookingAnswers === 'object' && Object.keys(normalizedBookingAnswers).length > 0 ? normalizedBookingAnswers : undefined,
+        paymentScheme,
+        amountPaidOnline,
+        amountDueOnArrival,
+        promoCodeId: promoCodeId || null,
+        customerProfileId: profile.id,
+        whatsappOptIn: formData.whatsappOptIn !== undefined ? Boolean(formData.whatsappOptIn) : true,
+        status: paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? BookingStatus.CONFIRMED : BookingStatus.PENDING,
+        paymentStatus: paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? 'CASH' : 'PENDING',
+      };
+
+      // Update canonical INTERESTED Booking in-place (preserving booking.id & bookingReference) or create a new Booking
+      const booking = existingInterestedBookingId
+        ? await tx.booking.update({
+            where: { id: existingInterestedBookingId },
+            data: bookingPayload,
+          })
+        : await tx.booking.create({
+            data: {
+              ...bookingPayload,
+              bookingReference,
+              accessToken: generateAccessToken(),
+              idempotencyKey: idempotencyKey || null,
+            },
+          });
 
       // Create Transaction
       const transaction = await tx.transaction.create({
@@ -645,138 +655,55 @@ export async function POST(request: NextRequest) {
 
     // A booking is only a conversion after its payment/confirmation state says so.
     // Online payment starts an in-progress lead; the verified webhook completes it.
+    // Ensure 1:1 BookingConversation attached to this canonical Booking
     try {
-      const activeLead = {
-        tourId,
-        bookingId: null,
-        status: { in: [LeadStatus.INTERESTED, LeadStatus.IN_PROGRESS, LeadStatus.CONTACTED] },
-      };
-      // A reservation from Book now carries its own preliminary ID. Link it to the new booking.
-      const matchingLead = requestedReservationId
-        ? await prisma.bookingLead.findFirst({
-            where: {
-              ...activeLead,
-              id: requestedReservationId,
-            },
-          })
-        : (attemptId
-            ? await prisma.bookingLead.findFirst({
-                where: {
-                  ...activeLead,
-                  sessionId: attemptId,
-                },
-                orderBy: { createdAt: 'desc' },
-              })
-            : await prisma.bookingLead.findFirst({
-                where: {
-                  ...activeLead,
-                  // Scope the phone/email fallback to this tour and date
-                  // (tourId is already in activeLead). Without this, a
-                  // returning guest's lead for a different tour or a
-                  // different departure date could be linked to this
-                  // booking, leaving the real lead orphaned and showing
-                  // as a second reservation.
-                  travelDate: departureDate,
-                  OR: [
-                    ...(phone.trim() ? [{ customerPhone: phone.trim() }] : []),
-                    ...(normalizedEmail ? [{ customerEmail: normalizedEmail }] : []),
-                  ],
-                },
-                orderBy: { createdAt: 'desc' },
-              }));
-      if (matchingLead) {
-        await prisma.bookingLead.update({
-          where: { id: matchingLead.id },
-          data: {
-            bookingId: result.booking.id,
-            status: (paymentScheme === PaymentScheme.PAY_ON_ARRIVAL ? 'CONVERTED' : 'IN_PROGRESS') as any,
-            customerName: leadName.trim(),
-            customerEmail: email.trim(),
-            customerPhone: phone.trim(),
-            updatedAt: new Date(),
-          },
-        });
-      }
-
-      // Ensure SINGLE authoritative conversation exists for this booking attempt
       const resolvedTourTitle = (() => {
         const t = tour.translations as Record<string, { title?: string }> | null;
         return t?.en?.title || 'Talago Experience';
       })();
 
-      const attemptToken = attemptId || idempotencyKey;
+      const bookingConv = await prisma.bookingConversation.upsert({
+        where: { bookingId: result.booking.id },
+        create: {
+          bookingId: result.booking.id,
+          visitorName: leadName.trim(),
+          visitorEmail: email.trim() || undefined,
+          visitorPhone: phone.trim() || undefined,
+          tourTitle: resolvedTourTitle,
+          lastPagePath: `/booking/${result.booking.accessToken}`,
+        },
+        update: {
+          visitorName: leadName.trim(),
+          visitorEmail: email.trim() || undefined,
+          visitorPhone: phone.trim() || undefined,
+          tourTitle: resolvedTourTitle,
+          lastPagePath: `/booking/${result.booking.accessToken}`,
+          status: 'OPEN',
+          lastMessageAt: new Date(),
+        },
+        select: { id: true },
+      });
 
-      let bookingConv = await prisma.liveChatConversation.findFirst({
+      const existingMsg = await prisma.bookingMessage.findFirst({
         where: {
-          OR: [
-            ...(attemptToken ? [{ visitorToken: `attempt:${attemptToken}` }] : []),
-            ...(matchingLead?.id ? [{ leadId: matchingLead.id }, { visitorToken: `lead:${matchingLead.id}` }] : []),
-            { bookingReference: result.booking.bookingReference },
-            { visitorToken: `booking:${result.booking.bookingReference}` },
-            ...(result.booking.id ? [{ bookingId: result.booking.id }] : []),
-          ],
+          conversationId: bookingConv.id,
+          body: { contains: `[BOOKING CONFIRMED]` },
         },
       });
 
-      if (bookingConv) {
-        // Attach confirmed booking to this EXACT conversation!
-        bookingConv = await prisma.liveChatConversation.update({
-          where: { id: bookingConv.id },
-          data: {
-            bookingId: result.booking.id,
-            bookingReference: result.booking.bookingReference,
-            visitorName: leadName.trim(),
-            visitorEmail: email.trim() || bookingConv.visitorEmail,
-            visitorPhone: phone.trim() || bookingConv.visitorPhone,
-            tourTitle: resolvedTourTitle,
-            lastPagePath: `/booking/${result.booking.accessToken}`,
-            status: 'OPEN',
-            lastMessageAt: new Date(),
-          },
-        });
-      } else {
-        bookingConv = await prisma.liveChatConversation.create({
-          data: {
-            visitorToken: attemptToken ? `attempt:${attemptToken}` : `booking:${result.booking.bookingReference}`,
-            bookingId: result.booking.id,
-            bookingReference: result.booking.bookingReference,
-            visitorName: leadName.trim(),
-            visitorEmail: email.trim(),
-            visitorPhone: phone.trim(),
-            tourTitle: resolvedTourTitle,
-            lastPagePath: `/booking/${result.booking.accessToken}`,
-          },
-        });
-      }
+      if (!existingMsg) {
+        const bookingSummary = `[BOOKING CONFIRMED] Reference: #${result.booking.bookingReference} | Guest: ${leadName.trim()} | Tour: ${resolvedTourTitle} | Date: ${departureDate} | Guests: ${totalGuests} (${finalAdultsCount} adults${finalChildrenCount > 0 ? `, ${finalChildrenCount} children` : ''}${finalInfantsCount > 0 ? `, ${finalInfantsCount} infants` : ''}) | Status: ${result.booking.status} | Total: $${finalTotal.toFixed(2)}`;
 
-      // Check whether this conversation already has an initial booking confirmation message
-      if (bookingConv) {
-        const existingMsg = await prisma.liveChatMessage.findFirst({
-          where: {
+        await prisma.bookingMessage.create({
+          data: {
             conversationId: bookingConv.id,
-            body: { contains: result.booking.bookingReference },
+            sender: 'SYSTEM',
+            body: bookingSummary,
           },
         });
-
-        if (!existingMsg) {
-          const bookingSummary = `[BOOKING CONFIRMED] Reference: #${result.booking.bookingReference} | Guest: ${leadName.trim()} | Tour: ${resolvedTourTitle} | Date: ${departureDate} | Guests: ${totalGuests} (${finalAdultsCount} adults${finalChildrenCount > 0 ? `, ${finalChildrenCount} children` : ''}${finalInfantsCount > 0 ? `, ${finalInfantsCount} infants` : ''}) | Status: ${result.booking.status} | Total: $${finalTotal.toFixed(2)}`;
-
-          await prisma.liveChatMessage.create({
-            data: {
-              conversationId: bookingConv.id,
-              sender: 'SYSTEM',
-              body: bookingSummary,
-            },
-          });
-
-          await prisma.liveChatConversation.update({
-            where: { id: bookingConv.id },
-            data: { lastMessageAt: new Date(), status: 'OPEN' },
-          });
-        }
       }
-    } catch (leadLinkErr) {
-      console.warn('[initialize] Lead linking non-fatal warning:', leadLinkErr);
+    } catch (convErr) {
+      console.warn('[initialize] BookingConversation non-fatal warning:', convErr);
     }
 
     // Persist in-app Admin Notification for the created/confirmed booking (idempotent, independent of external email/Telegram)

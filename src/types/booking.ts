@@ -1,4 +1,4 @@
-export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+export type BookingStatus = 'INTERESTED' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
 
 export interface ActiveQueueTicket {
   id: string;
@@ -37,6 +37,13 @@ export interface ActiveQueueTicket {
   pickupAddress?: string | null;
   selectedAddons?: any;
   bookingAnswers?: any;
+  source?: string | null;
+  notes?: string | null;
+  conversationId?: string | null;
+  unreadMessageCount?: number;
+  lastMessagePreview?: string | null;
+  lastMessageAt?: string | null;
+  updatedAt?: string;
 }
 
 export interface CheckoutFormData {
@@ -83,9 +90,10 @@ export interface CheckoutError {
   field?: string;
 }
 
-export const BOOKING_STATUS_VALUES: BookingStatus[] = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
+export const BOOKING_STATUS_VALUES: BookingStatus[] = ['INTERESTED', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
 
 export const VALID_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
+  INTERESTED: ['PENDING', 'CONFIRMED', 'CANCELLED'],
   PENDING: ['CONFIRMED', 'CANCELLED'],
   CONFIRMED: ['COMPLETED', 'CANCELLED'],
   COMPLETED: [],

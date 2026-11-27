@@ -18,8 +18,6 @@ import {
   LogOut,
   Image as ImageIcon,
   Users,
-  MessageCircle,
-  Sparkles,
 } from 'lucide-react';
 import AdminNotificationCenter from '@/components/admin/AdminNotificationCenter';
 
@@ -29,8 +27,6 @@ const NAV_ITEMS = [
   { href: '/admin/destinations', label: 'Destinations', icon: Compass },
   { href: '/admin/media', label: 'Media Library', icon: ImageIcon },
   { href: '/admin/bookings', label: 'Bookings', icon: CalendarCheck },
-  { href: '/admin/leads', label: 'Interests & Leads', icon: Sparkles },
-  { href: '/admin/inbox', label: 'Live Chat', icon: MessageCircle },
   { href: '/admin/content', label: 'Content Studio', icon: BookOpen },
   { href: '/admin/partners', label: 'Partners', icon: Users },
   { href: '/admin/blog', label: 'Blog & Articles', icon: BookOpen },
@@ -49,14 +45,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     let active = true;
     async function fetchUnread() {
       try {
-        const res = await fetch('/api/admin/live-chat');
+        const res = await fetch('/api/admin/notifications', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data?.conversations) && active) {
-            const count = data.conversations.reduce(
-              (acc: number, c: any) => acc + (c._count?.messages || 0),
-              0
-            );
+          if (Array.isArray(data?.notifications) && active) {
+            const count = data.notifications.filter(
+              (n: any) => !n.isRead && n.type === 'unread_message'
+            ).length;
             setUnreadChatCount(count);
           }
         }
@@ -126,7 +121,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               >
                 <Icon className="h-4 w-4" />
                 <span>{item.label}</span>
-                {item.href === '/admin/inbox' && unreadChatCount > 0 && (
+                {item.href === '/admin/bookings' && unreadChatCount > 0 && (
                   <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[10px] font-black text-[#070F1E] animate-pulse">
                     {unreadChatCount}
                   </span>

@@ -4,7 +4,9 @@ import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 import { sanitizePlain, sanitizePhone, sanitizeEmail } from '@/utils/sanitize';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getSessionFromRequest } from '@/server/auth';
-import { LeadStatus } from '@prisma/client';
+import { BookingStatus } from '@prisma/client';
+import { generateAccessToken } from '@/utils/bookingToken';
+import { phoneMatchKey } from '@/utils/phoneMatch';
 
 export const dynamic = 'force-dynamic';
 
@@ -151,88 +153,102 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Deduplication check: recent active lead within last 10 minutes for the SAME tour and travel date
+    // Deduplication check: match by idempotencyKey/attemptId or recent INTERESTED booking for same tour + contact
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const parsedTravelDate = travelDate && !isNaN(new Date(travelDate).getTime()) ? new Date(travelDate) : new Date();
+    const normalizedPhone = phoneMatchKey(customerPhone);
 
-    const existingLead = attemptId
-      ? await prisma.bookingLead.findFirst({
+    const existingBooking = attemptId
+      ? await prisma.booking.findFirst({
           where: {
-            tourId,
-            bookingId: null,
-            status: { in: [LeadStatus.INTERESTED, LeadStatus.IN_PROGRESS, LeadStatus.CONTACTED] },
-            sessionId: attemptId,
-          },
-          orderBy: { createdAt: 'desc' },
-        })
-      : await prisma.bookingLead.findFirst({
-          where: {
-            createdAt: { gte: tenMinutesAgo },
-            status: { in: [LeadStatus.INTERESTED, LeadStatus.IN_PROGRESS, LeadStatus.CONTACTED] },
-            bookingId: null,
-            // Must belong to the exact same tour
             OR: [
-              ...(tourId ? [{ tourId }] : []),
-              ...(tourSlug ? [{ tourSlug }] : []),
-            ],
-            // If a travel date is specified, must match the same date to avoid overwriting distinct dates
-            ...(travelDate ? { travelDate } : {}),
-            AND: [
+              { idempotencyKey: attemptId },
               {
-                OR: [
-                  ...(customerPhone ? [{ customerPhone }] : []),
-                  ...(customerEmail ? [{ customerEmail }] : []),
-                ],
+                tourId,
+                status: BookingStatus.INTERESTED,
+                ...(customerPhone ? { customerPhone } : customerEmail ? { customerEmail } : {}),
+                createdAt: { gte: tenMinutesAgo },
               },
             ],
           },
           orderBy: { createdAt: 'desc' },
-        });
+        })
+      : (customerPhone || customerEmail)
+        ? await prisma.booking.findFirst({
+            where: {
+              createdAt: { gte: tenMinutesAgo },
+              status: BookingStatus.INTERESTED,
+              tourId,
+              OR: [
+                ...(customerPhone ? [{ customerPhone }] : []),
+                ...(normalizedPhone ? [{ customerPhoneNormalized: normalizedPhone }] : []),
+                ...(customerEmail ? [{ customerEmail }] : []),
+              ],
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+        : null;
 
-    let lead;
+    let booking;
     let isNewNotificationNeeded = false;
     let isNewReservation = false;
     const existingChatToken = request.cookies.get('talago_live_chat')?.value;
     const chatToken = existingChatToken || crypto.randomUUID();
 
-    if (existingLead) {
-      lead = await prisma.bookingLead.update({
-        where: { id: existingLead.id },
+    if (existingBooking) {
+      if (existingBooking.status === BookingStatus.CANCELLED) {
+        return NextResponse.json(
+          { error: 'This booking request was previously withdrawn.', code: 'WITHDRAWN_ATTEMPT' },
+          { status: 409 }
+        );
+      }
+
+      const nextPhone = customerPhone || existingBooking.customerPhone;
+      booking = await prisma.booking.update({
+        where: { id: existingBooking.id },
         data: {
-          customerName: customerName || existingLead.customerName,
-          customerPhone: customerPhone || existingLead.customerPhone,
-          customerEmail: customerEmail || existingLead.customerEmail,
-          travelDate: travelDate || existingLead.travelDate,
-          adults: adults || existingLead.adults,
-          children: children || existingLead.children,
-          totalEstimatedPrice: totalEstimatedPrice ?? existingLead.totalEstimatedPrice,
-          currency: currency || existingLead.currency,
-          source: source || existingLead.source,
-          notes: notes ? `${existingLead.notes ? existingLead.notes + ' | ' : ''}${notes}` : existingLead.notes,
-          updatedAt: new Date(),
+          customerName: customerName || existingBooking.customerName,
+          customerPhone: nextPhone,
+          customerPhoneNormalized: phoneMatchKey(nextPhone) || existingBooking.customerPhoneNormalized,
+          customerEmail: customerEmail || existingBooking.customerEmail,
+          travelDate: travelDate ? parsedTravelDate : existingBooking.travelDate,
+          adultsCount: adults || existingBooking.adultsCount,
+          childrenCount: children ?? existingBooking.childrenCount,
+          guestCount: (adults || existingBooking.adultsCount) + (children ?? existingBooking.childrenCount),
+          totalPriceUSD: totalEstimatedPrice ?? existingBooking.totalPriceUSD,
+          currency: currency || existingBooking.currency,
+          source: source || existingBooking.source,
+          notes: notes ? `${existingBooking.notes ? existingBooking.notes + ' | ' : ''}${notes}` : existingBooking.notes,
         },
       });
 
-      // If contact info was just added to an previously anonymous lead, alert admin
-      if (!existingLead.customerPhone && !existingLead.customerEmail && (customerPhone || customerEmail)) {
+      if (!existingBooking.customerPhone && !existingBooking.customerEmail && (customerPhone || customerEmail)) {
         isNewNotificationNeeded = true;
       }
     } else {
-      lead = await prisma.bookingLead.create({
+      const refSuffix = crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
+      const bookingReference = `RES-${refSuffix}`;
+      booking = await prisma.booking.create({
         data: {
+          bookingReference,
+          accessToken: generateAccessToken(),
+          idempotencyKey: sessionId || null,
           tourId,
-          tourSlug,
-          tourTitle,
-          customerName,
-          customerEmail,
-          customerPhone,
-          travelDate,
-          adults,
-          children,
-          totalEstimatedPrice,
+          tourSlugSnapshot: tourSlug,
+          tourTitleSnapshot: tourTitle,
+          customerName: customerName || '',
+          customerEmail: customerEmail || '',
+          customerPhone: customerPhone || '',
+          customerPhoneNormalized: normalizedPhone,
+          travelDate: parsedTravelDate,
+          adultsCount: adults || 1,
+          childrenCount: children || 0,
+          infantsCount: 0,
+          guestCount: (adults || 1) + (children || 0),
+          totalPriceUSD: typeof totalEstimatedPrice === 'number' ? totalEstimatedPrice : 0,
           currency,
-          status: 'INTERESTED',
+          status: BookingStatus.INTERESTED,
           source,
-          sessionId,
           notes,
         },
       });
@@ -240,61 +256,45 @@ export async function POST(request: NextRequest) {
       isNewReservation = true;
     }
 
-    const reservationReference = `RES-${lead.id.slice(-8).toUpperCase()}`;
+    const reservationReference = booking.bookingReference;
 
-    // Book now is the customer's explicit initial reservation action. Mirror
-    // it into the live inbox so the marketplace team can respond immediately.
-    // The browser's existing chat token keeps that conversation visible to the
-    // same visitor when the team replies.
-    if (isNewReservation) {
-      const reservationMessage = `[${reservationReference}] New preliminary booking request: ${tourTitle}. Travel Date: ${travelDate || 'Flexible'}. Guests: ${adults} adult${adults === 1 ? '' : 's'}${children > 0 ? `, ${children} child${children === 1 ? '' : 'ren'}` : ''}.${totalEstimatedPrice ? ` Estimated value: ${totalEstimatedPrice} ${currency}.` : ''}`;
-      try {
-        const conversationToken = attemptId ? `attempt:${attemptId}` : `lead:${lead.id}`;
-        const conversation = await prisma.liveChatConversation.upsert({
-          where: { visitorToken: conversationToken },
-          create: {
-            visitorToken: conversationToken,
-            visitorName: customerName || undefined,
-            visitorEmail: customerEmail || undefined,
-            visitorPhone: customerPhone || undefined,
-            leadId: lead.id,
-            bookingReference: reservationReference,
-            tourTitle: tourTitle,
-            lastPagePath: `/tours/${tourSlug}`,
-          },
-          update: {
-            visitorName: customerName || undefined,
-            visitorEmail: customerEmail || undefined,
-            visitorPhone: customerPhone || undefined,
-            leadId: lead.id,
-            bookingReference: reservationReference,
-            tourTitle: tourTitle,
-            lastPagePath: `/tours/${tourSlug}`,
-            status: 'OPEN',
-            lastMessageAt: new Date(),
-          },
-          select: { id: true },
-        });
+    // Ensure 1:1 BookingConversation attached to this canonical Booking
+    let conversationId: string | null = null;
+    try {
+      const conversation = await prisma.bookingConversation.upsert({
+        where: { bookingId: booking.id },
+        create: {
+          bookingId: booking.id,
+          visitorName: booking.customerName || undefined,
+          visitorEmail: booking.customerEmail || undefined,
+          visitorPhone: booking.customerPhone || undefined,
+          tourTitle,
+          lastPagePath: `/tours/${tourSlug}`,
+        },
+        update: {
+          visitorName: booking.customerName || undefined,
+          visitorEmail: booking.customerEmail || undefined,
+          visitorPhone: booking.customerPhone || undefined,
+          tourTitle,
+          lastPagePath: `/tours/${tourSlug}`,
+          status: 'OPEN',
+          lastMessageAt: new Date(),
+        },
+        select: { id: true },
+      });
+      conversationId = conversation.id;
 
-        const existingSystemMsg = await prisma.liveChatMessage.findFirst({
-          where: {
-            conversationId: conversation.id,
-            body: { contains: reservationReference },
-          },
+      if (isNewReservation) {
+        const reservationMessage = `[${reservationReference}] New preliminary booking request: ${tourTitle}. Travel Date: ${travelDate || 'Flexible'}. Guests: ${adults} adult${adults === 1 ? '' : 's'}${children > 0 ? `, ${children} child${children === 1 ? '' : 'ren'}` : ''}.${totalEstimatedPrice ? ` Estimated value: ${totalEstimatedPrice} ${currency}.` : ''}`;
+        await prisma.bookingMessage.create({
+          data: { conversationId: conversation.id, sender: 'SYSTEM', body: reservationMessage },
         });
-        if (!existingSystemMsg) {
-          await prisma.liveChatMessage.create({
-            data: { conversationId: conversation.id, sender: 'SYSTEM', body: reservationMessage },
-          });
-        }
-      } catch (chatError) {
-        // The reservation itself must remain available even if inbox logging
-        // is temporarily unavailable.
-        console.error('[booking-interest] inbox mirror failed:', chatError);
       }
+    } catch (chatError) {
+      console.error('[booking-interest] conversation mirror failed:', chatError);
     }
 
-    // Trigger Admin Notification for the interest event
+    // Trigger Admin Notification for the interest event (points directly to canonical Booking)
     if (isNewNotificationNeeded) {
       const guestDisplay = customerName || (customerPhone ? `Guest (${customerPhone})` : customerEmail ? `Guest (${customerEmail})` : 'Anonymous Visitor');
       const contactInfo = [
@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
         customerEmail ? `✉️ ${customerEmail}` : null,
       ].filter(Boolean).join(' | ');
 
-      const alertText = `🔔 *New Pending Reservation!*\n\n` +
+      const alertText = `🔔 *New Booking Interest!*\n\n` +
         `🧾 *Reference:* ${reservationReference}\n` +
         `🏝️ *Tour:* ${tourTitle || tourSlug || tourId}\n` +
         `👤 *Guest:* ${guestDisplay}\n` +
@@ -312,24 +312,24 @@ export async function POST(request: NextRequest) {
         (totalEstimatedPrice ? `💰 *Est. Value:* $${totalEstimatedPrice} ${currency}\n` : '') +
         `📍 *Source:* ${source}`;
 
-      // 1. Log persistent in-app Admin Notification (idempotent via messageId)
-      const leadNotifId = `lead-${lead.id}`;
-      const existingLeadNotif = await prisma.notificationLog.findFirst({
-        where: { channel: 'LEAD_INTEREST_ALERT', messageId: leadNotifId },
+      const interestNotifId = `booking-${booking.id}-interest`;
+      const existingNotif = await prisma.notificationLog.findFirst({
+        where: { channel: 'LEAD_INTEREST_ALERT', messageId: interestNotifId },
         select: { id: true },
       }).catch(() => null);
 
-      if (!existingLeadNotif) {
+      if (!existingNotif) {
         await prisma.notificationLog.create({
           data: {
-            bookingId: lead.id,
+            bookingId: booking.id,
             channel: 'LEAD_INTEREST_ALERT',
             recipient: 'Admin Dashboard',
             status: 'UNREAD',
-            messageId: leadNotifId,
+            messageId: interestNotifId,
             errorMessage: JSON.stringify({
-              leadId: lead.id,
-              reference: reservationReference,
+              bookingId: booking.id,
+              bookingReference: reservationReference,
+              conversationId,
               customerName: guestDisplay,
               customerPhone: customerPhone || null,
               customerEmail: customerEmail || null,
@@ -344,7 +344,6 @@ export async function POST(request: NextRequest) {
         }).catch(() => {});
       }
 
-      // 2. Telegram Alert if configured
       const botToken = process.env.TELEGRAM_BOT_TOKEN;
       const chatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
       if (botToken && chatId) {
@@ -363,9 +362,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      leadId: lead.id,
+      bookingId: booking.id,
+      leadId: booking.id,
       reservationReference,
-      status: lead.status,
+      conversationId,
+      status: booking.status,
     }, {
       headers: existingChatToken ? undefined : {
         'Set-Cookie': `talago_live_chat=${chatToken}; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`,

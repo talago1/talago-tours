@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { BookingStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { clientKey, rateLimit, tooManyRequests } from '@/utils/rateLimit';
 import { sanitizePlain, sanitizePhone, sanitizeEmail, sanitizeText } from '@/utils/sanitize';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { generateAccessToken } from '@/utils/bookingToken';
+import { phoneMatchKey } from '@/utils/phoneMatch';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,75 +74,85 @@ export async function POST(request: NextRequest) {
     const tourTranslations = tour.translations as Record<string, { title?: string }> | null;
     const tourTitle = tourTranslations?.en?.title || tour.slug;
 
-    // Deduplication check: recent active inquiry within last 5 minutes
+    // Deduplication check: recent active inquiry within last 5 minutes on canonical Booking
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    const existingInquiry = await prisma.bookingLead.findFirst({
+    const normalizedPhone = phoneMatchKey(customerPhone);
+    const existingInquiry = await prisma.booking.findFirst({
       where: {
         createdAt: { gte: fiveMinutesAgo },
         source: 'INQUIRY',
+        status: BookingStatus.INTERESTED,
         tourId: tour.id,
         OR: [
           ...(customerEmail ? [{ customerEmail }] : []),
           ...(customerPhone ? [{ customerPhone }] : []),
-          ...(sessionId ? [{ sessionId }] : []),
+          ...(normalizedPhone ? [{ customerPhoneNormalized: normalizedPhone }] : []),
+          ...(sessionId ? [{ idempotencyKey: sessionId }] : []),
         ],
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    let lead;
+    let booking;
     let isNew = false;
     const existingChatToken = request.cookies.get('talago_live_chat')?.value;
     const chatToken = existingChatToken || crypto.randomUUID();
+    const parsedTravelDate = travelDate && !isNaN(new Date(travelDate).getTime()) ? new Date(travelDate) : new Date();
 
     if (existingInquiry) {
-      lead = await prisma.bookingLead.update({
+      const nextPhone = customerPhone || existingInquiry.customerPhone;
+      booking = await prisma.booking.update({
         where: { id: existingInquiry.id },
         data: {
           customerName: customerName || existingInquiry.customerName,
-          customerPhone: customerPhone || existingInquiry.customerPhone,
+          customerPhone: nextPhone,
+          customerPhoneNormalized: phoneMatchKey(nextPhone) || existingInquiry.customerPhoneNormalized,
           customerEmail: customerEmail || existingInquiry.customerEmail,
-          notes: `${existingInquiry.notes}\n[Follow-up question]: ${message}`,
-          travelDate: travelDate || existingInquiry.travelDate,
-          updatedAt: new Date(),
+          notes: `${existingInquiry.notes || ''}\n[Follow-up question]: ${message}`.trim(),
+          travelDate: travelDate ? parsedTravelDate : existingInquiry.travelDate,
         },
       });
     } else {
-      lead = await prisma.bookingLead.create({
+      const refSuffix = crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
+      booking = await prisma.booking.create({
         data: {
+          bookingReference: `INQ-${refSuffix}`,
+          accessToken: generateAccessToken(),
+          idempotencyKey: sessionId || null,
           tourId: tour.id,
-          tourSlug: tour.slug,
-          tourTitle,
+          tourSlugSnapshot: tour.slug,
+          tourTitleSnapshot: tourTitle,
           customerName: customerName || 'Traveler',
-          customerEmail,
-          customerPhone,
-          travelDate,
-          adults,
-          children: 0,
-          status: 'INTERESTED',
+          customerEmail: customerEmail || '',
+          customerPhone: customerPhone || '',
+          customerPhoneNormalized: normalizedPhone,
+          travelDate: parsedTravelDate,
+          adultsCount: adults,
+          childrenCount: 0,
+          infantsCount: 0,
+          guestCount: adults,
+          totalPriceUSD: 0,
+          status: BookingStatus.INTERESTED,
           source: 'INQUIRY',
-          sessionId,
           notes: message,
         },
       });
       isNew = true;
     }
 
-    const inquiryReference = `INQ-${lead.id.slice(-8).toUpperCase()}`;
+    const inquiryReference = booking.bookingReference;
 
-    // Dedicated conversation for this inquiry
+    // 1:1 BookingConversation for this inquiry
+    let conversationId: string | null = null;
     try {
-      const leadChatToken = `lead:${lead.id}`;
-      const conversation = await prisma.liveChatConversation.upsert({
-        where: { visitorToken: leadChatToken },
+      const conversation = await prisma.bookingConversation.upsert({
+        where: { bookingId: booking.id },
         create: {
-          visitorToken: leadChatToken,
+          bookingId: booking.id,
           visitorName: customerName || undefined,
           visitorEmail: customerEmail || undefined,
           visitorPhone: customerPhone || undefined,
-          leadId: lead.id,
-          bookingReference: inquiryReference,
-          tourTitle: tourTitle,
+          tourTitle,
           lastPagePath: `/tours/${tour.slug}`,
           status: 'OPEN',
           lastMessageAt: new Date(),
@@ -148,28 +161,27 @@ export async function POST(request: NextRequest) {
           visitorName: customerName || undefined,
           visitorEmail: customerEmail || undefined,
           visitorPhone: customerPhone || undefined,
-          leadId: lead.id,
-          bookingReference: inquiryReference,
-          tourTitle: tourTitle,
+          tourTitle,
           lastPagePath: `/tours/${tour.slug}`,
           status: 'OPEN',
           lastMessageAt: new Date(),
         },
         select: { id: true },
       });
+      conversationId = conversation.id;
 
-      // 1. Initial system context message
-      const systemContextMessage = `[INQUIRY SUBMITTED] Reference: #${inquiryReference} | Tour: ${tourTitle} | Guest: ${customerName || 'Traveler'}${customerPhone ? ` | Phone: ${customerPhone}` : ''}${customerEmail ? ` | Email: ${customerEmail}` : ''}${travelDate ? ` | Preferred Date: ${travelDate}` : ''} | Guests: ${adults} adults`;
-      await prisma.liveChatMessage.create({
-        data: {
-          conversationId: conversation.id,
-          sender: 'SYSTEM',
-          body: systemContextMessage,
-        },
-      });
+      if (isNew) {
+        const systemContextMessage = `[INQUIRY SUBMITTED] Reference: #${inquiryReference} | Tour: ${tourTitle} | Guest: ${customerName || 'Traveler'}${customerPhone ? ` | Phone: ${customerPhone}` : ''}${customerEmail ? ` | Email: ${customerEmail}` : ''}${travelDate ? ` | Preferred Date: ${travelDate}` : ''} | Guests: ${adults} adults`;
+        await prisma.bookingMessage.create({
+          data: {
+            conversationId: conversation.id,
+            sender: 'SYSTEM',
+            body: systemContextMessage,
+          },
+        });
+      }
 
-      // 2. Customer question as visitor message
-      await prisma.liveChatMessage.create({
+      await prisma.bookingMessage.create({
         data: {
           conversationId: conversation.id,
           sender: 'VISITOR',
@@ -177,10 +189,10 @@ export async function POST(request: NextRequest) {
         },
       });
     } catch (chatError) {
-      console.error('[tour-inquiry] Live chat mirror failed:', chatError);
+      console.error('[tour-inquiry] conversation mirror failed:', chatError);
     }
 
-    // Trigger Admin Notification
+    // Trigger Admin Notification pointing directly to canonical Booking + conversation
     if (isNew) {
       const contactInfo = [
         customerPhone ? `📞 ${customerPhone}` : null,
@@ -198,11 +210,19 @@ export async function POST(request: NextRequest) {
 
       await prisma.notificationLog.create({
         data: {
-          bookingId: lead.id,
-          channel: 'TOUR_INQUIRY_ALERT',
-          recipient: 'Admin & Supplier Dashboard',
-          status: 'LOGGED',
-          messageId: lead.id,
+          bookingId: booking.id,
+          channel: 'CUSTOMER_MESSAGE_ALERT',
+          recipient: 'Admin Dashboard',
+          status: 'UNREAD',
+          messageId: `inq-${booking.id}`,
+          errorMessage: JSON.stringify({
+            bookingId: booking.id,
+            bookingReference: inquiryReference,
+            conversationId,
+            customerName: customerName || 'Traveler',
+            tourTitle,
+            preview: message.slice(0, 140),
+          }),
         },
       }).catch(() => {});
 
@@ -225,7 +245,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       inquiryReference,
-      leadId: lead.id,
+      bookingId: booking.id,
+      leadId: booking.id,
+      conversationId,
       message: 'Your question has been received. Our team will answer you shortly.',
     }, {
       headers: existingChatToken ? undefined : {

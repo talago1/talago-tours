@@ -310,23 +310,10 @@ export async function POST(request: NextRequest) {
           await tx.review.deleteMany({
             where: { bookingId: { in: chunk } },
           });
-          // Delete leads associated with these bookings
-          await tx.bookingLead.deleteMany({
-            where: { bookingId: { in: chunk } },
-          });
-          // Delete associated chat conversations and notification logs
-          await tx.liveChatConversation.deleteMany({
-            where: {
-              OR: [
-                { bookingId: { in: chunk } },
-                { bookingReference: { in: chunkRefs } },
-              ],
-            },
-          });
           await tx.notificationLog.deleteMany({
             where: { bookingId: { in: chunk } },
           });
-          // Delete bookings
+          // Delete bookings (BookingConversation & BookingMessage cascade automatically via onDelete: Cascade)
           const res = await tx.booking.deleteMany({
             where: { id: { in: chunk } },
           });

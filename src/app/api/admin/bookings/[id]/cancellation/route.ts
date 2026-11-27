@@ -52,33 +52,23 @@ export async function POST(
         },
       });
 
-      // Post in live chat
+      // Post in BookingConversation
       try {
-        const conv = await prisma.liveChatConversation.findFirst({
-          where: {
-            OR: [
-              { bookingReference: booking.bookingReference },
-              { visitorToken: `booking:${booking.bookingReference}` },
-              { bookingId: booking.id },
-            ],
-          },
+        const conv = await prisma.bookingConversation.upsert({
+          where: { bookingId: booking.id },
+          create: { bookingId: booking.id },
+          update: { lastMessageAt: new Date() },
         });
 
-        if (conv) {
-          await prisma.liveChatMessage.create({
-            data: {
-              conversationId: conv.id,
-              sender: 'SYSTEM',
-              body: `[CANCELLATION APPROVED] The cancellation request was approved by the operations team. Booking reference ${booking.bookingReference} has been CANCELLED.${
-                notes ? `\nNote: ${notes}` : ''
-              }`,
-            },
-          });
-          await prisma.liveChatConversation.update({
-            where: { id: conv.id },
-            data: { lastMessageAt: new Date() },
-          });
-        }
+        await prisma.bookingMessage.create({
+          data: {
+            conversationId: conv.id,
+            sender: 'SYSTEM',
+            body: `[CANCELLATION APPROVED] The cancellation request was approved by the operations team. Booking reference ${booking.bookingReference} has been CANCELLED.${
+              notes ? `\nNote: ${notes}` : ''
+            }`,
+          },
+        });
       } catch (convErr) {
         console.warn('Failed to post cancellation approval to chat:', convErr);
       }
@@ -105,33 +95,23 @@ export async function POST(
         },
       });
 
-      // Post in live chat
+      // Post in BookingConversation
       try {
-        const conv = await prisma.liveChatConversation.findFirst({
-          where: {
-            OR: [
-              { bookingReference: booking.bookingReference },
-              { visitorToken: `booking:${booking.bookingReference}` },
-              { bookingId: booking.id },
-            ],
-          },
+        const conv = await prisma.bookingConversation.upsert({
+          where: { bookingId: booking.id },
+          create: { bookingId: booking.id },
+          update: { lastMessageAt: new Date() },
         });
 
-        if (conv) {
-          await prisma.liveChatMessage.create({
-            data: {
-              conversationId: conv.id,
-              sender: 'SYSTEM',
-              body: `[CANCELLATION REVIEW] The cancellation request was reviewed and could not be approved per policy.${
-                notes ? `\nDetails: ${notes}` : ''
-              }\nYour booking remains confirmed. Please reach out via WhatsApp concierge for further assistance.`,
-            },
-          });
-          await prisma.liveChatConversation.update({
-            where: { id: conv.id },
-            data: { lastMessageAt: new Date() },
-          });
-        }
+        await prisma.bookingMessage.create({
+          data: {
+            conversationId: conv.id,
+            sender: 'SYSTEM',
+            body: `[CANCELLATION REVIEW] The cancellation request was reviewed and could not be approved per policy.${
+              notes ? `\nDetails: ${notes}` : ''
+            }\nYour booking remains confirmed. Please reach out via WhatsApp concierge for further assistance.`,
+          },
+        });
       } catch (convErr) {
         console.warn('Failed to post cancellation decline to chat:', convErr);
       }

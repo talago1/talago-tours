@@ -7,7 +7,7 @@ import {
   resolveCustomerProfileForUser,
   formatUserProfile,
 } from '@/server/customerBookings';
-import { exactPhoneVariants } from '@/utils/phoneMatch';
+import { collectPhoneKeys, exactPhoneVariants } from '@/utils/phoneMatch';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,197 +108,125 @@ export async function GET(request: NextRequest) {
 
     const emails = [profile.email, session?.email].filter(Boolean) as string[];
 
-    // Single-roundtrip direct OR filter (replaces 5 pre-lookup queries)
+    // Single-roundtrip indexed OR filter on canonical Booking (includes INTERESTED, PENDING, CONFIRMED, COMPLETED, CANCELLED)
     const identityEmails = collectIdentityEmails(emails, phones);
+    const phoneKeys = collectPhoneKeys(phones);
     const phoneVariants = [...new Set(phones.flatMap((p) => exactPhoneVariants(p)))];
 
     const bookingOrConditions: any[] = [{ customerProfileId: profile.id }];
     for (const email of identityEmails) {
       bookingOrConditions.push({ customerEmail: { equals: email, mode: 'insensitive' as const } });
     }
+    if (phoneKeys.length > 0) {
+      bookingOrConditions.push({ customerPhoneNormalized: { in: phoneKeys } });
+    }
     if (phoneVariants.length > 0) {
       bookingOrConditions.push({ customerPhone: { in: phoneVariants } });
     }
 
-    const leadOrConditions: any[] = [];
-    for (const email of identityEmails) {
-      leadOrConditions.push({ customerEmail: { equals: email, mode: 'insensitive' as const } });
-    }
-    if (phoneVariants.length > 0) {
-      leadOrConditions.push({ customerPhone: { in: phoneVariants } });
-    }
-
-    const [rawBookings, reservations] = await Promise.all([
-      prisma.booking.findMany({
-        where: { OR: bookingOrConditions },
-        ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
-        take: pageSize + 1,
-        select: {
-          id: true,
-          bookingReference: true,
-          idempotencyKey: true,
-          customerName: true,
-          customerEmail: true,
-          customerPhone: true,
-          customerProfileId: true,
-          accessToken: true,
-          tourId: true,
-          status: true,
-          language: true,
-          travelDate: true,
-          guestCount: true,
-          totalPriceUSD: true,
-          currency: true,
-          paymentScheme: true,
-          amountDueOnArrival: true,
-          amountPaidOnline: true,
-          createdAt: true,
-          hotelName: true,
-          roomNumber: true,
-          pickupLocationName: true,
-          selectedPickupTime: true,
-          pickupDirectives: true,
-          adultsCount: true,
-          childrenCount: true,
-          infantsCount: true,
-          specialRequirements: true,
-          // NOTE: selectedAddons is no longer selected — the list view
-          // never renders it; fetch it on the booking detail page.
-          // bookingAnswers is read server-side ONLY to derive
-          // hasPendingCancellationRequest below and is stripped from the
-          // response; it is never sent to the client. A follow-up
-          // (dedicated cancellation-status column) can remove even
-          // this server-side read.
-          bookingAnswers: true,
-          reviews: {
-            select: { id: true, rating: true },
-            take: 1,
-          },
-          tour: {
-            select: {
-              slug: true,
-              coverImage: true,
-              thumbnailUrl: true,
-              // translations is read server-side ONLY to extract the
-              // single-language tourTitle below; the full 8-language
-              // map is never sent to the client any more.
-              translations: true,
-              durationHours: true,
-              freeCancellationHours: true,
-            },
-          },
-          transaction: {
-            select: { status: true },
+    const rawBookings = await prisma.booking.findMany({
+      where: { OR: bookingOrConditions },
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      take: pageSize + 1,
+      select: {
+        id: true,
+        bookingReference: true,
+        idempotencyKey: true,
+        customerName: true,
+        customerEmail: true,
+        customerPhone: true,
+        customerProfileId: true,
+        accessToken: true,
+        tourId: true,
+        tourTitleSnapshot: true,
+        tourSlugSnapshot: true,
+        status: true,
+        language: true,
+        travelDate: true,
+        guestCount: true,
+        totalPriceUSD: true,
+        currency: true,
+        paymentScheme: true,
+        amountDueOnArrival: true,
+        amountPaidOnline: true,
+        createdAt: true,
+        hotelName: true,
+        roomNumber: true,
+        pickupLocationName: true,
+        selectedPickupTime: true,
+        pickupDirectives: true,
+        adultsCount: true,
+        childrenCount: true,
+        infantsCount: true,
+        specialRequirements: true,
+        bookingAnswers: true,
+        reviews: {
+          select: { id: true, rating: true },
+          take: 1,
+        },
+        tour: {
+          select: {
+            slug: true,
+            coverImage: true,
+            thumbnailUrl: true,
+            translations: true,
+            durationHours: true,
+            freeCancellationHours: true,
           },
         },
-        orderBy: [{ travelDate: 'asc' }, { id: 'asc' }],
-      }).catch((err) => {
-        console.error('[my-bookings] bookings query error:', err);
-        return [];
-      }),
-
-      leadOrConditions.length === 0
-        ? Promise.resolve([])
-        : prisma.bookingLead.findMany({
-        where: {
-          bookingId: null,
-          status: { in: ['INTERESTED', 'IN_PROGRESS', 'CONTACTED'] },
-          OR: leadOrConditions,
+        transaction: {
+          select: { status: true },
         },
-        select: {
-          id: true,
-          sessionId: true,
-          tourId: true,
-          tourTitle: true,
-          tourSlug: true,
-          adults: true,
-          children: true,
-          totalEstimatedPrice: true,
-          currency: true,
-          status: true,
-          createdAt: true,
-          travelDate: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }).catch((err) => {
-        console.error('[my-bookings] leads query error:', err);
-        return [];
-      }),
-    ]);
-
-    const hasMore = rawBookings.length > pageSize;
-    const bookings = hasMore ? rawBookings.slice(0, pageSize) : rawBookings;
-
-    // Only fetch conversations for the bookings on THIS page
-    const pageBookingIds = bookings.map((b) => b.id);
-    const bookingRefs = bookings.map((b) => b.bookingReference).filter(Boolean);
-    const reservationIds = reservations.map((r) => r.id);
-
-    const conversations =
-      bookingRefs.length > 0 || pageBookingIds.length > 0 || reservationIds.length > 0
-        ? await prisma.liveChatConversation
-            .findMany({
-              where: {
-                OR: [
-                  ...(bookingRefs.length > 0 ? [{ bookingReference: { in: bookingRefs } }] : []),
-                  ...(pageBookingIds.length > 0 ? [{ bookingId: { in: pageBookingIds } }] : []),
-                  ...(reservationIds.length > 0 ? [{ leadId: { in: reservationIds } }] : []),
-                ],
-              },
+        conversation: {
+          select: {
+            id: true,
+            messages: {
+              where: { sender: 'ADMIN' },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
               select: {
                 id: true,
-                bookingReference: true,
-                bookingId: true,
-                leadId: true,
-                messages: {
-                  where: { sender: 'ADMIN' },
-                  orderBy: { createdAt: 'desc' },
-                  // Only the latest admin message is rendered, so fetch
-                  // one instead of five. hasUnreadAdminReply below now
-                  // means "the latest admin message is unread".
-                  take: 1,
-                  select: {
-                    id: true,
-                    body: true,
-                    readAt: true,
-                    createdAt: true,
-                  },
-                },
+                body: true,
+                readAt: true,
+                createdAt: true,
               },
-            })
-            .catch((err) => {
-              console.warn('[my-bookings] conversations query warning:', err);
-              return [];
-            })
-        : [];
+            },
+          },
+        },
+      },
+      orderBy: [{ travelDate: 'asc' }, { id: 'asc' }],
+    }).catch((err) => {
+      console.error('[my-bookings] bookings query error:', err);
+      return [];
+    });
 
-    const bookedAttemptIds = new Set(
-      bookings.map((b) => b.idempotencyKey).filter((k): k is string => Boolean(k))
-    );
-    const activeUnconvertedLeads = reservations.filter(
-      (r) => !r.sessionId || !bookedAttemptIds.has(r.sessionId)
-    );
+    const hasMore = rawBookings.length > pageSize;
+    const allFetched = hasMore ? rawBookings.slice(0, pageSize) : rawBookings;
 
-    const formattedReservations = activeUnconvertedLeads.map((r) => {
-      const convo = conversations.find((c) => c.leadId === r.id);
-      const unread = convo ? convo.messages.some((m) => !m.readAt) : false;
-      const lastMsg = convo?.messages[0] || null;
+    const interestedBookings = allFetched.filter((b) => b.status === 'INTERESTED');
+    const bookings = allFetched.filter((b) => b.status !== 'INTERESTED');
+
+    const formattedReservations = interestedBookings.map((r) => {
+      const lastMsg = r.conversation?.messages?.[0] || null;
+      const unread = lastMsg ? !lastMsg.readAt : false;
+      const tourTitle = r.tour
+        ? getLocalizedTourTitle(r.tour.translations, r.language || 'en')
+        : r.tourTitleSnapshot || 'Tour Experience';
       return {
         id: r.id,
         leadId: r.id,
-        attemptId: r.sessionId || null,
-        reservationReference: `RES-${r.id.slice(-8).toUpperCase()}`,
+        attemptId: r.idempotencyKey || null,
+        reservationReference: r.bookingReference,
         tourId: r.tourId,
-        tourTitle: r.tourTitle,
-        tourSlug: r.tourSlug,
-        adults: r.adults,
-        children: r.children,
-        totalEstimatedPrice: r.totalEstimatedPrice,
+        tourTitle,
+        tourSlug: r.tour?.slug || r.tourSlugSnapshot || null,
+        adults: r.adultsCount || 1,
+        children: r.childrenCount || 0,
+        totalEstimatedPrice: r.totalPriceUSD,
         currency: r.currency,
         status: r.status,
         createdAt: r.createdAt.toISOString(),
-        travelDate: r.travelDate || null,
+        travelDate: r.travelDate ? r.travelDate.toISOString().split('T')[0] : null,
         lastAdminMessage: lastMsg?.body || null,
         lastAdminMessageAt: lastMsg?.createdAt?.toISOString() || null,
         hasUnreadAdminReply: unread,
@@ -306,20 +234,12 @@ export async function GET(request: NextRequest) {
     });
 
     const formattedBookings = bookings.map((b) => {
-      const convo = conversations.find(
-        (c) =>
-          (b.bookingReference && c.bookingReference === b.bookingReference) ||
-          (b.id && c.bookingId === b.id)
-      );
-      const unread = convo ? convo.messages.some((m) => !m.readAt) : false;
-      const lastMsg = convo?.messages[0] || null;
-      // Strip the heavy JSON columns before responding: bookingAnswers
-      // and tour.translations were only needed to derive the two fields
-      // below. The client renders tourTitle + the cancellation flag and
-      // fetches full details (addons, answers) on the detail page.
-      const { bookingAnswers, tour, ...bookingFields } = b as typeof b & {
+      const lastMsg = b.conversation?.messages?.[0] || null;
+      const unread = lastMsg ? !lastMsg.readAt : false;
+      const { bookingAnswers, tour, conversation, ...bookingFields } = b as typeof b & {
         bookingAnswers?: { _cancellationRequest?: { status?: string } } | null;
         tour?: { translations?: unknown } | null;
+        conversation?: unknown;
       };
       const pendingCancellation =
         (bookingAnswers as { _cancellationRequest?: { status?: string } } | null)
