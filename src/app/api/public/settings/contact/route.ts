@@ -1,15 +1,20 @@
 import { NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { getAuthoritativeContactSettings } from '@/lib/contactSettings';
 
-export const dynamic = 'force-dynamic';
+const getCachedContactSettings = unstable_cache(
+  async () => getAuthoritativeContactSettings(),
+  ['public-contact-settings-v1'],
+  { revalidate: 300, tags: ['settings'] }
+);
 
 export async function GET() {
   try {
-    const contact = await getAuthoritativeContactSettings();
+    const contact = await getCachedContactSettings();
 
     return NextResponse.json(contact, {
       headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
       },
     });
   } catch (err) {

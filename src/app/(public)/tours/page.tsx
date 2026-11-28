@@ -7,18 +7,19 @@ import { prisma } from '@/lib/prisma';
 
 const getCachedCatalogMeta = unstable_cache(
   async () => {
-    const [totalCount, destinations] = await Promise.all([
+    const [totalCount, destinations, bannerSetting] = await Promise.all([
       prisma.tour.count({ where: { status: 'ACTIVE' } }),
       prisma.destination.findMany({
         where: { isVisible: true, tours: { some: { status: 'ACTIVE' } } },
         orderBy: { name: 'asc' },
         select: { name: true, slug: true },
       }),
+      prisma.systemSetting.findUnique({ where: { key: 'banners' } }),
     ]);
-    return { totalCount, destinations };
+    return { totalCount, destinations, bannerSetting };
   },
-  ['tours-catalog-meta-v1'],
-  { revalidate: 120, tags: ['tours', 'destinations'] }
+  ['tours-catalog-meta-v2'],
+  { revalidate: 120, tags: ['tours', 'destinations', 'settings'] }
 );
 import { parseSettingValue } from '@/lib/systemSettings';
 import { SystemSettings, DEFAULT_SYSTEM_SETTINGS } from '@/types/settings';
@@ -191,10 +192,7 @@ async function CatalogContent({ searchParams: filters }: { searchParams: Catalog
 }
 
 export default async function ToursPage({ searchParams }: CatalogPageProps) {
-  const [totalCount, bannerSetting] = await Promise.all([
-    prisma.tour.count({ where: { status: 'ACTIVE' } }),
-    prisma.systemSetting.findUnique({ where: { key: 'banners' } }),
-  ]);
+  const { totalCount, bannerSetting } = await getCachedCatalogMeta();
 
   const bannerData = bannerSetting
     ? parseSettingValue<SystemSettings['banners']>(bannerSetting.value, DEFAULT_SYSTEM_SETTINGS.banners)
