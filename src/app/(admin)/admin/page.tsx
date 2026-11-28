@@ -139,18 +139,11 @@ export default async function AdminControlDeskPage() {
       },
     }),
 
-    // Revenue by destination
-    prisma.booking.findMany({
+    // Revenue by destination (SQL GROUP BY instead of full-table scan)
+    prisma.booking.groupBy({
+      by: ['destinationNameSnapshot'],
       where: { status: { in: ['CONFIRMED', 'COMPLETED'] } },
-      select: {
-        totalPriceUSD: true,
-        destinationNameSnapshot: true,
-        tour: {
-          select: {
-            destination: { select: { name: true } },
-          },
-        },
-      },
+      _sum: { totalPriceUSD: true },
     }),
 
     // Today confirmed count
@@ -172,9 +165,9 @@ export default async function AdminControlDeskPage() {
 
   // Destination revenue breakdown
   const destRevenueMap = new Map<string, number>();
-  for (const b of destinationRevenue) {
-    const destName = b.tour?.destination?.name ?? b.destinationNameSnapshot ?? 'Uncategorized';
-    destRevenueMap.set(destName, (destRevenueMap.get(destName) ?? 0) + b.totalPriceUSD);
+  for (const row of destinationRevenue) {
+    const destName = row.destinationNameSnapshot || 'Uncategorized';
+    destRevenueMap.set(destName, (destRevenueMap.get(destName) ?? 0) + (row._sum.totalPriceUSD ?? 0));
   }
   const destRevenueEntries = Array.from(destRevenueMap.entries())
     .sort((a, b) => b[1] - a[1])

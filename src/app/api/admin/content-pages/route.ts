@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { DEFAULT_CONTENT_PAGES, getManagedContentPages, saveManagedContentPages, type ManagedContentPage, type ContentBlock } from '@/lib/contentPages';
 import { sanitizePlain, sanitizeText } from '@/utils/sanitize';
 import { LANGUAGES, type LanguageCode } from '@/lib/i18n';
@@ -107,6 +108,7 @@ export async function PUT(request: NextRequest) {
     const { pages } = await request.json();
     const clean = cleanPages(pages);
     await saveManagedContentPages(clean);
+    revalidateTag('content-pages');
     return NextResponse.json({ success: true, pages: clean });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to save content' }, { status: 400 });

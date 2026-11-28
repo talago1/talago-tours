@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { parseSettingValue, serializeSettingValue } from '@/lib/systemSettings';
 import { LANGUAGES, type LanguageCode } from '@/lib/i18n';
@@ -456,9 +457,17 @@ function normalise(pages: unknown): ManagedContentPage[] {
   return Array.from(mapBySlug.values());
 }
 
+const getCachedManagedContentPages = unstable_cache(
+  async (): Promise<ManagedContentPage[]> => {
+    const record = await prisma.systemSetting.findUnique({ where: { key: 'content_pages' } });
+    return record ? normalise(parseSettingValue(record.value, DEFAULT_CONTENT_PAGES)) : DEFAULT_CONTENT_PAGES;
+  },
+  ['managed-content-pages'],
+  { revalidate: 300, tags: ['content-pages'] }
+);
+
 export async function getManagedContentPages(): Promise<ManagedContentPage[]> {
-  const record = await prisma.systemSetting.findUnique({ where: { key: 'content_pages' } });
-  return record ? normalise(parseSettingValue(record.value, DEFAULT_CONTENT_PAGES)) : DEFAULT_CONTENT_PAGES;
+  return getCachedManagedContentPages();
 }
 
 export async function getManagedContentPage(
