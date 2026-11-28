@@ -105,19 +105,21 @@ async function runReviewInvitations(): Promise<{ processed: number; sent: number
 }
 
 // ---------------------------------------------------------------------------
-// Pre-trip reminders (24h and 2h before travelDate)
+// Pre-trip reminders (daily window: next 2h–30h before travelDate)
 // ---------------------------------------------------------------------------
 
 async function runPreTripReminders(): Promise<{ processed: number; sent: number; failed: number }> {
   const now = new Date();
 
-  // 24-hour window: departures between 23h and 25h from now
-  const h24Start = new Date(now.getTime() + 23 * 60 * 60 * 1000);
-  const h24End   = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+  // On a daily Hobby cron (06:00 UTC = 08:00 Cairo), cover:
+  // - 2h window: tours departing in the next 1h–4h (morning departures)
+  // - 24h window: tours departing in 12h–36h (tonight & tomorrow's departures)
+  // NotificationLog dedup prevents any booking from being reminded twice per window.
+  const h2Start = new Date(now.getTime() + 1 * 60 * 60 * 1000);
+  const h2End   = new Date(now.getTime() + 4 * 60 * 60 * 1000);
 
-  // 2-hour window: departures between 1h45m and 2h15m from now
-  const h2Start  = new Date(now.getTime() + 1 * 60 * 60 * 1000 + 45 * 60 * 1000);
-  const h2End    = new Date(now.getTime() + 2 * 60 * 60 * 1000 + 15 * 60 * 1000);
+  const h24Start = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+  const h24End   = new Date(now.getTime() + 36 * 60 * 60 * 1000);
 
   const [upcoming24, upcoming2] = await Promise.all([
     prisma.booking.findMany({
