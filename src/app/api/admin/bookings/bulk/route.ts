@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
@@ -256,6 +257,9 @@ export async function POST(request: NextRequest) {
         archivedCount += res.count;
       }
 
+      revalidateTag('analytics');
+      revalidateTag('bookings');
+
       return NextResponse.json({
         success: true,
         action: 'ARCHIVE_STATUS',
@@ -320,6 +324,9 @@ export async function POST(request: NextRequest) {
           deletedCount += res.count;
         }, { timeout: 30000, maxWait: 15000 });
       }
+
+      revalidateTag('analytics');
+      revalidateTag('bookings');
 
       return NextResponse.json({
         success: true,

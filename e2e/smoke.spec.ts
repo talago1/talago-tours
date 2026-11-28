@@ -93,4 +93,29 @@ test.describe('Public Experience Marketplace Smoke Tests', () => {
       await expect(page.locator('text=Internal Server Error')).not.toBeVisible();
     }
   });
+
+  test('Checkout page renders form and mobile sticky CTA bar on mobile viewports', async ({ page }) => {
+    await page.goto('/tours');
+    const firstTourLink = page.locator('a[href^="/tours/"]').locator('visible=true').first();
+    await expect(firstTourLink).toBeVisible({ timeout: 10000 });
+    const href = await firstTourLink.getAttribute('href');
+    await page.goto(href!);
+
+    const bookLink = page.locator('a[href^="/checkout/"]').locator('visible=true').first();
+    if (await bookLink.isVisible()) {
+      await bookLink.click();
+      await page.waitForURL(/\/checkout\//, { timeout: 10000 });
+      await expect(page.locator('input#leadName')).toBeVisible({ timeout: 10000 });
+
+      if (page.viewportSize() && page.viewportSize()!.width < 1024) {
+        await expect(page.locator('div.lg\\:hidden.fixed.bottom-0')).toBeVisible();
+      }
+    }
+  });
+
+  test('Operations QR scanner route responds cleanly without server error', async ({ page }) => {
+    const res = await page.goto('/admin/operations/scan');
+    expect(res?.status()).toBeLessThan(500);
+    await expect(page.locator('text=Internal Server Error')).not.toBeVisible();
+  });
 });

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { dispatchStatusChangeNotifications } from '@/utils/notificationDispatcher';
 
@@ -78,6 +79,9 @@ export async function POST(
         console.error('Status change notification failed:', err);
       });
 
+      revalidateTag('analytics');
+      revalidateTag('bookings');
+
       return NextResponse.json({ success: true, booking: updated });
     } else {
       // DECLINE
@@ -115,6 +119,9 @@ export async function POST(
       } catch (convErr) {
         console.warn('Failed to post cancellation decline to chat:', convErr);
       }
+
+      revalidateTag('analytics');
+      revalidateTag('bookings');
 
       return NextResponse.json({ success: true, booking: updated });
     }
