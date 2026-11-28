@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { BOOKING_STATUS_VALUES } from '@/types/booking';
 import { dispatchStatusChangeNotifications } from '@/utils/notificationDispatcher';
@@ -77,6 +78,9 @@ export async function PATCH(
         console.error('Status change notification failed:', err);
       });
     }
+
+    revalidateTag('analytics');
+    revalidateTag('bookings');
 
     return NextResponse.json({ booking: updated });
   } catch (error) {

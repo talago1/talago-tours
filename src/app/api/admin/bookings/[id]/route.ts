@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { BOOKING_STATUS_VALUES } from '@/types/booking';
 
@@ -118,6 +119,9 @@ export async function PATCH(
       },
     });
 
+    revalidateTag('analytics');
+    revalidateTag('bookings');
+
     return NextResponse.json({ success: true, booking: updated });
   } catch (error) {
     console.error('PATCH /api/admin/bookings/[id] error:', error);
@@ -160,6 +164,9 @@ export async function DELETE(
         where: { id: params.id },
       });
     });
+
+    revalidateTag('analytics');
+    revalidateTag('bookings');
 
     return NextResponse.json({ success: true, message: 'Booking deleted successfully' });
   } catch (error) {

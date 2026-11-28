@@ -693,6 +693,7 @@ export default function BookingQueue({
   const [selectedMonth, setSelectedMonth] = useState('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [dateBasis, setDateBasis] = useState<'travelDate' | 'createdAt'>('travelDate');
   const searchParams = useSearchParams();
   const [filterCancellationsOnly, setFilterCancellationsOnly] = useState(false);
   const [filterUnreadOnly, setFilterUnreadOnly] = useState(false);
@@ -741,6 +742,7 @@ export default function BookingQueue({
         if (selectedTourId !== 'ALL') params.set('tourId', selectedTourId);
         if (startDate) params.set('dateFrom', startDate);
         if (endDate) params.set('dateTo', endDate);
+        if (startDate || endDate) params.set('dateBasis', dateBasis);
         if (filterUnreadOnly) params.set('unreadOnly', 'true');
 
         const res = await fetch(`/api/admin/bookings?${params.toString()}`, { cache: 'no-store' });
@@ -758,7 +760,7 @@ export default function BookingQueue({
         setLoadingPage(false);
       }
     },
-    [pagination.pageSize, searchQuery, selectedStatus, selectedTourId, startDate, endDate, filterUnreadOnly]
+    [pagination.pageSize, searchQuery, selectedStatus, selectedTourId, startDate, endDate, dateBasis, filterUnreadOnly]
   );
 
   useEffect(() => {
@@ -813,8 +815,7 @@ export default function BookingQueue({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Date Basis & Bulk Management State
-  const [dateBasis, setDateBasis] = useState<'travelDate' | 'createdAt'>('travelDate');
+  // Bulk Management State
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
   // Invoice Modal State
@@ -1142,58 +1143,132 @@ export default function BookingQueue({
     <div className="space-y-6">
 
       {/* Action Queue Focus Pills */}
-      <div className="flex flex-wrap items-center gap-2.5">
-        <button
-          type="button"
-          onClick={() => { setFilterUnreadOnly(false); setFilterCancellationsOnly(false); }}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-            !filterUnreadOnly && !filterCancellationsOnly
-              ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20'
-              : 'border border-white/10 bg-[#0B1528] text-slate-400 hover:text-white'
-          }`}
-        >
-          <span>All Bookings</span>
-          <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-[10px]">{bookings.length}</span>
-        </button>
+      {(() => {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const tomorrowDate = new Date(now);
+        tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1);
+        const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
 
-        <button
-          type="button"
-          onClick={() => { setFilterUnreadOnly((prev) => !prev); setFilterCancellationsOnly(false); }}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-            filterUnreadOnly
-              ? 'bg-emerald-500 text-[#070F1E] shadow-md shadow-emerald-500/20'
-              : 'border border-white/10 bg-[#0B1528] text-slate-300 hover:border-emerald-500/40 hover:text-emerald-400'
-          }`}
-        >
-          <MessageSquare className="h-3.5 w-3.5" />
-          <span>Unread Messages</span>
-          {activeUnreadTotal > 0 ? (
-            <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-[#070F1E] text-[10px] font-black animate-pulse">
-              {activeUnreadTotal}
-            </span>
-          ) : (
-            <span className="px-1.5 py-0.2 rounded-full bg-white/10 text-[10px]">0</span>
-          )}
-        </button>
+        const isTodayActive = dateBasis === 'travelDate' && startDate === todayStr && endDate === todayStr;
+        const isTomorrowActive = dateBasis === 'travelDate' && startDate === tomorrowStr && endDate === tomorrowStr;
+        const isPendingActive = selectedStatus === 'PENDING';
+        const isAllActive = !filterUnreadOnly && !filterCancellationsOnly && !isTodayActive && !isTomorrowActive && !isPendingActive;
 
-        {pendingCancellationCount > 0 && (
-          <button
-            type="button"
-            onClick={() => { setFilterCancellationsOnly((prev) => !prev); setFilterUnreadOnly(false); }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-              filterCancellationsOnly
-                ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
-                : 'border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
-            }`}
-          >
-            <AlertCircle className="h-3.5 w-3.5" />
-            <span>Cancellation Requests</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-black">
-              {pendingCancellationCount}
-            </span>
-          </button>
-        )}
-      </div>
+        return (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                isAllActive
+                  ? 'bg-[#00E5FF] text-[#070F1E] shadow-md shadow-[#00E5FF]/20'
+                  : 'border border-white/10 bg-[#0B1528] text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>All Bookings</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-[10px]">{bookings.length}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (isTodayActive) {
+                  setStartDate('');
+                  setEndDate('');
+                } else {
+                  setDateBasis('travelDate');
+                  setSelectedMonth('ALL');
+                  setStartDate(todayStr);
+                  setEndDate(todayStr);
+                }
+              }}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                isTodayActive
+                  ? 'bg-cyan-400 text-[#070F1E] shadow-md shadow-cyan-400/20'
+                  : 'border border-white/10 bg-[#0B1528] text-slate-300 hover:border-cyan-400/40 hover:text-cyan-300'
+              }`}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Departing Today</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (isTomorrowActive) {
+                  setStartDate('');
+                  setEndDate('');
+                } else {
+                  setDateBasis('travelDate');
+                  setSelectedMonth('ALL');
+                  setStartDate(tomorrowStr);
+                  setEndDate(tomorrowStr);
+                }
+              }}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                isTomorrowActive
+                  ? 'bg-indigo-400 text-[#070F1E] shadow-md shadow-indigo-400/20'
+                  : 'border border-white/10 bg-[#0B1528] text-slate-300 hover:border-indigo-400/40 hover:text-indigo-300'
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              <span>Departing Tomorrow</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedStatus((prev) => (prev === 'PENDING' ? 'ALL' : 'PENDING'))}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                isPendingActive
+                  ? 'bg-amber-400 text-[#070F1E] shadow-md shadow-amber-400/20'
+                  : 'border border-white/10 bg-[#0B1528] text-slate-300 hover:border-amber-400/40 hover:text-amber-300'
+              }`}
+            >
+              <AlertCircle className="h-3.5 w-3.5" />
+              <span>Pending Confirmation</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setFilterUnreadOnly((prev) => !prev); setFilterCancellationsOnly(false); }}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                filterUnreadOnly
+                  ? 'bg-emerald-500 text-[#070F1E] shadow-md shadow-emerald-500/20'
+                  : 'border border-white/10 bg-[#0B1528] text-slate-300 hover:border-emerald-500/40 hover:text-emerald-400'
+              }`}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span>Unread Messages</span>
+              {activeUnreadTotal > 0 ? (
+                <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-[#070F1E] text-[10px] font-black animate-pulse">
+                  {activeUnreadTotal}
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.2 rounded-full bg-white/10 text-[10px]">0</span>
+              )}
+            </button>
+
+            {pendingCancellationCount > 0 && (
+              <button
+                type="button"
+                onClick={() => { setFilterCancellationsOnly((prev) => !prev); setFilterUnreadOnly(false); }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                  filterCancellationsOnly
+                    ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
+                    : 'border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
+                }`}
+              >
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>Cancellation Requests</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-black">
+                  {pendingCancellationCount}
+                </span>
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Pending Cancellations Banner */}
       {pendingCancellationCount > 0 && (

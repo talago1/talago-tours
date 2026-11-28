@@ -30,6 +30,7 @@ import Button from '@/components/ui/Button';
 import CountryCodeSelector from '@/components/checkout/CountryCodeSelector';
 import BookingCalendar from '@/components/tours/BookingCalendar';
 import { PaymentScheme, type CheckoutFormData, type InitializeResponse, type SelectedAddonPayload } from '@/types/checkout';
+import { computePriceBreakdown } from '@/utils/priceCalculator';
 import type { BookingQuestion } from '@/types/tourEditor';
 import type { PromoDiscount } from '@/utils/promo';
 import { useLanguage } from '@/context/LanguageContext';
@@ -926,7 +927,7 @@ export default function CheckoutPage() {
         )}
 
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-8 pb-24 lg:pb-0">
             {/* Travel Details */}
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 lg:p-8">
               <h2 className="mb-6 flex items-center gap-3 text-lg font-black text-white">
@@ -1798,6 +1799,73 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Sticky Checkout CTA Bar */}
+      {(pageState === 'form' || pageState === 'submitting') && tour && (() => {
+        const mobilePricing = computePriceBreakdown({
+          adultsCount,
+          childrenCount,
+          infantsCount,
+          adultPrice: tour.adultPrice,
+          childPrice: tour.childPrice ?? tour.adultPrice,
+          infantPrice: tour.infantPrice ?? 0,
+          zoneTransferFee: effectiveZoneFee,
+          addonsTotal,
+          depositPercentage: tour.depositPercentage,
+          scheme,
+          promo: promoDiscount
+            ? { type: promoDiscount.type, value: promoDiscount.value, minBookingValue: promoDiscount.minBookingValue }
+            : null,
+        });
+        const totalGuests = adultsCount + childrenCount + infantsCount;
+        const schemeBadge =
+          scheme === PaymentScheme.FULL_ONLINE
+            ? { label: dict.checkout.payOnline, cls: 'bg-[#06B6D4]/15 text-[#06B6D4] border-[#06B6D4]/30' }
+            : scheme === PaymentScheme.DEPOSIT_ONLINE
+            ? { label: `${tour.depositPercentage}% Deposit`, cls: 'bg-[#EAB308]/15 text-[#EAB308] border-[#EAB308]/30' }
+            : { label: dict.checkout.payArrival, cls: 'bg-white/10 text-slate-300 border-white/15' };
+
+        return (
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#070F1E]/95 backdrop-blur-md px-4 py-3 shadow-[0_-8px_30px_rgba(0,0,0,0.55)]">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-black text-white leading-none">
+                    {formatPrice(mobilePricing.grandTotal)}
+                  </span>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold truncate ${schemeBadge.cls}`}>
+                    {schemeBadge.label}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-slate-400 truncate">
+                  {totalGuests} {totalGuests === 1 ? 'Guest' : 'Guests'}
+                  {mobilePricing.amountDueOnArrival > 0 && scheme !== PaymentScheme.PAY_ON_ARRIVAL
+                    ? ` · ${formatPrice(mobilePricing.amountPaidOnline)} now`
+                    : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={pageState === 'submitting'}
+                className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#FF5B00] to-[#FF7A00] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#FF5B00]/25 transition active:scale-[0.98] disabled:opacity-60"
+              >
+                {pageState === 'submitting' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>{dict.checkout.processingButton}</span>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-4 w-4" />
+                    <span>{dict.checkout.confirmButton}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
