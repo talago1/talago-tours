@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
@@ -78,6 +79,8 @@ export async function POST(request: NextRequest) {
         translations: translations || {},
       },
     });
+
+    revalidateTag('blog');
 
     return NextResponse.json({ post }, { status: 201 });
   } catch (error: any) {

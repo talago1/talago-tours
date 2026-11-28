@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema, TourAddonSchema, isValidCoverImage } from '@/utils/tourJsonSchemas';
@@ -495,9 +495,12 @@ export async function POST(request: NextRequest) {
     if (tour.slug) {
       try {
         revalidatePath(`/tours/${tour.slug}`);
+        revalidateTag(`tour-${tour.slug}`);
       } catch (e) {}
     }
     try {
+      revalidateTag('tours');
+      revalidateTag('homepage');
       revalidatePath('/tours');
       revalidatePath('/');
     } catch (e) {}

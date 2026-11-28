@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(
@@ -79,6 +80,9 @@ export async function PUT(
       },
     });
 
+    revalidateTag('blog');
+    revalidateTag(`blog-${updated.slug}`);
+
     return NextResponse.json({ post: updated });
   } catch (error: any) {
     console.error('Error updating blog post:', error);
@@ -94,6 +98,8 @@ export async function DELETE(
     await prisma.blogPost.delete({
       where: { id: params.id },
     });
+
+    revalidateTag('blog');
 
     return NextResponse.json({ success: true, message: 'Blog post deleted' });
   } catch (error) {

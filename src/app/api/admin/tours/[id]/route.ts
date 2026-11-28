@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { TourTranslationsRecordSchema, ItineraryStepSchema, SeededReviewSchema, TourAddonSchema, isValidCoverImage } from '@/utils/tourJsonSchemas';
@@ -458,11 +458,14 @@ export async function PUT(
     if (tour.slug) {
       try {
         revalidatePath(`/tours/${tour.slug}`);
+        revalidateTag(`tour-${tour.slug}`);
       } catch (e) {
         console.warn('[revalidate] Failed for tour slug:', e);
       }
     }
     try {
+      revalidateTag('tours');
+      revalidateTag('homepage');
       revalidatePath('/tours');
       revalidatePath('/');
     } catch (e) {
@@ -539,11 +542,14 @@ export async function PATCH(
     if (tour.slug) {
       try {
         revalidatePath(`/tours/${tour.slug}`);
+        revalidateTag(`tour-${tour.slug}`);
       } catch (e) {
         console.warn('[revalidate] Failed for tour slug:', e);
       }
     }
     try {
+      revalidateTag('tours');
+      revalidateTag('homepage');
       revalidatePath('/tours');
       revalidatePath('/');
     } catch (e) {
@@ -641,9 +647,12 @@ export async function DELETE(
     if (existing?.slug) {
       try {
         revalidatePath(`/tours/${existing.slug}`);
+        revalidateTag(`tour-${existing.slug}`);
       } catch (e) {}
     }
     try {
+      revalidateTag('tours');
+      revalidateTag('homepage');
       revalidatePath('/tours');
       revalidatePath('/');
     } catch (e) {}

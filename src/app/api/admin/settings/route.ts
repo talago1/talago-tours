@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import {
   DEFAULT_SETTINGS,
@@ -61,6 +62,9 @@ export async function PUT(request: NextRequest) {
       update: { value: serializeSettingValue(value) },
     });
 
+    revalidateTag('settings');
+    revalidateTag('homepage');
+
     return NextResponse.json({
       ...setting,
       value: parseSettingValue(setting.value, setting.value),
@@ -85,6 +89,9 @@ export async function POST(request: NextRequest) {
         update: { value: serializeSettingValue(value) },
       });
     }
+
+    revalidateTag('settings');
+    revalidateTag('homepage');
 
     const settings = await prisma.systemSetting.findMany();
     const settingsMap: Record<string, unknown> = {};

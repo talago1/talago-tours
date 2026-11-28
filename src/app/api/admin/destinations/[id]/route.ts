@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 
 export async function PUT(
@@ -36,6 +37,9 @@ export async function PUT(
       },
     });
 
+    revalidateTag('destinations');
+    revalidateTag('homepage');
+
     return NextResponse.json(destination);
   } catch {
     return NextResponse.json({ error: 'Failed to update destination' }, { status: 500 });
@@ -55,6 +59,8 @@ export async function DELETE(
     }
 
     await prisma.destination.delete({ where: { id } });
+    revalidateTag('destinations');
+    revalidateTag('homepage');
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: 'Failed to delete destination' }, { status: 500 });
