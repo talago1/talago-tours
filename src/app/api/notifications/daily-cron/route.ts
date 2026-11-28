@@ -105,6 +105,51 @@ async function runReviewInvitations(): Promise<{ processed: number; sent: number
 }
 
 // ---------------------------------------------------------------------------
+// Pre-trip reminders (24h and 2h before travelDate)
+// ---------------------------------------------------------------------------
+
+async function runPreTripReminders(): Promise<{ processed: number; sent: number; failed: number }> {
+  const now = new Date();
+
+  // 24-hour window: departures between 23h and 25h from now
+  const h24Start = new Date(now.getTime() + 23 * 60 * 60 * 1000);
+  const h24End   = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+
+  // 2-hour window: departures between 1h45m and 2h15m from now
+  const h2Start  = new Date(now.getTime() + 1 * 60 * 60 * 1000 + 45 * 60 * 1000);
+  const h2End    = new Date(now.getTime() + 2 * 60 * 60 * 1000 + 15 * 60 * 1000);
+
+  const [upcoming24, upcoming2] = await Promise.all([
+    prisma.booking.findMany({
+      where: { status: 'CONFIRMED', travelDate: { gte: h24Start, lte: h24End } },
+      select: { id: true },
+      take: 100,
+    }),
+    prisma.booking.findMany({
+      where: { status: 'CONFIRMED', travelDate: { gte: h2Start, lte: h2End } },
+      select: { id: true },
+      take: 100,
+    }),
+  ]);
+
+  const { dispatchPreTripReminder } = await import('@/utils/notificationDispatcher');
+
+  const all = [
+    ...upcoming24.map((b) => dispatchPreTripReminder(b.id, '24h')),
+    ...upcoming2.map((b)  => dispatchPreTripReminder(b.id, '2h')),
+  ];
+
+  if (all.length === 0) return { processed: 0, sent: 0, failed: 0 };
+
+  const results = await Promise.allSettled(all);
+  const sent = results.filter((r) => r.status === 'fulfilled' && (r.value as { success: boolean }).success).length;
+  const failed = results.length - sent;
+  const processed = upcoming24.length + upcoming2.length;
+  console.log(`[daily-cron:pre-trip] processed=${processed} sent=${sent} failed=${failed}`);
+  return { processed, sent, failed };
+}
+
+// ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 
@@ -114,15 +159,17 @@ async function handleDailyCron(request: NextRequest) {
   }
 
   try {
-    const [abandoned, reviews] = await Promise.allSettled([
+    const [abandoned, reviews, preTrip] = await Promise.allSettled([
       runAbandonedRecovery(),
       runReviewInvitations(),
+      runPreTripReminders(),
     ]);
 
     return NextResponse.json({
       ok: true,
       abandonedRecovery: abandoned.status === 'fulfilled' ? abandoned.value : { error: String(abandoned.reason) },
       reviewInvitations: reviews.status === 'fulfilled' ? reviews.value : { error: String(reviews.reason) },
+      preTripReminders: preTrip.status === 'fulfilled' ? preTrip.value : { error: String(preTrip.reason) },
     });
   } catch (err) {
     console.error('[daily-cron] Fatal error:', err);

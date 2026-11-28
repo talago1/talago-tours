@@ -34,7 +34,7 @@ export async function POST(
 
     const payload = verifyToken(token);
     if (payload) {
-      bookingIdToVerify = bookingIdToVerify;
+      bookingIdToVerify = payload.bookingId;
     } else {
       // Allow fallback lookup by uppercase booking reference
       const cleanRef = token.trim().toUpperCase();

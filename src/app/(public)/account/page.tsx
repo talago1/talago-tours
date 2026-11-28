@@ -1271,6 +1271,18 @@ export default function AccountPage() {
                             <span>{dict.account.bookings.viewBoardingPass}</span>
                           </a>
 
+                          {/* Self-service hotel/pickup edit — only for confirmed upcoming bookings */}
+                          {!isPast && booking.status === 'CONFIRMED' && (
+                            <a
+                              href={`/booking/${booking.accessToken}#edit-hotel`}
+                              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3.5 py-2.5 text-xs font-bold text-slate-300 hover:text-[#00E5FF] hover:border-[#00E5FF]/30 transition"
+                              title="Update your hotel and room number"
+                            >
+                              <MapPin className="h-3.5 w-3.5" />
+                              <span>Edit Hotel</span>
+                            </a>
+                          )}
+
                           {isPast && (
                             <button
                               type="button"

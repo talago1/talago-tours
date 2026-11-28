@@ -742,3 +742,160 @@ Thank you for choosing Talago Tours! 🐬
     return { success: false, error: errorMsg };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Pre-Trip Reminder (24h and 2h before travelDate)
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends a WhatsApp reminder to the customer before their tour departs.
+ * Uses NotificationLog dedup so the same window never fires twice.
+ *
+ * @param bookingId  The booking to remind
+ * @param window     '24h' or '2h' — stored in the channel name for dedup
+ */
+export async function dispatchPreTripReminder(
+  bookingId: string,
+  window: '24h' | '2h',
+): Promise<{ success: boolean; error?: string }> {
+  const channel = `PRE_TRIP_REMINDER_${window.toUpperCase()}` as const;
+
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { tour: { select: { translations: true, slug: true } } },
+    });
+
+    if (!booking || !booking.tour) {
+      return { success: false, error: 'Booking not found' };
+    }
+
+    // Only remind CONFIRMED bookings with a future travel date
+    if (booking.status !== 'CONFIRMED') {
+      return { success: false, error: 'Booking not confirmed' };
+    }
+
+    // Dedup: skip if already sent for this window
+    const existing = await prisma.notificationLog.findFirst({
+      where: { bookingId, channel, status: { in: ['SENT', 'DELIVERED'] } },
+    });
+    if (existing) return { success: true };
+
+    if (!booking.customerPhone) {
+      await prisma.notificationLog.create({
+        data: { bookingId, channel, recipient: 'unknown', status: 'SKIPPED', errorMessage: 'No phone' },
+      });
+      return { success: false, error: 'No customer phone' };
+    }
+
+    const translations = booking.tour.translations as Record<string, { title?: string }> | null;
+    const tourTitle =
+      booking.tourTitleSnapshot ??
+      translations?.[booking.language]?.title ??
+      translations?.en?.title ??
+      'your tour';
+
+    const baseUrl = getBaseUrl();
+    const bookingUrl = `${baseUrl}/booking/${booking.accessToken}`;
+
+    const dateFormatted = booking.travelDate.toLocaleDateString('en-US', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    });
+
+    const pickupLine = booking.selectedPickupTime
+      ? `🕒 *Pickup time:* ${booking.selectedPickupTime}`
+      : '';
+    const hotelLine = booking.hotelName
+      ? `🏨 *Your hotel:* ${booking.hotelName}${booking.roomNumber ? ` (Room ${booking.roomNumber})` : ''}`
+      : '';
+    const cashLine =
+      booking.amountDueOnArrival && booking.amountDueOnArrival > 0
+        ? `💵 *Cash due on arrival:* $${booking.amountDueOnArrival}`
+        : '';
+
+    const prefix = window === '24h'
+      ? `⏰ *Your tour is tomorrow!*`
+      : `🚀 *Your tour departs in ~2 hours!*`;
+
+    const message = [
+      `Hello ${booking.customerName}! 🌊`,
+      '',
+      `${prefix}`,
+      '',
+      `📍 *Tour:* ${tourTitle}`,
+      `📅 *Date:* ${dateFormatted}`,
+      pickupLine,
+      hotelLine,
+      cashLine,
+      '',
+      `View your boarding pass and trip details here:`,
+      bookingUrl,
+      '',
+      `Need help? Just reply here or call us. See you soon! 🐬`,
+      '',
+      `_(Reply STOP to opt out)_`,
+    ]
+      .filter((l) => l !== undefined)
+      .join('\n');
+
+    // WhatsApp via Green-API
+    const instanceId = process.env.GREEN_API_ID;
+    const apiToken = process.env.GREEN_API_TOKEN;
+
+    if (!instanceId || !apiToken) {
+      await prisma.notificationLog.create({
+        data: { bookingId, channel, recipient: booking.customerPhone, status: 'FAILED', errorMessage: 'GREEN-API not configured' },
+      });
+      return { success: false, error: 'GREEN-API not configured' };
+    }
+
+    const chatId = `${sanitizePhoneForWhatsApp(booking.customerPhone)}@c.us`;
+    const waUrl = `https://api.green-api.com/waInstance${instanceId}/sendMessage/${apiToken}`;
+
+    const res = await fetch(waUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId, message }),
+    });
+
+    const resultData = res.ok ? ((await res.json()) as { idMessage?: string }) : null;
+    const status = res.ok ? 'SENT' : 'FAILED';
+    const errorMessage = res.ok ? null : `GREEN-API HTTP ${res.status}`;
+
+    await prisma.notificationLog.create({
+      data: {
+        bookingId,
+        channel,
+        recipient: booking.customerPhone,
+        status,
+        errorMessage,
+        messageId: resultData?.idMessage ?? null,
+        sentAt: new Date(),
+      },
+    });
+
+    // Optionally send email fallback for opted-out customers
+    if (!res.ok && booking.customerEmail && !booking.customerEmail.endsWith('@noreply.talago.com')) {
+      try {
+        await sendEmail({
+          to: booking.customerEmail,
+          subject: window === '24h'
+            ? `⏰ Your tour tomorrow — ${tourTitle}`
+            : `🚀 Your tour in 2 hours — ${tourTitle}`,
+          html: `<p>Hi ${booking.customerName},</p><p>${prefix} <strong>${tourTitle}</strong> on ${dateFormatted}.</p>${pickupLine ? `<p>${pickupLine}</p>` : ''}${hotelLine ? `<p>${hotelLine}</p>` : ''}${cashLine ? `<p>${cashLine}</p>` : ''}<p><a href="${bookingUrl}" style="background:#00E5FF;color:#070F1E;padding:12px 24px;border-radius:8px;font-weight:bold;text-decoration:none;display:inline-block">View Boarding Pass</a></p><p>See you soon! — Talago Tours</p>`,
+        });
+      } catch {
+        // non-fatal email fallback failure
+      }
+    }
+
+    return { success: res.ok, error: errorMessage ?? undefined };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    console.error(`[notificationDispatcher] Pre-trip reminder (${window}) failed:`, err);
+    await prisma.notificationLog.create({
+      data: { bookingId, channel, recipient: 'unknown', status: 'FAILED', errorMessage: errorMsg },
+    }).catch(() => {});
+    return { success: false, error: errorMsg };
+  }
+}

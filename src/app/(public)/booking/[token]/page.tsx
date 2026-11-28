@@ -208,7 +208,7 @@ export default function BookingConfirmationPage() {
               <p className="text-slate-500">{dict.bookingPage.guests}</p>
               <p className="font-medium text-white">{booking.guestCount}</p>
             </div>
-            <div>
+            <div id="edit-hotel">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-slate-500">{dict.bookingPage.hotel}</p>
                 {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && !isEditingPickup && (
