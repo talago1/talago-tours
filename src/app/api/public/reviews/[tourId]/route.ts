@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/prisma';
-
-export const dynamic = 'force-dynamic';
 
 interface RouteContext {
   params: { tourId: string };
 }
 
-export async function GET(_request: NextRequest, { params }: RouteContext) {
-  const { tourId } = params;
-
-  if (!tourId) {
-    return NextResponse.json({ error: 'tourId is required' }, { status: 400 });
-  }
-
-  try {
+const getCachedTourReviews = unstable_cache(
+  async (tourId: string) => {
     const tour = await prisma.tour.findUnique({
       where: { id: tourId },
       select: {
@@ -30,9 +23,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       },
     });
 
-    if (!tour) {
-      return NextResponse.json({ error: 'Tour not found' }, { status: 404 });
-    }
+    if (!tour) return null;
 
     const predecessorMap = new Map<string, string>();
     if (tour.predecessors && Array.isArray(tour.predecessors)) {
@@ -58,17 +49,18 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       },
     });
 
-    // Build star distribution (5 → 1)
+    const counts = [0, 0, 0, 0, 0, 0];
+    for (const r of reviews) {
+      if (r.rating >= 1 && r.rating <= 5) counts[r.rating]++;
+    }
+
     const distribution = [5, 4, 3, 2, 1].map((star) => ({
       star,
-      count: reviews.filter((r) => r.rating === star).length,
-      percentage:
-        reviews.length > 0
-          ? Math.round((reviews.filter((r) => r.rating === star).length / reviews.length) * 100)
-          : 0,
+      count: counts[star],
+      percentage: reviews.length > 0 ? Math.round((counts[star] / reviews.length) * 100) : 0,
     }));
 
-    return NextResponse.json({
+    return {
       ratingAverage: tour.ratingAverage,
       ratingCount: tour.ratingCount,
       distribution,
@@ -86,6 +78,29 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
           predecessorTitle,
         };
       }),
+    };
+  },
+  ['public-tour-reviews-v1'],
+  { revalidate: 120, tags: ['reviews', 'tours'] }
+);
+
+export async function GET(_request: NextRequest, { params }: RouteContext) {
+  const { tourId } = params;
+
+  if (!tourId) {
+    return NextResponse.json({ error: 'tourId is required' }, { status: 400 });
+  }
+
+  try {
+    const data = await getCachedTourReviews(tourId);
+    if (!data) {
+      return NextResponse.json({ error: 'Tour not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300',
+      },
     });
   } catch (error) {
     console.error('[GET /api/public/reviews/:tourId] error:', error);
