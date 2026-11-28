@@ -1,21 +1,22 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { QrCode, Camera, CheckCircle2, XCircle, RotateCcw, Users, Building2, Search } from 'lucide-react';
+
+interface CheckedInGuest {
+  passengerName: string;
+  tourTitle: string;
+  paxCount: number;
+  hotelName?: string;
+  roomNumber: string | null;
+  checkedInAt: string;
+}
 
 type ScanState =
   | { status: 'idle' }
   | { status: 'scanning' }
   | { status: 'decoding' }
-  | {
-      status: 'success';
-      data: {
-        passengerName: string;
-        tourTitle: string;
-        paxCount: number;
-        hotelName: string;
-        roomNumber: string | null;
-      };
-    }
+  | { status: 'success'; data: CheckedInGuest }
   | { status: 'error'; error: string };
 
 export default function QRScannerTerminal() {
@@ -24,6 +25,7 @@ export default function QRScannerTerminal() {
   const streamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number>(0);
   const [manualRef, setManualRef] = useState('');
+  const [recentScans, setRecentScans] = useState<CheckedInGuest[]>([]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -33,41 +35,43 @@ export default function QRScannerTerminal() {
     cancelAnimationFrame(animFrameRef.current);
   }, []);
 
-  const verifyCheckIn = useCallback(async (opts: { token?: string; reference?: string }) => {
-    setState({ status: 'decoding' });
-    stopCamera();
+  const verifyCheckIn = useCallback(
+    async (opts: { token?: string; reference?: string }) => {
+      const payloadToken = opts.token || opts.reference || '';
+      if (!payloadToken.trim()) return;
 
-    try {
-      const res = await fetch('/api/admin/operations/verify-qr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(opts),
-      });
-      const data = await res.json();
+      setState({ status: 'decoding' });
+      stopCamera();
 
-      if (data.success) {
-        setState({
-          status: 'success',
-          data: {
+      try {
+        const res = await fetch('/api/admin/operations/verify-qr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: payloadToken.trim() }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          const guest: CheckedInGuest = {
             passengerName: data.passengerName,
             tourTitle: data.tourTitle,
             paxCount: data.paxCount,
             hotelName: data.hotelName,
             roomNumber: data.roomNumber ?? null,
-          },
-        });
-      } else {
-        const errorMsg = data.error || 'Verification failed';
-        setState({ status: 'error', error: errorMsg });
+            checkedInAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          setState({ status: 'success', data: guest });
+          setRecentScans((prev) => [guest, ...prev].slice(0, 6));
+          setManualRef('');
+        } else {
+          setState({ status: 'error', error: data.error || 'Verification failed' });
+        }
+      } catch {
+        setState({ status: 'error', error: 'Network error. Please try again.' });
       }
-    } catch {
-      setState({ status: 'error', error: 'Network error. Please try again.' });
-    }
-  }, [stopCamera]);
-
-  const verifyToken = useCallback(async (token: string) => {
-    return verifyCheckIn({ token });
-  }, [verifyCheckIn]);
+    },
+    [stopCamera]
+  );
 
   const startDecodeLoop = useCallback(() => {
     const loop = async () => {
@@ -80,21 +84,21 @@ export default function QRScannerTerminal() {
         if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
           const detector = new BarcodeDetector({ formats: ['qr_code'] });
           const barcodes = await detector.detect(videoRef.current);
-          if (barcodes.length > 0) {
+          if (barcodes.length > 0 && barcodes[0].rawValue) {
             navigator.vibrate?.(200);
-            await verifyToken(barcodes[0].rawValue);
+            await verifyCheckIn({ token: barcodes[0].rawValue });
             return;
           }
         }
       } catch {
-        // BarcodeDetector unavailable or error - continue scanning
+        // BarcodeDetector unavailable or error — continue scanning
       }
 
       animFrameRef.current = requestAnimationFrame(loop);
     };
 
     animFrameRef.current = requestAnimationFrame(loop);
-  }, [verifyToken]);
+  }, [verifyCheckIn]);
 
   const startCamera = useCallback(async () => {
     setState({ status: 'scanning' });
@@ -118,7 +122,7 @@ export default function QRScannerTerminal() {
     } catch {
       setState({
         status: 'error',
-        error: 'Camera access denied. Please allow camera permissions and try again.',
+        error: 'Camera access denied. Please allow camera permissions or enter the booking reference manually.',
       });
     }
   }, [startDecodeLoop]);
@@ -134,171 +138,209 @@ export default function QRScannerTerminal() {
     };
   }, [stopCamera]);
 
-  if (state.status === 'idle') {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 p-12">
-        <svg className="mb-4 h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-        </svg>
-        <p className="mb-4 text-sm text-gray-500">Point camera at boarding pass QR or enter reference</p>
-        <button
-          onClick={startCamera}
-          className="rounded-xl bg-[#00E5FF] px-8 py-3 text-sm font-bold text-[#070F1E] shadow-lg shadow-cyan-500/20 transition hover:bg-[#00D4F0]"
-        >
-          Start Camera Scanner
-        </button>
+  return (
+    <div className="space-y-6">
+      {state.status === 'idle' && (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-[#0B1528] p-6 sm:p-10 shadow-xl">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#00E5FF]/20 bg-[#00E5FF]/10 text-[#00E5FF]">
+            <QrCode className="h-7 w-7" />
+          </div>
+          <p className="mb-5 text-center text-xs sm:text-sm text-slate-400">
+            Scan the boarding pass QR code or enter the booking reference below.
+          </p>
 
-        <div className="mt-8 w-full max-w-xs border-t border-gray-200 pt-6 text-center">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Or Enter Booking Ref</p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (manualRef.trim()) {
-                verifyCheckIn({ reference: manualRef.trim() });
-              }
-            }}
-            className="flex gap-2"
+          <button
+            type="button"
+            onClick={startCamera}
+            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-[#00E5FF] px-7 py-3 text-sm font-black text-[#070F1E] shadow-lg shadow-[#00E5FF]/20 transition hover:bg-[#00D4F0] active:scale-[0.99]"
           >
-            <input
-              type="text"
-              value={manualRef}
-              onChange={(e) => setManualRef(e.target.value.toUpperCase())}
-              placeholder="e.g. TLG-ABC123"
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono uppercase text-gray-800 placeholder-gray-400 outline-none focus:border-[#00E5FF]"
-            />
-            <button
-              type="submit"
-              disabled={!manualRef.trim()}
-              className="rounded-lg bg-gray-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-gray-800 disabled:opacity-40"
+            <Camera className="h-4 w-4" />
+            <span>Start Camera Scanner</span>
+          </button>
+
+          <div className="mt-8 w-full border-t border-white/10 pt-6">
+            <p className="mb-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              Or Enter Booking Reference
+            </p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (manualRef.trim()) {
+                  verifyCheckIn({ reference: manualRef.trim() });
+                }
+              }}
+              className="flex gap-2"
             >
-              Verify
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="text"
+                  value={manualRef}
+                  onChange={(e) => setManualRef(e.target.value.toUpperCase())}
+                  placeholder="TLG-ABC123"
+                  className="w-full rounded-xl border border-white/15 bg-white/5 py-2.5 pl-9 pr-3 text-sm font-mono uppercase text-white placeholder-slate-500 outline-none focus:border-[#00E5FF]"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!manualRef.trim()}
+                className="rounded-xl bg-white/10 border border-white/15 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-white/20 disabled:opacity-40"
+              >
+                Check In
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {state.status === 'scanning' && (
+        <div className="relative mx-auto overflow-hidden rounded-2xl border border-white/15 bg-black shadow-2xl" style={{ maxWidth: 420, aspectRatio: '3/4' }}>
+          <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
+
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="relative h-52 w-52">
+              <div className="absolute left-0 top-0 h-8 w-8 rounded-tl-md border-l-4 border-t-4 border-[#00E5FF]" />
+              <div className="absolute right-0 top-0 h-8 w-8 rounded-tr-md border-r-4 border-t-4 border-[#00E5FF]" />
+              <div className="absolute bottom-0 left-0 h-8 w-8 rounded-bl-md border-b-4 border-l-4 border-[#00E5FF]" />
+              <div className="absolute bottom-0 right-0 h-8 w-8 rounded-br-md border-b-4 border-r-4 border-[#00E5FF]" />
+              <div className="animate-pulse absolute left-2 right-2 top-1/2 h-0.5 bg-[#00E5FF] shadow-[0_0_12px_#00E5FF]" />
+            </div>
+          </div>
+
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-1/4 bg-gradient-to-b from-black/60 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black/70 to-transparent" />
+
+          <div className="absolute bottom-4 inset-x-0 text-center">
+            <p className="text-xs font-semibold text-white/90">Align QR code inside the frame</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={reset}
+            className="absolute right-3 top-3 rounded-full bg-black/60 border border-white/15 p-2 text-white transition hover:bg-black/80"
+            aria-label="Cancel scanning"
+          >
+            <XCircle className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
+      {state.status === 'decoding' && (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-[#0B1528] p-12">
+          <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#00E5FF] border-t-transparent" />
+          <p className="text-sm font-semibold text-slate-300">Verifying boarding pass...</p>
+        </div>
+      )}
+
+      {state.status === 'success' && (
+        <div className="rounded-2xl border border-emerald-500/30 bg-[#0B1528] p-6 shadow-xl">
+          <div className="mb-5 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/30">
+              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+            </div>
+            <h2 className="text-lg font-black text-emerald-300">Check-In Confirmed</h2>
+          </div>
+
+          <div className="space-y-3 border-t border-white/10 pt-4">
+            <DetailRow label="Passenger" value={state.data.passengerName} />
+            <DetailRow label="Tour" value={state.data.tourTitle} />
+            <DetailRow label="Guests" value={`${state.data.paxCount} pax`} />
+            {state.data.hotelName && <DetailRow label="Hotel" value={state.data.hotelName} />}
+            {state.data.roomNumber && <DetailRow label="Room" value={state.data.roomNumber} />}
+          </div>
+
+          <div className="mt-6 flex flex-col sm:flex-row gap-2.5 justify-center">
+            <button
+              type="button"
+              onClick={startCamera}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#00E5FF] px-6 py-2.5 text-xs font-black text-[#070F1E] transition hover:bg-[#00D4F0]"
+            >
+              <Camera className="h-4 w-4" />
+              <span>Scan Next QR</span>
             </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  if (state.status === 'scanning') {
-    return (
-      <div className="relative mx-auto overflow-hidden rounded-2xl bg-black" style={{ maxWidth: 400, aspectRatio: '3/4' }}>
-        <video
-          ref={videoRef}
-          className="h-full w-full object-cover"
-          playsInline
-          muted
-        />
-
-        {/* Targeting Reticle */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative h-48 w-48">
-            {/* Corner brackets */}
-            <div className="absolute left-0 top-0 h-8 w-8 border-l-3 border-t-3 border-[#FF5B00] rounded-tl-md" />
-            <div className="absolute right-0 top-0 h-8 w-8 border-r-3 border-t-3 border-[#FF5B00] rounded-tr-md" />
-            <div className="absolute bottom-0 left-0 h-8 w-8 border-b-3 border-l-3 border-[#FF5B00] rounded-bl-md" />
-            <div className="absolute bottom-0 right-0 h-8 w-8 border-b-3 border-r-3 border-[#FF5B00] rounded-br-md" />
-
-            {/* Animated Scan Line */}
-            <div className="absolute left-2 right-2 h-0.5 bg-[#FF5B00] shadow-[0_0_8px_#FF5B00] animate-scan" />
+            <button
+              type="button"
+              onClick={reset}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-2.5 text-xs font-bold text-slate-300 transition hover:bg-white/10"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>Manual Entry</span>
+            </button>
           </div>
         </div>
+      )}
 
-        {/* Overlay top/bottom gradients */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-1/4 bg-gradient-to-b from-black/50 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black/50 to-transparent" />
-
-        <div className="absolute bottom-4 left-0 right-0 text-center">
-          <p className="text-sm font-medium text-white/80">Point camera at QR code</p>
-        </div>
-
-        <button
-          onClick={reset}
-          className="absolute right-3 top-3 rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
-          aria-label="Cancel"
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    );
-  }
-
-  if (state.status === 'decoding') {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-2xl bg-gray-50 p-12">
-        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-3 border-[#FF5B00] border-t-transparent" />
-        <p className="text-sm font-medium text-gray-700">Verifying booking...</p>
-      </div>
-    );
-  }
-
-  if (state.status === 'success') {
-    const { data } = state;
-    return (
-      <div className="rounded-2xl border border-emerald-200 bg-white p-6 shadow-lg">
-        <div className="mb-4 text-center">
-          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-            <svg className="h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+      {state.status === 'error' && (
+        <div className="rounded-2xl border border-red-500/30 bg-[#0B1528] p-6 shadow-xl">
+          <div className="text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-red-500/15 border border-red-500/30">
+              <XCircle className="h-8 w-8 text-red-400" />
+            </div>
+            <h2 className="text-lg font-black text-red-300">Check-In Failed</h2>
+            <p className="mt-1.5 text-sm text-slate-400">{state.error}</p>
           </div>
-          <h2 className="text-lg font-bold text-emerald-800">Check-In Successful</h2>
-        </div>
 
-        <div className="space-y-3 border-t border-gray-100 pt-4">
-          <DetailRow label="Passenger" value={data.passengerName} />
-          <DetailRow label="Tour" value={data.tourTitle} />
-          <DetailRow label="Guests" value={`${data.paxCount}`} />
-          <DetailRow label="Hotel" value={data.hotelName} />
-          {data.roomNumber && <DetailRow label="Room" value={data.roomNumber} />}
-        </div>
-
-        <div className="mt-6 flex justify-center">
-          <button
-            onClick={reset}
-            className="rounded-lg bg-[#FF5B00] px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#e65200]"
-          >
-            Scan Next
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (state.status === 'error') {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-lg">
-        <div className="text-center">
-          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-            <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+          <div className="mt-6 flex justify-center gap-3">
+            <button
+              type="button"
+              onClick={reset}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#00E5FF] px-6 py-2.5 text-xs font-black text-[#070F1E] transition hover:bg-[#00D4F0]"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>Try Again</span>
+            </button>
           </div>
-          <h2 className="text-lg font-bold text-red-800">Scan Failed</h2>
-          <p className="mt-2 text-sm text-gray-600">{state.error}</p>
         </div>
+      )}
 
-        <div className="mt-6 flex justify-center gap-3">
-          <button
-            onClick={reset}
-            className="rounded-lg bg-[#FF5B00] px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#e65200]"
-          >
-            Try Again
-          </button>
+      {/* Session Scan History */}
+      {recentScans.length > 0 && (
+        <div className="rounded-2xl border border-white/10 bg-[#0B1528] p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Recent Check-Ins ({recentScans.length})
+            </h3>
+            <span className="text-[11px] text-emerald-400 font-semibold">This session</span>
+          </div>
+          <div className="divide-y divide-white/5">
+            {recentScans.map((scan, idx) => (
+              <div key={`${scan.passengerName}-${idx}`} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-white">{scan.passengerName}</p>
+                  <p className="truncate text-xs text-slate-400 flex items-center gap-2">
+                    <span>{scan.tourTitle}</span>
+                    {scan.hotelName && (
+                      <>
+                        <span>·</span>
+                        <span className="inline-flex items-center gap-1">
+                          <Building2 className="h-3 w-3" />
+                          {scan.hotelName}
+                        </span>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+                    <Users className="h-3 w-3" />
+                    {scan.paxCount}
+                  </span>
+                  <p className="mt-0.5 text-[10px] text-slate-500">{scan.checkedInAt}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  return null;
+      )}
+    </div>
+  );
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>
-      <span className="text-sm font-semibold text-gray-900">{value}</span>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</span>
+      <span className="text-sm font-bold text-white text-right">{value}</span>
     </div>
   );
 }
