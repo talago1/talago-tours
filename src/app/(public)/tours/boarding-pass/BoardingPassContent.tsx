@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useContactSettings } from '@/hooks/useContactSettings';
-import { MessageSquare, Printer, CheckCircle2, Clock } from 'lucide-react';
+import { MessageSquare, Printer, CheckCircle2, Clock, Copy, Check } from 'lucide-react';
 
 interface BoardingPassContentProps {
   bookingReference: string;
@@ -44,6 +45,7 @@ export default function BoardingPassContent({
 }: BoardingPassContentProps) {
   const { dict } = useLanguage();
   const { getWhatsAppUrl } = useContactSettings();
+  const [copied, setCopied] = useState(false);
 
   const whatsappMessage = `Hello Talago Concierge! I have a question regarding my boarding pass: ${bookingReference} for ${tourTitle} (${travelDate}).`;
   const whatsappHref = getWhatsAppUrl(whatsappMessage);
@@ -72,9 +74,23 @@ export default function BoardingPassContent({
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 print:text-gray-500">
                   {dict.voucherPage.booking}
                 </p>
-                <p className="mt-0.5 font-mono text-lg font-black text-white print:text-gray-900">
-                  {bookingReference}
-                </p>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <p className="font-mono text-lg font-black text-white print:text-gray-900">
+                    {bookingReference}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(bookingReference).catch(() => {});
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold text-slate-300 transition hover:border-[#00E5FF]/40 hover:text-[#00E5FF] print:hidden"
+                    title="Copy reference"
+                  >
+                    {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                  </button>
+                </div>
               </div>
               {isCheckedIn ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-300 print:border-emerald-200 print:bg-emerald-100 print:text-emerald-700">

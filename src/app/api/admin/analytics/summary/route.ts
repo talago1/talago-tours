@@ -1,9 +1,54 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { parseSettingValue } from '@/lib/systemSettings';
 import type { ExecutiveDashboardStats, ChannelSummary } from '@/types/analytics';
+
+const getCachedSummaryQueries = unstable_cache(
+  async (startIso: string, endIso: string) => {
+    const startDate = new Date(startIso);
+    const endDate = new Date(endIso);
+    const where = {
+      status: 'CONFIRMED' as const,
+      travelDate: { gte: startDate, lte: endDate },
+    };
+
+    return Promise.all([
+      prisma.booking.aggregate({
+        where,
+        _sum: { totalPriceUSD: true, guestCount: true },
+        _count: true,
+      }),
+      prisma.booking.groupBy({
+        by: ['channel'],
+        where,
+        _sum: { totalPriceUSD: true },
+        _count: true,
+      }),
+      prisma.booking.groupBy({
+        by: ['tourId'],
+        where,
+        _sum: { totalPriceUSD: true, guestCount: true },
+      }),
+      prisma.transaction.aggregate({
+        where: {
+          status: 'SUCCESS',
+          booking: where,
+        },
+        _sum: { amountPaidOnline: true },
+      }),
+      Promise.all([
+        prisma.abandonedCheckout.count({ where: { createdAt: { gte: startDate, lte: endDate } } }),
+        prisma.abandonedCheckout.count({ where: { createdAt: { gte: startDate, lte: endDate }, isRecovered: false } }),
+        prisma.abandonedCheckout.count({ where: { createdAt: { gte: startDate, lte: endDate }, isRecovered: true } }),
+      ]),
+    ]);
+  },
+  ['admin-analytics-summary-v1'],
+  { revalidate: 60, tags: ['analytics', 'bookings'] }
+);
 
 function getTourTitle(translations: unknown, lang = 'en'): string {
   if (typeof translations === 'object' && translations !== null) {
@@ -85,37 +130,8 @@ export async function GET(request: NextRequest) {
       travelDate: { gte: startDate, lte: endDate },
     };
 
-    const [aggregation, channelGroups, tourGroups, transactionAggregation, abandonedCounts] = await Promise.all([
-      prisma.booking.aggregate({
-        where,
-        _sum: { totalPriceUSD: true, guestCount: true },
-        _count: true,
-      }),
-      prisma.booking.groupBy({
-        by: ['channel'],
-        where,
-        _sum: { totalPriceUSD: true },
-        _count: true,
-      }),
-      prisma.booking.groupBy({
-        by: ['tourId'],
-        where,
-        _sum: { totalPriceUSD: true, guestCount: true },
-      }),
-      prisma.transaction.aggregate({
-        where: {
-          status: 'SUCCESS',
-          booking: where,
-        },
-        _sum: { amountPaidOnline: true },
-      }),
-      // Booking funnel: abandoned checkout counts within the same date window
-      Promise.all([
-        prisma.abandonedCheckout.count({ where: { createdAt: { gte: startDate, lte: endDate } } }),
-        prisma.abandonedCheckout.count({ where: { createdAt: { gte: startDate, lte: endDate }, isRecovered: false } }),
-        prisma.abandonedCheckout.count({ where: { createdAt: { gte: startDate, lte: endDate }, isRecovered: true } }),
-      ]),
-    ]);
+    const [aggregation, channelGroups, tourGroups, transactionAggregation, abandonedCounts] =
+      await getCachedSummaryQueries(startDate.toISOString(), endDate.toISOString());
 
     const grossRevenueUSD = aggregation._sum.totalPriceUSD ?? 0;
     const onlineCapturedRevenueUSD = transactionAggregation._sum.amountPaidOnline ?? 0;

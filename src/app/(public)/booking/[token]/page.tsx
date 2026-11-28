@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabaseClient } from '@/lib/supabase/client';
-import { ChevronLeft, Ticket, ArrowRight, MessageSquare, Pencil, Check } from 'lucide-react';
+import { ChevronLeft, Ticket, ArrowRight, MessageSquare, Pencil, Check, Copy } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import CancellationModal from '@/components/modals/CancellationModal';
 import { XCircle } from 'lucide-react';
@@ -58,6 +58,7 @@ export default function BookingConfirmationPage() {
   const [editRoom, setEditRoom] = useState('');
   const [savingPickup, setSavingPickup] = useState(false);
   const [pickupSavedMsg, setPickupSavedMsg] = useState<string | null>(null);
+  const [copiedRef, setCopiedRef] = useState(false);
 
   useEffect(() => {
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
@@ -185,9 +186,25 @@ export default function BookingConfirmationPage() {
                 {isPending && dict.bookingPage.paymentPending}
                 {isFailed && dict.bookingPage.paymentFailed}
               </h1>
-              <p className="text-sm text-slate-400">
-                {dict.bookingPage.reference} <strong className="text-slate-200">{booking.bookingReference}</strong>
-              </p>
+              <div className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+                <span>
+                  {dict.bookingPage.reference}{' '}
+                  <strong className="font-mono text-slate-200">{booking.bookingReference}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(booking.bookingReference).catch(() => {});
+                    setCopiedRef(true);
+                    setTimeout(() => setCopiedRef(false), 2000);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition hover:border-[#00E5FF]/40 hover:text-[#00E5FF]"
+                  title="Copy booking reference"
+                >
+                  {copiedRef ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                  <span>{copiedRef ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
             </div>
           </div>
 

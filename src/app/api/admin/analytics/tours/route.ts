@@ -1,8 +1,52 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import type { TourPerformanceItem } from '@/types/analytics';
+
+const getCachedTourAnalyticsQueries = unstable_cache(
+  async (startIso: string, endIso: string) => {
+    const startDate = new Date(startIso);
+    const endDate = new Date(endIso);
+    const bookingWhere = {
+      status: 'CONFIRMED' as const,
+      travelDate: { gte: startDate, lte: endDate },
+    };
+    const interestWhere = {
+      createdAt: { gte: startDate, lte: endDate },
+      status: 'INTERESTED' as const,
+      source: { not: 'INQUIRY' },
+    };
+
+    return Promise.all([
+      prisma.booking.groupBy({
+        by: ['tourId'],
+        where: bookingWhere,
+        _sum: { totalPriceUSD: true, guestCount: true },
+        _count: true,
+      }),
+      prisma.booking.groupBy({
+        by: ['tourId'],
+        where: {
+          ...interestWhere,
+          tourId: { not: null },
+        },
+        _count: true,
+      }),
+      prisma.tour.findMany({
+        select: {
+          id: true,
+          slug: true,
+          translations: true,
+          status: true,
+        },
+      }),
+    ]);
+  },
+  ['admin-analytics-tours-v1'],
+  { revalidate: 60, tags: ['analytics', 'bookings', 'tours'] }
+);
 
 function getTourTitle(translations: unknown, lang = 'en'): string {
   if (typeof translations === 'object' && translations !== null) {
@@ -79,41 +123,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const bookingWhere = {
-      status: 'CONFIRMED' as const,
-      travelDate: { gte: startDate, lte: endDate },
-    };
-
-    const interestWhere = {
-      createdAt: { gte: startDate, lte: endDate },
-      status: 'INTERESTED' as const,
-      source: { not: 'INQUIRY' },
-    };
-
-    const [bookingGroups, leadGroups, allTours] = await Promise.all([
-      prisma.booking.groupBy({
-        by: ['tourId'],
-        where: bookingWhere,
-        _sum: { totalPriceUSD: true, guestCount: true },
-        _count: true,
-      }),
-      prisma.booking.groupBy({
-        by: ['tourId'],
-        where: {
-          ...interestWhere,
-          tourId: { not: null },
-        },
-        _count: true,
-      }),
-      prisma.tour.findMany({
-        select: {
-          id: true,
-          slug: true,
-          translations: true,
-          status: true,
-        },
-      }),
-    ]);
+    const [bookingGroups, leadGroups, allTours] = await getCachedTourAnalyticsQueries(
+      startDate.toISOString(),
+      endDate.toISOString()
+    );
 
     const tourMap = new Map(allTours.map((t) => [t.id, t]));
     const bookingMap = new Map(bookingGroups.filter((b) => Boolean(b.tourId)).map((b) => [b.tourId as string, b]));
