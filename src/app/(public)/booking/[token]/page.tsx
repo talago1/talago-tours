@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabaseClient } from '@/lib/supabase/client';
-import { ChevronLeft, Ticket, ArrowRight, MessageSquare } from 'lucide-react';
+import { ChevronLeft, Ticket, ArrowRight, MessageSquare, Pencil, Check } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import CancellationModal from '@/components/modals/CancellationModal';
 import { XCircle } from 'lucide-react';
@@ -53,6 +53,11 @@ export default function BookingConfirmationPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [cancellationPending, setCancellationPending] = useState(false);
+  const [isEditingPickup, setIsEditingPickup] = useState(false);
+  const [editHotel, setEditHotel] = useState('');
+  const [editRoom, setEditRoom] = useState('');
+  const [savingPickup, setSavingPickup] = useState(false);
+  const [pickupSavedMsg, setPickupSavedMsg] = useState<string | null>(null);
 
   useEffect(() => {
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
@@ -78,6 +83,8 @@ export default function BookingConfirmationPage() {
         if (!res.ok) throw new Error('Failed to load');
         const data = await res.json();
         setBooking(data);
+        setEditHotel(data.hotelName || '');
+        setEditRoom(data.roomNumber || '');
         setPageState('found');
 
         if (data.status === 'CONFIRMED') {
@@ -202,8 +209,101 @@ export default function BookingConfirmationPage() {
               <p className="font-medium text-white">{booking.guestCount}</p>
             </div>
             <div>
-              <p className="text-slate-500">{dict.bookingPage.hotel}</p>
-              <p className="font-medium text-white">{booking.hotelName}{booking.roomNumber ? ` (${dict.bookingPage.room} ${booking.roomNumber})` : ''}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-slate-500">{dict.bookingPage.hotel}</p>
+                {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && !isEditingPickup && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPickupSavedMsg(null);
+                      setIsEditingPickup(true);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-[#00E5FF] hover:underline"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit
+                  </button>
+                )}
+              </div>
+              {isEditingPickup ? (
+                <div className="mt-1.5 space-y-2">
+                  <input
+                    type="text"
+                    value={editHotel}
+                    onChange={(e) => setEditHotel(e.target.value)}
+                    placeholder="Hotel or meeting point"
+                    maxLength={120}
+                    className="w-full rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-white focus:border-[#00E5FF] focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={editRoom}
+                    onChange={(e) => setEditRoom(e.target.value)}
+                    placeholder="Room # (optional)"
+                    maxLength={30}
+                    className="w-full rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-white focus:border-[#00E5FF] focus:outline-none"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={savingPickup}
+                      onClick={async () => {
+                        setSavingPickup(true);
+                        try {
+                          const res = await fetch('/api/public/bookings', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              token,
+                              hotelName: editHotel,
+                              roomNumber: editRoom,
+                            }),
+                          });
+                          if (res.ok) {
+                            const updated = await res.json();
+                            setBooking((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    hotelName: updated.hotelName,
+                                    roomNumber: updated.roomNumber,
+                                  }
+                                : prev
+                            );
+                            setIsEditingPickup(false);
+                            setPickupSavedMsg('Updated');
+                          }
+                        } finally {
+                          setSavingPickup(false);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg bg-[#00E5FF] px-3 py-1 text-xs font-bold text-[#070F1E] hover:bg-[#00D4F0] disabled:opacity-50"
+                    >
+                      <Check className="h-3 w-3" />
+                      {savingPickup ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditHotel(booking.hotelName || '');
+                        setEditRoom(booking.roomNumber || '');
+                        setIsEditingPickup(false);
+                      }}
+                      className="rounded-lg border border-white/10 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/5"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="font-medium text-white">
+                  {booking.hotelName || '—'}
+                  {booking.roomNumber ? ` (${dict.bookingPage.room} ${booking.roomNumber})` : ''}
+                  {pickupSavedMsg && (
+                    <span className="ml-2 text-xs text-emerald-400">✓ {pickupSavedMsg}</span>
+                  )}
+                </p>
+              )}
             </div>
             <div>
               <p className="text-slate-500">{dict.bookingPage.travelDate}</p>

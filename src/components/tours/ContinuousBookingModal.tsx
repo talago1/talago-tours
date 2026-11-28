@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Image from 'next/image';
 import {
   X,
   Calendar,
@@ -1485,9 +1486,12 @@ export default function ContinuousBookingModal({
               <div className="lg:col-span-5 rounded-2xl border border-white/10 bg-white/[0.02] p-5 space-y-4">
                 <div className="flex items-center gap-3 pb-3 border-b border-white/5">
                   {tour.coverImage && (
-                    <img
+                    <Image
                       src={tour.coverImage}
                       alt={tour.title}
+                      width={56}
+                      height={48}
+                      unoptimized={tour.coverImage.startsWith('http')}
                       className="h-12 w-14 rounded-xl object-cover border border-white/10 shrink-0"
                     />
                   )}

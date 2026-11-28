@@ -113,3 +113,84 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+/**
+ * PATCH /api/public/bookings
+ * Self-service pickup update (hotelName, roomNumber, specialRequirements)
+ * authorized strictly by the booking's 256-bit accessToken.
+ */
+export async function PATCH(request: NextRequest) {
+  const limit = rateLimit(clientKey(request, 'bookings-self-update'), LIMIT, WINDOW_MS);
+  if (!limit.allowed) {
+    return tooManyRequests(limit.retryAfterSeconds);
+  }
+
+  try {
+    const body = await request.json();
+    const token = typeof body?.token === 'string' ? body.token : null;
+
+    if (!isPlausibleAccessToken(token)) {
+      return NextResponse.json(
+        { error: 'Missing or invalid access token' },
+        { status: 401, headers: NO_STORE },
+      );
+    }
+
+    const existing = await prisma.booking.findUnique({
+      where: { accessToken: token },
+      select: { id: true, status: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Booking not found' },
+        { status: 404, headers: NO_STORE },
+      );
+    }
+
+    if (existing.status === 'CANCELLED' || existing.status === 'COMPLETED') {
+      return NextResponse.json(
+        { error: 'This booking can no longer be modified' },
+        { status: 400, headers: NO_STORE },
+      );
+    }
+
+    const data: Record<string, string | null> = {};
+    if (typeof body.hotelName === 'string') {
+      data.hotelName = body.hotelName.trim().slice(0, 120) || '';
+    }
+    if (body.roomNumber !== undefined) {
+      const cleaned = typeof body.roomNumber === 'string' ? body.roomNumber.trim().slice(0, 30) : '';
+      data.roomNumber = cleaned || null;
+    }
+    if (body.specialRequirements !== undefined) {
+      const cleaned = typeof body.specialRequirements === 'string' ? body.specialRequirements.trim().slice(0, 400) : '';
+      data.specialRequirements = cleaned || null;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json(
+        { error: 'No valid fields to update' },
+        { status: 400, headers: NO_STORE },
+      );
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: existing.id },
+      data,
+      select: {
+        hotelName: true,
+        roomNumber: true,
+        specialRequirements: true,
+      },
+    });
+
+    return NextResponse.json(updated, { headers: NO_STORE });
+  } catch (error) {
+    console.error('[api/public/bookings] PATCH error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update pickup details' },
+      { status: 500, headers: NO_STORE },
+    );
+  }
+}
