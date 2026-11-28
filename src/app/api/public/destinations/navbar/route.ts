@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
-  try {
-    const destinations = await prisma.destination.findMany({
+export const revalidate = 300;
+
+const getNavbarDestinations = unstable_cache(
+  async () => {
+    return prisma.destination.findMany({
       where: { isVisible: true },
       select: {
         id: true,
@@ -13,8 +16,23 @@ export async function GET() {
       },
       orderBy: { name: 'asc' },
     });
+  },
+  ['navbar-destinations-v1'],
+  { revalidate: 300, tags: ['destinations'] }
+);
 
-    return NextResponse.json({ destinations });
+export async function GET() {
+  try {
+    const destinations = await getNavbarDestinations();
+
+    return NextResponse.json(
+      { destinations },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      }
+    );
   } catch {
     return NextResponse.json(
       { error: 'Failed to fetch destinations' },

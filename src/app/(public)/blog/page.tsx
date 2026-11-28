@@ -1,9 +1,36 @@
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import BlogClient from './BlogClient';
 import type { Metadata } from 'next';
 import { resolveServerLanguage } from '@/lib/i18n.server';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 120;
+
+const getCachedBlogPosts = unstable_cache(
+  async () => {
+    return prisma.blogPost.findMany({
+      where: { isPublished: true },
+      orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
+      take: 36,
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        excerpt: true,
+        coverImage: true,
+        category: true,
+        tags: true,
+        authorName: true,
+        readTimeMinutes: true,
+        isFeatured: true,
+        translations: true,
+        createdAt: true,
+      },
+    });
+  },
+  ['public-blog-list-v1'],
+  { revalidate: 120, tags: ['blog'] }
+);
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://talago-tours.com';
 const BLOG_DESCRIPTION =
@@ -60,24 +87,7 @@ export async function generateMetadata({
 }
 
 export default async function BlogPage() {
-  const posts = await prisma.blogPost.findMany({
-    where: { isPublished: true },
-    orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      excerpt: true,
-      coverImage: true,
-      category: true,
-      tags: true,
-      authorName: true,
-      readTimeMinutes: true,
-      isFeatured: true,
-      translations: true,
-      createdAt: true,
-    },
-  });
+  const posts = await getCachedBlogPosts();
 
   const serialized = posts.map((p) => ({
     ...p,

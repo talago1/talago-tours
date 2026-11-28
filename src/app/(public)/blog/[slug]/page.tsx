@@ -1,10 +1,24 @@
+import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import BlogPostClient from './BlogPostClient';
 import type { Metadata } from 'next';
 import { resolveServerLanguage } from '@/lib/i18n.server';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 120;
+
+const getCachedBlogPost = cache(async (slug: string) => {
+  return unstable_cache(
+    async () => {
+      return prisma.blogPost.findFirst({
+        where: { slug, isPublished: true },
+      });
+    },
+    [`public-blog-post-v1-${slug}`],
+    { revalidate: 120, tags: ['blog', `blog-${slug}`] }
+  )();
+});
 
 interface Props {
   params: { slug: string };
@@ -17,10 +31,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const lang = resolveServerLanguage(searchParams);
   // Must respect isPublished, otherwise a draft's title and excerpt leak into
   // search results and social previews even though the page 404s.
-  const post = await prisma.blogPost.findFirst({
-    where: { slug: params.slug, isPublished: true },
-    select: { title: true, excerpt: true, coverImage: true, updatedAt: true, translations: true },
-  });
+  const post = await getCachedBlogPost(params.slug);
 
   if (!post) {
     return { title: 'Article Not Found', robots: { index: false, follow: false } };
@@ -59,7 +70,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       siteName: 'TALAGO',
       locale: `${lang}_${lang.toUpperCase()}`,
       type: 'article',
-      modifiedTime: post.updatedAt.toISOString(),
+      modifiedTime: new Date(post.updatedAt).toISOString(),
       images: [
         {
           url: image,
@@ -80,9 +91,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 }
 
 export default async function BlogPostPage({ params, searchParams }: Props) {
-  const post = await prisma.blogPost.findUnique({
-    where: { slug: params.slug, isPublished: true },
-  });
+  const post = await getCachedBlogPost(params.slug);
 
   if (!post) {
     notFound();
@@ -109,8 +118,8 @@ export default async function BlogPostPage({ params, searchParams }: Props) {
     description: postDescription,
     image: postImage,
     url: postUrl,
-    datePublished: post.createdAt.toISOString(),
-    dateModified: post.updatedAt.toISOString(),
+    datePublished: new Date(post.createdAt).toISOString(),
+    dateModified: new Date(post.updatedAt).toISOString(),
     author: {
       '@type': 'Organization',
       name: post.authorName || 'TALAGO Tours',
